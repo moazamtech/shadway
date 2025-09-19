@@ -6,158 +6,40 @@ import {
   Layers,
   Globe} from "lucide-react";
 import Image from "next/image";
+import { Website } from "@/lib/types";
 
-export default function Home() {
-  const featuredWebsites = [
-    {
-      name: "Mvpblocks",
-      description: "Copy, paste, customize—and launch your idea faster than ever. Mvpblocks is a fully open-source, developer-first component library.",
-      url: "https://blocks.mvp-subha.me/",
-      image: "https://i.postimg.cc/Wz9JFxdW/mvpblocksog.webp",
-      category: "Components"
-    },
-    {
-      name: "React Bits",
-      description: "An open source collection of high quality, animated, interactive & fully customizable React components for building stunning, memorable user interfaces.",
-      url: "https://www.reactbits.dev/",
-      image: "https://reactbits.dev/og-pic.png",
-      category: "Animated"
-    },
-    {
-      name: "Commerce UI",
-      description: "The Commerce UI is a set of components and hooks that can be used to build a custom storefront for your commerce site.",
-      url: "https://ui.stackzero.co/",
-      image: "https://ui.stackzero.co/opengraph-image.jpg?72735195b426f1bf",
-      category: "Commerce"
-    },
-    {
-      name: "Skiper UI",
-      description: "Discover 73+ premium React components built on shadcn/ui. From scroll effects to interactive animations, enhance your Next.js projects with our unique component library.",
-      url: "https://skiper-ui.com/",
-      image: "https://skiper-ui.com/og.png",
-      category: "Premium"
-    },
-    {
-      name: "Shadcn UI",
-      description: "Beautifully designed components that you can copy and paste into your apps. Accessible. Customizable. Open Source.",
-      url: "https://ui.shadcn.com/",
-      image: "https://ui.shadcn.com/og?title=The%20Foundation%20for%20your%20Design%20System&description=A%20set%20of%20beautifully%20designed%20components%20that%20you%20can%20customize%2C%20extend%2C%20and%20build%20on.%20Start%20here%20then%20make%20it%20your%20own.%20Open%20Source.%20Open%20Code.",
-      category: "Official"
-    },
-    {
-      name: "Magic UI",
-      description: "20+ free and open-source animated components built with React, Typescript, Tailwind CSS, and Framer Motion. Perfect companion to shadcn/ui.",
-      url: "https://magicui.design/",
-      image: "https://magicui.design/og",
-      category: "Animated"
-    },
-    {
-      name: "Aceternity UI",
-      description: "Copy paste the most trending components and use them in your websites without having to worry about styling and animations.",
-      url: "https://ui.aceternity.com/",
-      image: "https://aceternity.com/cdn-cgi/image/width=3840/https://assets.aceternity.com/pro/aceternity-landing.webp",
-      category: "Components"
-    },
-    {
-      name: "Tremor",
-      description: "The React library to build dashboards fast. Modular components built on top of Tailwind CSS. Fully open-source.",
-      url: "https://tremor.so/",
-      image: "https://tremor.so/opengraph-image.png?f5bbf8e00be369e2",
-      category: "Dashboard"
-    },
-    {
-      name: "NextUI (HeroUI)",
-      description: "Beautiful, fast and modern React UI library that allows you to create beautiful websites regardless of your design experience.",
-      url: "https://heroui.com/",
-      image: "https://www.heroui.com/heroui.jpg",
-      category: "Components"
-    },
-    {
-      name: "Taxonomy",
-      description: "An open source application built using the new router, server components and everything new in Next.js 13.",
-      url: "https://tx.shadcn.com/",
-      image: "https://tx-ag2297lx7-shadcn-pro.vercel.app/opengraph-image.jpg?a25ca70e900445ed",
-      category: "Template"
-    },
-    {
-      name: "Plate",
-      description: "The rich-text editor for React. Build complex editor experiences with pre-built components.",
-      url: "https://platejs.org/",
-      image: "https://platejs.org/og?title=Build%20your%20rich-text%20editor&description=A%20set%20of%20beautifully-designed%2C%20customizable%20plugins%20and%20components%20to%20help%20you%20build%20your%20rich-text%20editor.%20Open%20Source.",
-      category: "Editor"
-    },
-    {
-      name: "Shadcn Blocks",
-      description: "Ready-to-use shadcn/ui blocks that you can copy and paste into your projects. Built with React and Tailwind CSS.",
-      url: "https://ui.shadcn.com/blocks",
-      image: "https://ui.shadcn.com/og?title=The%20Foundation%20for%20your%20Design%20System&description=A%20set%20of%20beautifully%20designed%20components%20that%20you%20can%20customize%2C%20extend%2C%20and%20build%20on.%20Start%20here%20then%20make%20it%20your%20own.%20Open%20Source.%20Open%20Code.",
-      category: "Blocks"
-    },
-    {
-      name: "Shadcn Charts",
-      description: "Charts built using shadcn/ui and Recharts. Copy and paste into your apps.",
-      url: "https://ui.shadcn.com/charts",
-      image: "https://ui.shadcn.com/og?title=Beautiful%20Charts%20%26%20Graphs&description=A%20collection%20of%20ready-to-use%20chart%20components%20built%20with%20Recharts.%20From%20basic%20charts%20to%20rich%20data%20displays%2C%20copy%20and%20paste%20into%20your%20apps.",
-      category: "Charts"
-    },
-    {
-      name: "Novel",
-      description: "An open-source Notion-style WYSIWYG editor with AI-powered autocompletions built with Tiptap and Vercel AI SDK.",
-      url: "https://novel.sh/",
-      image: "https://novel.sh/opengraph-image.png?73cb1c6d8589016e",
-      category: "Editor"
-    },
-    {
-      name: "Craft UI",
-      description: "Building blocks for your Next.js project. Copy-paste components built with Tailwind CSS and shadcn/ui.",
-      url: "https://craft.mxkaske.dev/",
-      image: "https://craft.mxkaske.dev/api/og?title=craft.mxkaske.dev&description=Never.%20Stop.%20Crafting.",
-      category: "Components"
-    },
-    {
-      name: "Shadcn Extension",
-      description: "An extension library for shadcn/ui. Add more components and utilities to your project.",
-      url: "https://shadcn-extension.vercel.app/",
-      image: "https://shadcn-extension-landing.vercel.app/og.png",
-      category: "Extension"
-    },
-    {
-      name: "Origin UI",
-      description: "Beautiful UI components built on top of shadcn/ui and Tailwind CSS. Copy, paste, and customize.",
-      url: "https://originui.com/",
-      image: "https://originui.com/opengraph-image.jpg?2c969d23ed72e3ae",
-      category: "Components"
-    },
-    {
-      name: "Cult UI",
-      description: "A curated collection of the best shadcn/ui components from the community. High quality and production ready.",
-      url: "https://www.cult-ui.com/",
-      image: "https://cult-ui.com/og.png",
-      category: "Community"
-    },
-    {
-      name: "Components.work",
-      description: "Collection of Typescript React components for Next JS built using Tailwind and shadcn/ui. Created by Bridger Tower.",
-      url: "https://components.work/",
-      image: "https://components.work/opengraph-image.jpg",
-      category: "Components"
-    },
-    {
-      name: "Lina",
-      description: "A responsive scroll area that feels native on touch, and custom where it matters.",
-      url: "https://lina.sameer.sh/",
-      image: "https://lina.sameer.sh/og-image.png",
-      category: "Components"
+async function getWebsites(): Promise<Website[]> {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/websites`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch websites');
+      return [];
     }
-  ];
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching websites:', error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  const allWebsites = await getWebsites();
+  // Sort websites by sequence (lower numbers first), then by name
+  const featuredWebsites = allWebsites.sort((a, b) => {
+    const seqA = a.sequence || 0;
+    const seqB = b.sequence || 0;
+    if (seqA !== seqB) return seqA - seqB;
+    return a.name.localeCompare(b.name);
+  });
 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Hero Section */}
-    
-
-      {/* Featured Websites Section */}
+      {/* Featured Websites Section - Now First */}
       <section id="websites" className="py-20 bg-muted/30">
         <div className="container max-w-7xl mx-auto px-4">
           <div className="text-center mb-16">
@@ -169,7 +51,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredWebsites.map((website, index) => (
-              <Card key={index} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-card/50 backdrop-blur h-full flex flex-col rounded-xl">
+              <Card key={website._id || index} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-card/50 backdrop-blur h-full flex flex-col rounded-xl">
                 {/* Image */}
                 <div className="relative h-56 bg-muted overflow-hidden rounded-t-xl">
                   <Image
