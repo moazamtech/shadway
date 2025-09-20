@@ -1,13 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  ExternalLink,
-  Layers,
-  Globe} from "lucide-react";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Layers } from "lucide-react";
 import Image from "next/image";
 import { Website } from "@/lib/types";
-import { VisitWebsiteButton } from "@/components/visit-website-button";
+import { WebsiteCards } from "@/components/website-cards";
 
 async function getWebsites(): Promise<Website[]> {
   try {
@@ -27,82 +23,15 @@ async function getWebsites(): Promise<Website[]> {
   }
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ debug?: string }> }) {
+export default async function Home() {
   // Get websites already sorted by sequence from API
   const featuredWebsites = await getWebsites();
-  const params = await searchParams;
-  const showDebug = params.debug === '1' || process.env.NODE_ENV === 'development';
 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Featured Websites Section - Now First */}
-      <section id="websites" className="py-20 bg-muted/30">
-        <div className="container max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Shadcn UI Ecosystem</h2>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-              Explore the complete ecosystem of websites, tools, and components built with Shadcn UI
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredWebsites.map((website, index) => (
-              <Card key={website._id || index} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-card/50 backdrop-blur h-full flex flex-col rounded-xl cursor-pointer">
-                {/* Image */}
-                <div className="relative h-56 bg-muted overflow-hidden rounded-t-xl">
-                  <Image
-                    src={website.image}
-                    alt={`${website.name} preview`}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    priority={index < 6}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-
-                  {/* Sequence indicator for debugging (visible in dev or with ?debug=1) */}
-                  {showDebug && (
-                    <Badge
-                      variant="outline"
-                      className="absolute top-4 left-4 bg-primary/90 text-primary-foreground border-0 text-xs rounded-lg font-mono"
-                      title={`Sequence: ${website.sequence || 0}`}
-                    >
-                      #{website.sequence || 0}
-                    </Badge>
-                  )}
-
-                  <Badge
-                    variant="secondary"
-                    className="absolute top-4 right-4 bg-background/90 backdrop-blur text-foreground border-0 text-xs rounded-lg"
-                  >
-                    {website.category}
-                  </Badge>
-                </div>
-
-                <CardHeader className="space-y-3 p-6 flex-grow">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Globe className="w-5 h-5 text-primary flex-shrink-0" />
-                      <CardTitle className="text-lg font-bold leading-tight">{website.name}</CardTitle>
-                    </div>
-                  </div>
-                  <CardDescription className="text-sm leading-relaxed text-muted-foreground line-clamp-3">
-                    {website.description}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-6 pt-0 mt-auto">
-                  <VisitWebsiteButton
-                    url={website.url}
-                    className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200 rounded-lg"
-                  />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Website Cards Section */}
+      <WebsiteCards websites={featuredWebsites} />
 
       {/* CTA Section */}
       <section className="py-20">
