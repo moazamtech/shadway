@@ -7,6 +7,7 @@ import {
   Globe} from "lucide-react";
 import Image from "next/image";
 import { Website } from "@/lib/types";
+import { VisitWebsiteButton } from "@/components/visit-website-button";
 
 async function getWebsites(): Promise<Website[]> {
   try {
@@ -26,15 +27,11 @@ async function getWebsites(): Promise<Website[]> {
   }
 }
 
-export default async function Home() {
-  const allWebsites = await getWebsites();
-  // Sort websites by sequence (lower numbers first), then by name
-  const featuredWebsites = allWebsites.sort((a, b) => {
-    const seqA = a.sequence || 0;
-    const seqB = b.sequence || 0;
-    if (seqA !== seqB) return seqA - seqB;
-    return a.name.localeCompare(b.name);
-  });
+export default async function Home({ searchParams }: { searchParams: Promise<{ debug?: string }> }) {
+  // Get websites already sorted by sequence from API
+  const featuredWebsites = await getWebsites();
+  const params = await searchParams;
+  const showDebug = params.debug === '1' || process.env.NODE_ENV === 'development';
 
 
   return (
@@ -51,7 +48,7 @@ export default async function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredWebsites.map((website, index) => (
-              <Card key={website._id || index} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-card/50 backdrop-blur h-full flex flex-col rounded-xl">
+              <Card key={website._id || index} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-card/50 backdrop-blur h-full flex flex-col rounded-xl cursor-pointer">
                 {/* Image */}
                 <div className="relative h-56 bg-muted overflow-hidden rounded-t-xl">
                   <Image
@@ -63,6 +60,18 @@ export default async function Home() {
                     priority={index < 6}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+
+                  {/* Sequence indicator for debugging (visible in dev or with ?debug=1) */}
+                  {showDebug && (
+                    <Badge
+                      variant="outline"
+                      className="absolute top-4 left-4 bg-primary/90 text-primary-foreground border-0 text-xs rounded-lg font-mono"
+                      title={`Sequence: ${website.sequence || 0}`}
+                    >
+                      #{website.sequence || 0}
+                    </Badge>
+                  )}
+
                   <Badge
                     variant="secondary"
                     className="absolute top-4 right-4 bg-background/90 backdrop-blur text-foreground border-0 text-xs rounded-lg"
@@ -84,16 +93,10 @@ export default async function Home() {
                 </CardHeader>
 
                 <CardContent className="p-6 pt-0 mt-auto">
-                  <Button
-                    size="sm"
-                    asChild
+                  <VisitWebsiteButton
+                    url={website.url}
                     className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200 rounded-lg"
-                  >
-                    <a href={website.url} target="_blank" rel="noopener noreferrer">
-                      Visit Website
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </a>
-                  </Button>
+                  />
                 </CardContent>
               </Card>
             ))}

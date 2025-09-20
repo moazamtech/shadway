@@ -7,13 +7,14 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { db } = await connectToDatabase();
     const websites = db.collection<Website>('websites');
 
-    const website = await websites.findOne({ _id: new ObjectId(params.id) });
+    const website = await websites.findOne({ _id: new ObjectId(id) });
 
     if (!website) {
       return NextResponse.json(
@@ -34,9 +35,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -47,7 +49,7 @@ export async function PUT(
     }
 
     const data = await request.json();
-    const { name, description, url, image, category, tags, featured } = data;
+    const { name, description, url, image, category, tags, featured, sequence } = data;
 
     if (!name || !description || !url || !image || !category) {
       return NextResponse.json(
@@ -67,11 +69,12 @@ export async function PUT(
       category,
       tags: tags || [],
       featured: featured || false,
+      sequence: sequence !== undefined ? sequence : 0,
       updatedAt: new Date(),
     };
 
     const result = await websites.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: updateData }
     );
 
@@ -94,9 +97,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -109,7 +113,7 @@ export async function DELETE(
     const { db } = await connectToDatabase();
     const websites = db.collection<Website>('websites');
 
-    const result = await websites.deleteOne({ _id: new ObjectId(params.id) });
+    const result = await websites.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

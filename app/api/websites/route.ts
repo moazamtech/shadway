@@ -10,7 +10,7 @@ export async function GET() {
     const { db } = await connectToDatabase();
     const websites = db.collection<Website>('websites');
 
-    const allWebsites = await websites.find({}).sort({ createdAt: -1 }).toArray();
+    const allWebsites = await websites.find({}).sort({ sequence: 1, createdAt: -1 }).toArray();
 
     return NextResponse.json(allWebsites);
   } catch (error) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { name, description, url, image, category, tags, featured } = data;
+    const { name, description, url, image, category, tags, featured, sequence } = data;
 
     if (!name || !description || !url || !image || !category) {
       return NextResponse.json(
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       category,
       tags: tags || [],
       featured: featured || false,
+      sequence: sequence || 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

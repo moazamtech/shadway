@@ -5,15 +5,15 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DialogTrigger } from '@/components/ui/dialog';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, ArrowUpDown } from 'lucide-react';
 import { Website } from '@/lib/types';
 import {
   AdminHeader,
   StatsCards,
   SearchFilter,
   WebsitesTable,
-  WebsiteFormDialog
+  WebsiteFormDialog,
+  WebsiteReorderDialog
 } from './components';
 
 interface DashboardStats {
@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
+  const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -210,6 +211,27 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBulkReorder = async (websiteIds: string[]) => {
+    try {
+      const response = await fetch('/api/websites/reorder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ websiteIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update website order');
+      }
+
+      await fetchWebsites();
+    } catch (error) {
+      console.error('Error updating website order:', error);
+      throw error;
+    }
+  };
+
   // Loading state
   if (status === 'loading' || loading) {
     return (
@@ -246,10 +268,21 @@ export default function AdminDashboard() {
                 </CardDescription>
               </div>
 
-              <Button onClick={handleAddNew} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Website
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsReorderDialogOpen(true)}
+                  variant="outline"
+                  className="gap-2"
+                  disabled={websites.length < 2}
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  Reorder
+                </Button>
+                <Button onClick={handleAddNew} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Website
+                </Button>
+              </div>
             </div>
 
             <SearchFilter
@@ -309,6 +342,13 @@ export default function AdminDashboard() {
         onSubmit={handleSubmit}
         website={editingWebsite}
         isLoading={submitting}
+      />
+
+      <WebsiteReorderDialog
+        isOpen={isReorderDialogOpen}
+        onClose={() => setIsReorderDialogOpen(false)}
+        websites={websites}
+        onReorder={handleBulkReorder}
       />
     </div>
   );
