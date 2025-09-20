@@ -71,13 +71,13 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                   variants={cardVariants}
                   className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[28px] xs:text-[32px] sm:text-[42px] md:text-[48px] lg:text-[56px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0"
                 >
-                  Shadcn UI Website Collection
+                  Shadway Website Collection
                 </motion.div>
                 <motion.div
                   variants={cardVariants}
                   className="w-full max-w-[480px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
                 >
-                  Discover beautiful websites and components built with Shadcn UI
+                  Discover beautiful websites and components curated by Shadway
                 </motion.div>
               </div>
 

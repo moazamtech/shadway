@@ -119,6 +119,41 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Fix cursor issues */
+  button, [role="button"], .cursor-pointer {
+    cursor: pointer !important;
+  }
+
+  a {
+    cursor: pointer !important;
+  }
+
+  /* Override any text cursor on interactive elements */
+  button *, [role="button"] *, a * {
+    cursor: inherit !important;
+  }
+
+  /* Hide scrollbars */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  *::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Webkit */
+  }
+
+  /* Ensure html and body hide scrollbars */
+  html, body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Custom Scrollbar Styles */

@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shadcn UI Hub - Component Library & Showcase",
-  description: "Discover the best Shadcn UI components and websites. A curated collection of modern UI components built with React and Tailwind CSS.",
+  title: "Shadway - Curated Shadcn UI Website Collection",
+  description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration.",
 };
 
 export default function RootLayout({
