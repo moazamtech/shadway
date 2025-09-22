@@ -8,6 +8,11 @@ export interface Website {
   tags?: string[];
   featured?: boolean;
   sequence?: number;
+  sponsor?: {
+    tier: 'banner' | 'premium' | 'basic';
+    active: boolean;
+    expiresAt?: Date;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }

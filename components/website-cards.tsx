@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { Website } from "@/lib/types"
 import { addRefParameter } from "@/lib/utils/url"
+import { SponsorBanner } from "./sponsor-banner"
+import { SponsorCard } from "./sponsor-card"
 
 interface WebsiteCardsProps {
   websites: Website[]
@@ -21,17 +23,46 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
   }
 
 
-  const filteredWebsites = useMemo(() => {
-    if (!searchQuery.trim()) return websites
+  const { bannerSponsor, sponsorWebsites, regularWebsites } = useMemo(() => {
+    // Separate sponsors from regular websites
+    const bannerSponsor = websites.find(w => w.sponsor?.tier === 'banner' && w.sponsor?.active)
+    const sponsors = websites.filter(w =>
+      w.sponsor?.active &&
+      (w.sponsor?.tier === 'premium' || w.sponsor?.tier === 'basic') &&
+      w._id !== bannerSponsor?._id
+    )
+    const regular = websites.filter(w =>
+      !w.sponsor?.active &&
+      w._id !== bannerSponsor?._id
+    )
+
+    // Apply search filter if there's a query
+    if (!searchQuery.trim()) {
+      return {
+        bannerSponsor,
+        sponsorWebsites: sponsors,
+        regularWebsites: regular
+      }
+    }
 
     const query = searchQuery.toLowerCase()
-    return websites.filter(
-      (website) =>
-        website.name.toLowerCase().includes(query) ||
-        website.description.toLowerCase().includes(query) ||
-        website.category.toLowerCase().includes(query)
-    )
+    const searchFilter = (website: Website) =>
+      website.name.toLowerCase().includes(query) ||
+      website.description.toLowerCase().includes(query) ||
+      website.category.toLowerCase().includes(query)
+
+    return {
+      bannerSponsor: bannerSponsor && searchFilter(bannerSponsor) ? bannerSponsor : undefined,
+      sponsorWebsites: sponsors.filter(searchFilter),
+      regularWebsites: regular.filter(searchFilter)
+    }
   }, [websites, searchQuery])
+
+  const allFilteredWebsites = [
+    ...(bannerSponsor ? [bannerSponsor] : []),
+    ...sponsorWebsites,
+    ...regularWebsites
+  ]
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -156,12 +187,53 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               {/* Horizontal separator line */}
               <div className="w-full border-t border-dashed border-border/60 mb-12"></div>
 
-              {/* Website Cards Grid */}
+              {/* Banner Sponsor */}
+              {bannerSponsor && (
+                <motion.div variants={containerVariants}>
+                  <SponsorBanner website={bannerSponsor} />
+                </motion.div>
+              )}
+
+              {/* Sponsor websites section */}
+              {sponsorWebsites.length > 0 && (
+                <motion.div variants={containerVariants} className="mb-12">
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold text-foreground mb-2">Featured Sponsors</h2>
+                    <p className="text-muted-foreground">Premium websites from our valued partners</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sponsorWebsites.map((website, index) => (
+                      <SponsorCard
+                        key={website._id || index}
+                        website={website}
+                        tier={website.sponsor?.tier === 'premium' ? 'premium' : 'basic'}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Regular Website Cards Grid */}
+              {regularWebsites.length > 0 && (
+                <>
+                  {sponsorWebsites.length > 0 && (
+                    <div className="w-full border-t border-dashed border-border/60 mb-12"></div>
+                  )}
+                  <motion.div variants={containerVariants} className="mb-8">
+                    <div className="text-center mb-8">
+                      <h2 className="text-2xl font-bold text-foreground mb-2">All Websites</h2>
+                      <p className="text-muted-foreground">Discover amazing Shadcn UI implementations</p>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+
               <motion.div
                 variants={containerVariants}
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                {filteredWebsites.map((website, index) => (
+                {regularWebsites.map((website, index) => (
                   <motion.div
                     key={website._id || index}
                     variants={cardVariants}
@@ -288,7 +360,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               </motion.div>
 
               {/* No results message */}
-              {filteredWebsites.length === 0 && (
+              {allFilteredWebsites.length === 0 && (
                 <motion.div
                   variants={cardVariants}
                   className="w-full text-center py-16"

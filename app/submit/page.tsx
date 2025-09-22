@@ -137,7 +137,7 @@ export default function SubmitPage() {
 
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-white bg-clip-text text-transparent">
-              Submit Your UI
+              Submit Your Website
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Share your beautiful Shadcn UI website with our community. Help others discover amazing interfaces and get inspired.
