@@ -6,6 +6,7 @@ import { Search, Globe, ExternalLink, ImageIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { Website } from "@/lib/types"
+import { addRefParameter } from "@/lib/utils/url"
 
 interface WebsiteCardsProps {
   websites: Website[]
@@ -18,6 +19,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
   const handleImageError = (imageUrl: string) => {
     setFailedImages(prev => new Set(prev).add(imageUrl))
   }
+
 
   const filteredWebsites = useMemo(() => {
     if (!searchQuery.trim()) return websites
@@ -264,12 +266,12 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                             {/* Action Button */}
                             <div className="mt-auto">
                               <a
-                                href={website.url}
+                                href={addRefParameter(website.url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(website.url, '_blank', 'noopener,noreferrer');
+                                  window.open(addRefParameter(website.url), '_blank', 'noopener,noreferrer');
                                 }}
                                 className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
                               >

@@ -93,23 +93,23 @@ export function Navbar() {
                     }`}
                   >
                     {navItems.map((item, index) => (
-                      <motion.a
-                        key={item.name}
-                        href={item.href}
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                        whileHover={{ scale: 1.05, y: -1 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-lg hover:bg-background/50 relative group"
-                      >
-                        {item.name}
+                      <Link key={item.name} href={item.href}>
                         <motion.div
-                          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full"
-                          whileHover={{ width: "80%" }}
-                          transition={{ duration: 0.2 }}
-                        />
-                      </motion.a>
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                          whileHover={{ scale: 1.05, y: -1 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-lg hover:bg-background/50 relative group cursor-pointer"
+                        >
+                          {item.name}
+                          <motion.div
+                            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full"
+                            whileHover={{ width: "80%" }}
+                            transition={{ duration: 0.2 }}
+                          />
+                        </motion.div>
+                      </Link>
                     ))}
                   </motion.div>
 
@@ -251,19 +251,19 @@ export function Navbar() {
                       : 'bg-background/40 border-border/20'
                   }`}>
                     {navItems.map((item, index) => (
-                      <motion.a
-                        key={item.name}
-                        href={item.href}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-xl hover:bg-background/60 relative"
-                        onClick={() => setShowMobileNav(false)}
-                      >
-                        {item.name}
-                      </motion.a>
+                      <Link key={item.name} href={item.href}>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-xl hover:bg-background/60 relative cursor-pointer"
+                          onClick={() => setShowMobileNav(false)}
+                        >
+                          {item.name}
+                        </motion.div>
+                      </Link>
                     ))}
                   </div>
                 </motion.div>

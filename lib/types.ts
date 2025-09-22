@@ -32,3 +32,17 @@ export interface WebsiteFormData {
   featured: boolean;
   sequence?: number;
 }
+
+export interface Submission {
+  _id?: string;
+  name: string;
+  email: string;
+  websiteName: string;
+  websiteUrl: string;
+  description: string;
+  category: string;
+  githubUrl?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt?: Date;
+  updatedAt?: Date;
+}
