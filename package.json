@@ -27,6 +27,7 @@
     "jsdom": "^27.0.0",
     "lucide-react": "^0.544.0",
     "mongodb": "^6.20.0",
+    "motion": "^12.23.18",
     "next": "15.5.3",
     "next-auth": "^4.24.11",
     "next-themes": "^0.4.6",

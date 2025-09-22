@@ -56,12 +56,53 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
 
   return (
     <div className="w-full min-h-screen relative bg-background overflow-x-hidden">
+      {/* Background geometric pattern */}
+      <div className="absolute inset-0 opacity-20">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="background-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#background-grid)" />
+        </svg>
+      </div>
+
       <div className="relative flex flex-col justify-start items-center w-full">
         <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
-          {/* Left vertical line */}
-          <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0"></div>
-          {/* Right vertical line */}
-          <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border z-0"></div>
+          {/* Enhanced Left vertical line with geometric elements */}
+          <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0">
+            {/* Decorative elements along the line */}
+            <div className="absolute top-32 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-64 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-96 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+          </div>
+
+          {/* Enhanced Right vertical line with geometric elements */}
+          <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border z-0">
+            {/* Decorative elements along the line */}
+            <div className="absolute top-40 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-72 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-[400px] right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+          </div>
+
+          {/* Left decorative dashed border - outside of main lines */}
+          <div
+            className="absolute dark:opacity-[0.15] opacity-[0.2] left-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(-45deg, transparent, transparent 2px, currentcolor 2px, currentcolor 3px, transparent 3px, transparent 6px)",
+            }}
+          ></div>
+
+          {/* Right decorative dashed border - outside of main lines */}
+          <div
+            className="absolute dark:opacity-[0.15] opacity-[0.2] right-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(-45deg, transparent, transparent 2px, currentcolor 2px, currentcolor 3px, transparent 3px, transparent 6px)",
+            }}
+          ></div>
 
           <div className="self-stretch pt-[9px] overflow-hidden border-b border-border flex flex-col justify-center items-center gap-8 lg:gap-[66px] relative z-10">
             <motion.div
@@ -70,13 +111,20 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               variants={containerVariants}
               className="pt-16 sm:pt-20 md:pt-24 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
             >
-              {/* Header Section */}
-              <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12">
+              {/* Header Section with geometric decorations */}
+              <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
+
                 <motion.div
                   variants={cardVariants}
-                  className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap"
+                  className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative"
                 >
-                  Shadway Website Collection
+                  <span className="relative">
+                    Shadway Website Collection
+                    {/* Subtle underline decoration */}
+                    <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="200" height="8" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
+                    </svg>
+                  </span>
                 </motion.div>
                 <motion.div
                   variants={cardVariants}
@@ -117,25 +165,56 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                     variants={cardVariants}
                     className="group cursor-pointer"
                   >
-                    {/* SVG dotted border container */}
+                    {/* Enhanced SVG border container with geometric patterns */}
                     <div className="relative h-[340px] w-full">
-                      {/* SVG Border */}
+                      {/* Main SVG Border with geometric elements */}
                       <svg
                         className="absolute inset-0 w-full h-full"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
                       >
+                        {/* Main border rectangle - full edge to edge */}
                         <rect
-                          x="1"
-                          y="1"
-                          width="calc(100% - 2px)"
-                          height="calc(100% - 2px)"
-                          rx="8"
+                          x="0"
+                          y="0"
+                          width="100"
+                          height="100"
+                          rx="3"
                           stroke="hsl(var(--border))"
-                          strokeWidth="1"
-                          strokeDasharray="4 4"
+                          strokeWidth="0.5"
+                          strokeDasharray="2 2"
                           fill="none"
+                          className="opacity-60"
                         />
+
+                        {/* Corner geometric elements */}
+                        <g className="opacity-40">
+                          {/* Top-left corner */}
+                          <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                          {/* Top-right corner */}
+                          <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                          {/* Bottom-left corner */}
+                          <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                          {/* Bottom-right corner */}
+                          <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                        </g>
+
+                        {/* Grid pattern overlay */}
+                        <defs>
+                          <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
+                            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
+                          </pattern>
+                        </defs>
+                        <rect width="100" height="100" fill={`url(#grid-${index})`} className="opacity-30" />
                       </svg>
 
                       {/* Card Content */}
