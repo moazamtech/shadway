@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Layers } from "lucide-react"
 import { StripeBgGuides } from "@/components/ui/StripeBg"
+import Link from "next/link"
 
 export function CTASection() {
   return (
@@ -59,20 +60,11 @@ export function CTASection() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-12">
                   <Button
                     size="lg"
-                    className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-sm transition-all duration-200"
-                  >
-                    <Layers className="w-5 h-5 mr-2" />
-                    Get Started
-                  </Button>
-                  <Button
-                    size="lg"
                     variant="outline"
                     className="h-12 px-8 border-border/50 hover:bg-background/80 rounded-full transition-all duration-200"
-                    asChild
+                    onClick={() => window.open("https://ui.shadcn.com", "_blank", "noopener,noreferrer")}
                   >
-                    <a href="https://ui.shadcn.com" target="_blank" rel="noopener noreferrer">
-                      View Documentation
-                    </a>
+                    View Documentation
                   </Button>
                 </div>
               </div>

@@ -37,7 +37,7 @@ export function StripeBgGuides({
   animated = true,
   animationDuration = 62,
   animationDelay = 0.8,
-  glowColor = "hsl(var(--accent))",
+  glowColor = "#D2F583",
     // glowColor = "#D2F583",
   glowSize = "10vh",
   glowOpacity = 0.4,

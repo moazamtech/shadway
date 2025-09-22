@@ -5,10 +5,14 @@ import { motion } from "framer-motion"
 import { Layers, Menu, X, Star, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useGitHubStars } from "@/hooks/use-github-stars"
+import Image from "next/image"
+import Link from "next/link"
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [showMobileNav, setShowMobileNav] = useState(false)
+  const { stars, loading, error } = useGitHubStars("moazamtech", "shadway")
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,7 +26,7 @@ export function Navbar() {
     { name: "Home", href: "#" },
     { name: "Browse", href: "#browse" },
     { name: "About", href: "#about" },
-    { name: "Submit", href: "#submit" },
+    { name: "Submit", href: "/submit" },
   ]
 
   return (
@@ -41,118 +45,107 @@ export function Navbar() {
             {/* Right vertical line - only show when not scrolled */}
             <div className={`hidden sm:block w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border/30 z-0 transition-opacity duration-500 ${isScrolled ? 'opacity-0' : 'opacity-100'}`}></div>
 
-            <div className={`self-stretch flex flex-col items-center relative z-10 transition-all duration-500 ${isScrolled ? 'py-2' : 'pt-4 pb-2'}`}>
-              {/* Desktop Navigation */}
+            <div className={`self-stretch flex flex-col items-center relative z-10 transition-all duration-500 ${isScrolled ? 'py-3' : 'pt-6 pb-3'}`}>
+              {/* Desktop Navigation - Minimalist Floating Design */}
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 className="hidden lg:flex items-center justify-center w-full"
               >
-                {/* Logo with liquid glass background */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  className={`flex items-center space-x-3 backdrop-blur-xl rounded-2xl px-4 py-3 border shadow-lg mr-6 transition-all duration-500 ${
-                    isScrolled
-                      ? 'bg-background/20 border-border/10'
-                      : 'bg-background/40 border-border/20'
-                  }`}
-                >
-                  <div className="relative">
-                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-                      <Layers className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary/60 rounded-full"></div>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg text-foreground leading-none">Shadway</span>
-                    <span className="text-xs text-muted-foreground font-medium">Collection</span>
-                  </div>
-                </motion.div>
-
-                {/* Center - Dock Navigation */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                  className={`flex items-center space-x-1 backdrop-blur-xl rounded-2xl px-3 py-2 border shadow-lg transition-all duration-500 ${
-                    isScrolled
-                      ? 'bg-background/20 border-border/10'
-                      : 'bg-background/40 border-border/20'
-                  }`}
-                >
-                  {navItems.map((item, index) => (
-                    <motion.a
-                      key={item.name}
-                      href={item.href}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.5 + index * 0.1 }}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-5 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-xl hover:bg-background/60 hover:shadow-md relative group"
-                    >
-                      {item.name}
-                      <motion.div
-                        className="absolute bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-primary rounded-full"
-                        initial={{ width: 0 }}
-                        whileHover={{ width: "60%" }}
-                        transition={{ duration: 0.2 }}
-                      />
-                    </motion.a>
-                  ))}
-                </motion.div>
-
-                {/* Right side - Actions with liquid glass */}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: 0.6 }}
-                  className="flex items-center space-x-3 ml-6"
-                >
-                  {/* Enhanced GitHub Button */}
+                <div className="flex items-center justify-between w-full max-w-6xl">
+                  {/* Logo */}
                   <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="flex items-center"
                   >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-11 px-4 backdrop-blur-xl border hover:border-border/40 transition-all duration-300 rounded-2xl shadow-lg group ${
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className={`flex items-center space-x-3 px-4 py-2 rounded-xl backdrop-blur-md transition-all duration-300 ${
                         isScrolled
-                          ? 'bg-background/20 border-border/10 hover:bg-background/40'
-                          : 'bg-background/40 border-border/20 hover:bg-background/60'
+                          ? 'bg-background/60 border border-border/30'
+                          : 'bg-background/40 border border-border/20'
                       }`}
-                      asChild
                     >
-                      <a href="https://github.com/moazamtech/shadway" target="_blank" rel="noopener noreferrer">
-                        <motion.div
-                          className="flex items-center space-x-2"
-                          whileHover={{ x: 2 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <Github className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                          <motion.div
-                            initial={{ rotate: 0 }}
-                            whileHover={{ rotate: 360 }}
-                            transition={{ duration: 0.6 }}
-                          >
-                          </motion.div>
-                        </motion.div>
-                      </a>
-                    </Button>
+                     <Image
+                      src="/logo.png"
+                      width={32}
+                      height={32}
+                      alt="Shadway Logo"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-lg text-foreground leading-none">Shadway</span>
+                      </div>
+                    </motion.div>
                   </motion.div>
 
-                  {/* Theme Toggle with enhanced styling */}
+                  {/* Navigation Links */}
                   <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl backdrop-blur-md transition-all duration-300 ${
+                      isScrolled
+                        ? 'bg-background/60 border border-border/30'
+                        : 'bg-background/40 border border-border/20'
+                    }`}
                   >
-                    <ThemeToggle />
+                    {navItems.map((item, index) => (
+                      <motion.a
+                        key={item.name}
+                        href={item.href}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                        whileHover={{ scale: 1.05, y: -1 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-lg hover:bg-background/50 relative group"
+                      >
+                        {item.name}
+                        <motion.div
+                          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full"
+                          whileHover={{ width: "80%" }}
+                          transition={{ duration: 0.2 }}
+                        />
+                      </motion.a>
+                    ))}
                   </motion.div>
-                </motion.div>
+
+                  {/* Actions */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="flex items-center space-x-3"
+                  >
+                    {/* GitHub Button */}
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`h-10 px-4 rounded-xl backdrop-blur-md transition-all duration-300 group ${
+                          isScrolled
+                            ? 'bg-background/60 border border-border/30 hover:bg-background/80'
+                            : 'bg-background/40 border border-border/20 hover:bg-background/60'
+                        }`}
+                        onClick={() => window.open("https://github.com/moazamtech/shadway", "_blank", "noopener,noreferrer")}
+                      >
+                        <Github className="w-4 h-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                          {loading ? "Star" : error ? "Star" : `Star ${stars || ""}`}
+                        </span>
+                        <Star className="w-4 h-4 ml-2 text-amber-400" />
+                      </Button>
+                    </motion.div>
+
+                    {/* Theme Toggle */}
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                      <ThemeToggle />
+                    </motion.div>
+                  </motion.div>
+                </div>
               </motion.div>
 
               {/* Mobile Navigation - Unique inline design */}
@@ -175,9 +168,12 @@ export function Navbar() {
                         : 'bg-background/40 border-border/20'
                     }`}
                   >
-                    <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                      <Layers className="w-4 h-4 text-primary-foreground" />
-                    </div>
+                     <Image
+                      src="/logo.png"
+                      width={42}
+                      height={42}
+                      alt="Shadway Logo"
+                      />
                     <span className="font-bold text-base text-foreground">Shadway</span>
                   </motion.div>
 
@@ -191,16 +187,19 @@ export function Navbar() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-10 w-10 backdrop-blur-xl border transition-all duration-300 rounded-2xl shadow-lg ${
+                        className={`h-10 px-3 backdrop-blur-xl border transition-all duration-300 rounded-2xl shadow-lg ${
                           isScrolled
                             ? 'bg-background/20 border-border/10 hover:bg-background/40'
                             : 'bg-background/40 border-border/20 hover:bg-background/60'
                         }`}
-                        asChild
+                        onClick={() => window.open("https://github.com/moazamtech/shadway", "_blank", "noopener,noreferrer")}
                       >
-                        <a href="https://github.com/moazamtech/shadway" target="_blank" rel="noopener noreferrer">
+                        <div className="flex items-center gap-1">
                           <Github className="w-4 h-4" />
-                        </a>
+                          {!loading && !error && stars && (
+                            <span className="text-xs font-medium">{stars}</span>
+                          )}
+                        </div>
                       </Button>
                     </motion.div>
 
