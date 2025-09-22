@@ -24,11 +24,9 @@ export default function NotFound() {
                 Go Home
               </Link>
             </Button>
-            <Button asChild variant="outline" onClick={() => window.history.back()}>
-              <button className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Go Back
-              </button>
+            <Button variant="outline" onClick={() => window.history.back()}>
+              <ArrowLeft className="w-4 h-4" />
+              Go Back
             </Button>
           </div>
         </CardContent>
