@@ -1,13 +1,11 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { ExternalLink, Code, Palette, Smartphone, Globe, Zap, Crown, Star, DollarSign, Loader2 } from "lucide-react"
+import { ExternalLink, Globe, Crown, DollarSign, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { GradientBackground } from "@/components/gradient-background"
 import { Template } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -40,25 +38,15 @@ interface TemplateCardProps {
   index: number
 }
 
-function TemplateCard({ template, index }: TemplateCardProps) {
+function TemplateCard({ template }: TemplateCardProps) {
   const [isHovered, setIsHovered] = useState(false)
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        delay: index * 0.1,
-        ease: "easeOut",
-      },
-    },
-  }
 
   const getPriceDisplay = () => {
-    // Handle both old and new price formats
-    const price = typeof template.price === 'object' ? template.price.amount : template.price;
+    // Handle both number and object price formats
+    const price = typeof template.price === 'object' && template.price !== null
+      ? (template.price as any).amount
+      : template.price;
 
     if (price === 0) {
       return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Free</Badge>
@@ -72,11 +60,10 @@ function TemplateCard({ template, index }: TemplateCardProps) {
   }
 
   return (
-    <motion.div
-      variants={cardVariants}
+    <div
       className="group cursor-pointer"
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative h-[400px] w-full">
         {/* SVG Border with Dotted Design */}
@@ -92,16 +79,12 @@ function TemplateCard({ template, index }: TemplateCardProps) {
           <CornerPlusIcons />
 
           {/* Background Pattern */}
-          <motion.div
-            className="absolute inset-0 opacity-5"
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 ${isHovered ? 'opacity-10' : 'opacity-5'}`}
             style={{
               backgroundImage: `radial-gradient(circle at 20% 50%, hsl(var(--primary)) 0%, transparent 50%),
                                radial-gradient(circle at 80% 20%, hsl(var(--primary)) 0%, transparent 50%)`,
             }}
-            animate={{
-              opacity: isHovered ? 0.1 : 0.05
-            }}
-            transition={{ duration: 0.3 }}
           />
 
           {/* Featured Badge */}
@@ -119,17 +102,6 @@ function TemplateCard({ template, index }: TemplateCardProps) {
             {getPriceDisplay()}
           </div>
 
-          {/* Floating animation elements for featured */}
-          {template.featured && (
-            <>
-              <div className="absolute top-10 right-6 animate-bounce delay-100">
-                <Star className="w-4 h-4 text-primary opacity-60" />
-              </div>
-              <div className="absolute bottom-20 left-6 animate-bounce delay-300">
-                <Zap className="w-3 h-3 text-primary opacity-60" />
-              </div>
-            </>
-          )}
 
           {/* Image Section */}
           <div className="relative h-48 overflow-hidden">
@@ -148,7 +120,7 @@ function TemplateCard({ template, index }: TemplateCardProps) {
             <div className="flex items-start gap-2 mb-3">
               <div className={cn(
                 "w-3 h-3 rounded-full flex-shrink-0 mt-1",
-                template.featured ? "bg-primary animate-pulse" : "bg-muted-foreground"
+                template.featured ? "bg-primary" : "bg-muted-foreground"
               )}></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -178,20 +150,20 @@ function TemplateCard({ template, index }: TemplateCardProps) {
                 size="sm"
                 className={cn(
                   "flex-1 text-xs text-white font-medium",
-                  (typeof template.price === 'object' ? template.price.amount : template.price) === 0
+                  (typeof template.price === 'object' && template.price !== null ? (template.price as any).amount : template.price) === 0
                     ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
                     : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/30"
                 )}
                 onClick={() => window.open(template.purchaseUrl || (template as any).links?.purchase, '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink className="w-3 h-3 mr-1" />
-                {(typeof template.price === 'object' ? template.price.amount : template.price) === 0 ? 'Download' : 'Get Template'}
+                {(typeof template.price === 'object' && template.price !== null ? (template.price as any).amount : template.price) === 0 ? 'Download' : 'Get Template'}
               </Button>
             </div>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -200,28 +172,6 @@ export default function TemplatePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  }
 
   useEffect(() => {
     fetchTemplates()
@@ -246,10 +196,7 @@ export default function TemplatePage() {
 
   return (
     <div className="min-h-screen relative bg-background overflow-x-hidden">
-      <GradientBackground />
       <Navbar />
-
-      {/* Background geometric pattern */}
       <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -298,16 +245,12 @@ export default function TemplatePage() {
             ></div>
 
             <div className="self-stretch pt-[9px] overflow-hidden border-b border-border flex flex-col justify-center items-center gap-8 lg:gap-[66px] relative z-10">
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={containerVariants}
+              <div
                 className="pt-16 sm:pt-20 md:pt-24 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
               >
                 {/* Header Section */}
                 <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
-                  <motion.div
-                    variants={itemVariants}
+                  <div
                     className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative"
                   >
                     <span className="relative">
@@ -317,13 +260,12 @@ export default function TemplatePage() {
                         <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
                       </svg>
                     </span>
-                  </motion.div>
-                  <motion.div
-                    variants={itemVariants}
+                  </div>
+                  <div
                     className="w-full max-w-[480px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
                   >
                     Discover our curated collection of premium website templates. Perfect for developers, designers, and businesses looking for modern, responsive designs.
-                  </motion.div>
+                  </div>
                 </div>
 
                 {/* Loading State */}
@@ -342,8 +284,7 @@ export default function TemplatePage() {
 
                 {/* Templates Grid */}
                 {!loading && !error && (
-                  <motion.div
-                    variants={containerVariants}
+                  <div
                     className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 auto-rows-fr"
                   >
                     {templates.length > 0 ? (
@@ -359,17 +300,14 @@ export default function TemplatePage() {
                         <p className="text-muted-foreground">No templates available yet.</p>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 )}
 
-                {/* Bottom separator line */}
-                <div className="w-full border-t border-dashed border-border/60 mt-16"></div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
       <Footer />
     </div>
   )

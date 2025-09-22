@@ -1,36 +1,12 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { GradientBackground } from "@/components/gradient-background"
 import { PricingSection } from "@/components/pricing-section"
 
 export default function SponsorPage() {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.1,
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  }
 
   const sponsorshipPlans = [
     {
@@ -94,9 +70,7 @@ export default function SponsorPage() {
 
   return (
     <div className="min-h-screen relative bg-background overflow-x-hidden">
-      <GradientBackground />
       <Navbar />
-
       {/* Background geometric pattern */}
       <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -147,16 +121,12 @@ export default function SponsorPage() {
             ></div>
 
             <div className="self-stretch pt-[9px] overflow-hidden border-b border-border flex flex-col justify-center items-center gap-8 lg:gap-[66px] relative z-10">
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={containerVariants}
+              <div
                 className="pt-16 sm:pt-20 md:pt-24 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
               >
                 {/* Header Section */}
                 <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
-                  <motion.div
-                    variants={itemVariants}
+                  <div
                     className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative"
                   >
                     <span className="relative">
@@ -166,26 +136,25 @@ export default function SponsorPage() {
                         <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
                       </svg>
                     </span>
-                  </motion.div>
-                  <motion.div
-                    variants={itemVariants}
+                  </div>
+                  <div
                     className="w-full max-w-[480px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
                   >
                     Get your website in front of thousands of developers and designers. Increase your visibility with our premium sponsorship opportunities.
-                  </motion.div>
+                  </div>
                 </div>
 
                 {/* Pricing Section */}
-                <motion.div variants={itemVariants} className="w-full">
+                <div className="w-full">
                   <PricingSection
                     plans={sponsorshipPlans}
                     heading="Choose Your Plan"
                     description="Select the perfect sponsorship tier to maximize your website's exposure"
                   />
-                </motion.div>
+                </div>
 
                 {/* Contact Section */}
-                <motion.div variants={itemVariants} className="w-full max-w-4xl mt-16">
+                <div className="w-full max-w-4xl mt-16">
                   <div className="text-center p-12 space-y-6 border border-border/50 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10">
                     <h2 className="text-2xl md:text-3xl font-bold">
                       Ready to Get Started?
@@ -204,11 +173,9 @@ export default function SponsorPage() {
                       </Button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
 
-                {/* Bottom separator line */}
-                <div className="w-full border-t border-dashed border-border/60 mt-16"></div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>

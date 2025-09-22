@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GradientBackground } from "@/components/gradient-background"
 import { ArrowLeft, Send, Globe, Mail, User, Link as LinkIcon, FileText, Tag } from "lucide-react"
 import Link from "next/link"
-import { Navbar } from "@/components/navbar"
 
 interface SubmissionData {
   name: string
@@ -87,12 +85,7 @@ export default function SubmitPage() {
   if (submitted) {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4">
-        <GradientBackground />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-lg text-center"
-        >
+        <div className="w-full max-w-lg text-center">
           <Card className="backdrop-blur-sm bg-background/80 border-border/50">
             <CardContent className="pt-6">
               <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -112,22 +105,18 @@ export default function SubmitPage() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen relative">
-      <GradientBackground />
 
+      <GradientBackground />
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <Button variant="ghost" asChild className="mb-4">
             <Link href="/" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
@@ -143,15 +132,10 @@ export default function SubmitPage() {
               Share your beautiful Shadcn UI website with our community. Help others discover amazing interfaces and get inspired.
             </p>
           </div>
-        </motion.div>
+        </div>
 
         {/* Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="max-w-2xl mx-auto"
-        >
+        <div className="max-w-2xl mx-auto">
           <Card className="backdrop-blur-sm bg-background/80 border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -303,7 +287,7 @@ export default function SubmitPage() {
               </form>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   )
