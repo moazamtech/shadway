@@ -51,3 +51,29 @@ export interface Submission {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface Template {
+  _id?: string;
+  name: string;
+  description: string;
+  image: string;
+  demoUrl: string;
+  purchaseUrl: string;
+  price: number;
+  featured?: boolean;
+  sequence?: number;
+  downloads?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface TemplateFormData {
+  name: string;
+  description: string;
+  image: string;
+  demoUrl: string;
+  purchaseUrl: string;
+  price: number;
+  featured: boolean;
+  sequence?: number;
+}

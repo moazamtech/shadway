@@ -43,23 +43,25 @@ export const authOptions: NextAuthOptions = {
           const { db } = await connectToDatabase();
           const users = db.collection<User>('users');
 
-          console.log('Looking for user with email:', credentials.email);
           const user = await users.findOne({ email: credentials.email });
 
           if (!user) {
-            console.log('User not found');
+            // SECURITY: Don't log specific failure reasons in production
             return null;
           }
 
-          console.log('User found, checking password...');
           const isValidPassword = await bcrypt.compare(credentials.password, user.password);
 
           if (!isValidPassword) {
-            console.log('Invalid password');
+            // SECURITY: Don't log specific failure reasons in production
             return null;
           }
 
-          console.log('Login successful for user:', user.email);
+          // SECURITY: Only log successful logins in development
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Login successful for user:', user.email);
+          }
+
           return {
             id: user._id!.toString(),
             email: user.email,
@@ -67,6 +69,7 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
+          // SECURITY: Log errors but don't expose details to client
           console.error('Auth error:', error);
           return null;
         }
@@ -75,6 +78,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // 1 hour
+  },
+  jwt: {
+    maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
     async jwt({ token, user }) {

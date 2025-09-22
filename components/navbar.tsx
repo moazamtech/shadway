@@ -23,8 +23,8 @@ export function Navbar() {
   }, [])
 
   const navItems = [
-    { name: "Home", href: "#" },
-    { name: "Browse", href: "#browse" },
+    { name: "Home", href: "/" },
+    { name: "Templates", href: "/template" },
     { name: "Sponsor", href: "/sponsor" },
     { name: "Submit", href: "/submit" },
   ]
@@ -136,7 +136,6 @@ export function Navbar() {
                         <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                           {loading ? "Star" : error ? "Star" : `Star ${stars || ""}`}
                         </span>
-                        <Star className="w-4 h-4 ml-2 text-amber-400" />
                       </Button>
                     </motion.div>
 

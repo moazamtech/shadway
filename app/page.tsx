@@ -26,24 +26,14 @@ async function getWebsites(): Promise<Website[]> {
 }
 
 export default async function Home() {
-  // Get websites already sorted by sequence from API
   const featuredWebsites = await getWebsites();
 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-   
-     <Navbar/>
-     
-     
-      {/* Website Cards Section */}
-   
+      <Navbar />
       <WebsiteCards websites={featuredWebsites} />
-
-      {/* CTA Section */}
       <CTASection />
-
-      {/* Footer */}
       <Footer />
     </div>
   );

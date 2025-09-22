@@ -19,6 +19,7 @@ import {
   Home,
   Users,
   Layers,
+  Code,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -62,6 +63,11 @@ const data = {
       title: 'Websites',
       url: '/admin/websites',
       icon: Globe,
+    },
+    {
+      title: 'Templates',
+      url: '/admin/templates',
+      icon: Code,
     },
     {
       title: 'Submissions',

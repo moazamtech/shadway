@@ -37,7 +37,7 @@ export default function SponsorPage() {
       name: "Basic Promotion",
       info: "Get noticed with enhanced listing",
       price: {
-        monthly: 9,
+        monthly: 20,
       },
       features: [
         { text: "Enhanced card styling" },
@@ -45,7 +45,6 @@ export default function SponsorPage() {
         { text: "Sponsor badge" },
         { text: "Basic analytics" },
         { text: "Email support" },
-        { text: "7-day free trial" },
       ],
       btn: {
         text: "Get Now",
@@ -56,7 +55,7 @@ export default function SponsorPage() {
       name: "Premium Spotlight",
       info: "Enhanced visibility with special card styling",
       price: {
-        monthly: 19,
+        monthly: 50,
       },
       features: [
         { text: "Special sponsor card design" },
@@ -197,10 +196,10 @@ export default function SponsorPage() {
                     <div className="flex justify-center">
                       <Button
                         size="lg"
-                        className="px-8 py-3 text-lg bg-black hover:bg-gray-800 text-white"
+                        className="px-8 py-3 text-lg bg-black hover:bg-black text-white"
                         onClick={() => window.open('https://x.com/loxtmozzi', '_blank')}
                       >
-                        <X className="w-5 h-5 mr-2" />
+<img src="https://img.freepik.com/free-vector/new-2023-twitter-logo-x-icon-design_1017-45418.jpg?t=st=1758552766~exp=1758556366~hmac=d9ff239bda740473d06ef101dcb94dde3d9d48a1b897020db528e22f4b1b2b52&w=1480" height={30} width={30} alt="" />
                         Contact Moazam
                       </Button>
                     </div>
