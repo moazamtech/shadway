@@ -10,6 +10,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { error: 'Invalid template ID' },
+        { status: 400 }
+      );
+    }
+
     const { db } = await connectToDatabase();
     const templates = db.collection<Template>('templates');
 
@@ -65,6 +72,13 @@ export async function PUT(
       );
     }
 
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { error: 'Invalid template ID' },
+        { status: 400 }
+      );
+    }
+
     const { db } = await connectToDatabase();
     const templates = db.collection<Template>('templates');
 
@@ -113,6 +127,13 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    if (!params.id || !ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { error: 'Invalid template ID' },
+        { status: 400 }
       );
     }
 

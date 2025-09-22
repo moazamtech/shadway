@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn, getSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, getSession, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,16 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Redirect if already authenticated as admin
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
+      router.push('/admin/dashboard');
+    }
+  }, [session, status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +39,21 @@ export default function AdminLogin() {
       });
 
       if (result?.error) {
-        setError('Invalid credentials');
+        setError('Invalid email or password. Please try again.');
       } else {
+        // Wait a moment for the session to be established
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         const session = await getSession();
+
         if (session && session.user.role === 'admin') {
-          router.push('/admin/dashboard');
+          setSuccess(true);
+          setError('');
+
+          // Add a small delay to show success state
+          setTimeout(() => {
+            router.push('/admin/dashboard');
+          }, 500);
         } else {
           setError('Access denied. Admin role required.');
         }
@@ -86,11 +105,23 @@ export default function AdminLogin() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            {success && (
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <AlertDescription>
+                  Login successful! Redirecting to dashboard...
+                </AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" className="w-full" disabled={isLoading || success}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
+                </>
+              ) : success ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redirecting...
                 </>
               ) : (
                 'Sign In'

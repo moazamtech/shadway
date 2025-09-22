@@ -1,36 +1,186 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shadway 🎨
 
-## Getting Started
+<div align="center">
+  <img src="/public/logo.png" alt="Shadway Logo" width="120" height="120" />
 
-First, run the development server:
+  <h3>Curated Shadcn UI Website Collection</h3>
+  <p>Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration.</p>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+  <img src="/public/og-image.png" alt="Shadway Preview" width="600" />
+</div>
+
+## 🚀 Why Shadway?
+
+**Stop hunting through scattered resources!** Instead of wasting hours searching for the latest Shadcn UI libraries, components, and examples across different platforms, **Shadway brings everything to one place**.
+
+### 🎯 Main Focus
+- **Discover** the latest UI websites built with Shadcn UI
+- **Browse** premium templates and components
+- **Showcase** your own Shadcn UI projects
+- **Get inspired** by modern interface designs
+
+**No more hassle - just pure inspiration and resources in one curated collection.**
+
+## ✨ Features
+
+- 🏠 **Curated Website Gallery** - Latest websites built with Shadcn UI
+- 🎨 **Template Marketplace** - Premium and free templates
+- 📝 **Easy Submission** - Submit your own projects
+- 💎 **Sponsorship Options** - Promote your work
+- 🌙 **Dark/Light Mode** - Seamless theme switching
+- 📱 **Responsive Design** - Perfect on all devices
+- ⚡ **Fast Performance** - Optimized for speed
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **[Next.js 14](https://nextjs.org/)** - React framework with App Router
+- **[TypeScript](https://www.typescriptlang.org/)** - Type-safe development
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Shadcn UI](https://ui.shadcn.com/)** - High-quality UI components
+- **[Framer Motion](https://www.framer.com/motion/)** - Smooth animations
+- **[Lucide React](https://lucide.dev/)** - Beautiful icons
+
+### Backend & Database
+- **[MongoDB](https://www.mongodb.com/)** - NoSQL database
+- **[NextAuth.js](https://next-auth.js.org/)** - Authentication
+- **[bcryptjs](https://github.com/dcodeIO/bcrypt.js)** - Password hashing
+
+### Deployment & Tools
+- **[Vercel](https://vercel.com/)** - Hosting platform
+- **[ESLint](https://eslint.org/)** - Code linting
+- **[Prettier](https://prettier.io/)** - Code formatting
+
+## 🏗️ Project Structure
+
+```
+shadway/
+├── app/                    # Next.js App Router
+│   ├── admin/             # Admin dashboard
+│   ├── api/               # API routes
+│   ├── sponsor/           # Sponsorship page
+│   ├── submit/            # Submission page
+│   ├── template/          # Templates page
+│   ├── globals.css        # Global styles
+│   └── layout.tsx         # Root layout
+├── components/            # Reusable components
+│   ├── ui/               # Shadcn UI components
+│   ├── navbar.tsx        # Navigation
+│   ├── footer.tsx        # Footer
+│   └── ...
+├── lib/                  # Utilities and configs
+│   ├── auth.ts          # Authentication config
+│   ├── mongodb.ts       # Database connection
+│   ├── types.ts         # TypeScript types
+│   └── utils.ts         # Helper functions
+└── public/              # Static assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Getting Started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
+- Node.js 24+ and npm
+- MongoDB database
+- Environment variables configured
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Installation
 
-## Learn More
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/moazamtech/shadway.git
+   cd shadway
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   Configure your `.env.local`:
+   ```env
+   MONGODB_URI=your_mongodb_connection_string
+   NEXTAUTH_SECRET=your_nextauth_secret
+   NEXTAUTH_URL=http://localhost:3000
+   ```
 
-## Deploy on Vercel
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. **Open [http://localhost:3000](http://localhost:3000)** in your browser
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🎨 Features Overview
+
+### 🏠 Homepage
+- Curated collection of Shadcn UI websites
+- Filter by categories and features
+- Responsive grid layout
+- Search functionality
+
+### 🎯 Templates
+- Premium and free templates
+- Live demo links
+- Download/purchase options
+- Featured templates
+
+### 📝 Submit Project
+- Easy submission form
+- Project categorization
+- Admin review process
+- Community showcase
+
+### 💎 Sponsorship
+- Multiple sponsorship tiers
+- Enhanced visibility options
+- Premium placement
+- Analytics tracking
+
+### 🔐 Admin Dashboard
+- Content management
+- User submissions review
+- Analytics and insights
+- Template management
+
+## 🌟 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Submit your project** - Share your Shadcn UI website
+2. **Report bugs** - Help us improve the platform
+3. **Suggest features** - Share your ideas
+4. **Code contributions** - Submit pull requests
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use Shadcn UI components when possible
+- Maintain responsive design principles
+- Write clean, documented code
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Connect
+
+- **Website**: [shadway.vercel.app](https://shadway.vercel.app)
+- **Twitter**: [@loxtmozzi](https://x.com/loxtmozzi)
+- **GitHub**: [Shadway Repository](https://github.com/moazamtech/shadway)
+
+## 🙏 Acknowledgments
+
+- [Shadcn](https://twitter.com/shadcn) for the amazing UI components
+- [Vercel](https://vercel.com) for hosting
+- The amazing Shadcn UI community for inspiration
+
+---
+
+<div align="center">
+  <p>Made with ❤️ by <a href="https://x.com/loxtmozzi">Moazam Butt</a></p>
+  <p>⭐ Star this repo if you find it helpful!</p>
+</div>
