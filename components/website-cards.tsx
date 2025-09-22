@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { motion, Variants } from "framer-motion"
-import { Search, Globe, ExternalLink } from "lucide-react"
+import { Search, Globe, ExternalLink, ImageIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { Website } from "@/lib/types"
@@ -13,6 +13,11 @@ interface WebsiteCardsProps {
 
 export function WebsiteCards({ websites }: WebsiteCardsProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+
+  const handleImageError = (imageUrl: string) => {
+    setFailedImages(prev => new Set(prev).add(imageUrl))
+  }
 
   const filteredWebsites = useMemo(() => {
     if (!searchQuery.trim()) return websites
@@ -69,7 +74,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12">
                 <motion.div
                   variants={cardVariants}
-                  className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[28px] xs:text-[32px] sm:text-[42px] md:text-[48px] lg:text-[56px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0"
+                  className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap"
                 >
                   Shadway Website Collection
                 </motion.div>
@@ -93,7 +98,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                     placeholder="Search websites, categories, or descriptions..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 text-base bg-background/60 backdrop-blur-sm border-border/50 rounded-full shadow-sm focus:bg-background focus:border-border transition-all duration-200"
+                    className="pl-10 h-12 text-base bg-background border-border/50 rounded-full shadow-sm focus:bg-background focus:border-border transition-all duration-200"
                   />
                 </div>
               </motion.div>
@@ -137,15 +142,27 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                       <div className="relative h-full w-full p-1">
                         <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col">
                           {/* Image Section - OG Image proportions (16:9) */}
-                          <div className="relative h-44 bg-muted/50 overflow-hidden ">
-                            <Image
-                              src={website.image}
-                              alt={`${website.name} preview`}
-                              fill
-                              className="object-cover group-hover:scale-105 transition-transform duration-300"
-                              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                              priority={index < 6}
-                            />
+                          <div className="relative h-44 bg-muted/50 overflow-hidden">
+                            {failedImages.has(website.image) ? (
+                              <div className="w-full h-full flex items-center justify-center bg-muted/70">
+                                <div className="text-center text-muted-foreground">
+                                  <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                  <p className="text-xs">Image unavailable</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <Image
+                                src={website.image}
+                                alt={`${website.name} preview`}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                priority={index < 6}
+                                onError={() => handleImageError(website.image)}
+                                placeholder="blur"
+                                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                              />
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
                           </div>
 
@@ -175,9 +192,13 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 href={website.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(website.url, '_blank', 'noopener,noreferrer');
+                                }}
                                 className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
                               >
-                                <span>Visit</span>
+                                <span>Visit Site</span>
                                 <ExternalLink className="w-3 h-3 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200" />
                               </a>
                             </div>
