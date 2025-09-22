@@ -50,11 +50,14 @@ export default function AdminLogin() {
           setSuccess(true);
           setError('');
 
+          console.log('Login successful, redirecting to dashboard');
+
           // Add a small delay to show success state
           setTimeout(() => {
-            router.push('/admin/dashboard');
+            window.location.href = '/admin/dashboard'; // Force page reload
           }, 500);
         } else {
+          console.log('Login failed - session:', session);
           setError('Access denied. Admin role required.');
         }
       }

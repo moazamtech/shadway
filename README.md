@@ -9,7 +9,7 @@
   <img src="/public/og-image.png" alt="Shadway Preview" width="600" />
 </div>
 
-## 🚀 Why Shadway?
+## 🚀 Why Shadway ?
 
 **Stop hunting through scattered resources!** Instead of wasting hours searching for the latest Shadcn UI libraries, components, and examples across different platforms, **Shadway brings everything to one place**.
 
@@ -34,9 +34,9 @@
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **[Next.js 14](https://nextjs.org/)** - React framework with App Router
+- **[Next.js 15](https://nextjs.org/)** - React framework with App Router
 - **[TypeScript](https://www.typescriptlang.org/)** - Type-safe development
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Tailwind CSS v4](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[Shadcn UI](https://ui.shadcn.com/)** - High-quality UI components
 - **[Framer Motion](https://www.framer.com/motion/)** - Smooth animations
 - **[Lucide React](https://lucide.dev/)** - Beautiful icons

@@ -25,15 +25,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === 'loading') return;
-
-    if (!session || session.user.role !== 'admin') {
-      router.push('/admin/login');
-      return;
-    }
-  }, [session, status, router]);
-
   // Loading state
   if (status === 'loading') {
     return (
@@ -46,9 +37,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  // Authentication check
-  if (!session || session.user.role !== 'admin') {
-    return null;
+  // Let middleware handle authentication - just render if we get here
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
