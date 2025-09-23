@@ -149,10 +149,10 @@ function TemplateCard({ template }: TemplateCardProps) {
               <Button
                 size="sm"
                 className={cn(
-                  "flex-1 text-xs text-white font-medium",
+                  "flex-1 text-xs text-white dark:text-gray-900 font-medium",
                   (typeof template.price === 'object' && template.price !== null ? (template.price as any).amount : template.price) === 0
-                    ? "bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30"
-                    : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/30"
+                    ? "bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/30"
+                    : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md shadow-primary/30"
                 )}
                 onClick={() => window.open(template.purchaseUrl || (template as any).links?.purchase, '_blank', 'noopener,noreferrer')}
               >
