@@ -134,7 +134,7 @@ export function Navbar() {
                       >
                         <Github className="w-4 h-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
                         <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                          {loading ? "Star" : error ? "Star" : `Star ${stars || ""}`}
+                          Give star
                         </span>
                       </Button>
                     </motion.div>
@@ -193,12 +193,7 @@ export function Navbar() {
                         }`}
                         onClick={() => window.open("https://github.com/moazamtech/shadway", "_blank", "noopener,noreferrer")}
                       >
-                        <div className="flex items-center gap-1">
-                          <Github className="w-4 h-4" />
-                          {!loading && !error && stars && (
-                            <span className="text-xs font-medium">{stars}</span>
-                          )}
-                        </div>
+                        <Github className="w-4 h-4" />
                       </Button>
                     </motion.div>
 
