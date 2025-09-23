@@ -168,8 +168,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Connect
 
-- **Website**: [shadway.vercel.app](https://shadway.vercel.app)
+- **Website**: [shadway.online](https://shadway.online)
 - **Twitter**: [@loxtmozzi](https://x.com/loxtmozzi)
+- **Github**: [@Umair-XD]([https://x.com/loxtmozzi](https://github.com/Umair-XD))
 - **GitHub**: [Shadway Repository](https://github.com/moazamtech/shadway)
 
 ## 🙏 Acknowledgments
