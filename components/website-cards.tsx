@@ -353,7 +353,6 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(addRefParameter(website.url), '_blank', 'noopener,noreferrer');
                                 }}
                                 className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
                               >
