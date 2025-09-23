@@ -63,7 +63,7 @@ export function TemplatesTable({ templates, onEdit, onDelete }: TemplatesTablePr
     }
     return (
       <div className="flex items-center gap-1">
-        <DollarSign className="w-3 h-3" />
+        {/* <DollarSign className="w-3 h-3" /> */}
         <span className="font-medium">${price}</span>
       </div>
     );

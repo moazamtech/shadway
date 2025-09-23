@@ -208,12 +208,31 @@ export function TemplateFormDialog({
                 required
               />
             </div>
+            
+            {/* Image Preview */}
+            <div className="mt-2">
+              {formData.image ? (
+                <img
+                  src={formData.image}
+                  alt="Template preview"
+                  className="w-full h-auto object-cover rounded border"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://via.placeholder.com/300x160?text=Invalid+Image";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-auto flex items-center justify-center rounded border bg-gray-100 text-gray-500 text-sm">
+                  No preview available
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Purchase Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
+              {/* <DollarSign className="w-4 h-4" /> */}
               Purchase Information
             </h3>
 
