@@ -11,6 +11,31 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Send, Globe, Mail, User, Link as LinkIcon, FileText, Tag, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
+
+const PlusIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    width={24}
+    height={24}
+    strokeWidth="1.5"
+    stroke="currentColor"
+    className={cn("text-primary size-6", className)}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+  </svg>
+)
+
+const CornerPlusIcons = () => (
+  <>
+    <PlusIcon className="absolute -top-3 -left-3" />
+    <PlusIcon className="absolute -top-3 -right-3" />
+    <PlusIcon className="absolute -bottom-3 -left-3" />
+    <PlusIcon className="absolute -bottom-3 -right-3" />
+  </>
+)
 
 interface SubmissionData {
   name: string
@@ -85,38 +110,66 @@ export default function SubmitPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen relative bg-background overflow-x-hidden">
         <Navbar />
+        {/* Background Grid Pattern */}
+        <div className="absolute inset-0 opacity-20">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="success-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#success-grid)" />
+          </svg>
+        </div>
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4 pt-32">
           <div className="w-full max-w-lg text-center">
-            <Card className="backdrop-blur-xl bg-background/80 border-border/30 shadow-2xl rounded-2xl">
-              <CardContent className="pt-12 pb-10 px-8">
-                <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-8">
-                  <CheckCircle className="w-10 h-10 text-green-500" />
-                </div>
+            <div className="relative">
+              <Card className={cn(
+                "relative border-2 border-dashed transition-all duration-300",
+                "flex flex-col bg-background",
+                "border-primary shadow-xl shadow-primary/10 bg-primary/5 backdrop-blur-xl"
+              )}>
+                <CornerPlusIcons />
 
-                <h2 className="text-3xl sm:text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Thank You!
-                </h2>
+                {/* Background Pattern */}
+                <div
+                  className="absolute inset-0 transition-opacity duration-300 opacity-10"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 20% 50%, hsl(var(--primary)) 0%, transparent 50%),
+                                     radial-gradient(circle at 80% 20%, hsl(var(--primary)) 0%, transparent 50%)`,
+                  }}
+                />
 
-                <p className="text-muted-foreground mb-10 text-base sm:text-lg leading-relaxed">
-                  Your submission has been received successfully. We'll review it and get back to you soon.
-                </p>
+                <CardContent className="pt-12 pb-10 px-8 relative z-10">
+                  <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-8">
+                    <CheckCircle className="w-10 h-10 text-green-500" />
+                  </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button asChild variant="outline" className="flex-1 sm:flex-none backdrop-blur-sm hover:bg-background/80 transition-all duration-300">
-                    <Link href="/">Back to Home</Link>
-                  </Button>
-                  <Button
-                    onClick={() => setSubmitted(false)}
-                    className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 transition-all duration-300"
-                  >
-                    Submit Another
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <h2 className="text-3xl sm:text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    Thank You!
+                  </h2>
+
+                  <p className="text-muted-foreground mb-10 text-base sm:text-lg leading-relaxed">
+                    Your submission has been received successfully. We'll review it and get back to you soon.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button asChild variant="outline" className="flex-1 sm:flex-none backdrop-blur-sm hover:bg-background/80 transition-all duration-300">
+                      <Link href="/">Back to Home</Link>
+                    </Button>
+                    <Button
+                      onClick={() => setSubmitted(false)}
+                      className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 transition-all duration-300"
+                    >
+                      Submit Another
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
 
@@ -126,20 +179,39 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-     
-     
+    <div className="min-h-screen relative bg-background overflow-x-hidden">
       <Navbar />
+      {/* Background Grid Pattern */}
+      <div className="absolute inset-0 opacity-20">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="submit-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#submit-grid)" />
+        </svg>
+      </div>
 
-      <div className="relative z-10">
+      <div className="w-full min-h-screen relative bg-background overflow-x-hidden">
         <div className="relative flex flex-col justify-start items-center w-full">
           <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
-            {/* Left vertical line */}
-            <div className="hidden sm:block w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border/30 z-0"></div>
-            {/* Right vertical line */}
-            <div className="hidden sm:block w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border/30 z-0"></div>
 
-            {/* Left decorative dashed border - outside of main lines */}
+            {/* Left vertical line */}
+            <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0">
+              <div className="absolute top-32 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+              <div className="absolute top-64 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+              <div className="absolute top-96 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            </div>
+
+            {/* Right vertical line */}
+            <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border z-0">
+              <div className="absolute top-40 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+              <div className="absolute top-72 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+              <div className="absolute top-[400px] right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            </div>
+
+            {/* Left decorative dashed border */}
             <div
               className="absolute dark:opacity-[0.15] opacity-[0.2] left-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
               style={{
@@ -148,7 +220,7 @@ export default function SubmitPage() {
               }}
             ></div>
 
-            {/* Right decorative dashed border - outside of main lines */}
+            {/* Right decorative dashed border */}
             <div
               className="absolute dark:opacity-[0.15] opacity-[0.2] right-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
               style={{
@@ -157,34 +229,60 @@ export default function SubmitPage() {
               }}
             ></div>
 
-            <div className="self-stretch flex flex-col items-center relative z-10 pt-32 pb-20">
-              <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 max-w-6xl">
-
+            <div className="self-stretch pt-[9px] overflow-hidden border-b border-border flex flex-col justify-center items-center gap-8 lg:gap-[66px] relative z-10">
+              <div
+                className="pt-24 sm:pt-28 md:pt-32 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
+              >
                 {/* Header Section */}
-                <div className="text-center mb-16">
-                  <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
-                    Submit Your Website
-                  </h1>
-
-                  <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
+                  <div
+                    className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative"
+                  >
+                    <span className="relative">
+                      Submit Your Website
+                      {/* Subtle underline decoration */}
+                      <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="240" height="8" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0,4 Q60,2 120,4 T240,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
+                      </svg>
+                    </span>
+                  </div>
+                  <div
+                    className="w-full max-w-[480px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
+                  >
                     Share your beautiful Shadcn UI website with our community. Help others discover amazing interfaces and get inspired by modern design.
-                  </p>
+                  </div>
                 </div>
 
                 {/* Form Section */}
-                <div className="max-w-3xl mx-auto">
-                  <Card className="backdrop-blur-xl bg-background/60 border-border/30 shadow-2xl rounded-2xl overflow-hidden">
-                    <CardHeader className="text-center p-8 bg-background/20">
-                      <CardTitle className="flex items-center justify-center gap-3 text-2xl sm:text-3xl font-bold mb-3">
-                        <Globe className="w-8 h-8 text-primary" />
-                        Website Submission
-                      </CardTitle>
-                      <CardDescription className="text-base sm:text-lg text-muted-foreground">
-                        Fill in the details about your website or UI project
-                      </CardDescription>
-                    </CardHeader>
+                <div className="max-w-full mx-auto">
+                  <div className="relative">
+                    <Card className={cn(
+                      "relative border-2 border-dashed transition-all duration-300",
+                      "flex flex-col bg-background",
+                      "border-border hover:border-primary/50 hover:shadow-lg backdrop-blur-xl bg-background/60 shadow-2xl"
+                    )}>
+                      <CornerPlusIcons />
 
-                    <CardContent className="p-8 sm:p-10">
+                      {/* Background Pattern */}
+                      <div
+                        className="absolute inset-0 transition-opacity duration-300 opacity-5"
+                        style={{
+                          backgroundImage: `radial-gradient(circle at 20% 50%, hsl(var(--primary)) 0%, transparent 50%),
+                                           radial-gradient(circle at 80% 20%, hsl(var(--primary)) 0%, transparent 50%)`,
+                        }}
+                      />
+
+                      <CardHeader className="text-center p-8 bg-background/20 relative z-10">
+                        <CardTitle className="flex items-center justify-center gap-3 text-2xl sm:text-3xl font-bold mb-3">
+                          <Globe className="w-8 h-8 text-primary" />
+                          Website Submission
+                        </CardTitle>
+                        <CardDescription className="text-base sm:text-lg text-muted-foreground">
+                          Fill in the details about your website or UI project
+                        </CardDescription>
+                      </CardHeader>
+
+                    <CardContent className="p-8 sm:p-10 relative z-10">
                       <form onSubmit={handleSubmit} className="space-y-8">
 
                         {/* Personal Information */}
@@ -330,13 +428,14 @@ export default function SubmitPage() {
                       </form>
                     </CardContent>
                   </Card>
+                  </div>
                 </div>
+
               </div>
             </div>
           </div>
         </div>
       </div>
-
       <Footer />
     </div>
   )
