@@ -41,14 +41,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://shadway.vercel.app"), // Replace with your actual domain
+  metadataBase: new URL("https://shadway.online"), // Replace with your actual domain
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://shadway.vercel.app", // Replace with your actual domain
+    url: "https://shadway.online", // Replace with your actual domain
     title: "Shadway - Curated Shadcn UI Website Collection",
     description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration.",
     siteName: "Shadway",
