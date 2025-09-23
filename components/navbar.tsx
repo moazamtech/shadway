@@ -61,24 +61,26 @@ export function Navbar() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="flex items-center"
                   >
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className={`flex items-center space-x-3 px-4 py-2 rounded-xl backdrop-blur-md transition-all duration-300 ${
-                        isScrolled
-                          ? 'bg-background/60 border border-border/30'
-                          : 'bg-background/40 border border-border/20'
-                      }`}
-                    >
-                     <Image
-                      src="/logo.png"
-                      width={32}
-                      height={32}
-                      alt="Shadway Logo"
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-bold text-lg text-foreground leading-none">Shadway</span>
-                      </div>
-                    </motion.div>
+                    <Link href="/">
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        className={`flex items-center space-x-3 px-4 py-2 rounded-xl backdrop-blur-md transition-all duration-300 cursor-pointer ${
+                          isScrolled
+                            ? 'bg-background/60 border border-border/30'
+                            : 'bg-background/40 border border-border/20'
+                        }`}
+                      >
+                       <Image
+                        src="/logo.png"
+                        width={32}
+                        height={32}
+                        alt="Shadway Logo"
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-bold text-lg text-foreground leading-none">Shadway</span>
+                        </div>
+                      </motion.div>
+                    </Link>
                   </motion.div>
 
                   {/* Navigation Links */}
@@ -157,24 +159,26 @@ export function Navbar() {
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between w-full px-2">
                   {/* Mobile Logo */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    className={`flex items-center space-x-2 backdrop-blur-xl rounded-2xl px-3 py-2 border shadow-lg transition-all duration-500 ${
-                      isScrolled
-                        ? 'bg-background/20 border-border/10'
-                        : 'bg-background/40 border-border/20'
-                    }`}
-                  >
-                     <Image
-                      src="/logo.png"
-                      width={42}
-                      height={42}
-                      alt="Shadway Logo"
-                      />
-                    <span className="font-bold text-base text-foreground">Shadway</span>
-                  </motion.div>
+                  <Link href="/">
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.6, delay: 0.2 }}
+                      className={`flex items-center space-x-2 backdrop-blur-xl rounded-2xl px-3 py-2 border shadow-lg transition-all duration-500 cursor-pointer ${
+                        isScrolled
+                          ? 'bg-background/20 border-border/10'
+                          : 'bg-background/40 border-border/20'
+                      }`}
+                    >
+                       <Image
+                        src="/logo.png"
+                        width={42}
+                        height={42}
+                        alt="Shadway Logo"
+                        />
+                      <span className="font-bold text-base text-foreground">Shadway</span>
+                    </motion.div>
+                  </Link>
 
                   {/* Mobile Actions */}
                   <div className="flex items-center space-x-2">

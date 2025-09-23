@@ -268,40 +268,61 @@ export default function TemplatePage() {
                   </div>
                 </div>
 
-                {/* Loading State */}
-                {loading && (
-                  <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                  </div>
-                )}
+                {/* Templates Grid - Always show container */}
+                <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 auto-rows-fr">
+                  {loading ? (
+                    // Loading skeleton cards
+                    Array.from({ length: 6 }).map((_, index) => (
+                      <div key={index} className="group cursor-pointer">
+                        <div className="relative h-[400px] w-full">
+                          <div className="relative border-2 border-dashed h-full transition-all duration-300 flex flex-col bg-background border-border animate-pulse">
+                            <div className="w-3 h-3 rounded-full bg-muted absolute -top-1.5 -left-1.5"></div>
+                            <div className="w-3 h-3 rounded-full bg-muted absolute -top-1.5 -right-1.5"></div>
+                            <div className="w-3 h-3 rounded-full bg-muted absolute -bottom-1.5 -left-1.5"></div>
+                            <div className="w-3 h-3 rounded-full bg-muted absolute -bottom-1.5 -right-1.5"></div>
 
-                {/* Error State */}
-                {error && (
-                  <div className="text-center py-20">
-                    <p className="text-muted-foreground">{error}</p>
-                  </div>
-                )}
+                            {/* Image placeholder */}
+                            <div className="relative h-48 bg-muted"></div>
 
-                {/* Templates Grid */}
-                {!loading && !error && (
-                  <div
-                    className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 auto-rows-fr"
-                  >
-                    {templates.length > 0 ? (
-                      templates.map((template, index) => (
-                        <TemplateCard
-                          key={template._id}
-                          template={template}
-                          index={index}
-                        />
-                      ))
-                    ) : (
-                      <div className="col-span-full text-center py-20">
-                        <p className="text-muted-foreground">No templates available yet.</p>
+                            {/* Content placeholder */}
+                            <div className="flex-1 p-4 flex flex-col">
+                              <div className="flex items-start gap-2 mb-3">
+                                <div className="w-3 h-3 rounded-full bg-muted flex-shrink-0 mt-1"></div>
+                                <div className="flex-1">
+                                  <div className="h-5 bg-muted rounded mb-2 w-3/4"></div>
+                                </div>
+                              </div>
+                              <div className="space-y-2 mb-4 flex-1">
+                                <div className="h-3 bg-muted rounded w-full"></div>
+                                <div className="h-3 bg-muted rounded w-2/3"></div>
+                              </div>
+                              <div className="mt-auto flex gap-2">
+                                <div className="flex-1 h-8 bg-muted rounded"></div>
+                                <div className="flex-1 h-8 bg-muted rounded"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    ))
+                  ) : error ? (
+                    <div className="col-span-full text-center py-20">
+                      <p className="text-muted-foreground">{error}</p>
+                    </div>
+                  ) : templates.length > 0 ? (
+                    templates.map((template, index) => (
+                      <TemplateCard
+                        key={template._id}
+                        template={template}
+                        index={index}
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-20">
+                      <p className="text-muted-foreground">No templates available yet.</p>
+                    </div>
+                  )}
+                </div>
 
               </div>
             </div>
