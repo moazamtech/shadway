@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Loader2, DollarSign, Globe, Code } from 'lucide-react';
-import { Template } from '@/lib/types';
-import { fetchSiteMetadata } from '@/lib/metadata-fetcher';
+} from "@/components/ui/dialog";
+import { Loader2, DollarSign, Globe, Code } from "lucide-react";
+import { Template } from "@/lib/types";
+import { fetchSiteMetadata } from "@/lib/metadata-fetcher";
 
 interface TemplateFormDialogProps {
   isOpen: boolean;
@@ -28,19 +28,48 @@ export function TemplateFormDialog({
   onClose,
   onSubmit,
   template,
-  isLoading = false
+  isLoading = false,
 }: TemplateFormDialogProps) {
   const [formData, setFormData] = useState({
-    name: template?.name || '',
-    description: template?.description || '',
-    image: template?.image || '',
-    demoUrl: template?.demoUrl || '',
-    purchaseUrl: template?.purchaseUrl || '',
+    name: template?.name || "",
+    description: template?.description || "",
+    image: template?.image || "",
+    demoUrl: template?.demoUrl || "",
+    purchaseUrl: template?.purchaseUrl || "",
     price: template?.price || 0,
     featured: template?.featured || false,
     sequence: template?.sequence || 0,
   });
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+  useEffect(() => {
+    if (template) {
+      setFormData({
+        name: template.name || "",
+        description: template.description || "",
+        image: template.image || "",
+        demoUrl: template.demoUrl || "",
+        purchaseUrl: template.purchaseUrl || "",
+        price:
+          typeof template.price === "object"
+            ? (template.price as any).amount
+            : template.price || 0,
+        featured: template.featured || false,
+        sequence: template.sequence || 0,
+      });
+    } else {
+      // reset for "create new"
+      setFormData({
+        name: "",
+        description: "",
+        image: "",
+        demoUrl: "",
+        purchaseUrl: "",
+        price: 0,
+        featured: false,
+        sequence: 0,
+      });
+    }
+  }, [template, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,14 +84,14 @@ export function TemplateFormDialog({
     setIsFetchingMetadata(true);
     try {
       const metadata = await fetchSiteMetadata(formData.demoUrl);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         name: metadata.title || prev.name,
         description: metadata.description || prev.description,
         image: metadata.ogImage || prev.image,
       }));
     } catch (error) {
-      console.error('Failed to fetch metadata:', error);
+      console.error("Failed to fetch metadata:", error);
     } finally {
       setIsFetchingMetadata(false);
     }
@@ -70,11 +99,11 @@ export function TemplateFormDialog({
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      image: '',
-      demoUrl: '',
-      purchaseUrl: '',
+      name: "",
+      description: "",
+      image: "",
+      demoUrl: "",
+      purchaseUrl: "",
       price: 0,
       featured: false,
       sequence: 0,
@@ -92,13 +121,12 @@ export function TemplateFormDialog({
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold flex items-center gap-2">
             <Code className="w-5 h-5" />
-            {template ? 'Edit Template' : 'Add New Template'}
+            {template ? "Edit Template" : "Add New Template"}
           </DialogTitle>
           <DialogDescription>
             {template
-              ? 'Update the template information below.'
-              : 'Fill in the demo URL and let us auto-fetch the details, then add pricing and purchase link.'
-            }
+              ? "Update the template information below."
+              : "Fill in the demo URL and let us auto-fetch the details, then add pricing and purchase link."}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,7 +139,9 @@ export function TemplateFormDialog({
                 id="demoUrl"
                 type="url"
                 value={formData.demoUrl}
-                onChange={(e) => setFormData({...formData, demoUrl: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, demoUrl: e.target.value })
+                }
                 placeholder="https://template-demo.com"
                 className="flex-1"
                 required
@@ -126,12 +156,13 @@ export function TemplateFormDialog({
                 {isFetchingMetadata ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  'Auto-fetch'
+                  "Auto-fetch"
                 )}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter the demo URL first, then click Auto-fetch to fill title, description, and image
+              Enter the demo URL first, then click Auto-fetch to fill title,
+              description, and image
             </p>
           </div>
 
@@ -142,7 +173,9 @@ export function TemplateFormDialog({
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Enter template name"
                 required
               />
@@ -153,7 +186,9 @@ export function TemplateFormDialog({
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 placeholder="Describe the template..."
                 rows={3}
                 required
@@ -166,7 +201,9 @@ export function TemplateFormDialog({
                 id="image"
                 type="url"
                 value={formData.image}
-                onChange={(e) => setFormData({...formData, image: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, image: e.target.value })
+                }
                 placeholder="https://example.com/preview-image.jpg"
                 required
               />
@@ -189,7 +226,12 @@ export function TemplateFormDialog({
                   min="0"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: parseFloat(e.target.value) || 0})}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      price: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0 for free templates"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -204,7 +246,12 @@ export function TemplateFormDialog({
                   type="number"
                   min="0"
                   value={formData.sequence}
-                  onChange={(e) => setFormData({...formData, sequence: parseInt(e.target.value) || 0})}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      sequence: parseInt(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -219,12 +266,15 @@ export function TemplateFormDialog({
                 id="purchaseUrl"
                 type="url"
                 value={formData.purchaseUrl}
-                onChange={(e) => setFormData({...formData, purchaseUrl: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, purchaseUrl: e.target.value })
+                }
                 placeholder="https://where-to-buy-template.com"
                 required
               />
               <p className="text-xs text-muted-foreground">
-                This is where users will be redirected to purchase/download the template
+                This is where users will be redirected to purchase/download the
+                template
               </p>
             </div>
 
@@ -232,7 +282,9 @@ export function TemplateFormDialog({
               <Switch
                 id="featured"
                 checked={formData.featured}
-                onCheckedChange={(checked) => setFormData({...formData, featured: checked})}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, featured: checked })
+                }
               />
               <Label htmlFor="featured" className="text-sm font-medium">
                 Mark as featured template
@@ -253,10 +305,12 @@ export function TemplateFormDialog({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {template ? 'Updating...' : 'Creating...'}
+                  {template ? "Updating..." : "Creating..."}
                 </>
+              ) : template ? (
+                "Update Template"
               ) : (
-                template ? 'Update Template' : 'Create Template'
+                "Create Template"
               )}
             </Button>
           </div>

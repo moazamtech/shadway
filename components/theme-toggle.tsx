@@ -44,7 +44,7 @@ export function ThemeToggle() {
     >
       <motion.div
         className="absolute inset-0 flex items-center justify-center"
-        animate={{ rotate: resolvedTheme === "dark" ? 180 : 0 }}
+        animate={{ rotate: resolvedTheme === "dark" ? 360 : 0 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
       >
         <Sun className="h-4 w-4 text-amber-500 absolute scale-100 dark:scale-0 transition-transform duration-200" />
