@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
+import { StructuredData } from "@/components/structured-data";
+import { generateSEOMetadata } from "@/lib/seo";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -16,92 +18,34 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Shadway - Curated Shadcn UI Website Collection",
-    template: "%s | Shadway"
-  },
-  description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
-  keywords: [
-    "shadcn ui",
-    "shadcn ui figma",
-    "shadcn/ui install​",
-    "shadcn ui theme generator",
-    "shadcn ui templates​",
-    "react component library​",
-    "shadcn card component",
-    "shadcn install components",
-    "music player component in react js",
-    "react carousel component",
-    "ui library",
-    "react pure component",
-    "react dynamic component",
-    "design system",
-    "nextjs",
-    "tailwind css",
-    "modern ui",
-    "web design",
-    "interface design",
-    "shadcn figma​",
-    "component library"
-  ],
-  authors: [{ name: "Moazam Butt", url: "https://x.com/loxtmozzi" }],
-  creator: "Moazam Butt",
-  publisher: "Shadway",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  metadataBase: new URL("https://shadway.online"), // Replace with your actual domain
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://shadway.online", // Replace with your actual domain
+  ...generateSEOMetadata({
     title: "Shadway - Curated Shadcn UI Website Collection",
-    description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration.",
-    siteName: "Shadway",
-    images: [
-      {
-        url: "/og-image.png", // You'll need to add this image
-        width: 1200,
-        height: 630,
-        alt: "Shadway - Curated Shadcn UI Collection",
-      },
+    description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
+    keywords: [
+      "shadcn ui figma",
+      "shadcn/ui install",
+      "shadcn ui theme generator",
+      "shadcn ui templates",
+      "react component library",
+      "shadcn card component",
+      "shadcn install components",
+      "music player component in react js",
+      "react carousel component",
+      "react pure component",
+      "react dynamic component",
+      "shadcn figma",
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Shadway - Curated Shadcn UI Website Collection",
-    description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration.",
-    creator: "@loxtmozzi",
-    images: ["/og-image.png"], // Same image as OpenGraph
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-  manifest: "/manifest.json", // You can create this later for PWA
-  icons: {
-    icon: [
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-    other: [
-      { rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#000000" },
-    ],
+  }),
+  other: {
+    'application-name': 'Shadway',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+    'apple-mobile-web-app-title': 'Shadway',
+    'format-detection': 'telephone=no',
+    'mobile-web-app-capable': 'yes',
+    'msapplication-config': '/browserconfig.xml',
+    'msapplication-TileColor': '#000000',
+    'msapplication-tap-highlight': 'no',
   },
 };
 
@@ -122,12 +66,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="Shadway RSS Feed"
+          href="/feed.xml"
+        />
+        <link
+          rel="alternate"
+          type="application/feed+json"
+          title="Shadway JSON Feed"
+          href="/feed.json"
+        />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <Providers>
+          <StructuredData type="website" />
+          <StructuredData type="organization" />
           {children}
-          <Analytics />  
+          <Analytics />
         </Providers>
       </body>
     </html>
