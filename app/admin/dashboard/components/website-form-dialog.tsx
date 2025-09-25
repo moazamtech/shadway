@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,16 +31,43 @@ export function WebsiteFormDialog({
   isLoading = false
 }: WebsiteFormDialogProps) {
   const [formData, setFormData] = useState({
-    name: website?.name || '',
-    description: website?.description || '',
-    url: website?.url || '',
-    image: website?.image || '',
-    category: website?.category || '',
-    tags: website?.tags?.join(', ') || '',
-    featured: website?.featured || false,
-    sequence: website?.sequence || 0,
+    name: '',
+    description: '',
+    url: '',
+    image: '',
+    category: '',
+    tags: '',
+    featured: false,
+    sequence: 0,
   });
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+
+  // Update form data when website prop changes
+  useEffect(() => {
+    if (website) {
+      setFormData({
+        name: website.name || '',
+        description: website.description || '',
+        url: website.url || '',
+        image: website.image || '',
+        category: website.category || '',
+        tags: website.tags?.join(', ') || '',
+        featured: website.featured || false,
+        sequence: website.sequence || 0,
+      });
+    } else {
+      setFormData({
+        name: '',
+        description: '',
+        url: '',
+        image: '',
+        category: '',
+        tags: '',
+        featured: false,
+        sequence: 0,
+      });
+    }
+  }, [website]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,21 +101,7 @@ export function WebsiteFormDialog({
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      url: '',
-      image: '',
-      category: '',
-      tags: '',
-      featured: false,
-      sequence: 0,
-    });
-  };
-
   const handleClose = () => {
-    if (!website) resetForm();
     onClose();
   };
 
