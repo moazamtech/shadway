@@ -3,6 +3,7 @@ import { WebsiteCards } from "@/components/website-cards";
 import { CTASection } from "@/components/cta-section";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { StructuredData } from "@/components/structured-data";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,6 +32,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <StructuredData type="collection" data={{ websites: featuredWebsites }} />
       <Navbar />
       <WebsiteCards websites={featuredWebsites} />
       <CTASection />
