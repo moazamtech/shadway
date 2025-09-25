@@ -153,7 +153,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                   className="mb-4"
                 >
                   <a href="https://www.producthunt.com/products/shadway?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-shadway" target="_blank">
-                    <Image src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1019194&theme=light&t=1758634172644" alt="Shadway - Curated&#0032;shadcn&#0032;ui&#0032;websites&#0032;collection | Product Hunt" style={{width: '250px', height: '54px'}} width="250" height="54" />
+                    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1019194&theme=light&t=1758634172644" alt="Shadway - Curated&#0032;shadcn&#0032;ui&#0032;websites&#0032;collection | Product Hunt" style={{width: '250px', height: '54px'}} width="250" height="54" />
                   </a>
                 </motion.div>
 
@@ -314,7 +314,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 </div>
                               </div>
                             ) : (
-                              <Image
+                              <img
                                 src={website.image}
                                 alt={`${website.name} preview`}
                                 width={400}
