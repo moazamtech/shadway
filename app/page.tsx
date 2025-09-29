@@ -10,6 +10,53 @@ import { StructuredData } from "@/components/structured-data";
 import { WebsiteGridSkeleton } from "@/components/skeletons/website-card-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const CACHE_KEY = 'shadway_websites';
+const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+interface CachedData {
+  data: Website[];
+  timestamp: number;
+}
+
+function getCachedWebsites(): Website[] | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+
+    const { data, timestamp }: CachedData = JSON.parse(cached);
+    const now = Date.now();
+
+    // Check if cache is still valid (within expiry time)
+    if (now - timestamp < CACHE_EXPIRY) {
+      return data;
+    } else {
+      // Cache expired, remove it
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error reading from cache:', error);
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+}
+
+function setCachedWebsites(websites: Website[]): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const cacheData: CachedData = {
+      data: websites,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Error saving to cache:', error);
+  }
+}
+
 async function getWebsites(): Promise<Website[]> {
   try {
     const response = await fetch('/api/websites', {
@@ -35,6 +82,13 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Check if we have cached data on mount to set initial loading state
+    const cachedData = getCachedWebsites();
+    if (cachedData && cachedData.length > 0) {
+      setLoading(false);
+      setWebsites(cachedData);
+    }
   }, []);
 
   useEffect(() => {
@@ -42,11 +96,45 @@ export default function Home() {
 
     const fetchWebsites = async () => {
       try {
+        // Check if we have cached data first
+        const cachedData = getCachedWebsites();
+
+        if (cachedData && cachedData.length > 0) {
+          // Use cached data - load instantly without showing loading state
+          setWebsites(cachedData);
+          setLoading(false);
+
+          // Preload first few images for better performance
+          const preloadImages = cachedData.slice(0, 6).map(website => {
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'image';
+            link.href = website.image;
+            document.head.appendChild(link);
+            return link;
+          });
+
+          // Clean up preload links after 5 seconds
+          setTimeout(() => {
+            preloadImages.forEach(link => {
+              if (link.parentNode) {
+                link.parentNode.removeChild(link);
+              }
+            });
+          }, 5000);
+
+          return; // Exit early if we have cached data
+        }
+
+        // No cached data, fetch from API
         setLoading(true);
         const data = await getWebsites();
 
-        // Preload first few images for better performance
+        // Cache the fetched data
         if (data.length > 0) {
+          setCachedWebsites(data);
+
+          // Preload first few images for better performance
           const preloadImages = data.slice(0, 6).map(website => {
             const link = document.createElement('link');
             link.rel = 'preload';
