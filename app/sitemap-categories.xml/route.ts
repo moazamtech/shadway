@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
 
+// Helper function to escape XML entities
+function escapeXml(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export async function GET() {
   try {
     const { db } = await connectToDatabase()
@@ -15,7 +26,7 @@ export async function GET() {
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${categories.map(category => `  <url>
-    <loc>${baseUrl}/category/${category.toLowerCase()}</loc>
+    <loc>${baseUrl}/category/${encodeURIComponent(category.toLowerCase())}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>

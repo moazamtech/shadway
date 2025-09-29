@@ -23,6 +23,12 @@ export const metadata: Metadata = {
     description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
     keywords: [
       "shadcn ui figma",
+      "Shadway",
+      "Shadway Shadcn",
+      "Shadcn shadway",
+      "Shadcn docs",
+      "Shadcn components",
+      "Shadcn latest",
       "shadcn/ui install",
       "shadcn ui theme generator",
       "shadcn ui templates",
