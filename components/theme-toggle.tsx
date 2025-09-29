@@ -3,22 +3,55 @@
 import * as React from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { motion } from "framer-motion"
+import { flushSync } from "react-dom"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const buttonRef = React.useRef<HTMLButtonElement>(null)
 
   // Ensure component is mounted before applying animations
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark")
-  }
+  const toggleTheme = React.useCallback(async () => {
+    if (!buttonRef.current || !mounted) return
+
+    const newTheme = resolvedTheme === "dark" ? "light" : "dark"
+
+    await document.startViewTransition(() => {
+      flushSync(() => {
+        setTheme(newTheme)
+      })
+    }).ready
+
+    const { top, left, width, height } =
+      buttonRef.current.getBoundingClientRect()
+    const x = left + width / 2
+    const y = top + height / 2
+    const maxRadius = Math.hypot(
+      Math.max(left, window.innerWidth - left),
+      Math.max(top, window.innerHeight - top)
+    )
+
+    document.documentElement.animate(
+      {
+        clipPath: [
+          `circle(0px at ${x}px ${y}px)`,
+          `circle(${maxRadius}px at ${x}px ${y}px)`,
+        ],
+      },
+      {
+        duration: 700,
+        easing: "ease-in-out",
+        pseudoElement: "::view-transition-new(root)",
+      }
+    )
+  }, [resolvedTheme, mounted, setTheme])
 
   // Prevent hydration mismatch by not rendering theme-dependent content on server
   if (!mounted) {
@@ -37,19 +70,17 @@ export function ThemeToggle() {
 
   return (
     <Button
+      ref={buttonRef}
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="h-10 w-10 rounded-xl bg-background/40 backdrop-blur-md border border-border/20 hover:bg-background/60 transition-all duration-200 relative overflow-hidden"
+      className="h-10 w-10 rounded-xl bg-background/40 backdrop-blur-md border border-border/20 hover:bg-background/60 transition-all duration-200"
     >
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center"
-        animate={{ rotate: resolvedTheme === "dark" ? 360 : 0 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-      >
-        <Sun className="h-4 w-4 text-amber-500 absolute scale-100 dark:scale-0 transition-transform duration-200" />
-        <Moon className="h-4 w-4 text-blue-400 absolute scale-0 dark:scale-100 transition-transform duration-200" />
-      </motion.div>
+      {resolvedTheme === "dark" ? (
+        <Sun className="h-4 w-4 text-amber-500" />
+      ) : (
+        <Moon className="h-4 w-4 text-blue-400" />
+      )}
       <span className="sr-only">Toggle theme</span>
     </Button>
   )

@@ -69,19 +69,19 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.3,
-        staggerChildren: 0.05,
+        duration: 0.2,
+        staggerChildren: 0.03,
       },
     },
   }
 
   const cardVariants: Variants = {
-    hidden: { opacity: 0, y: 8 },
+    hidden: { opacity: 0, y: 4 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.3,
+        duration: 0.2,
         ease: "easeOut",
       },
     },
@@ -325,7 +325,7 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 </div>
                               </div>
                             ) : (
-                              <img
+                              <Image
                                 src={website.image}
                                 alt={`${website.name} preview`}
                                 width={400}
@@ -334,8 +334,10 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 onError={() => handleImageError(website.image)}
                                 style={{ aspectRatio: '16/9' }}
-                                loading="lazy"
-                                decoding="async"
+                                // loading="lazy"
+                                placeholder="blur"
+                                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                priority={index < 6} // Priority for first 6 images
                               />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
