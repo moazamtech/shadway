@@ -29,7 +29,6 @@ async function getWebsites(): Promise<Website[]> {
 export default async function Home() {
   const featuredWebsites = await getWebsites();
 
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <StructuredData type="collection" data={{ websites: featuredWebsites }} />

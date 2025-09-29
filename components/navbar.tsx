@@ -33,10 +33,11 @@ export function Navbar() {
     <>
       {/* Main Navbar */}
       <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="fixed top-0 left-0 right-0 z-50 bg-transparent"
+        style={{ willChange: 'transform' }}
       >
         <div className="relative flex flex-col justify-start items-center w-full">
           <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">

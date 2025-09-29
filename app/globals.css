@@ -117,9 +117,21 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    font-display: swap;
+    /* Prevent layout shift during font loading */
+    font-optical-sizing: auto;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   html, body {
     @apply bg-background text-foreground;
     cursor: default;
+    /* Improve rendering performance */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   button, [role="button"], .cursor-pointer {
@@ -132,6 +144,35 @@
 
   button *, [role="button"] *, a * {
     cursor: inherit !important;
+  }
+
+  /* Improve animation performance */
+  img {
+    content-visibility: auto;
+    contain: layout style paint;
+  }
+
+  /* Optimize transforms and animations */
+  [data-motion] {
+    will-change: transform;
+  }
+
+  /* Prevent layout shift for images */
+  img[width][height] {
+    height: auto;
+    aspect-ratio: attr(width) / attr(height);
+  }
+
+  /* Respect user's motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
