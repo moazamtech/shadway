@@ -69,19 +69,19 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.6,
-        staggerChildren: 0.08,
+        duration: 0.3,
+        staggerChildren: 0.05,
       },
     },
   }
 
   const cardVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 8 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
+        duration: 0.3,
         ease: "easeOut",
       },
     },
@@ -147,13 +147,22 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               {/* Header Section with geometric decorations */}
               <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
 
-                {/* Product Hunt Badge */}
+                {/* Product Hunt and Peerlist Badges */}
                 <motion.div
                   variants={cardVariants}
-                  className="mb-4"
+                  className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-4"
                 >
-                  <a href="https://www.producthunt.com/products/shadway?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-shadway" target="_blank">
+                  <a href="https://www.producthunt.com/products/shadway?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-shadway" target="_blank" rel="noreferrer">
                     <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1019194&theme=light&t=1758634172644" alt="Shadway - Curated&#0032;shadcn&#0032;ui&#0032;websites&#0032;collection | Product Hunt" style={{width: '250px', height: '54px'}} width="250" height="54" />
+                  </a>
+                  <a href="https://peerlist.io/moazam/project/shadway" target="_blank" rel="noreferrer">
+                    <img
+                      src="https://peerlist.io/api/v1/projects/embed/PRJHJKNRQKMR9LL7O1AR9BBP6LQR9K?showUpvote=true&theme=dark"
+                      alt="Shadway"
+                      style={{width: 'auto', height: '72px'}}
+                      width="auto"
+                      height="72"
+                    />
                   </a>
                 </motion.div>
 
@@ -242,12 +251,14 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
               <motion.div
                 variants={containerVariants}
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                style={{ willChange: 'opacity' }}
               >
                 {regularWebsites.map((website, index) => (
                   <motion.div
                     key={website._id || index}
                     variants={cardVariants}
                     className="group cursor-pointer"
+                    style={{ willChange: 'transform, opacity' }}
                   >
                     {/* Enhanced SVG border container with geometric patterns */}
                     <div className="relative h-[340px] w-full">
@@ -319,9 +330,12 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 alt={`${website.name} preview`}
                                 width={400}
                                 height={225}
-                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 onError={() => handleImageError(website.image)}
+                                style={{ aspectRatio: '16/9' }}
+                                loading="lazy"
+                                decoding="async"
                               />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
