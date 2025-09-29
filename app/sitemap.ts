@@ -2,6 +2,17 @@ import { MetadataRoute } from 'next'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
 
+// Helper function to escape XML entities
+function escapeXml(str: string): string {
+  if (!str) return str
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://shadway.online'
 
@@ -45,7 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Generate dynamic pages for each website (if you have individual pages)
     const websitePages = websites.map((website) => ({
-      url: `${baseUrl}/website/${website._id}`,
+      url: escapeXml(`${baseUrl}/website/${website._id}`),
       lastModified: website.updatedAt || website.createdAt || new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.6,
@@ -54,7 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Category pages
     const categories = [...new Set(websites.map(w => w.category.toLowerCase()))]
     const categoryPages = categories.map((category) => ({
-      url: `${baseUrl}/category/${category}`,
+      url: escapeXml(`${baseUrl}/category/${encodeURIComponent(category)}`),
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.7,
