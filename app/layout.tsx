@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/next";
 import { StructuredData } from "@/components/structured-data";
 import { generateSEOMetadata } from "@/lib/seo";
+import { LenisScroll } from "@/components/lenis-scroll";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -92,6 +93,7 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <Providers>
+          <LenisScroll />
           <StructuredData type="website" />
           <StructuredData type="organization" />
           {children}
