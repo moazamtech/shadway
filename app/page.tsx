@@ -105,23 +105,13 @@ export default function Home() {
           setLoading(false);
 
           // Preload first few images for better performance
-          const preloadImages = cachedData.slice(0, 6).map(website => {
+          cachedData.slice(0, 6).forEach(website => {
             const link = document.createElement('link');
             link.rel = 'preload';
             link.as = 'image';
             link.href = website.image;
             document.head.appendChild(link);
-            return link;
           });
-
-          // Clean up preload links after 5 seconds
-          setTimeout(() => {
-            preloadImages.forEach(link => {
-              if (link.parentNode) {
-                link.parentNode.removeChild(link);
-              }
-            });
-          }, 5000);
 
           return; // Exit early if we have cached data
         }
@@ -135,23 +125,13 @@ export default function Home() {
           setCachedWebsites(data);
 
           // Preload first few images for better performance
-          const preloadImages = data.slice(0, 6).map(website => {
+          data.slice(0, 6).forEach(website => {
             const link = document.createElement('link');
             link.rel = 'preload';
             link.as = 'image';
             link.href = website.image;
             document.head.appendChild(link);
-            return link;
           });
-
-          // Clean up preload links after 5 seconds
-          setTimeout(() => {
-            preloadImages.forEach(link => {
-              if (link.parentNode) {
-                link.parentNode.removeChild(link);
-              }
-            });
-          }, 5000);
         }
 
         setWebsites(data);
