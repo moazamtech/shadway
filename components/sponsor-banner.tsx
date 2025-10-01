@@ -104,6 +104,7 @@ export function SponsorBanner({ website }: SponsorBannerProps) {
                     src={website.image}
                     alt={`${website.name} preview`}
                     className="w-full h-64 md:h-80 object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="eager"
                   />
 
                   {/* Image overlay */}

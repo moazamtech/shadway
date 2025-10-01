@@ -145,6 +145,7 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
                 src={website.image}
                 alt={`${website.name} preview`}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                loading={index < 3 ? "eager" : "lazy"}
               />
 
               {/* Enhanced gradient overlay */}
