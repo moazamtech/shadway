@@ -254,12 +254,12 @@ export default function SubmitPage() {
                 </div>
 
                 {/* Form Section */}
-                <div className="max-w-full mx-auto">
+                <div className="w-full max-w-[800px] mx-auto">
                   <div className="relative">
                     <Card className={cn(
                       "relative border-2 border-dashed transition-all duration-300",
                       "flex flex-col bg-background",
-                      "border-border hover:border-primary/50 hover:shadow-lg backdrop-blur-xl bg-background/60 shadow-2xl"
+                      "border-border hover:border-primary/50 backdrop-blur-xl bg-background/60 "
                     )}>
                       <CornerPlusIcons />
 
@@ -410,7 +410,7 @@ export default function SubmitPage() {
                           <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
+                            className="w-full h-14 text-lg font-semibold bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all duration-300 rounded-sm "
                           >
                             {isSubmitting ? (
                               <div className="flex items-center gap-3">
