@@ -325,23 +325,25 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                                 </div>
                               </div>
                             ) : (
-                              <Image
-                                src={website.image}
-                                alt={`${website.name} preview`}
-                                width={400}
-                                height={225}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                onError={() => handleImageError(website.image)}
-                                style={{ aspectRatio: '16/9' }}
-                                loading={index < 6 ? "eager" : "lazy"}
-                                placeholder="blur"
-                                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
-                                priority={index < 6}
-                                unoptimized={false}
-                              />
+                              <div className="w-full h-full overflow-hidden">
+                                <Image
+                                  src={website.image}
+                                  alt={`${website.name} preview`}
+                                  width={400}
+                                  height={225}
+                                  className="w-full h-full object-cover transition-colors duration-500 ease-out group-hover:scale-105"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                  onError={() => handleImageError(website.image)}
+                                  style={{ aspectRatio: '16/9' }}
+                                  loading={index < 6 ? "eager" : "lazy"}
+                                  placeholder="blur"
+                                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                  priority={index < 6}
+                                  unoptimized={false}
+                                />
+                              </div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
                           </div>
 
                           {/* Content Section */}
