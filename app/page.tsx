@@ -130,22 +130,6 @@ export default function Home() {
                       <Skeleton className="w-[250px] h-[54px]" />
                       <Skeleton className="w-[200px] h-[72px]" />
                     </div>
-
-                    {/* Title Skeleton */}
-                    <div className="w-full max-w-[600px] text-center flex justify-center flex-col px-2 sm:px-4 md:px-0">
-                      <Skeleton className="h-12 w-full max-w-[500px] mx-auto mb-4" />
-                    </div>
-
-                    {/* Description Skeleton */}
-                    <div className="w-full max-w-[480px] text-center flex justify-center flex-col px-2 sm:px-4 md:px-0">
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-3/4 mx-auto" />
-                    </div>
-                  </div>
-
-                  {/* Search Section Skeleton */}
-                  <div className="w-full max-w-[540px] mb-16 relative">
-                    <Skeleton className="h-12 w-full rounded-full" />
                   </div>
 
                   {/* Horizontal separator line */}
