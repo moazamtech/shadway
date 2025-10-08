@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { metadataRateLimiter, getClientIP } from '@/lib/rate-limit';
 import { JSDOM } from 'jsdom';
 import { captureScreenshotAndUpload } from '@/lib/uploadOrScreenshot';
+import { uploadRemoteImageToCloudinary } from '@/lib/cloudinary';
 
 // Utility to extract meta content safely
 const getMetaContent = (document: Document, name: string, property?: boolean): string => {
@@ -117,6 +118,14 @@ export async function GET(request: NextRequest) {
     // SCREENSHOT FALLBACK (delegated to uploadOrScreenshot.ts)
     if (!ogImage) {
       ogImage = await captureScreenshotAndUpload(normalizedUrl);
+    } else if (!ogImage.includes('res.cloudinary.com')) {
+      // Upload remote OG image to Cloudinary
+      try {
+        const uploaded = await uploadRemoteImageToCloudinary(ogImage, `og-${Date.now()}`);
+        ogImage = uploaded;
+      } catch (err) {
+        console.warn('Failed to upload OG image to Cloudinary:', err);
+      }
     }
 
     // FAVICON DETECTION
