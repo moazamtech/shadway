@@ -11,7 +11,7 @@ export async function captureScreenshotAndUpload(url: string): Promise<string> {
   await page.screenshot({ path: filePath, fullPage: true });
   await browser.close();
 
-  const cloudinaryUrl = await uploadToCloudinary(filePath);
+  const cloudinaryUrl = await uploadToCloudinary(filePath, "og_images");
   fs.unlinkSync(filePath); // delete local temp file
   return cloudinaryUrl;
 }
