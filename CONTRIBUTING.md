@@ -236,8 +236,7 @@ We welcome feature suggestions! When requesting features:
 
 If you have questions about contributing:
 - Check existing [Issues](https://github.com/moazamtech/shadway/issues)
-- Open a [Discussion](https://github.com/moazamtech/shadway/discussions)
-- Reach out on [Twitter/X](https://twitter.com/moazamtech)
+- Reach out on [Twitter/X](https://twitter.com/loxtmozzi)
 
 ## Recognition
 
