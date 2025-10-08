@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Website } from '@/lib/types';
-import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {

@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Plus, ArrowUpDown, RefreshCw } from 'lucide-react';
-import { Website } from '@/lib/types';
-import { AdminLayout } from '../components';
+import { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2, Plus, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Website } from "@/lib/types";
+import { AdminLayout } from "../components";
 import {
   SearchFilter,
   WebsitesTable,
   WebsiteFormDialog,
-  WebsiteReorderDialog
-} from '../dashboard/components';
+  WebsiteReorderDialog,
+} from "../dashboard/components";
 
 interface WebsiteStats {
   totalSites: number;
@@ -32,14 +38,14 @@ export default function WebsitesPage() {
   const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false);
 
   // Filter and pagination state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // Computed stats
   const stats: WebsiteStats = useMemo(() => {
-    const recentlyAdded = websites.filter(website => {
+    const recentlyAdded = websites.filter((website) => {
       const addedDate = new Date(website.createdAt || Date.now());
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       return addedDate > weekAgo;
@@ -47,9 +53,9 @@ export default function WebsitesPage() {
 
     return {
       totalSites: websites.length,
-      featuredSites: websites.filter(w => w.featured).length,
-      categoriesCount: new Set(websites.map(w => w.category)).size,
-      recentlyAdded
+      featuredSites: websites.filter((w) => w.featured).length,
+      categoriesCount: new Set(websites.map((w) => w.category)).size,
+      recentlyAdded,
     };
   }, [websites]);
 
@@ -60,14 +66,14 @@ export default function WebsitesPage() {
   const fetchWebsites = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/websites');
+      const response = await fetch("/api/websites");
       if (!response.ok) {
-        throw new Error('Failed to fetch websites');
+        throw new Error("Failed to fetch websites");
       }
       const data = await response.json();
       setWebsites(data);
     } catch (error) {
-      console.error('Error fetching websites:', error);
+      console.error("Error fetching websites:", error);
     } finally {
       setLoading(false);
     }
@@ -76,13 +82,19 @@ export default function WebsitesPage() {
   // Filtered and paginated websites
   const filteredWebsites = useMemo(() => {
     return websites
-      .filter(website => {
-        const matchesSearch = website.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            website.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            website.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            website.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      .filter((website) => {
+        const matchesSearch =
+          website.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          website.description
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          website.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          website.tags?.some((tag) =>
+            tag.toLowerCase().includes(searchTerm.toLowerCase())
+          );
 
-        const matchesCategory = !categoryFilter || website.category === categoryFilter;
+        const matchesCategory =
+          !categoryFilter || website.category === categoryFilter;
 
         return matchesSearch && matchesCategory;
       })
@@ -96,7 +108,7 @@ export default function WebsitesPage() {
 
   const totalPages = Math.ceil(filteredWebsites.length / itemsPerPage);
   const categories = useMemo(() => {
-    return [...new Set(websites.map(w => w.category))];
+    return [...new Set(websites.map((w) => w.category))];
   }, [websites]);
 
   // Event handlers
@@ -105,20 +117,20 @@ export default function WebsitesPage() {
     try {
       const url = editingWebsite
         ? `/api/websites/${editingWebsite._id}`
-        : '/api/websites';
+        : "/api/websites";
 
-      const method = editingWebsite ? 'PUT' : 'POST';
+      const method = editingWebsite ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save website');
+        throw new Error("Failed to save website");
       }
 
       await fetchWebsites();
@@ -126,7 +138,7 @@ export default function WebsitesPage() {
       setEditingWebsite(null);
       setCurrentPage(1);
     } catch (error) {
-      console.error('Error saving website:', error);
+      console.error("Error saving website:", error);
     } finally {
       setSubmitting(false);
     }
@@ -138,22 +150,22 @@ export default function WebsitesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this website?')) {
+    if (!window.confirm("Are you sure you want to delete this website?")) {
       return;
     }
 
     try {
       const response = await fetch(`/api/websites/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete website');
+        throw new Error("Failed to delete website");
       }
 
       await fetchWebsites();
     } catch (error) {
-      console.error('Error deleting website:', error);
+      console.error("Error deleting website:", error);
     }
   };
 
@@ -167,52 +179,53 @@ export default function WebsitesPage() {
     setEditingWebsite(null);
   };
 
-  const handleReorder = async (websiteId: string, direction: 'up' | 'down') => {
-    const website = websites.find(w => w._id === websiteId);
+  const handleReorder = async (websiteId: string, direction: "up" | "down") => {
+    const website = websites.find((w) => w._id === websiteId);
     if (!website) return;
 
     const currentSequence = website.sequence || 0;
-    const newSequence = direction === 'up' ? currentSequence - 1 : currentSequence + 1;
+    const newSequence =
+      direction === "up" ? currentSequence - 1 : currentSequence + 1;
 
     try {
       const response = await fetch(`/api/websites/${websiteId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...website,
-          sequence: Math.max(0, newSequence)
+          sequence: Math.max(0, newSequence),
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update sequence');
+        throw new Error("Failed to update sequence");
       }
 
       await fetchWebsites();
     } catch (error) {
-      console.error('Error updating sequence:', error);
+      console.error("Error updating sequence:", error);
     }
   };
 
   const handleBulkReorder = async (websiteIds: string[]) => {
     try {
-      const response = await fetch('/api/websites/reorder', {
-        method: 'POST',
+      const response = await fetch("/api/websites/reorder", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ websiteIds }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update website order');
+        throw new Error("Failed to update website order");
       }
 
       await fetchWebsites();
     } catch (error) {
-      console.error('Error updating website order:', error);
+      console.error("Error updating website order:", error);
       throw error;
     }
   };
@@ -267,7 +280,9 @@ export default function WebsitesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Websites</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Websites
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalSites}</div>
@@ -277,29 +292,40 @@ export default function WebsitesPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Featured Sites</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Featured Sites
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.featuredSites}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {((stats.featuredSites / stats.totalSites) * 100 || 0).toFixed(1)}% of total
+                {((stats.featuredSites / stats.totalSites) * 100 || 0).toFixed(
+                  1
+                )}
+                % of total
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Categories</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Categories
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.categoriesCount}</div>
-              <p className="text-xs text-muted-foreground mt-1">Unique categories</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Unique categories
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Recently Added</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Recently Added
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.recentlyAdded}</div>
@@ -320,25 +346,25 @@ export default function WebsitesPage() {
                 setCurrentPage(1);
               }}
               onCategoryChange={(value) => {
-                setCategoryFilter(value === 'all' ? '' : value);
+                setCategoryFilter(value === "all" ? "" : value);
                 setCurrentPage(1);
               }}
               onClear={() => {
-                setSearchTerm('');
-                setCategoryFilter('');
+                setSearchTerm("");
+                setCategoryFilter("");
                 setCurrentPage(1);
               }}
             />
 
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <div>
-                Showing{' '}
+                Showing{" "}
                 {filteredWebsites.length === 0
                   ? 0
-                  : (currentPage - 1) * itemsPerPage + 1
-                } to{' '}
-                {Math.min(currentPage * itemsPerPage, filteredWebsites.length)} of{' '}
-                {filteredWebsites.length} websites
+                  : (currentPage - 1) * itemsPerPage + 1}{" "}
+                to{" "}
+                {Math.min(currentPage * itemsPerPage, filteredWebsites.length)}{" "}
+                of {filteredWebsites.length} websites
                 {searchTerm && (
                   <span className="ml-2 text-primary">
                     (filtered from {websites.length} total)

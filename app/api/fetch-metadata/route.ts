@@ -3,23 +3,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { metadataRateLimiter, getClientIP } from '@/lib/rate-limit';
 import { JSDOM } from 'jsdom';
+import { captureScreenshotAndUpload } from '@/lib/uploadOrScreenshot';
+
+// Utility to extract meta content safely
+const getMetaContent = (document: Document, name: string, property?: boolean): string => {
+  const metaTag = document.querySelector(
+    `meta[${property ? 'property' : 'name'}="${name}"]`
+  ) as HTMLMetaElement;
+  return metaTag?.content || '';
+};
 
 export async function GET(request: NextRequest) {
   try {
-    // SECURITY: Only allow authenticated admin users
+    // AUTH — restrict access to admins
     const session = await getServerSession(authOptions);
-
     if (!session || session.user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // SECURITY: Rate limiting to prevent abuse
+    // RATE LIMIT
     const clientIP = getClientIP(request);
     const rateLimitResult = metadataRateLimiter.check(clientIP);
-
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please try again later.' },
@@ -29,128 +33,103 @@ export async function GET(request: NextRequest) {
             'X-RateLimit-Limit': '10',
             'X-RateLimit-Remaining': '0',
             'X-RateLimit-Reset': rateLimitResult.reset.toString(),
-          }
+          },
         }
       );
     }
+
+    //URL VALIDATION
     const { searchParams } = new URL(request.url);
     const url = searchParams.get('url');
+    if (!url)
+      return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
 
-    if (!url) {
+    let normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+    const parsedUrl = new URL(normalizedUrl);
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Prevent internal or unsafe URLs
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      (hostname.startsWith('172.') &&
+        parseInt(hostname.split('.')[1]) >= 16 &&
+        parseInt(hostname.split('.')[1]) <= 31) ||
+      hostname.includes('169.254.')
+    ) {
       return NextResponse.json(
-        { error: 'URL parameter is required' },
+        { error: 'Invalid URL: Cannot access internal resources' },
         { status: 400 }
       );
     }
 
-    // SECURITY: Validate URL to prevent SSRF attacks
-    let normalizedUrl = url;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      normalizedUrl = `https://${url}`;
+    // Allow only HTTP(S)
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return NextResponse.json(
+        { error: 'Invalid URL: Only HTTP and HTTPS protocols are allowed' },
+        { status: 400 }
+      );
     }
 
-    // SECURITY: Block internal/private IPs and localhost
+    // FETCH HTML CONTENT
+    let html = '';
     try {
-      const urlObj = new URL(normalizedUrl);
-      const hostname = urlObj.hostname.toLowerCase();
-
-      // Block localhost and internal IPs
-      if (
-        hostname === 'localhost' ||
-        hostname === '127.0.0.1' ||
-        hostname === '0.0.0.0' ||
-        hostname.startsWith('192.168.') ||
-        hostname.startsWith('10.') ||
-        hostname.startsWith('172.16.') ||
-        hostname.startsWith('172.17.') ||
-        hostname.startsWith('172.18.') ||
-        hostname.startsWith('172.19.') ||
-        hostname.startsWith('172.20.') ||
-        hostname.startsWith('172.21.') ||
-        hostname.startsWith('172.22.') ||
-        hostname.startsWith('172.23.') ||
-        hostname.startsWith('172.24.') ||
-        hostname.startsWith('172.25.') ||
-        hostname.startsWith('172.26.') ||
-        hostname.startsWith('172.27.') ||
-        hostname.startsWith('172.28.') ||
-        hostname.startsWith('172.29.') ||
-        hostname.startsWith('172.30.') ||
-        hostname.startsWith('172.31.') ||
-        hostname.includes('169.254.')
-      ) {
-        return NextResponse.json(
-          { error: 'Invalid URL: Cannot access internal resources' },
-          { status: 400 }
-        );
-      }
-
-      // Only allow HTTP and HTTPS
-      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-        return NextResponse.json(
-          { error: 'Invalid URL: Only HTTP and HTTPS protocols are allowed' },
-          { status: 400 }
-        );
-      }
-    } catch (e) {
-      return NextResponse.json(
-        { error: 'Invalid URL format' },
-        { status: 400 }
-      );
+      const response = await fetch(normalizedUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MetadataBot/1.0)' },
+      });
+      if (!response.ok)
+        throw new Error(`Fetch blocked: ${response.status} ${response.statusText}`);
+      html = await response.text();
+    } catch (err) {
+      console.warn(`Fetch failed for ${normalizedUrl}. Using Puppeteer fallback...`);
+      html = ''; // we won't fallback to puppeteer here (handled in screenshot logic)
     }
 
-    const response = await fetch(normalizedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${normalizedUrl}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
-
-    const getMetaContent = (name: string, property?: string): string => {
-      const metaTag = document.querySelector(
-        `meta[${property ? 'property' : 'name'}="${name}"]`
-      ) as HTMLMetaElement;
-      return metaTag?.content || '';
-    };
+    // PARSE METADATA
+    const dom = new JSDOM(html || '<html></html>');
+    const { document } = dom.window;
 
     const title =
-      getMetaContent('og:title', true) ||
+      getMetaContent(document, 'og:title', true) ||
       document.querySelector('title')?.textContent ||
-      getMetaContent('twitter:title', true) ||
+      getMetaContent(document, 'twitter:title', true) ||
       'Untitled';
 
     const description =
-      getMetaContent('og:description', true) ||
-      getMetaContent('description') ||
-      getMetaContent('twitter:description', true) ||
+      getMetaContent(document, 'og:description', true) ||
+      getMetaContent(document, 'description') ||
+      getMetaContent(document, 'twitter:description', true) ||
       'No description available';
 
     let ogImage =
-      getMetaContent('og:image', true) ||
-      getMetaContent('twitter:image', true) ||
+      getMetaContent(document, 'og:image', true) ||
+      getMetaContent(document, 'twitter:image', true) ||
       '';
 
+    // Fix relative URLs
     if (ogImage && ogImage.startsWith('/')) {
-      const baseUrl = new URL(normalizedUrl);
-      ogImage = `${baseUrl.protocol}//${baseUrl.host}${ogImage}`;
+      ogImage = `${parsedUrl.protocol}//${parsedUrl.host}${ogImage}`;
     }
 
-    const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement ||
-                   document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement;
-    let faviconUrl = favicon?.href || '';
+    // SCREENSHOT FALLBACK (delegated to uploadOrScreenshot.ts)
+    if (!ogImage) {
+      ogImage = await captureScreenshotAndUpload(normalizedUrl);
+    }
 
+    // FAVICON DETECTION
+    const faviconEl =
+      (document.querySelector('link[rel="icon"]') as HTMLLinkElement) ||
+      (document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement);
+
+    let faviconUrl = faviconEl?.href || '';
     if (faviconUrl && faviconUrl.startsWith('/')) {
-      const baseUrl = new URL(normalizedUrl);
-      faviconUrl = `${baseUrl.protocol}//${baseUrl.host}${faviconUrl}`;
+      faviconUrl = `${parsedUrl.protocol}//${parsedUrl.host}${faviconUrl}`;
     }
 
+    // RESPONSE
     return NextResponse.json({
       title: title.trim(),
       description: description.trim(),
@@ -158,15 +137,16 @@ export async function GET(request: NextRequest) {
       favicon: faviconUrl,
       url: normalizedUrl,
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching metadata:', error);
-
-    return NextResponse.json({
-      title: 'Error fetching title',
-      description: 'Could not fetch site metadata',
-      ogImage: '/placeholder-image.jpg',
-      favicon: '',
-    });
+    return NextResponse.json(
+      {
+        title: 'Error fetching metadata',
+        description: 'Could not fetch site metadata',
+        ogImage: '/placeholder-image.jpg',
+        favicon: '',
+      },
+      { status: 500 }
+    );
   }
 }
