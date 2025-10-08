@@ -12,9 +12,10 @@ import { SponsorCard } from "./sponsor-card"
 
 interface WebsiteCardsProps {
   websites: Website[]
+  loading?: boolean
 }
 
-export function WebsiteCards({ websites }: WebsiteCardsProps) {
+export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
 
@@ -152,9 +153,6 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                   variants={cardVariants}
                   className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-4"
                 >
-                  <a href="https://www.producthunt.com/products/shadway?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-shadway" target="_blank" rel="noreferrer">
-                    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1019194&theme=light&t=1758634172644" alt="Shadway - Curated&#0032;shadcn&#0032;ui&#0032;websites&#0032;collection | Product Hunt" style={{width: '250px', height: '54px'}} width="250" height="54" />
-                  </a>
                   <a href="https://peerlist.io/moazam/project/shadway" target="_blank" rel="noreferrer">
                     <img
                       src="https://peerlist.io/api/v1/projects/embed/PRJHJKNRQKMR9LL7O1AR9BBP6LQR9K?showUpvote=true&theme=dark"
@@ -168,10 +166,10 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
 
                 <motion.div
                   variants={cardVariants}
-                  className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative"
+                  className="w-full max-w-[700px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 relative"
                 >
                   <span className="relative">
-                    Shadway Website Collection
+                    Shadcn UI Components & Websites Collection
                     {/* Subtle underline decoration */}
                     <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="200" height="8" xmlns="http://www.w3.org/2000/svg">
                       <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
@@ -180,9 +178,9 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                 </motion.div>
                 <motion.div
                   variants={cardVariants}
-                  className="w-full max-w-[480px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
+                  className="w-full max-w-[650px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
                 >
-                  Discover beautiful websites and components curated by Shadway
+                  Your ultimate collection of Shadcn UI websites and components. Discover beautiful, accessible, and customizable interfaces from open-source libraries to premium collections — all in one place to help you build stunning UIs faster.
                 </motion.div>
               </div>
 
@@ -253,7 +251,90 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 style={{ willChange: 'opacity' }}
               >
-                {regularWebsites.map((website, index) => (
+                {loading ? (
+                  // Skeleton loading cards
+                  Array.from({ length: 9 }).map((_, index) => (
+                    <div key={index} className="group cursor-pointer">
+                      <div className="relative h-[340px] w-full">
+                        {/* Main SVG Border with geometric elements */}
+                        <svg
+                          className="absolute inset-0 w-full h-full"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="none"
+                        >
+                          {/* Main border rectangle - full edge to edge */}
+                          <rect
+                            x="0"
+                            y="0"
+                            width="100"
+                            height="100"
+                            rx="3"
+                            stroke="hsl(var(--border))"
+                            strokeWidth="0.5"
+                            strokeDasharray="2 2"
+                            fill="none"
+                            className="opacity-60"
+                          />
+
+                          {/* Corner geometric elements */}
+                          <g className="opacity-40">
+                            {/* Top-left corner */}
+                            <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                            {/* Top-right corner */}
+                            <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                            {/* Bottom-left corner */}
+                            <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+
+                            {/* Bottom-right corner */}
+                            <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          </g>
+
+                          {/* Grid pattern overlay */}
+                          <defs>
+                            <pattern id={`grid-skeleton-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
+                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
+                            </pattern>
+                          </defs>
+                          <rect width="100" height="100" fill={`url(#grid-skeleton-${index})`} className="opacity-30" />
+                        </svg>
+
+                        {/* Card Content */}
+                        <div className="relative h-full w-full p-1">
+                          <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden transition-all dark:bg-muted/50 duration-300 flex flex-col animate-pulse">
+                            {/* Image placeholder */}
+                            <div className="relative h-44 bg-muted/70"></div>
+
+                            {/* Content placeholder */}
+                            <div className="flex-1 p-4 flex flex-col">
+                              <div className="flex items-start gap-2 mb-3">
+                                <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0 mt-1"></div>
+                                <div className="flex-1">
+                                  <div className="h-5 bg-muted rounded mb-2 w-3/4"></div>
+                                </div>
+                              </div>
+                              <div className="space-y-2 mb-4 flex-1">
+                                <div className="h-3 bg-muted rounded w-full"></div>
+                                <div className="h-3 bg-muted rounded w-2/3"></div>
+                              </div>
+                              <div className="mt-auto">
+                                <div className="h-8 bg-muted rounded"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  regularWebsites.map((website, index) => (
                   <motion.div
                     key={website._id || index}
                     variants={cardVariants}
@@ -386,11 +467,12 @@ export function WebsiteCards({ websites }: WebsiteCardsProps) {
                       </div>
                     </div>
                   </motion.div>
-                ))}
+                  ))
+                )}
               </motion.div>
 
               {/* No results message */}
-              {allFilteredWebsites.length === 0 && (
+              {!loading && allFilteredWebsites.length === 0 && (
                 <motion.div
                   variants={cardVariants}
                   className="w-full text-center py-16"
