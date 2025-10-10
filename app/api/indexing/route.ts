@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
+import { generateWebsiteSlug } from '@/lib/slug'
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
         `${baseUrl}/template`,
 
         // Website pages
-        ...websites.map(w => `${baseUrl}/website/${w._id}`),
+        ...websites.map(w => `${baseUrl}/website/${generateWebsiteSlug(w.name)}`),
 
         // Category pages
         ...categories.map(cat => `${baseUrl}/category/${cat}`)

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Website } from '@/lib/types'
+import { generateWebsiteSlug } from '@/lib/slug'
 
 interface RelatedLinksProps {
   currentWebsite?: Website
@@ -63,7 +64,7 @@ export function RelatedLinks({
         {relatedWebsites.map((website) => (
           <Link
             key={website._id}
-            href={`/website/${website._id}`}
+            href={`/website/${generateWebsiteSlug(website.name)}`}
             className="group block p-4 rounded-lg border border-border/50 hover:border-border transition-all duration-200 hover:shadow-md"
           >
             <div className="flex items-start space-x-3">

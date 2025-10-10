@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
+import { generateWebsiteSlug } from '@/lib/slug'
 
 // Helper function to escape XML entities
 function escapeXml(str: string): string {
@@ -56,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Generate dynamic pages for each website (if you have individual pages)
     const websitePages = websites.map((website) => ({
-      url: escapeXml(`${baseUrl}/website/${website._id}`),
+      url: escapeXml(`${baseUrl}/website/${generateWebsiteSlug(website.name)}`),
       lastModified: website.updatedAt || website.createdAt || new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.6,

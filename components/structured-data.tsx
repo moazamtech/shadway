@@ -1,6 +1,7 @@
 'use client'
 
 import { Website } from '@/lib/types'
+import { generateWebsiteSlug } from '@/lib/slug'
 
 interface StructuredDataProps {
   type: 'website' | 'organization' | 'collection' | 'creativework'
@@ -118,7 +119,7 @@ export function StructuredData({ type, data }: StructuredDataProps) {
           },
           mainEntityOfPage: {
             '@type': 'WebPage',
-            url: `${baseUrl}/website/${website._id}`
+            url: `${baseUrl}/website/${generateWebsiteSlug(website.name)}`
           }
         }
 
