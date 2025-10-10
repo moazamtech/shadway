@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Website } from './types'
+import { generateWebsiteSlug } from './slug'
 
 const baseUrl = 'https://shadway.online'
 const siteName = 'Shadway'
@@ -138,7 +139,7 @@ export function generateWebsitePageSEO(website: Website): Metadata {
       ...(website.tags || [])
     ],
     image: website.image,
-    url: `/website/${website._id}`,
+    url: `/website/${generateWebsiteSlug(website.name)}`,
     type: 'article',
     publishedTime: website.createdAt?.toISOString(),
     modifiedTime: website.updatedAt?.toISOString(),

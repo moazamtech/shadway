@@ -1,9 +1,9 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { ObjectId } from 'mongodb'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
 import { generateWebsitePageSEO, generateBreadcrumbSchema } from '@/lib/seo'
+import { generateWebsiteSlug } from '@/lib/slug'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { StructuredData } from '@/components/structured-data'
@@ -13,19 +13,20 @@ import { Calendar, Globe, Tag, ExternalLink } from 'lucide-react'
 import Image from 'next/image'
 
 interface PageProps {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
 }
 
-async function getWebsite(id: string): Promise<Website | null> {
+async function getWebsiteBySlug(slug: string): Promise<Website | null> {
   try {
-    if (!ObjectId.isValid(id)) {
-      return null
-    }
-
     const { db } = await connectToDatabase()
-    const website = await db
+
+    // Find website by matching the slug generated from name
+    const websites = await db
       .collection<Website>('websites')
-      .findOne({ _id: new ObjectId(id) })
+      .find({})
+      .toArray()
+
+    const website = websites.find(w => generateWebsiteSlug(w.name) === slug)
 
     if (!website) return null
 
@@ -51,8 +52,8 @@ async function getWebsite(id: string): Promise<Website | null> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params
-  const website = await getWebsite(id)
+  const { slug } = await params
+  const website = await getWebsiteBySlug(slug)
 
   if (!website) {
     return {
@@ -65,8 +66,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function WebsitePage({ params }: PageProps) {
-  const { id } = await params
-  const website = await getWebsite(id)
+  const { slug } = await params
+  const website = await getWebsiteBySlug(slug)
 
   if (!website) {
     notFound()
@@ -75,7 +76,7 @@ export default async function WebsitePage({ params }: PageProps) {
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: '/' },
     { name: 'Websites', url: '/' },
-    { name: website.name, url: `/website/${id}` }
+    { name: website.name, url: `/website/${slug}` }
   ])
 
   return (
