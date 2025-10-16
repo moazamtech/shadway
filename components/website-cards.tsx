@@ -145,24 +145,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
               variants={containerVariants}
               className="pt-24 sm:pt-28 md:pt-32 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
             >
-              {/* Header Section with geometric decorations */}
               <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
-
-                {/* Product Hunt and Peerlist Badges */}
-                <motion.div
-                  variants={cardVariants}
-                  className="mb-4 flex flex-col sm:flex-row items-center justify-center gap-4"
-                >
-                  <a href="https://peerlist.io/moazam/project/shadway" target="_blank" rel="noreferrer">
-                    <img
-                      src="https://peerlist.io/api/v1/projects/embed/PRJHJKNRQKMR9LL7O1AR9BBP6LQR9K?showUpvote=true&theme=dark"
-                      alt="Shadway"
-                      style={{width: 'auto', height: '72px'}}
-                      width="auto"
-                      height="72"
-                    />
-                  </a>
-                </motion.div>
 
                 <motion.div
                   variants={cardVariants}
@@ -170,7 +153,6 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                 >
                   <span className="relative">
                     Shadcn UI Components & Websites Collection
-                    {/* Subtle underline decoration */}
                     <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="200" height="8" xmlns="http://www.w3.org/2000/svg">
                       <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
                     </svg>
