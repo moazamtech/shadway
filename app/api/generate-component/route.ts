@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 
 export const runtime = "edge";
 
@@ -20,6 +21,15 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    const openai = new OpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: apiKey,
+      defaultHeaders: {
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
+        "X-Title": "Shadway Component Generator",
+      },
+    });
 
     const messages = [
       {
@@ -190,38 +200,45 @@ Uses a subtle gradient background with border and shadow for depth. The yellow s
       },
     ];
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
-          "X-Title": "Shadway Component Generator",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "minimax/minimax-m2:free",
-          messages,
-          stream: true,
-          reasoning: {
-            enabled: true,
-            effort: "medium",
-          },
-        }),
-      }
-    );
+    const stream = await openai.chat.completions.create({
+      model: "minimax/minimax-m2:free",
+      messages: messages as any,
+      stream: true,
+    } as any) as any;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to generate component" },
-        { status: response.status }
-      );
-    }
+    // Convert OpenAI stream to ReadableStream with proper SSE format
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const message = chunk.choices?.[0]?.delta?.content || "";
+            if (message) {
+              // Send in proper SSE format that matches what frontend expects
+              const sseData = `data: ${JSON.stringify({
+                choices: [
+                  {
+                    delta: {
+                      content: message,
+                    },
+                  },
+                ],
+              })}\n\n`;
+              controller.enqueue(encoder.encode(sseData));
+            }
+          }
+          // Send completion marker
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (error) {
+          console.error("Stream error:", error);
+          controller.error(error);
+        }
+      },
+    });
 
     // Return the streaming response
-    return new Response(response.body, {
+    return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
