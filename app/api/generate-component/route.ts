@@ -196,7 +196,7 @@ Uses a subtle gradient background with border and shadow for depth. The yellow s
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.com",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
           "X-Title": "Shadway Component Generator",
           "Content-Type": "application/json",
         },
