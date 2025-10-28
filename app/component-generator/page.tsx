@@ -172,7 +172,7 @@ export default function ComponentGeneratorPage() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "",
+        content: "⏳ Generating component...",
         timestamp: new Date(),
       };
 
@@ -490,35 +490,34 @@ export default function ComponentGeneratorPage() {
                     {messages.map((message) => (
                       <Message key={message.id} from={message.role}>
                         <MessageAvatar
-                          src=""
-                          name={message.role === "user" ? "You" : "AI"}
+                          src={message.role === "user" ? "/logos/671ff00d29c65f1f25fb28c0_95.png" : "/logos/66e99db1f5c63f46f7415051_020.png"}
+                          name={message.role === "user" ? "You" : "Shadway AI"}
+                          className="h-8 w-8"
                         />
                         <MessageContent variant="flat">
-                          <div className="prose prose-sm max-w-none dark:prose-invert">
-                            {message.role === "user" ? (
-                              <p className="m-0">{message.content}</p>
-                            ) : (
-                              <div className="space-y-3">
-                                {message.reasoning && (
-                                  <ChainOfThought defaultOpen={true}>
-                                    <ChainOfThoughtHeader>
-                                      AI Thinking Process
-                                    </ChainOfThoughtHeader>
-                                    <ChainOfThoughtContent>
-                                      <div className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
-                                        {message.reasoning}
-                                      </div>
-                                    </ChainOfThoughtContent>
-                                  </ChainOfThought>
-                                )}
-                                {message.content && (
-                                  <AIResponse>
-                                    {message.content}
-                                  </AIResponse>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          {message.role === "user" ? (
+                            <p className="m-0">{message.content}</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {message.reasoning && (
+                                <ChainOfThought defaultOpen={true}>
+                                  <ChainOfThoughtHeader>
+                                    AI Thinking Process
+                                  </ChainOfThoughtHeader>
+                                  <ChainOfThoughtContent>
+                                    <div className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
+                                      {message.reasoning}
+                                    </div>
+                                  </ChainOfThoughtContent>
+                                </ChainOfThought>
+                              )}
+                              {message.content && (
+                                <AIResponse>
+                                  {message.content}
+                                </AIResponse>
+                              )}
+                            </div>
+                          )}
                         </MessageContent>
                       </Message>
                     ))}
