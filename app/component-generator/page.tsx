@@ -1,15 +1,33 @@
 "use client";
 
-// Artifact UI removed to show only Sandpack preview
-// import {
-//   Artifact,
-//   ArtifactAction,
-//   ArtifactActions,
-//   ArtifactContent,
-//   ArtifactDescription,
-//   ArtifactHeader,
-//   ArtifactTitle,
-// } from "@/components/ai-elements/artifact";
+// Custom CSS for preview panel sizing
+const previewPanelStyles = `
+  * {
+    box-sizing: border-box !important;
+  }
+
+  .preview-panel-container {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .preview-panel-content {
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .preview-panel-content > * {
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+  }
+`;
+
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -44,7 +62,7 @@ import { Button } from "@/components/ui/button";
 // Tabs UI removed
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyIcon, DownloadIcon, RefreshCwIcon, SparklesIcon, XIcon, Code2Icon, EyeIcon, SaveIcon, ExternalLinkIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 // Artifact UI removed
@@ -78,6 +96,16 @@ export default function ComponentGeneratorPage() {
   const [savedComponentName, setSavedComponentName] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Inject preview panel styles
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = previewPanelStyles;
+    document.head.appendChild(styleElement);
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   const parseThinkingAndContent = (text: string): { reasoning: string; content: string } => {
     // Extract reasoning from <think> tags
@@ -504,8 +532,8 @@ export default function ComponentGeneratorPage() {
 
         {/* Preview Panel - Only Sandpack */}
         {generatedComponent && isPanelOpen && (
-          <div className="border-l w-full lg:w-1/2 transition-all duration-300 bg-muted/30 flex flex-col">
-            <div className="flex-1 min-h-0 p-4">
+          <div className="preview-panel-container border-l w-full lg:w-1/2 transition-all duration-300 bg-muted/30">
+            <div className="preview-panel-content">
               <SandpackRuntimePreview showConsole={false} code={generatedComponent.code} />
             </div>
           </div>

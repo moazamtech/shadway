@@ -13,6 +13,62 @@ import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const sandpackStyles = `
+  * {
+    box-sizing: border-box !important;
+  }
+
+  .sandpack-wrapper {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .sandpack-inner {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+  }
+
+  .sp-layout {
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .sp-preview {
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .sp-preview-iframe {
+    flex: 1 !important;
+    min-height: 700px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+`;
+
 type SandpackPreviewProps = {
   code: string;
   className?: string;
@@ -60,6 +116,15 @@ export function SandpackRuntimePreview({ code, className, showConsole = false }:
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  React.useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = sandpackStyles;
+    document.head.appendChild(styleElement);
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   const files = useMemo(() => {
     const appTsx = createAppFileFromCode(code);
@@ -175,7 +240,7 @@ main, section, div { min-width: 0; }
   }
 
   return (
-    <div className={cn("relative w-full h-full rounded-lg overflow-hidden border", className)}>
+    <div className={cn("sandpack-wrapper", className)}>
       <SandpackProvider
         template="react-ts"
         files={files}
@@ -194,7 +259,7 @@ main, section, div { min-width: 0; }
         }}
         theme={isDark ? amethyst : githubLight}
       >
-        <div className="relative w-full h-full flex flex-col">
+        <div className="sandpack-inner">
           {/* Fullscreen Toggle Button */}
           <div className={cn(
             "absolute top-3 right-3 z-20",
@@ -212,7 +277,7 @@ main, section, div { min-width: 0; }
             </Button>
           </div>
 
-          <SandpackLayout className="!h-full !border-0">
+          <SandpackLayout className="sp-layout">
             <SandpackPreview
               showOpenInCodeSandbox={false}
               showRefreshButton={true}
