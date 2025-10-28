@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, X, Github } from "lucide-react"
+import { Menu, X, Github, ChevronDown, Database, BookOpen, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Image from "next/image"
@@ -10,6 +10,8 @@ import Link from "next/link"
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [showMobileNav, setShowMobileNav] = useState(false)
+  const [showResourcesDropdown, setShowResourcesDropdown] = useState(false)
+  const [showDesktopDropdown, setShowDesktopDropdown] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,6 +26,27 @@ export function Navbar() {
     { name: "Templates", href: "/template" },
     { name: "Sponsor", href: "/sponsor" },
     { name: "Submit", href: "/submit" },
+  ]
+
+  const resourceItems = [
+    {
+      name: "Databases",
+      href: "/databases",
+      icon: Database,
+      description: "Next.js compatible databases"
+    },
+    {
+      name: "Docs",
+      href: "/docs",
+      icon: BookOpen,
+      description: "Documentation and guides"
+    },
+    {
+      name: "Component Generator",
+      href: "/component-generator",
+      icon: Sparkles,
+      description: "AI-powered component builder"
+    },
   ]
 
   return (
@@ -70,11 +93,49 @@ export function Navbar() {
                     }`}>
                     {navItems.map((item) => (
                       <Link key={item.name} href={item.href}>
-                        <div className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-lg hover:bg-background/50 cursor-pointer hover:scale-105">
+                        <div className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-background/50 cursor-pointer">
                           {item.name}
                         </div>
                       </Link>
                     ))}
+
+                    {/* Resources Dropdown - Hover Based */}
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setShowDesktopDropdown(true)}
+                      onMouseLeave={() => setShowDesktopDropdown(false)}
+                    >
+                      <button className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-background/50 cursor-pointer inline-flex items-center gap-1">
+                        Resources
+                        <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showDesktopDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      <div className={`absolute top-full right-0 mt-2 w-72 transition-all duration-200 origin-top ${
+                        showDesktopDropdown
+                          ? 'opacity-100 scale-100 pointer-events-auto'
+                          : 'opacity-0 scale-95 pointer-events-none'
+                      }`}>
+                        <div className="p-2 rounded-xl backdrop-blur-xl bg-background/95 border border-border/50 shadow-2xl">
+                          {resourceItems.map((item) => {
+                            const Icon = item.icon
+                            return (
+                              <Link key={item.name} href={item.href}>
+                                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer">
+                                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                                    <Icon className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm text-foreground">{item.name}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</div>
+                                  </div>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -173,9 +234,9 @@ export function Navbar() {
 
                 {/* Mobile Navigation Links */}
                 <div className={`w-full overflow-hidden transition-all duration-300 ${
-                    showMobileNav ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
+                    showMobileNav ? 'opacity-100 max-h-[600px]' : 'opacity-0 max-h-0'
                   }`}>
-                  <div className={`flex flex-wrap justify-center gap-2 backdrop-blur-xl rounded-2xl p-3 border shadow-lg transition-all duration-500 ${
+                  <div className={`flex flex-col gap-2 backdrop-blur-xl rounded-2xl p-3 border shadow-lg transition-all duration-500 ${
                     isScrolled
                       ? 'bg-background/20 border-border/10'
                       : 'bg-background/40 border-border/20'
@@ -190,6 +251,39 @@ export function Navbar() {
                         </div>
                       </Link>
                     ))}
+
+                    {/* Mobile Resources Section */}
+                    <div className="border-t border-border/20 mt-2 pt-2">
+                      <button
+                        onClick={() => setShowResourcesDropdown(!showResourcesDropdown)}
+                        className="w-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all rounded-xl hover:bg-background/60 flex items-center justify-between"
+                      >
+                        Resources
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showResourcesDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {showResourcesDropdown && (
+                        <div className="mt-2 space-y-1 pl-2">
+                          {resourceItems.map((item) => {
+                            const Icon = item.icon
+                            return (
+                              <Link key={item.name} href={item.href}>
+                                <div
+                                  className="flex items-center gap-3 px-4 py-2 text-sm rounded-xl hover:bg-background/60 transition-all cursor-pointer"
+                                  onClick={() => {
+                                    setShowMobileNav(false)
+                                    setShowResourcesDropdown(false)
+                                  }}
+                                >
+                                  <Icon className="w-4 h-4 text-primary" />
+                                  <span className="text-muted-foreground hover:text-foreground">{item.name}</span>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
