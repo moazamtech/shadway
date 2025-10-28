@@ -373,7 +373,7 @@ export default function DatabasesPage() {
               Next.js Databases
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Explore the best database solutions compatible with Next.js 15. From SQL to NoSQL, find the perfect data store for your application.
+              Explore the best database solutions compatible with Next.js From SQL to NoSQL, find the perfect data store for your application.
             </p>
           </motion.div>
 
