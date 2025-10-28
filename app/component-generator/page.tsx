@@ -65,6 +65,7 @@ import { CopyIcon, DownloadIcon, RefreshCwIcon, SparklesIcon, XIcon, Code2Icon, 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 // Artifact UI removed
 // import { Artifact, ArtifactHeader, ArtifactTitle, ArtifactDescription, ArtifactActions, ArtifactAction, ArtifactContent } from "@/components/ai-elements/artifact";
 // Code block UI removed
@@ -204,43 +205,72 @@ export default function ComponentGeneratorPage() {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let accumulatedContent = "";
+        let buffer = "";
+        let updateTimer: NodeJS.Timeout | null = null;
+
+        const updateMessages = () => {
+          const { reasoning, content: displayContent } = parseThinkingAndContent(accumulatedContent);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessage.id
+                ? { ...msg, content: displayContent, reasoning }
+                : msg
+            )
+          );
+        };
 
         if (reader) {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              // Process any remaining buffered data
+              if (buffer.trim()) {
+                const lines = buffer.split("\n");
+                for (const line of lines) {
+                  if (line.startsWith("data: ")) {
+                    const data = line.slice(6);
+                    if (data && data !== "[DONE]") {
+                      try {
+                        const parsed = JSON.parse(data);
+                        accumulatedContent += parsed.choices?.[0]?.delta?.content || "";
+                      } catch (e) {
+                        // Skip invalid JSON
+                      }
+                    }
+                  }
+                }
+              }
+              updateMessages();
+              if (updateTimer) clearTimeout(updateTimer);
+              break;
+            }
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n");
+            // Add to buffer and process complete lines
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
 
-            for (const line of lines) {
+            // Keep the last incomplete line in the buffer
+            buffer = lines[lines.length - 1];
+
+            // Process complete lines
+            for (let i = 0; i < lines.length - 1; i++) {
+              const line = lines[i];
               if (line.startsWith("data: ")) {
                 const data = line.slice(6);
-                if (data === "[DONE]") continue;
-
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content || "";
-
-                  if (content) {
-                    accumulatedContent += content;
-
-                    // Parse thinking and content (component code removed from display)
-                    const { reasoning, content: displayContent } = parseThinkingAndContent(accumulatedContent);
-
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantMessage.id
-                          ? { ...msg, content: displayContent, reasoning }
-                          : msg
-                      )
-                    );
+                if (data && data !== "[DONE]") {
+                  try {
+                    const parsed = JSON.parse(data);
+                    accumulatedContent += parsed.choices?.[0]?.delta?.content || "";
+                  } catch (e) {
+                    // Skip invalid JSON
                   }
-                } catch (e) {
-                  // Skip invalid JSON
                 }
               }
             }
+
+            // Debounce UI updates for better performance
+            if (updateTimer) clearTimeout(updateTimer);
+            updateTimer = setTimeout(updateMessages, 50);
           }
         }
 
@@ -371,9 +401,7 @@ export default function ComponentGeneratorPage() {
         <div className="container flex h-14 items-center gap-4 px-4 md:h-16">
           {/* Left Side - Logo and Title */}
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 md:h-10 md:w-10">
-              <SparklesIcon className="h-4 w-4 text-primary md:h-5 md:w-5" />
-            </div>
+<Image src="/logos/66b3e5b47785ef9d9fc8040b_89.png" alt="Shadcn Logo" width={74} height={74} className="text-primary md:w-12 md:h-12" />
             <div>
               <h1 className="text-base font-semibold md:text-lg">Shadway Component Generator</h1>
               <p className="hidden text-xs text-muted-foreground sm:block">Powered by AI</p>
