@@ -152,7 +152,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   className="w-full max-w-[700px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 relative"
                 >
                   <span className="relative">
-                    Shadcn UI Components & Websites Collection
+                    Shadcn UI Websites Collection
                     <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="200" height="8" xmlns="http://www.w3.org/2000/svg">
                       <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
                     </svg>

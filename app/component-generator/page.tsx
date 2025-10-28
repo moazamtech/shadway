@@ -2,29 +2,22 @@
 
 // Custom CSS for preview panel sizing
 const previewPanelStyles = `
-  * {
-    box-sizing: border-box !important;
-  }
-
   .preview-panel-container {
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .preview-panel-content {
-    flex: 1 !important;
-    min-height: 0 !important;
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .preview-panel-content > * {
-    flex: 1 !important;
-    min-height: 0 !important;
-    width: 100% !important;
+    flex: 1;
+    min-height: 0;
   }
 `;
 
@@ -33,10 +26,6 @@ import {
   ChainOfThoughtContent,
   ChainOfThoughtHeader,
 } from "@/components/ai-elements/chain-of-thought";
-// Code block UI removed
-// import { CodeBlock, CodeBlockCopyButton } from "@/components/ai-elements/code-block";
-// Old LivePreview removed
-// import { LivePreview } from "@/components/live-preview";
 import { SandpackRuntimePreview } from "@/components/sandpack-preview";
 import {
   Conversation,
@@ -59,20 +48,11 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
-// Tabs UI removed
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CopyIcon, DownloadIcon, RefreshCwIcon, SparklesIcon, XIcon, Code2Icon, EyeIcon, SaveIcon, ExternalLinkIcon } from "lucide-react";
+import { SparklesIcon, XIcon, Code2Icon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
-// Artifact UI removed
-// import { Artifact, ArtifactHeader, ArtifactTitle, ArtifactDescription, ArtifactActions, ArtifactAction, ArtifactContent } from "@/components/ai-elements/artifact";
-// Code block UI removed
-// import { CodeBlockCopyButton } from "@/components/ai-elements/code-block";
-// import { CodeBlock } from "@/components/code-block";
-// Tabs UI removed
-// import { Tabs, TabsList, TabsTrigger, TabsContent } from "@radix-ui/react-tabs";
+import { cn } from "@/lib/utils";
 
 type Message = {
   id: string;
@@ -89,13 +69,11 @@ type GeneratedComponent = {
 };
 
 export default function ComponentGeneratorPage() {
-  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedComponent, setGeneratedComponent] = useState<GeneratedComponent | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [savedComponentName, setSavedComponentName] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Inject preview panel styles
@@ -310,89 +288,11 @@ export default function ComponentGeneratorPage() {
     [messages, isGenerating]
   );
 
-  const handleRegenerate = useCallback(() => {
-    if (messages.length > 0) {
-      const lastUserMessage = [...messages].reverse().find((msg) => msg.role === "user");
-      if (lastUserMessage) {
-        const lastAssistantIndex = messages.map(m => m.role).lastIndexOf("assistant");
-        if (lastAssistantIndex !== -1) {
-          setMessages((prev) => prev.filter((_, idx) => idx !== lastAssistantIndex));
-        }
-        handleSubmit({ text: lastUserMessage.content });
-      }
-    }
-  }, [messages, handleSubmit]);
-
-  const handleCopyCode = useCallback(() => {
-    if (generatedComponent) {
-      navigator.clipboard.writeText(generatedComponent.code);
-      toast.success("Code copied to clipboard");
-    }
-  }, [generatedComponent]);
-
-  const handleDownload = useCallback(() => {
-    if (generatedComponent) {
-      const blob = new Blob([generatedComponent.code], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `component.${generatedComponent.language}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("Component downloaded");
-    }
-  }, [generatedComponent]);
-
   const handleStop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
   }, []);
-
-  const handleSaveComponent = useCallback(async () => {
-    if (!generatedComponent) return;
-
-    setIsSaving(true);
-    try {
-      // Generate component name from current timestamp or user prompt
-      const timestamp = Date.now();
-      const componentName = `Component${timestamp}`;
-
-      const response = await fetch("/api/save-component", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: componentName,
-          code: generatedComponent.code,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save component");
-      }
-
-      const data = await response.json();
-      setSavedComponentName(data.name);
-      toast.success(`Component saved as ${data.name}`);
-    } catch (error: any) {
-      console.error("Error saving component:", error);
-      toast.error("Failed to save component");
-    } finally {
-      setIsSaving(false);
-    }
-  }, [generatedComponent]);
-
-  const handleOpenPreview = useCallback(() => {
-    if (savedComponentName) {
-      router.push(`/preview/${savedComponentName}`);
-    }
-  }, [savedComponentName, router]);
-
-  // Generate preview HTML for iframe
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -401,7 +301,7 @@ export default function ComponentGeneratorPage() {
         <div className="container flex h-14 items-center gap-4 px-4 md:h-16">
           {/* Left Side - Logo and Title */}
           <div className="flex items-center gap-2 md:gap-3">
-<Image src="/logos/66b3e5b47785ef9d9fc8040b_89.png" alt="Shadcn Logo" width={74} height={74} className="text-primary md:w-12 md:h-12" />
+            <Image src="/logos/66b3e5b47785ef9d9fc8040b_89.png" alt="Shadcn Logo" width={74} height={74} className="text-primary md:w-12 md:h-12" />
             <div>
               <h1 className="text-base font-semibold md:text-lg">Shadway Component Generator</h1>
               <p className="hidden text-xs text-muted-foreground sm:block">Powered by AI</p>
@@ -438,12 +338,18 @@ export default function ComponentGeneratorPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         {/* Chat Section - Centered */}
-        <div className={`min-h-0 flex flex-col transition-all duration-300 ${generatedComponent && isPanelOpen ? 'w-full lg:w-1/2' : 'w-full'}`}>
-          <Conversation className="flex-1">
-            <ConversationContent className={messages.length === 0 ? "flex items-center justify-center" : ""}>
-              <div className={`w-full ${messages.length === 0 ? 'max-w-4xl' : 'max-w-3xl mx-auto'} px-4`}>
+        <div className={cn(
+          "min-h-0 flex flex-col transition-all duration-300",
+          generatedComponent && isPanelOpen ? 'w-full lg:w-1/2' : 'w-full'
+        )}>
+          <Conversation className="flex-1 overflow-y-auto">
+            <ConversationContent className={messages.length === 0 ? "flex items-center justify-center min-h-full" : ""}>
+              <div className={cn(
+                "w-full px-4",
+                messages.length === 0 ? 'max-w-4xl mx-auto' : 'max-w-3xl mx-auto'
+              )}>
                 {messages.length === 0 ? (
                   <ConversationEmptyState
                     title="Welcome to Shadway Component Generator"
@@ -559,8 +465,11 @@ export default function ComponentGeneratorPage() {
 
         {/* Preview Panel - Only Sandpack */}
         {generatedComponent && isPanelOpen && (
-          <div className="preview-panel-container border-l w-full lg:w-1/2 transition-all duration-300 bg-muted/30">
-            <div className="preview-panel-content">
+          <div className={cn(
+            "preview-panel-container border-t lg:border-t-0 lg:border-l w-full lg:w-1/2",
+            "transition-all duration-300 bg-muted/30 overflow-hidden"
+          )}>
+            <div className="preview-panel-content h-full">
               <SandpackRuntimePreview showConsole={false} code={generatedComponent.code} />
             </div>
           </div>

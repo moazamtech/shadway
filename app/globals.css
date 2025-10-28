@@ -125,14 +125,6 @@
     text-size-adjust: 100%;
   }
 
-  html, body {
-    @apply bg-background text-foreground;
-    cursor: default;
-    /* Improve rendering performance */
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
 
   button, [role="button"], .cursor-pointer {
     cursor: pointer !important;
@@ -152,17 +144,6 @@
     contain: layout style paint;
   }
 
-  /* Optimize transforms and animations */
-  [data-motion] {
-    will-change: transform;
-  }
-
-  /* Prevent layout shift for images */
-  img[width][height] {
-    height: auto;
-    aspect-ratio: attr(width) / attr(height);
-  }
-
   /* Respect user's motion preferences */
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -176,13 +157,6 @@
   }
 }
 
-/* Firefox scrollbar */
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
-}
-
-/* View Transitions for Animated Theme Toggler */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;

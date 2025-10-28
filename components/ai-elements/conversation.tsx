@@ -10,14 +10,14 @@ import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 // Custom CSS for conversation scrolling
 const conversationScrollStyles = `
   .conversation-scroll-container {
-    height: 100% !important;
-    width: 100% !important;
-    overflow-y: scroll !important;
-    overflow-x: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    scroll-behavior: smooth !important;
-    position: relative !important;
+    height: 100%;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    scroll-behavior: smooth;
+    position: relative;
   }
 
   /* Scrollbar styling for webkit browsers */
