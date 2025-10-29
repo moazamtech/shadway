@@ -140,14 +140,16 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
 }
 
 export function generateWebsitePageSEO(website: Website): Metadata {
+  // Generate more specific and unique keywords based on website data
+  const uniqueKeywords = generateUniqueWebsiteKeywords(website)
+
+  // Generate a more detailed and unique description
+  const uniqueDescription = generateUniqueWebsiteDescription(website)
+
   return generateSEOMetadata({
-    title: `${website.name} - ${website.category}`,
-    description: `${website.description} Built with Shadcn UI. Explore this ${website.category.toLowerCase()} website and get inspired by modern interface design.`,
-    keywords: [
-      website.name.toLowerCase(),
-      website.category.toLowerCase(),
-      ...(website.tags || [])
-    ],
+    title: `${website.name} - ${website.category} | Built with Shadcn UI`,
+    description: uniqueDescription,
+    keywords: uniqueKeywords,
     image: website.image,
     url: `/website/${generateWebsiteSlug(website.name)}`,
     type: 'article',
@@ -156,6 +158,88 @@ export function generateWebsitePageSEO(website: Website): Metadata {
     section: website.category,
     tags: website.tags || [website.category]
   })
+}
+
+function generateUniqueWebsiteKeywords(website: Website): string[] {
+  const baseKeywords = [
+    website.name.toLowerCase(),
+    `${website.name.toLowerCase()} website`,
+    `${website.name.toLowerCase()} ${website.category.toLowerCase()}`,
+    website.category.toLowerCase(),
+    `${website.category.toLowerCase()} website`,
+    `${website.category.toLowerCase()} ui`,
+    `${website.category.toLowerCase()} design`,
+    'shadcn ui',
+    'shadcn',
+    'ui design',
+    'web design',
+    'modern ui',
+    'interface design',
+    'react website',
+    'nextjs website',
+    'tailwind css website',
+    ...(website.tags || []).map(tag => tag.toLowerCase()),
+    ...(website.tags || []).map(tag => `${tag.toLowerCase()} ${website.category.toLowerCase()}`),
+    `shadcn ${website.category.toLowerCase()}`,
+    `${website.category.toLowerCase()} template`,
+    `${website.category.toLowerCase()} example`,
+    `${website.category.toLowerCase()} inspiration`,
+    'responsive design',
+    'modern design',
+    'clean design',
+    'beautiful ui',
+    'component showcase'
+  ]
+
+  // Remove duplicates and limit to most relevant keywords
+  const uniqueKeywords = Array.from(new Set(baseKeywords))
+  return uniqueKeywords
+}
+
+function generateUniqueWebsiteDescription(website: Website): string {
+  const categoryName = website.category.charAt(0).toUpperCase() + website.category.slice(1)
+  const hasTags = website.tags && website.tags.length > 0
+  const techStack = hasTags ? website.tags.join(', ') : 'modern web technologies'
+
+  // Use hash of website name to determine which description to use
+  // This ensures consistency for the same website
+  const nameHash = website.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const descriptionIndex = nameHash % 5
+
+  // Generate more detailed descriptions based on content
+  const descriptions = [
+    `${website.description} This ${categoryName.toLowerCase()} website is built with Shadcn UI, React, and ${techStack}. Explore this modern ${categoryName.toLowerCase()} interface with responsive design, accessibility features, and beautiful components.`,
+
+    `Discover ${website.name}, an impressive ${categoryName.toLowerCase()} website showcasing beautiful Shadcn UI components and ${techStack} integration. This ${categoryName.toLowerCase()} demonstrates best practices in responsive design, accessibility standards, and modern web development.`,
+
+    `${website.description} This carefully curated ${categoryName.toLowerCase()} example features Shadcn UI components, ${techStack} stack, and production-ready code patterns. Perfect for developers seeking inspiration in ${categoryName.toLowerCase()} interface design and implementation.`,
+
+    `${website.name} is a stunning ${categoryName.toLowerCase()} built with Shadcn UI and ${techStack}. Explore how this website implements modern design patterns, accessibility best practices, and responsive layouts for optimal ${categoryName.toLowerCase()} functionality.`,
+
+    `Explore ${website.name}, a featured ${categoryName.toLowerCase()} built with Shadcn UI. This ${categoryName.toLowerCase()} website showcases best practices in component design, featuring ${techStack}, modern UI/UX principles, and clean, maintainable code architecture.`
+  ]
+
+  // Return the selected description (up to 160 chars for search engines)
+  const selected = descriptions[descriptionIndex]
+  return selected.length > 160 ? selected.substring(0, 160) + '...' : selected
+}
+
+function getCategoryDescription(category: string): string {
+  const categoryDescriptions: { [key: string]: string } = {
+    'dashboard': 'admin dashboard',
+    'saas': 'SaaS application',
+    'ecommerce': 'e-commerce platform',
+    'blog': 'blogging platform',
+    'portfolio': 'portfolio website',
+    'landing page': 'landing page',
+    'app': 'web application',
+    'marketplace': 'marketplace platform',
+    'community': 'community platform',
+    'analytics': 'analytics dashboard',
+    'social': 'social network'
+  }
+
+  return categoryDescriptions[category.toLowerCase()] || category
 }
 
 export function generateCategoryPageSEO(category: string, count: number): Metadata {
