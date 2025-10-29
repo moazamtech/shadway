@@ -41,7 +41,17 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
   const fullTitle = title ? `${title} | ${siteName}` : `${siteName} - Curated Shadcn UI Website Collection`
   const fullDescription = description || 'Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.'
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`
-  const fullImage = image.startsWith('http') ? image : `${baseUrl}${image}`
+
+  // Ensure image URL is absolute and valid for OG tags
+  let fullImage = image
+  if (!image.startsWith('http')) {
+    fullImage = image.startsWith('/') ? `${baseUrl}${image}` : `${baseUrl}/${image}`
+  }
+
+  // Validate image URL and fallback to default if invalid
+  if (!fullImage.match(/\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i)) {
+    fullImage = `${baseUrl}/og-image.png`
+  }
 
   const allKeywords = [
     "shadcn ui",

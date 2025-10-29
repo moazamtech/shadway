@@ -49,6 +49,7 @@ const sandpackStyles = `
     width: 100% !important;
     display: flex !important;
     flex-direction: column !important;
+    overflow: hidden !important;
   }
 
   .sp-preview-iframe {
@@ -66,6 +67,29 @@ const sandpackStyles = `
     border: none !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  /* Hide scrollbars on Sandpack container */
+  .sp-code-editor {
+    overflow: hidden !important;
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+
+  .sp-code-editor::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Hide scrollbars in preview pane */
+  .sp-preview,
+  .sp-preview > * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  .sp-preview::-webkit-scrollbar,
+  .sp-preview > *::-webkit-scrollbar {
+    display: none !important;
   }
 `;
 

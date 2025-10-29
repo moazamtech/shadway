@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, Variants } from "framer-motion"
-import { Search, Globe, ExternalLink, ImageIcon } from "lucide-react"
+import { Search, Globe, ExternalLink, ImageIcon, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import { Website } from "@/lib/types"
@@ -16,8 +17,25 @@ interface WebsiteCardsProps {
 }
 
 export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
-  const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialSearch = searchParams.get("search") || ""
+
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+
+  // Update URL when search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        router.push(`?search=${encodeURIComponent(searchQuery)}`, { scroll: false })
+      } else {
+        router.push("/", { scroll: false })
+      }
+    }, 300) // Debounce by 300ms to avoid too many URL updates
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, router])
 
   const handleImageError = (imageUrl: string) => {
     setFailedImages(prev => new Set(prev).add(imageUrl))
@@ -178,8 +196,17 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                     placeholder="Search websites, categories, or descriptions..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 text-base bg-background border-border/50 rounded-full shadow-sm focus:bg-background focus:border-border transition-all duration-200"
+                    className="pl-10 pr-10 h-12 text-base bg-background border-border/50 rounded-full shadow-sm focus:bg-background focus:border-border transition-all duration-200"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </motion.div>
 

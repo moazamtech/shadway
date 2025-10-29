@@ -7,14 +7,14 @@ import Lenis from "lenis"
 export function LenisScroll() {
   const pathname = usePathname()
 
-  // Only enable Lenis on home page, disable on /docs paths
-  const isDocsPage = pathname?.startsWith("/docs")
+  // Disable Lenis on /docs and /component-generator paths
+  const shouldDisableLenis = pathname?.startsWith("/docs") || pathname?.startsWith("/component-generator")
 
   useEffect(() => {
-    if (isDocsPage) return
+    if (shouldDisableLenis) return
 
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 0.8,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
@@ -35,7 +35,7 @@ export function LenisScroll() {
     return () => {
       lenis.destroy()
     }
-  }, [isDocsPage])
+  }, [shouldDisableLenis])
 
   return null
 }

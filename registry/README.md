@@ -11,6 +11,13 @@ Custom component registry for Shadway UI components. This registry allows users 
 - **Dependencies**: `@paper-design/shaders-react`
 - **Status**: Published ✅
 
+### Footer Block
+- **Type**: Layout / Footer Block
+- **Category**: Footer
+- **Description**: A beautifully designed footer block with multiple columns, decorative borders, and responsive layout
+- **Dependencies**: `lucide-react`, `next`
+- **Status**: Published ✅
+
 ## Registry Structure
 
 ```
@@ -63,13 +70,15 @@ To add a new component to the registry:
 ### For Users
 
 #### Install Individual Component
-```bash
-npx shadcn-ui@latest add mesh-background
-```
 
-#### Install From Registry
+**Mesh Background:**
 ```bash
 npx shadcn-ui@latest add https://shadway.online/registry/mesh-background.json
+```
+
+**Footer Block:**
+```bash
+npx shadcn-ui@latest add https://shadway.online/registry/footer-block.json
 ```
 
 ### For Developers
