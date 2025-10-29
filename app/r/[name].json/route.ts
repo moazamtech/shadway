@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 
-export const dynamic = "force-static"
+// Explicitly run on Node.js and avoid static generation for dynamic params
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 export const revalidate = 3600 // Revalidate every hour
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
+  { params }: { params: { name?: string } }
 ) {
-  const { name } = await params
+  const name = params?.name
+  if (!name) {
+    return NextResponse.json({ error: "Missing component name" }, { status: 400 })
+  }
 
   try {
     const registryDir = path.join(process.cwd(), "registry")
