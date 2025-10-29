@@ -73,12 +73,12 @@ To add a new component to the registry:
 
 **Mesh Background:**
 ```bash
-npx shadcn-ui@latest add https://shadway.online/registry/mesh-background.json
+npx shadcn@latest add https://shadway.online/api/registry/mesh-background.json
 ```
 
 **Footer Block:**
 ```bash
-npx shadcn-ui@latest add https://shadway.online/registry/footer-block.json
+npx shadcn@latest add https://shadway.online/api/registry/footer-block.json
 ```
 
 ### For Developers
@@ -101,7 +101,7 @@ npm install
 npm run dev
 ```
 
-4. View registry at `http://localhost:3000/registry`
+4. View registry at `http://localhost:3000/api/registry`
 
 ## Component Requirements
 
@@ -145,12 +145,12 @@ The registry provides a simple JSON API:
 
 ### Get All Components
 ```
-GET /registry/index.json
+GET /api/registry
 ```
 
 ### Get Specific Component
 ```
-GET /registry/[component-name].json
+GET /api/registry/[component-name].json
 ```
 
 ## Support

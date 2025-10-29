@@ -1,7 +1,7 @@
 [
   {
     "name": "mesh-background",
-    "type": "component:ui",
+    "type": "registry:ui",
     "category": "layout",
     "subcategory": "background",
     "shortDescription": "An animated mesh gradient background component",
@@ -19,7 +19,7 @@
     ],
     "devDependencies": [],
     "links": {
-      "doc": "https://shadway.online/docs/components/mesh-background",
+      "doc": "https://shadway.online/docs/shaders#mesh-background",
       "source": "https://github.com/moazamtech/shadway"
     },
     "isFavorited": true,
@@ -28,7 +28,7 @@
   },
   {
     "name": "footer-block",
-    "type": "registry:block",
+    "type": "registry:ui",
     "category": "layout",
     "subcategory": "footer",
     "shortDescription": "A responsive footer block with columns and decorative elements",

@@ -1,0 +1,21 @@
+{
+  "name": "footer-block",
+  "type": "registry:ui",
+  "registryDependencies": [],
+  "files": [
+    {
+      "path": "components/footer.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "category": "layout",
+  "subcategory": "footer",
+  "shortDescription": "A responsive footer block with columns and decorative elements",
+  "description": "A beautifully designed footer block with multiple columns, decorative borders, and responsive layout. Features elegant SVG patterns, vertical lines with accent dots, and comprehensive link organization.",
+  "links": {
+    "doc": "https://shadway.online/docs/blocks/footer",
+    "source": "https://github.com/moazamtech/shadway"
+  },
+  "isFavorited": true,
+  "published": true
+}
