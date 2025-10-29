@@ -19,9 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "shadway": {
-      "url": "https://shadway.online/registry",
-      "style": "new-york"
-    }
+    "@shadway": "https://shadway.online/api/registry"
   }
 }
