@@ -2,6 +2,7 @@ import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
 
 export const runtime = 'edge'
+export const revalidate = 3600 // Cache for 1 hour
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest) {
     const title = searchParams.get('title') || 'Shadway'
     const description = searchParams.get('description') || 'Curated Shadcn UI Website Collection'
     const category = searchParams.get('category')
+
+    // Sanitize inputs to prevent issues
+    const cleanTitle = String(title).substring(0, 100).trim()
+    const cleanDescription = String(description).substring(0, 150).trim()
+    const cleanCategory = category ? String(category).substring(0, 50).trim() : null
 
     return new ImageResponse(
       (
@@ -75,7 +81,7 @@ export async function GET(request: NextRequest) {
               padding: '0 60px',
             }}
           >
-            {category && (
+            {cleanCategory && (
               <div
                 style={{
                   backgroundColor: '#333',
@@ -86,7 +92,7 @@ export async function GET(request: NextRequest) {
                   marginBottom: '20px',
                 }}
               >
-                {category}
+                {cleanCategory}
               </div>
             )}
 
@@ -100,7 +106,7 @@ export async function GET(request: NextRequest) {
                 textAlign: 'center',
               }}
             >
-              {title}
+              {cleanTitle}
             </h1>
 
             <p
@@ -112,7 +118,7 @@ export async function GET(request: NextRequest) {
                 marginBottom: '40px',
               }}
             >
-              {description}
+              {cleanDescription}
             </p>
 
             {/* UI Elements */}

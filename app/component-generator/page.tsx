@@ -1,6 +1,6 @@
 "use client";
 
-// Custom CSS for preview panel sizing
+// Custom CSS for preview panel sizing and hidden scrollbars
 const previewPanelStyles = `
   .preview-panel-container {
     display: flex;
@@ -18,6 +18,35 @@ const previewPanelStyles = `
   .preview-panel-content > * {
     flex: 1;
     min-height: 0;
+  }
+
+  /* Hide scrollbars while keeping scroll functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Global scrollbar hiding */
+  ::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: transparent !important;
+  }
+
+  /* Firefox scrollbar hiding */
+  * {
+    scrollbar-width: none !important;
   }
 `;
 
@@ -344,7 +373,7 @@ export default function ComponentGeneratorPage() {
           "min-h-0 flex flex-col transition-all duration-300",
           generatedComponent && isPanelOpen ? 'w-full lg:w-1/2' : 'w-full'
         )}>
-          <Conversation className="flex-1 overflow-y-auto">
+          <Conversation className="flex-1 overflow-y-auto hide-scrollbar">
             <ConversationContent className={messages.length === 0 ? "flex items-center justify-center min-h-full" : ""}>
               <div className={cn(
                 "w-full px-4",
@@ -469,7 +498,7 @@ export default function ComponentGeneratorPage() {
             "preview-panel-container border-t lg:border-t-0 lg:border-l w-full lg:w-1/2",
             "transition-all duration-300 bg-muted/30 overflow-hidden"
           )}>
-            <div className="preview-panel-content h-full">
+            <div className="preview-panel-content h-full hide-scrollbar">
               <SandpackRuntimePreview showConsole={false} code={generatedComponent.code} />
             </div>
           </div>

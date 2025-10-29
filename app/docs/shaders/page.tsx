@@ -278,8 +278,7 @@ export default function MeshGradientHero() {
   }
 
   return (
-    <div className="flex-1 p-6 md:p-10">
-      <div className="mx-auto w-full max-w-6xl">
+    <div className="mx-auto w-full max-w-6xl">
         {/* Header */}
         <div className="space-y-4 mb-8">
           <h1 className="text-4xl font-bold tracking-tight">Shaders & Effects</h1>
@@ -760,7 +759,6 @@ export default function Hero() {
             </CardContent>
           </Card>
         </div>
-      </div>
     </div>
   )
 }
