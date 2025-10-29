@@ -671,11 +671,23 @@ export default function MeshGradientHero() {
 
               {/* Installation */}
               <div className="space-y-3 pt-4 border-t border-border/50">
-                <h4 className="text-sm font-semibold text-foreground">Quick Install</h4>
-                <CodeBlock
-                  code="npx shadcn@latest add mesh-background"
-                  showIcon={true}
-                />
+                <h4 className="text-sm font-semibold text-foreground">Installation</h4>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">1. Copy component file to your project:</p>
+                    <CodeBlock
+                      code="cp components/ui/mesh-background.tsx your-project/components/ui/"
+                      showIcon={true}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">2. Install dependency:</p>
+                    <CodeBlock
+                      code="npm install @paper-design/shaders-react"
+                      showIcon={true}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Usage */}
