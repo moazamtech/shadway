@@ -4,13 +4,13 @@
   "rsc": true,
   "tsx": true,
   "tailwind": {
-    "config": "tailwind.config.ts",
+    "config": "",
     "css": "app/globals.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
-  "iconLibrary": "lucide",
+  
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
@@ -19,6 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@shadway": "https://shadway.online/api/registry"
+    "@shadway": "https://shadway.online/r/{name}.json"
   }
 }
