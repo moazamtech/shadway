@@ -18,5 +18,10 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "shadway": {
+      "url": "https://shadway.online/registry",
+      "style": "new-york"
+    }
+  }
 }

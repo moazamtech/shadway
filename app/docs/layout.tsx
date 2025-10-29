@@ -55,7 +55,7 @@ const docsConfig = {
         },
         {
           title: "Shaders & Effects",
-          href: "/docs/components/ui",
+          href: "/docs/shaders",
           icon: Code,
         },
         {
