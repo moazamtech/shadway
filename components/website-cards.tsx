@@ -249,7 +249,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   <motion.div variants={containerVariants} className="mb-8">
                     <div className="text-center mb-8">
                       <h2 className="text-2xl font-bold text-foreground mb-2">All Websites</h2>
-                      <p className="text-muted-foreground">Discover amazing Shadcn UI implementations</p>
+                      <p className="text-muted-foreground">Discover amazing Shadcn UI Registries</p>
                     </div>
                   </motion.div>
                 </>
