@@ -1,22 +1,17 @@
 {
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "mesh-background",
-  "type": "component:ui",
+  "title": "Mesh Background",
+  "type": "registry:ui",
   "registryDependencies": [],
+  "dependencies": [
+    "@paper-design/shaders-react"
+  ],
   "files": [
     {
       "path": "components/ui/mesh-background.tsx",
-      "type": "component",
-      "target": ""
+      "type": "registry:component"
     }
   ],
-  "category": "layout",
-  "subcategory": "background",
-  "shortDescription": "An animated mesh gradient background component",
-  "description": "A beautiful, animated mesh gradient background component built with WebGL shaders. Perfect for hero sections, landing pages, and full-screen backgrounds with customizable colors, animation speed, and distortion effects.",
-  "links": {
-    "doc": "https://shadway.online/docs/shaders",
-    "source": "https://github.com/moazamtech/shadway"
-  },
-  "isFavorited": false,
-  "published": true
+  "description": "An animated mesh gradient background component built with WebGL shaders. Perfect for hero sections, landing pages, and full-screen backgrounds with customizable colors, animation speed, and distortion effects."
 }

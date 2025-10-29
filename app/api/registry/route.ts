@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         },
       })
     } else {
-      // Get all components (index)
+      // Get all components (index) and return registry.json payload shape
       const indexPath = path.join(registryDir, "index.json")
 
       if (!fs.existsSync(indexPath)) {
@@ -45,9 +45,36 @@ export async function GET(request: NextRequest) {
       }
 
       const fileContent = fs.readFileSync(indexPath, "utf-8")
-      const jsonData = JSON.parse(fileContent)
+      const items = JSON.parse(fileContent)
 
-      return NextResponse.json(jsonData, {
+      // Sanitize item file types to match shadcn schema
+      const sanitizedItems = Array.isArray(items)
+        ? items.map((item: any) => {
+            const files = Array.isArray(item.files)
+              ? item.files.map((f: any) => {
+                  const ft = f.type === "component" ? "registry:component" : f.type
+                  const { target, ...rest } = f
+                  return {
+                    ...rest,
+                    type: ft,
+                  }
+                })
+              : []
+            return {
+              ...item,
+              files,
+            }
+          })
+        : []
+
+      const payload = {
+        $schema: "https://ui.shadcn.com/schema/registry.json",
+        name: "shadway",
+        homepage: "https://shadway.online",
+        items: sanitizedItems,
+      }
+
+      return NextResponse.json(payload, {
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
