@@ -64,7 +64,7 @@ const databasesKeywords = [
 ]
 
 export const metadata: Metadata = generateSEOMetadata({
-  title: "Best Next.js Databases & Solutions - Comparison Guide 2024",
+  title: "Best Next.js Databases & Solutions - Comparison Guide 2025",
   description: "Explore the best databases for Next.js applications. Compare PostgreSQL, MongoDB, Firebase, Supabase, Prisma, Drizzle ORM, and 20+ database solutions optimized for modern web development. Find the perfect database for your Next.js project with detailed insights and setup guides.",
   keywords: databasesKeywords,
   image: "/og-image.png",
