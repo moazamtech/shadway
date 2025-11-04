@@ -10,34 +10,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing name or code" }, { status: 400 })
     }
 
+    // Ensure /registry exists
     const registryDir = path.join(process.cwd(), "registry")
     if (!fs.existsSync(registryDir)) fs.mkdirSync(registryDir, { recursive: true })
 
+    // Make a folder for the component (for backup/reference)
     const compDir = path.join(registryDir, name)
     fs.mkdirSync(compDir, { recursive: true })
 
-    // 1️⃣ Save the actual component file
-    fs.writeFileSync(path.join(compDir, `${name}.tsx`), code)
+    // Save the component code into registry/{name}/{name}.tsx
+    const filePath = path.join(compDir, `${name}.tsx`)
+    fs.writeFileSync(filePath, code)
 
-    // 2️⃣ Make the per-component JSON
+    // Create per-component JSON with proper `path` and `content`
     const item = {
       name,
       type: "registry:component",
       title: title || name,
       description: description || "",
       files: [
-        { path: `registry/${name}/${name}.tsx`, type: "registry:component" }
+        {
+          path: `components/ui/${name}.tsx`, // Destination for Shadcn
+          content: code,                     // Embed actual code
+          type: "registry:component",
+        },
       ],
       dependencies: [],
-      registryDependencies: []
+      registryDependencies: [],
     }
 
+    // Save component registry JSON
     fs.writeFileSync(
       path.join(registryDir, `${name}.json`),
       JSON.stringify(item, null, 2)
     )
 
-    // 3️⃣ Update the main registry.json
+    // 6️⃣ Update the main registry index
     const registryFile = path.join(registryDir, "registry.json")
     const registry = fs.existsSync(registryFile)
       ? JSON.parse(fs.readFileSync(registryFile, "utf8"))
@@ -49,9 +57,13 @@ export async function POST(req: Request) {
 
     fs.writeFileSync(registryFile, JSON.stringify(registry, null, 2))
 
-    return NextResponse.json({ success: true, message: `${name} added.` })
+    return NextResponse.json({
+      success: true,
+      message: `${name} added successfully.`,
+      endpoint: `/r/${name}.json`,
+    })
   } catch (err: any) {
-    console.error(err)
+    console.error("Error saving component:", err)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

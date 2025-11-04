@@ -4,10 +4,6 @@
     {
       "name": "button",
       "type": "registry:component"
-    },
-    {
-      "name": "alert",
-      "type": "registry:component"
     }
   ]
 }

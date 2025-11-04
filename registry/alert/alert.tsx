@@ -1,1 +1,0 @@
-export function Alert() {return <div className='p-4 bg-yellow-100 border border-yellow-300 rounded'>Warning!</div>}
