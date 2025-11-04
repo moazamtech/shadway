@@ -19,6 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@shadway": "https://shadway.online/r/{name}.json"
+    "@shadway": "https://shadway.online/r/{name}"
   }
 }
