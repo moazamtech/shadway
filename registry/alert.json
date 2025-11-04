@@ -1,0 +1,14 @@
+{
+  "name": "alert",
+  "type": "registry:component",
+  "title": "Alert",
+  "description": "A simple reusable alert",
+  "files": [
+    {
+      "path": "registry/alert/alert.tsx",
+      "type": "registry:component"
+    }
+  ],
+  "dependencies": [],
+  "registryDependencies": []
+}
