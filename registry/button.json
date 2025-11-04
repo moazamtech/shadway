@@ -5,7 +5,8 @@
   "description": "A simple reusable button",
   "files": [
     {
-      "path": "registry/button/button.tsx",
+      "path": "components/ui/button.tsx",
+      "content": "export function Button(){return <button className='px-4 py-2 bg-blue-500 text-white rounded'>Click</button>}",
       "type": "registry:component"
     }
   ],
