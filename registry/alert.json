@@ -1,0 +1,15 @@
+{
+  "name": "alert",
+  "type": "registry:component",
+  "title": "Alert",
+  "description": "A simple reusable button",
+  "files": [
+    {
+      "path": "components/ui/alert.tsx",
+      "content": "export function Alert() {return <div className='p-4 bg-yellow-100 border border-yellow-300 rounded'>Warning!</div>}",
+      "type": "registry:component"
+    }
+  ],
+  "dependencies": [],
+  "registryDependencies": []
+}
