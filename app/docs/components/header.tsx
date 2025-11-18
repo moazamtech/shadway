@@ -11,7 +11,7 @@ export function Header() {
   return (
     <div className="sticky top-0 z-50 border-border border-b border-dashed bg-background">
       <div className="relative mx-auto flex max-w-(--breakpoint-xl) items-center justify-between border-border border-r border-l border-dashed px-4 sm:px-8 overflow-hidden">
-        <BorderBeam borderWidth={1} reverse initialOffset={80} className="from-transparent via-blue-500 to-transparent" />
+        <BorderBeam borderWidth={1} reverse initialOffset={40} className="from-transparent via-blue-500 to-transparent" />
         <Link className="flex items-center space-x-2 py-5" href="/docs">
           <Image src="/logo.png" alt="Shadway Logo" width={30} height={30} />
           <h1 className="font-bold text-xl">Shadway</h1>
@@ -55,7 +55,7 @@ export function Header() {
               role="img"
               fill="currentColor"
             >
-              <path d="M18.9 3H15.7L12 8.2 8.4 3H3.1L9.5 11.7 3 21h3.2L12 14.1 16.7 21H21L14.5 12.1 18.9 3z" />
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.37L11.21 14.4l-6.084 7.35H1.819l7.73-8.833L1.39 2.25h5.08l4.546 6.36z" />
             </svg>
           </a>
 
