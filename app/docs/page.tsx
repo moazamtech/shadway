@@ -1,33 +1,61 @@
+const categories = [
+  { name: "AI", blocks: 4 },
+  { name: "Dialogs", blocks: 12 },
+  { name: "File Upload", blocks: 6 },
+  { name: "Form Layout", blocks: 5 },
+  { name: "Grid List", blocks: 3 },
+  { name: "Login & Signup", blocks: 9 },
+  { name: "Sidebar", blocks: 6 },
+  { name: "Stats", blocks: 12 },
+  { name: "Tables", blocks: 2 },
+];
+
 export default function Page() {
   return (
-    <div className="flex flex-col justify-center items-center min-h-screen w-full px-4 relative overflow-hidden">
-      {/* Animated background gradient */}
-     
-      {/* Content */}
-      <div className="text-center space-y-8 max-w-4xl">
-        {/* Main heading */}
-        <div className="space-y-6">
-          <h1 className="text-6xl sm:text-7xl md:text-6xl lg:text-9xl font-bold tracking-tighter leading-none">
-            <span className="bg-gradient-to-r from-primary via-primary to-primary/60 bg-clip-text text-transparent">
-              Shadway UI
-            </span>
-          </h1>
-
-          <p className="text-3xl sm:text-4xl md:text-5xl font-semibold text-foreground">
-            Coming Soon
-          </p>
-
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            We're crafting something amazing for you. Explore our growing collection of beautiful UI components and blocks while we prepare the ultimate Shadway UI experience.
-          </p>
-        </div>
-        {/* Progress indicator */}
-          <p className="text-sm text-muted-foreground mb-4">Development Progress</p>
-          <div className="w-full max-w-sm mx-auto bg-muted rounded-full h-2 overflow-hidden">
-            <div className="bg-gradient-to-r from-primary to-primary/60 h-full w-3/4 rounded-full transition-all duration-1000 animate-pulse"></div>
+    <div className="w-full">
+      <section className="pb-4">
+        <div className="relative mx-auto max-w-2xl overflow-hidden px-6 py-8 sm:px-8 sm:py-10 text-center">
+          <div className="relative space-y-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight">
+              Explore Pre-Built UI Blocks
+            </h1>
+            <p className="mx-auto max-w-xl text-sm sm:text-base text-muted-foreground">
+              Browse through a variety of pre-built UI blocks to kickstart your
+              next project. Each block is designed to be easily customizable and
+              integrable into your applications.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">75% Complete</p>
         </div>
+      </section>
+
+      <section className="grid gap-4 sm:gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category) => (
+          <button
+            key={category.name}
+            className="group relative flex flex-col justify-between rounded-3xl border border-dashed border-border/70 bg-gradient-to-br from-background via-background/80 to-muted/40 px-4 sm:px-6 pt-5 pb-6 text-center transition hover:border-primary/30 hover:bg-gradient-to-tr hover:from-muted/40 hover:via-background hover:to-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          >
+            <div className="mb-6 flex h-28 sm:h-32 items-center justify-center">
+              <div className="relative h-full w-full rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-muted/10 via-background/80 to-primary/5">
+                <div className="pointer-events-none absolute inset-[-18px] rounded-[28px] bg-[radial-gradient(circle_at_0%_0%,rgba(0,75,156,0.18),transparent_55%),radial-gradient(circle_at_100%_100%,rgba(244,140,180,0.18),transparent_55%)] opacity-70 blur-md transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="relative flex h-full w-full items-center justify-center">
+                  <div className="h-10 w-20 rounded-2xl border border-white/10 bg-background/70 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-sm font-medium sm:text-base tracking-tight">
+                {category.name}
+              </div>
+              <div className="text-xs text-muted-foreground sm:text-sm">
+                {category.blocks} blocks
+              </div>
+            </div>
+
+            <span className="pointer-events-none absolute inset-0 rounded-3xl border border-white/10 opacity-0 mix-blend-screen transition group-hover:opacity-100" />
+          </button>
+        ))}
+      </section>
     </div>
-  )
+  );
 }
