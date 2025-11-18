@@ -18,7 +18,10 @@ const PlusIcon = ({ className }: { className?: string }) => (
     height={24}
     strokeWidth="1.5"
     stroke="currentColor"
-    className={cn("text-primary size-6", className)}
+    className={cn(
+      "text-primary size-6 pointer-events-none relative z-20",
+      className
+    )}
   >
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
   </svg>
@@ -273,9 +276,9 @@ export default function TemplatePage() {
                   {loading ? (
                     // Loading skeleton cards
                     Array.from({ length: 6 }).map((_, index) => (
-                      <div key={index} className="group cursor-pointer">
-                        <div className="relative h-[400px] w-full">
-                          <div className="relative border-2 border-dashed h-full transition-all duration-300 flex flex-col bg-background border-border animate-pulse">
+                        <div key={index} className="group cursor-pointer">
+                          <div className="relative h-[400px] w-full">
+                            <div className="relative border-2 border-dashed h-full transition-all duration-300 rounded-none flex flex-col bg-background border-border animate-pulse">
                             <div className="w-3 h-3 rounded-full bg-muted absolute -top-1.5 -left-1.5"></div>
                             <div className="w-3 h-3 rounded-full bg-muted absolute -top-1.5 -right-1.5"></div>
                             <div className="w-3 h-3 rounded-full bg-muted absolute -bottom-1.5 -left-1.5"></div>
@@ -323,7 +326,6 @@ export default function TemplatePage() {
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
           </div>
