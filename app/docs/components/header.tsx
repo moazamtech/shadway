@@ -1,5 +1,6 @@
 "use client";
 
+import { BorderBeam } from "@/components/ui/borderbeam";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -8,7 +9,13 @@ import Link from "next/link";
 export function Header() {
   return (
     <div className="sticky top-0 z-50 border-border border-b border-dashed bg-background">
-      <div className="mx-auto flex max-w-(--breakpoint-xl) items-center justify-between border-border border-r border-l border-dashed px-4 sm:px-8">
+      <div className="relative mx-auto flex max-w-(--breakpoint-xl) items-center justify-between border-border border-r border-l border-dashed px-4 sm:px-8 overflow-hidden">
+        <BorderBeam borderWidth={1} reverse initialOffset={50}
+
+        className="from-transparent via-blue-500 to-transparent"
+ 
+        />
+
         <Link className="flex items-center space-x-1 py-5" href="/docs">
           <Image src="/logo.png" alt="Shadway Logo" width={30} height={30} />
           <h1 className="font-semibold text-xl">Shadway</h1>

@@ -1,12 +1,17 @@
 "use client";
 
+import { BorderBeam } from "@/components/ui/borderbeam";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 
 export function DocsFooter() {
   return (
     <div className="border-border border-dashed border-t">
-      <div className="mx-auto max-w-(--breakpoint-xl) px-4 sm:px-8 border-border border-dashed border-r border-l">
+      <div className="relative mx-auto max-w-(--breakpoint-xl) px-4 sm:px-8 border-border border-dashed border-r border-l overflow-hidden">
+        <BorderBeam borderWidth={1} reverse initialOffset={50}
+        className="from-transparent via-blue-500 to-transparent"
+        />
+
         <footer className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-5">
           <div>
             <div className="text-balance text-sm leading-loose text-muted-foreground">
@@ -39,4 +44,3 @@ export function DocsFooter() {
     </div>
   );
 }
-
