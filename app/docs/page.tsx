@@ -16,7 +16,7 @@ export default function Page() {
       <section className="pb-4">
         <div className="relative mx-auto max-w-2xl overflow-hidden px-6 py-8 sm:px-8 sm:py-10 text-center">
           <div className="relative space-y-4">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight">
+            <h1 className="text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif tracking-tight">
               Explore Pre-Built UI Blocks
             </h1>
             <p className="mx-auto max-w-xl text-sm sm:text-base text-muted-foreground">
