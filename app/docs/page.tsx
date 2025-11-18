@@ -1,20 +1,56 @@
 const categories = [
-  { name: "AI", blocks: 4 },
-  { name: "Dialogs", blocks: 12 },
-  { name: "File Upload", blocks: 6 },
-  { name: "Form Layout", blocks: 5 },
-  { name: "Grid List", blocks: 3 },
-  { name: "Login & Signup", blocks: 9 },
-  { name: "Sidebar", blocks: 6 },
-  { name: "Stats", blocks: 12 },
-  { name: "Tables", blocks: 2 },
+  {
+    name: "AI",
+    blocks: 4,
+    description: "Chat layouts, assistants, and response panels for AI products.",
+  },
+  {
+    name: "Dialogs",
+    blocks: 12,
+    description: "Modals, confirmations, and sheets for asking and guiding users.",
+  },
+  {
+    name: "File Upload",
+    blocks: 6,
+    description: "Dropzones and upload flows for files, images, and media.",
+  },
+  {
+    name: "Form Layout",
+    blocks: 5,
+    description: "Clean, structured form shells for inputs, settings, and steps.",
+  },
+  {
+    name: "Grid List",
+    blocks: 3,
+    description: "Responsive card and grid layouts for content-heavy pages.",
+  },
+  {
+    name: "Login & Signup",
+    blocks: 9,
+    description: "Auth screens with social logins and password flows.",
+  },
+  {
+    name: "Sidebar",
+    blocks: 6,
+    description: "Navigation shells for dashboards and multi-panel layouts.",
+  },
+  {
+    name: "Stats",
+    blocks: 12,
+    description: "Metric, KPI, and summary blocks for overviews.",
+  },
+  {
+    name: "Tables",
+    blocks: 2,
+    description: "Data tables with emphasis on clarity and readability.",
+  },
 ];
 
 export default function Page() {
   return (
     <div className="w-full">
-      <section className="pb-4">
-        <div className="relative mx-auto max-w-2xl overflow-hidden px-6 py-8 sm:px-8 sm:py-10 text-center">
+      <section className="pb-2">
+        <div className="relative mx-auto max-w-2xl overflow-hidden px-4 py-6 sm:px-6 sm:py-8 text-center">
           <div className="relative space-y-4">
             <h1 className="text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif tracking-tight">
               Explore Pre-Built UI Blocks
@@ -28,31 +64,42 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => (
+      <section className="grid gap-2 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category, index) => (
           <button
             key={category.name}
-            className="group relative flex flex-col justify-between rounded-3xl border border-dashed border-border/70 bg-gradient-to-br from-background via-background/80 to-muted/40 px-4 sm:px-6 pt-5 pb-6 text-center transition hover:border-primary/30 hover:bg-gradient-to-tr hover:from-muted/40 hover:via-background hover:to-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="group relative flex flex-col justify-between rounded-[10px] border border-dashed border-border/20 bg-card/60 px-4 py-4 sm:px-5 sm:py-5 text-left transition hover:border-primary/50 hover:bg-accent/10 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
-            <div className="mb-6 flex h-28 sm:h-32 items-center justify-center">
-              <div className="relative h-full w-full rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-muted/10 via-background/80 to-primary/5">
-                <div className="pointer-events-none absolute inset-[-18px] rounded-[28px] bg-[radial-gradient(circle_at_0%_0%,rgba(0,75,156,0.18),transparent_55%),radial-gradient(circle_at_100%_100%,rgba(244,140,180,0.18),transparent_55%)] opacity-70 blur-md transition-opacity duration-300 group-hover:opacity-100" />
-                <div className="relative flex h-full w-full items-center justify-center">
-                  <div className="h-10 w-20 rounded-2xl border border-white/10 bg-background/70 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]" />
-                </div>
-              </div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-[11px] font-medium text-muted-foreground/80">
+                #{String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="inline-flex items-center rounded-full border border-dashed border-border/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground/80">
+                {category.blocks} blocks
+              </span>
             </div>
 
             <div className="space-y-1">
-              <div className="text-sm font-medium sm:text-base tracking-tight">
+              <div className="text-sm font-medium sm:text-base tracking-tight text-foreground">
                 {category.name}
               </div>
-              <div className="text-xs text-muted-foreground sm:text-sm">
-                {category.blocks} blocks
-              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {category.description}
+              </p>
             </div>
 
-            <span className="pointer-events-none absolute inset-0 rounded-3xl border border-white/10 opacity-0 mix-blend-screen transition group-hover:opacity-100" />
+            <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground/80">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                Clicl to see more details
+              </span>
+              <span className="inline-flex items-center gap-1">
+                View blocks
+                <span className="transition-transform duration-200 group-hover:translate-x-0.5">
+                  ↗
+                </span>
+              </span>
+            </div>
+
           </button>
         ))}
       </section>
