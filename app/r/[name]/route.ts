@@ -6,8 +6,8 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const revalidate = 3600
 
-export async function GET(_req: Request, { params }: { params: { name?: string } }) {
-  const name = params?.name
+export async function GET(_req: Request, { params }: { params: Promise<{ name?: string }> }) {
+  const { name } = await params
   if (!name) {
     return NextResponse.json({ error: "Missing component name" }, { status: 400 })
   }

@@ -77,3 +77,17 @@ export interface TemplateFormData {
   featured: boolean;
   sequence?: number;
 }
+
+export interface ComponentRegistry {
+  name: string;
+  type: string;
+  title: string;
+  description: string;
+  files: {
+    path: string;
+    content: string;
+    type: string;
+  }[];
+  dependencies: string[];
+  registryDependencies: string[];
+}
