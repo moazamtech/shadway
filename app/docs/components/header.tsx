@@ -39,7 +39,7 @@ export function Header() {
           </a>
 
           <a
-            href="https://x.com/moazamtech"
+            href="https://x.com/loxtmozzi"
             target="_blank"
             rel="noreferrer"
             aria-label="View X profile"
@@ -48,15 +48,7 @@ export function Header() {
               "h-10 w-10 rounded-xl bg-background/40 backdrop-blur-md border border-border/20 hover:bg-background/60 transition-all duration-200"
             )}
           >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-4 w-4 text-foreground"
-              role="img"
-              fill="currentColor"
-            >
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.37L11.21 14.4l-6.084 7.35H1.819l7.73-8.833L1.39 2.25h5.08l4.546 6.36z" />
-            </svg>
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" > <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /> </svg>
           </a>
 
           <ThemeToggle />
