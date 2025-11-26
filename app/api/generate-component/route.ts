@@ -201,7 +201,7 @@ Uses a subtle gradient background with border and shadow for depth. The yellow s
     ];
 
     const stream = await openai.chat.completions.create({
-      model: "openrouter/sherlock-dash-alpha",
+      model: "openrouter/bert-nebulon-alpha",
       messages: messages as any,
       stream: true,
     } as any) as any;
