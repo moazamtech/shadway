@@ -1,144 +1,268 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { 
+  Copy, 
+  Check, 
+  Eye, 
+  Code, 
+  ExternalLink,
+  Terminal,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-interface RegistryItem {
+interface Component {
   name: string;
-  type: string;
-  title?: string;
-  description?: string;
-}
-
-interface ComponentCategory {
-  name: string;
-  components: number;
   description: string;
-  items: RegistryItem[];
+  code: string;
+  installCommand: string;
+  preview: React.ComponentType;
 }
+
+// Preview Components
+const AlertPreview = () => (
+  <div className="w-full p-6 bg-background border border-border rounded-lg">
+    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
+      <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center mt-0.5">
+        <div className="w-2.5 h-2.5 bg-destructive rounded-full" />
+      </div>
+      <div className="flex-1">
+        <h4 className="font-semibold text-destructive mb-1">Error</h4>
+        <p className="text-sm text-destructive/80">
+          Your session has expired. Please log in again.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const ButtonPreview = () => (
+  <div className="w-full p-6 bg-background border border-border rounded-lg">
+    <div className="flex items-center gap-4 flex-wrap">
+      <Button>Primary Button</Button>
+      <Button variant="secondary">Secondary</Button>
+      <Button variant="outline">Outline</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button variant="destructive">Destructive</Button>
+    </div>
+  </div>
+);
+
+const components: Component[] = [
+  {
+    name: "Alert",
+    description: "Display important messages and notifications to users with different variants and styles.",
+    installCommand: "npx shadcn-ui@latest add alert",
+    preview: AlertPreview,
+    code: `import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+
+export function AlertDemo() {
+  return (
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>
+        Your session has expired. Please log in again.
+      </AlertDescription>
+    </Alert>
+  )
+}`
+  },
+  {
+    name: "Button",
+    description: "Interactive elements for user actions and navigation with multiple variants and sizes.",
+    installCommand: "npx shadcn-ui@latest add button",
+    preview: ButtonPreview,
+    code: `import { Button } from "@/components/ui/button"
+
+export function ButtonDemo() {
+  return (
+    <div className="flex items-center gap-4">
+      <Button>Primary Button</Button>
+      <Button variant="secondary">Secondary</Button>
+      <Button variant="outline">Outline</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button variant="destructive">Destructive</Button>
+    </div>
+  )
+}`
+  }
+];
 
 export default function ComponentsPage() {
-  const [categories, setCategories] = useState<ComponentCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Record<string, 'preview' | 'code'>>({});
+  const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const fetchComponents = async () => {
-      try {
-        const response = await fetch("/registry");
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Fetch details for each component
-          const detailedComponents = await Promise.all(
-            data.items.map(async (item: RegistryItem) => {
-              try {
-                const detailResponse = await fetch(`/r/${item.name}.json`);
-                if (detailResponse.ok) {
-                  const detail = await detailResponse.json();
-                  return {
-                    ...item,
-                    title: detail.title,
-                    description: detail.description
-                  };
-                }
-              } catch (error) {
-                console.error(`Error fetching ${item.name}:`, error);
-              }
-              return item;
-            })
-          );
-          
-          // Group by type for now (you can customize this)
-          const grouped: ComponentCategory[] = [{
-            name: "UI Components",
-            components: detailedComponents.length,
-            description: "Beautiful, accessible components for your Next.js applications.",
-            items: detailedComponents
-          }];
-          
-          setCategories(grouped);
-        }
-      } catch (error) {
-        console.error("Error fetching components:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const getActiveTab = (componentName: string) => activeTab[componentName] || 'preview';
 
-    fetchComponents();
-  }, []);
+  const handleTabChange = (componentName: string, tab: 'preview' | 'code') => {
+    setActiveTab(prev => ({ ...prev, [componentName]: tab }));
+  };
 
-  if (loading) {
-    return (
-      <div className="w-full">
-        <section className="pb-2">
-          <div className="relative mx-auto max-w-2xl overflow-hidden px-4 py-6 sm:px-6 sm:py-8 text-center">
-            <div className="relative space-y-4">
-              <div className="h-12 bg-muted rounded w-3/4 mx-auto animate-pulse"></div>
-              <div className="h-6 bg-muted rounded w-2/3 mx-auto animate-pulse"></div>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
+  const copyToClipboard = async (text: string, componentName: string, type: 'code' | 'command') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      const key = `${componentName}-${type}`;
+      setCopiedStates(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => {
+        setCopiedStates(prev => ({ ...prev, [key]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const openInV0 = (componentName: string) => {
+    const v0Url = `https://v0.dev/chat?q=Create a ${componentName.toLowerCase()} component similar to shadcn/ui`;
+    window.open(v0Url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
-    <div className="w-full">
-      <section className="pb-2">
-        <div className="relative mx-auto max-w-2xl overflow-hidden px-4 py-6 sm:px-6 sm:py-8 text-center">
-          <div className="relative space-y-4">
-            <h1 className="text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif tracking-tight">
-              Browse Components
-            </h1>
-            <p className="mx-auto max-w-xl text-sm sm:text-base text-muted-foreground">
-              Explore our collection of beautifully designed, accessible components.
-              Copy the code and customize them to fit your needs.
-            </p>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="w-full px-4 py-12 md:px-8 md:py-16">
+        {/* Header */}
+        <section className="mb-16 text-center space-y-6 max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-7xl font-extrabold tracking-tighter">
+            COMPONENTS<span className="text-primary">.</span>
+          </h1>
+          <p className="mx-auto max-w-2xl text-lg md:text-xl text-muted-foreground font-light">
+            Beautiful, accessible UI components.
+            <br className="hidden sm:block" />
+            Copy the code and customize to fit your needs.
+          </p>
+        </section>
 
-      <section className="grid gap-2 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category, index) => (
-          <Link
-            key={category.name}
-            href={`/components/${category.name.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            <button className="group relative flex flex-col justify-between rounded-[10px] border border-dashed border-border/20 bg-card/60 px-4 py-4 sm:px-5 sm:py-5 text-left transition hover:border-primary/50 hover:bg-accent/10 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 w-full">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11px] font-medium text-muted-foreground/80">
-                  #{String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-dashed border-border/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground/80">
-                  {category.components} components
-                </span>
-              </div>
+        {/* Components List */}
+        <div className="max-w-6xl mx-auto space-y-12">
+          {components.map((component, index) => {
+            const PreviewComponent = component.preview;
+            const currentTab = getActiveTab(component.name);
+            const codeKey = `${component.name}-code`;
+            const commandKey = `${component.name}-command`;
+            
+            return (
+              <motion.div
+                key={component.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="border border-border rounded-xl overflow-hidden bg-card"
+              >
+                {/* Component Header */}
+                <div className="p-6 border-b border-border">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-sm font-mono text-muted-foreground/60">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <h2 className="text-2xl font-bold tracking-tight">{component.name}</h2>
+                      </div>
+                      <p className="text-muted-foreground">{component.description}</p>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openInV0(component.name)}
+                        className="gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open in v0
+                      </Button>
+                    </div>
+                  </div>
 
-              <div className="space-y-1">
-                <div className="text-sm font-medium sm:text-base tracking-tight text-foreground">
-                  {category.name}
+                  {/* Install Command */}
+                  <div className="mt-4 p-3 bg-muted rounded-lg">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Terminal className="w-4 h-4 text-muted-foreground" />
+                        <code className="text-sm font-mono">{component.installCommand}</code>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(component.installCommand, component.name, 'command')}
+                        className="gap-2 h-8"
+                      >
+                        {copiedStates[commandKey] ? (
+                          <Check className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        {copiedStates[commandKey] ? 'Copied!' : 'Copy'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {category.description}
-                </p>
-              </div>
 
-              <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground/80">
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  Click to explore
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  View components
-                  <span className="transition-transform duration-200 group-hover:translate-x-0.5">
-                    ↗
-                  </span>
-                </span>
-              </div>
-            </button>
-          </Link>
-        ))}
-      </section>
+                {/* Tab Switcher */}
+                <div className="px-6 pt-4">
+                  <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+                    <button
+                      onClick={() => handleTabChange(component.name, 'preview')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        currentTab === 'preview'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleTabChange(component.name, 'code')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        currentTab === 'code'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Code className="w-4 h-4" />
+                      Code
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 pt-4">
+                  {currentTab === 'preview' ? (
+                    <div className="rounded-lg border border-border bg-background p-1">
+                      <PreviewComponent />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute top-3 right-3 z-10">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(component.code, component.name, 'code')}
+                          className="gap-2 h-8"
+                        >
+                          {copiedStates[codeKey] ? (
+                            <Check className="w-3 h-3 text-green-500" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                          {copiedStates[codeKey] ? 'Copied!' : 'Copy'}
+                        </Button>
+                      </div>
+                      <pre className="bg-muted rounded-lg p-4 overflow-x-auto">
+                        <code className="text-sm font-mono">{component.code}</code>
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
