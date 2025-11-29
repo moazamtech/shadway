@@ -347,11 +347,20 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   <motion.div
                     key={website._id || index}
                     variants={cardVariants}
-                    className="group cursor-pointer"
+                    className={`group cursor-pointer ${(website.featured || index === 0) ? "hover:-translate-y-1.5 transition-transform duration-300" : ""}`}
                     style={{ willChange: 'transform, opacity' }}
                   >
                     {/* Enhanced SVG border container with geometric patterns */}
                     <div className="relative h-[340px] w-full">
+                      {/* Featured badge */}
+                      {(website.featured || index === 0) && (
+                        <div className="absolute top-3 left-3 z-10">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-primary via-primary/80 to-primary/60 text-primary-foreground shadow-sm shadow-primary/40">
+                            Featured
+                          </span>
+                        </div>
+                      )}
+
                       {/* Main SVG Border with geometric elements */}
                       <svg
                         className="absolute inset-0 w-full h-full"
@@ -367,9 +376,9 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                           width="100"
                           height="100"
                           rx="3"
-                          stroke="hsl(var(--border))"
-                          strokeWidth="0.5"
-                          strokeDasharray="2 2"
+                          stroke={(website.featured || index === 0) ? `url(#featured-gradient-${index})` : "hsl(var(--border))"}
+                          strokeWidth={(website.featured || index === 0) ? 0.9 : 0.5}
+                          strokeDasharray={(website.featured || index === 0) ? "4 2" : "2 2"}
                           fill="none"
                           className="opacity-60"
                         />
@@ -395,6 +404,13 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
 
                         {/* Grid pattern overlay */}
                         <defs>
+                          {(website.featured || index === 0) && (
+                            <linearGradient id={`featured-gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="rgb(59,130,246)" />
+                              <stop offset="50%" stopColor="rgb(139,92,246)" />
+                              <stop offset="100%" stopColor="rgb(56,189,248)" />
+                            </linearGradient>
+                          )}
                           <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
                             <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
                           </pattern>
@@ -404,7 +420,11 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
 
                       {/* Card Content */}
                       <div className="relative h-full w-full p-1">
-                        <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col">
+                        <div className={`h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col ${
+                          (website.featured || index === 0)
+                            ? "border border-primary/40 shadow-[0_0_30px_rgba(59,130,246,0.35)] bg-gradient-to-br from-primary/10 via-primary/5 to-background/80 dark:from-primary/25 dark:via-primary/15 dark:to-background/40"
+                            : ""
+                        }`}>
                           {/* Image Section - OG Image proportions (16:9) */}
                           <div className="relative h-44 bg-muted/50 overflow-hidden">
                             {failedImages.has(website.image) ? (
