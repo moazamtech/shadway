@@ -35,11 +35,11 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
     >
       {/* Special glow effect for premium sponsors */}
       {isPremium && (
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#a855f7_0,_transparent_55%),_radial-gradient(circle_at_bottom,_#ec4899_0,_transparent_55%)] rounded-2xl blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-300"></div>
       )}
 
       {/* Enhanced SVG border container */}
-      <div className={`relative h-[380px] w-full ${isPremium ? 'transform hover:scale-105' : ''} transition-transform duration-300`}>
+      <div className={`relative h-[380px] w-full ${isPremium ? 'transform hover:-translate-y-1 hover:rotate-1' : 'hover:-translate-y-1'} transition-transform duration-300`}>
         {/* Main SVG Border with sponsor styling */}
         <svg
           className="absolute inset-0 w-full h-full"
@@ -50,24 +50,25 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
         >
           {/* Enhanced border for sponsors */}
           <rect
-            x="0"
-            y="0"
-            width="100"
-            height="100"
-            rx="3"
+            x="1"
+            y="1"
+            width="98"
+            height="98"
+            rx="6"
             stroke={isPremium ? "url(#premiumGradient)" : "url(#basicGradient)"}
-            strokeWidth={isPremium ? "1" : "0.5"}
-            strokeDasharray={isPremium ? "none" : "3 3"}
+            strokeWidth={isPremium ? "1.3" : "0.7"}
+            strokeDasharray={isPremium ? "4 2" : "3 3"}
             fill="none"
-            className={isPremium ? "opacity-80" : "opacity-60"}
+            className={isPremium ? "opacity-90" : "opacity-70"}
           />
 
           {/* Gradient definitions */}
           <defs>
             <linearGradient id="premiumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="rgb(168, 85, 247)" />
-              <stop offset="50%" stopColor="rgb(236, 72, 153)" />
-              <stop offset="100%" stopColor="rgb(239, 68, 68)" />
+              <stop offset="0%" stopColor="rgb(244, 114, 182)" />
+              <stop offset="40%" stopColor="rgb(168, 85, 247)" />
+              <stop offset="80%" stopColor="rgb(56, 189, 248)" />
+              <stop offset="100%" stopColor="rgb(250, 250, 250)" />
             </linearGradient>
             <linearGradient id="basicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="rgb(59, 130, 246)" />
@@ -78,10 +79,10 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
           {/* Enhanced corner elements for premium */}
           {isPremium && (
             <g className="opacity-60">
-              <circle cx="8" cy="8" r="2" fill="rgb(168, 85, 247)" />
-              <circle cx="92" cy="8" r="2" fill="rgb(236, 72, 153)" />
-              <circle cx="8" cy="92" r="2" fill="rgb(16, 185, 129)" />
-              <circle cx="92" cy="92" r="2" fill="rgb(239, 68, 68)" />
+              <circle cx="8" cy="8" r="2" fill="rgb(244, 114, 182)" />
+              <circle cx="92" cy="8" r="2" fill="rgb(168, 85, 247)" />
+              <circle cx="8" cy="92" r="2" fill="rgb(56, 189, 248)" />
+              <circle cx="92" cy="92" r="2" fill="rgb(34, 197, 94)" />
             </g>
           )}
 
@@ -89,8 +90,8 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
           {isPremium && (
             <defs>
               <pattern id={`sponsor-pattern-${index}`} width="20" height="20" patternUnits="userSpaceOnUse">
-                <circle cx="10" cy="10" r="1" fill="rgb(168, 85, 247)" opacity="0.1">
-                  <animate attributeName="opacity" values="0.1;0.3;0.1" dur="3s" repeatCount="indefinite" />
+                <circle cx="10" cy="10" r="1.2" fill="rgb(244, 114, 182)" opacity="0.12">
+                  <animate attributeName="opacity" values="0.12;0.3;0.12" dur="3s" repeatCount="indefinite" />
                 </circle>
               </pattern>
             </defs>
@@ -100,28 +101,31 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
 
         {/* Card Content */}
         <div className="relative h-full w-full p-1">
-          <div className={`h-full w-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300 flex flex-col ${
+          <div className={`h-full w-full backdrop-blur-md rounded-2xl overflow-hidden transition-all duration-300 flex flex-col border border-border/40 shadow-[0_0_40px_rgba(0,0,0,0.25)] ${
             isPremium
-              ? 'bg-gradient-to-br from-purple-50/50 via-pink-50/50 to-red-50/50 dark:from-purple-950/30 dark:via-pink-950/30 dark:to-red-950/30 group-hover:from-purple-50/70 group-hover:via-pink-50/70 group-hover:to-red-50/70 dark:group-hover:from-purple-950/40 dark:group-hover:via-pink-950/40 dark:group-hover:to-red-950/40'
-              : 'bg-gradient-to-br from-blue-50/50 via-cyan-50/50 to-green-50/50 dark:from-blue-950/30 dark:via-cyan-950/30 dark:to-green-950/30 group-hover:from-blue-50/70 group-hover:via-cyan-50/70 group-hover:to-green-50/70 dark:group-hover:from-blue-950/40 dark:group-hover:via-cyan-950/40 dark:group-hover:to-green-950/40'
+              ? 'bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.18),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(56,189,248,0.18),_transparent_60)] dark:bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.12),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(56,189,248,0.12),_transparent_60)]'
+              : 'bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(16,185,129,0.14),_transparent_60)] dark:bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.18),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(5,150,105,0.18),_transparent_60)]'
           }`}>
 
             {/* Sponsor badges */}
-            <div className="absolute top-3 left-3 z-10">
+            <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
+              <Badge className="bg-black/80 text-xs tracking-[0.12em] uppercase text-white/90 backdrop-blur-sm border border-white/10">
+                Sponsored
+              </Badge>
               <Badge className={`${
                 isPremium
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                  : 'bg-gradient-to-r from-blue-500 to-green-500 text-white'
-              } font-medium`}>
+                  ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-sky-400 text-white shadow-md shadow-pink-500/40'
+                  : 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-md shadow-blue-500/40'
+              } font-medium text-[0.7rem] px-2.5 py-0.5 rounded-full`}>
                 {isPremium ? (
                   <>
                     <Crown className="w-3 h-3 mr-1" />
-                    Premium
+                    Premium Drop
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3 h-3 mr-1" />
-                    Sponsor
+                    Featured Sponsor
                   </>
                 )}
               </Badge>
@@ -131,16 +135,16 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
             {isPremium && (
               <>
                 <div className="absolute top-6 right-6 animate-bounce delay-100">
-                  <Star className="w-4 h-4 text-purple-500 opacity-60" />
+                  <Star className="w-4 h-4 text-purple-400 opacity-70" />
                 </div>
                 <div className="absolute bottom-20 left-6 animate-bounce delay-300">
-                  <Zap className="w-3 h-3 text-pink-500 opacity-60" />
+                  <Zap className="w-3 h-3 text-pink-400 opacity-70" />
                 </div>
               </>
             )}
 
             {/* Image Section */}
-            <div className="relative h-48 overflow-hidden">
+            <div className="relative h-48 overflow-hidden rounded-xl border border-white/10 bg-black/5 dark:bg-white/5">
               <img
                 src={website.image}
                 alt={`${website.name} preview`}
@@ -151,8 +155,8 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
               {/* Enhanced gradient overlay */}
               <div className={`absolute inset-0 ${
                 isPremium
-                  ? 'bg-gradient-to-t from-purple-900/20 via-transparent to-transparent'
-                  : 'bg-gradient-to-t from-blue-900/20 via-transparent to-transparent'
+                  ? 'bg-gradient-to-t from-purple-900/40 via-transparent to-transparent'
+                  : 'bg-gradient-to-t from-blue-900/30 via-transparent to-transparent'
               }`} />
 
               {/* Shimmer effect for premium */}
@@ -171,7 +175,7 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
                 }`}></div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <h3 className="font-bold text-lg leading-tight text-foreground">
+                    <h3 className="font-semibold text-lg leading-tight text-foreground tracking-tight">
                       {website.name}
                     </h3>
                     <Badge variant="outline" className={`text-xs ${
