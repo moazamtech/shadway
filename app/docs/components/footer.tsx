@@ -38,6 +38,25 @@ export function DocsFooter() {
                   moazamtech
                 </a>
               </Highlighter>
+              {" & "}
+              <Image
+                src="/umair_profile.jpg"
+                alt="UmairXD"
+                width={20}
+                height={20}
+                className="inline-block rounded-2xl"
+              />{" "}
+              <Highlighter color="rgba(79, 139, 255, 0.32)" padding={3} action="highlight">
+                <a
+                  href="https://x.com/UmairXD_"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium"
+                  data-umami-event="View UmairXD X Profile"
+                >
+                  UmairXD
+                </a>
+              </Highlighter>
               . The source code is available on{" "}
               <Highlighter color="rgba(79, 139, 255, 0.32)" action="underline" >
                 <a

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { 
   ArrowUpRight, 
   Layers, 
@@ -21,6 +22,12 @@ import { Badge } from "@/components/ui/badge";
 type PreviewProps = { isHovered: boolean };
 
 const categories = [
+  {
+    name: "Components",
+    blocks: 2,
+    description: "Beautiful, accessible UI components for your applications.",
+    icon: Layout,
+  },
   {
     name: "AI Interface",
     blocks: 4,
@@ -316,7 +323,47 @@ const TablesPreview = ({ isHovered }: PreviewProps) => (
   </div>
 );
 
+
+const ComponentsPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex flex-col gap-3 justify-center">
+    <div className="flex gap-2">
+      <motion.div 
+        initial={{ scale: 1, borderColor: "var(--border)" }}
+        animate={isHovered ? { 
+          scale: [1, 1.05, 1],
+          borderColor: ["var(--border)", "var(--primary)", "var(--border)"]
+        } : { scale: 1, borderColor: "var(--border)" }}
+        transition={isHovered ? { duration: 2, repeat: Infinity } : { duration: 0 }}
+        className="flex-1 h-12 bg-background border border-border rounded-lg flex items-center justify-center shadow-sm"
+      >
+        <div className="w-6 h-1.5 bg-primary rounded-full" />
+      </motion.div>
+      <motion.div 
+        initial={{ scale: 1, backgroundColor: "var(--muted)" }}
+        animate={isHovered ? { 
+          scale: [1, 1.05, 1],
+          backgroundColor: ["var(--muted)", "var(--primary)", "var(--muted)"]
+        } : { scale: 1, backgroundColor: "var(--muted)" }}
+        transition={isHovered ? { duration: 2, repeat: Infinity, delay: 0.5 } : { duration: 0 }}
+        className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center"
+      >
+        <div className="w-4 h-4 bg-background rounded-sm" />
+      </motion.div>
+    </div>
+    <motion.div 
+      initial={{ opacity: 0.7 }}
+      animate={isHovered ? { opacity: [0.7, 1, 0.7] } : { opacity: 0.7 }}
+      transition={isHovered ? { duration: 2, repeat: Infinity, delay: 1 } : { duration: 0 }}
+      className="h-8 bg-card border border-border rounded-lg flex items-center px-3 gap-2 shadow-sm"
+    >
+      <div className="w-2 h-2 bg-green-500 rounded-full" />
+      <div className="w-16 h-1.5 bg-muted-foreground/20 rounded-full" />
+    </motion.div>
+  </div>
+);
+
 const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
+  "Components": ComponentsPreview,
   "AI Interface": AIPreview,
   "Dialogs": DialogPreview,
   "File Upload": FileUploadPreview,
@@ -327,6 +374,20 @@ const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Analytics": StatsPreview,
   "Data Tables": TablesPreview,
 };
+
+// Components data
+const components = [
+  {
+    name: "Alert",
+    description: "Display important messages and notifications to users.",
+    type: "registry:component"
+  },
+  {
+    name: "Button", 
+    description: "Interactive elements for user actions and navigation.",
+    type: "registry:component"
+  },
+];
 
 export default function BlocksPage() {
   const containerVariants = {
@@ -376,12 +437,12 @@ function Card({ category, index }: { category: any; index: number }) {
 
   const Preview = PREVIEWS[category.name] || AIPreview; // Fallback
 
-  return (
+  const CardContent = (
     <motion.div
       variants={itemVariants}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-sm"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-sm cursor-pointer"
     >
       <div className="h-44 w-full border-b border-border/40 relative bg-muted/5 group-hover:bg-muted/10 transition-colors">
         <Preview isHovered={isHovered} />
@@ -414,4 +475,15 @@ function Card({ category, index }: { category: any; index: number }) {
       </div>
     </motion.div>
   );
+
+  // If it's the Components category, wrap with Link
+  if (category.name === "Components") {
+    return (
+      <Link href="/components">
+        {CardContent}
+      </Link>
+    );
+  }
+
+  return CardContent;
 }
