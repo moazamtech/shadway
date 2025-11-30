@@ -29,7 +29,7 @@ export function DocsFooter() {
               />{" "}
               <Highlighter color="rgba(79, 139, 255, 0.32)" padding={3} action="highlight">
                 <a
-                  href="https://x.com/moazamtech"
+                  href="https://x.com/loxtmozzi"
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium"
