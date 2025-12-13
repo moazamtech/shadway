@@ -48,11 +48,15 @@ type Message = {
   content: string;
   reasoning?: string;
   code?: string;
+  files?: Record<string, string>;
+  entryFile?: string;
   timestamp: Date;
 };
 
 type GeneratedComponent = {
-  code: string;
+  code?: string;
+  files?: Record<string, string>;
+  entryFile?: string;
   language: string;
   title: string;
 };
@@ -228,7 +232,13 @@ export default function ComponentGeneratorPage() {
 
   const parseThinkingAndContent = (
     text: string,
-  ): { reasoning: string; content: string; code: string } => {
+  ): {
+    reasoning: string;
+    content: string;
+    code: string;
+    files?: Record<string, string>;
+    entryFile?: string;
+  } => {
     // Extract reasoning from <think> tags
     const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
     const thinkMatches = [...text.matchAll(thinkRegex)];
@@ -239,47 +249,75 @@ export default function ComponentGeneratorPage() {
     const componentMatch = text.match(componentRegex);
     const code = componentMatch ? componentMatch[1].trim() : "";
 
+    // Extract files from <files> tags
+    const filesRegex =
+      /<files(?:\s+entry=["']([^"']+)["'])?>([\s\S]*?)<\/files>/;
+    const filesMatch = text.match(filesRegex);
+    let files: Record<string, string> | undefined;
+    let entryFile: string | undefined;
+    if (filesMatch) {
+      files = {};
+      const inner = filesMatch[2];
+      const fileRegex = /<file\s+path=["']([^"']+)["']\s*>([\s\S]*?)<\/file>/g;
+      for (const m of inner.matchAll(fileRegex)) {
+        const path = (m[1] || "").trim();
+        const content = (m[2] || "").trim();
+        if (!path || !content) continue;
+        const normalized = path.startsWith("/") ? path : `/${path}`;
+        files[normalized] = content;
+      }
+      if (Object.keys(files).length === 0) files = undefined;
+      const rawEntry = (filesMatch[1] || "").trim();
+      if (rawEntry)
+        entryFile = rawEntry.startsWith("/") ? rawEntry : `/${rawEntry}`;
+      if (!entryFile)
+        entryFile = files?.["/entry.tsx"] ? "/entry.tsx" : undefined;
+      if (!entryFile) entryFile = files?.["/App.tsx"] ? "/App.tsx" : undefined;
+    }
+
     // Remove <think> and <component> tags from displayed content
     let content = text.replace(thinkRegex, "");
     content = content.replace(/<component>[\s\S]*?<\/component>/g, "");
+    content = content.replace(/<files[\s\S]*?<\/files>/g, "");
     content = content.trim();
 
-    return { reasoning, content, code };
+    return { reasoning, content, code, files, entryFile };
   };
 
-  const extractCodeFromMarkdown = (
+  const extractArtifactsFromResponse = (
     text: string,
-  ): { code: string; language: string } => {
-    // Extract from <component> tags only
-    const componentRegex = /<component>([\s\S]*?)<\/component>/;
-    const componentMatch = text.match(componentRegex);
+  ): {
+    code?: string;
+    files?: Record<string, string>;
+    entryFile?: string;
+    language: string;
+  } => {
+    const { code, files, entryFile } = parseThinkingAndContent(text);
 
-    if (componentMatch) {
-      let code = componentMatch[1].trim();
+    if (files && Object.keys(files).length > 0) {
+      const entry =
+        (entryFile && files[entryFile] ? entryFile : undefined) ||
+        (files["/entry.tsx"] ? "/entry.tsx" : undefined) ||
+        (files["/App.tsx"] ? "/App.tsx" : undefined) ||
+        Object.keys(files)[0];
+      return { files, entryFile, language: "tsx", code: files[entry] };
+    }
 
-      // Remove any duplicate code (if the code appears twice in exact halves)
-      const lines = code.split("\n");
+    if (code) {
+      let sanitized = code;
+      const lines = sanitized.split("\n");
       const halfLength = Math.floor(lines.length / 2);
-
       if (halfLength > 10) {
         const firstHalf = lines.slice(0, halfLength).join("\n");
         const secondHalf = lines.slice(halfLength).join("\n");
-
         if (firstHalf.trim() === secondHalf.trim()) {
-          code = firstHalf.trim();
+          sanitized = firstHalf.trim();
         }
       }
-
-      return {
-        language: "tsx",
-        code: code,
-      };
+      return { language: "tsx", code: sanitized };
     }
 
-    return {
-      language: "tsx",
-      code: "",
-    };
+    return { language: "tsx" };
   };
 
   const handleSubmit = useCallback(
@@ -340,11 +378,20 @@ export default function ComponentGeneratorPage() {
             reasoning,
             content: displayContent,
             code,
+            files,
+            entryFile,
           } = parseThinkingAndContent(accumulatedContent);
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantMessage.id
-                ? { ...msg, content: displayContent, reasoning, code }
+                ? {
+                    ...msg,
+                    content: displayContent,
+                    reasoning,
+                    code,
+                    files,
+                    entryFile,
+                  }
                 : msg,
             ),
           );
@@ -409,11 +456,13 @@ export default function ComponentGeneratorPage() {
 
         // Extract and set the generated component
         if (accumulatedContent) {
-          const { code, language } =
-            extractCodeFromMarkdown(accumulatedContent);
-          if (code) {
+          const { code, files, entryFile, language } =
+            extractArtifactsFromResponse(accumulatedContent);
+          if (files || code) {
             setGeneratedComponent({
               code,
+              files,
+              entryFile,
               language,
               title: "Generated Component",
             });
@@ -726,14 +775,23 @@ export default function ComponentGeneratorPage() {
                               )}
                               {message.code && (
                                 <CodeBlock
-                                  code={message.code}
+                                  code={
+                                    message.code ||
+                                    message.files?.["/App.tsx"] ||
+                                    ""
+                                  }
                                   language="tsx"
                                   isActive={
-                                    generatedComponent?.code === message.code
+                                    generatedComponent?.code === message.code ||
+                                    JSON.stringify(
+                                      generatedComponent?.files || {},
+                                    ) === JSON.stringify(message.files || {})
                                   }
                                   onRun={() => {
                                     setGeneratedComponent({
-                                      code: message.code || "",
+                                      code: message.code,
+                                      files: message.files,
+                                      entryFile: message.entryFile,
                                       language: "tsx",
                                       title: "Generated Component",
                                     });
@@ -825,7 +883,9 @@ export default function ComponentGeneratorPage() {
             <div className="flex-1 min-h-0">
               <SandpackRuntimePreview
                 showConsole={false}
-                code={generatedComponent.code}
+                code={generatedComponent.code || ""}
+                files={generatedComponent.files}
+                entryFile={generatedComponent.entryFile}
               />
             </div>
           </div>
