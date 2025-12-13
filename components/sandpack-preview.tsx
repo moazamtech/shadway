@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const SANDBOX_TRANSFORM_VERSION = 4;
+
 const sandpackStyles = `
   * {
     box-sizing: border-box !important;
@@ -43,7 +45,7 @@ const sandpackStyles = `
     flex-direction: column !important;
   }
 
-  .sp-preview { 
+  .sp-preview {
     flex: 1 !important;
     min-height: 0 !important;
     width: 100% !important;
@@ -132,9 +134,145 @@ function rewriteSandboxImports(src: string) {
   return out;
 }
 
+function rewriteLucideImports(src: string) {
+  // lucide-react does not include brand icons; rewrite common brand requests to safe equivalents.
+  const aliasMap: Record<string, string> = {
+    // Common "missing" icon names (vary across lucide versions)
+    Coin: "Coins",
+    Dog: "PawPrint",
+    Cat: "PawPrint",
+    PartyPopper: "Sparkles",
+
+    Discord: "MessageCircle",
+    Telegram: "Send",
+    Instagram: "Camera",
+    Twitter: "Twitter",
+  };
+
+  const jsxUsed = new Set<string>();
+  const tagRegex = /<([A-Z][A-Za-z0-9_]*)\b/g;
+  for (const match of src.matchAll(tagRegex)) {
+    if (match[1]) jsxUsed.add(match[1]);
+  }
+
+  return src.replace(
+    /import\s*{\s*([\s\S]*?)\s*}\s*from\s*["']lucide-react["']\s*;?/g,
+    (_full, rawImports) => {
+      const parts = String(rawImports)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const seenLocals = new Set<string>();
+      const rewritten: string[] = [];
+
+      for (const part of parts) {
+        const asMatch = part.match(/^([A-Za-z0-9_]+)\s+as\s+([A-Za-z0-9_]+)$/);
+        const importedName = (asMatch?.[1] || part).trim();
+        const localName = (asMatch?.[2] || part).trim();
+
+        // Drop unused icons to avoid importing non-existent/huge lists.
+        if (!jsxUsed.has(localName)) continue;
+
+        const mappedImport = aliasMap[importedName] || importedName;
+        const mappedLocal = localName;
+
+        // Avoid duplicate local bindings (causes "Identifier has already been declared")
+        if (seenLocals.has(mappedLocal)) continue;
+        seenLocals.add(mappedLocal);
+
+        if (mappedImport === mappedLocal) rewritten.push(mappedImport);
+        else rewritten.push(`${mappedImport} as ${mappedLocal}`);
+      }
+
+      if (rewritten.length === 0) return "";
+
+      // Keep imports reasonably small; if too many, keep the first N (already filtered by usage)
+      const capped = rewritten.slice(0, 40);
+      return `import { ${capped.join(", ")} } from "lucide-react";`;
+    },
+  );
+}
+
+function hasIdentifierDeclaration(src: string, name: string) {
+  const patterns: Array<RegExp> = [
+    new RegExp(String.raw`^\s*import\s+[^;]*\b${name}\b[^;]*;?`, "m"),
+    new RegExp(String.raw`^\s*const\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*let\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*var\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*function\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*class\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*export\s+function\s+${name}\b`, "m"),
+    new RegExp(String.raw`^\s*export\s+class\s+${name}\b`, "m"),
+  ];
+  return patterns.some((p) => p.test(src));
+}
+
+function isJsxTagUsed(src: string, tagName: string) {
+  return new RegExp(String.raw`<${tagName}\b`, "m").test(src);
+}
+
+function injectMissingImports(src: string) {
+  const neededShadcn: Array<{ tag: string; importLine: string }> = [
+    {
+      tag: "Input",
+      importLine: `import { Input } from "@/components/ui/input";`,
+    },
+    {
+      tag: "Textarea",
+      importLine: `import { Textarea } from "@/components/ui/textarea";`,
+    },
+    {
+      tag: "Separator",
+      importLine: `import { Separator } from "@/components/ui/separator";`,
+    },
+    {
+      tag: "Badge",
+      importLine: `import { Badge } from "@/components/ui/badge";`,
+    },
+  ];
+
+  const neededLucideIcons = ["Check"];
+
+  const missingLines: string[] = [];
+
+  for (const entry of neededShadcn) {
+    if (
+      isJsxTagUsed(src, entry.tag) &&
+      !hasIdentifierDeclaration(src, entry.tag)
+    ) {
+      missingLines.push(entry.importLine);
+    }
+  }
+
+  for (const iconName of neededLucideIcons) {
+    if (
+      isJsxTagUsed(src, iconName) &&
+      !hasIdentifierDeclaration(src, iconName)
+    ) {
+      missingLines.push(`import { ${iconName} } from "lucide-react";`);
+    }
+  }
+
+  if (missingLines.length === 0) return src;
+
+  const lines = src.split("\n");
+  let insertAt = 0;
+  if (lines[0]?.match(/^\s*["']use client["']\s*;?\s*$/)) {
+    insertAt = 1;
+    while (lines[insertAt] !== undefined && lines[insertAt].trim() === "")
+      insertAt += 1;
+  }
+
+  lines.splice(insertAt, 0, ...missingLines);
+  return lines.join("\n");
+}
+
 // Heuristic to find the primary component name and wrap it for Sandpack
 function createAppFileFromCode(src: string) {
+  src = injectMissingImports(src);
   src = rewriteSandboxImports(src);
+  src = rewriteLucideImports(src);
   const componentNameFromSource = findPrimaryComponentName(src);
 
   // Remove/transform default exports so we can safely provide our own default App export.
@@ -483,7 +621,7 @@ main, section, div {
       "/components/ui/textarea.tsx": { code: componentsTextareaTsx },
       "/components/ui/separator.tsx": { code: componentsSeparatorTsx },
     } as const;
-  }, [code, isDark]);
+  }, [code, isDark, SANDBOX_TRANSFORM_VERSION]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -503,7 +641,7 @@ main, section, div {
             dependencies: {
               react: "latest",
               "react-dom": "latest",
-              "lucide-react": "latest",
+              "lucide-react": "0.544.0",
               clsx: "latest",
               "class-variance-authority": "latest",
             },
@@ -550,7 +688,7 @@ main, section, div {
           dependencies: {
             react: "latest",
             "react-dom": "latest",
-            "lucide-react": "latest",
+            "lucide-react": "0.544.0",
             clsx: "latest",
             "class-variance-authority": "latest",
           },
