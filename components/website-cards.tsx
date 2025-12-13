@@ -88,20 +88,20 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.15,
-        staggerChildren: 0.02,
+        duration: 0.3,
+        staggerChildren: 0.05,
       },
     },
   }
 
   const cardVariants: Variants = {
-    hidden: { opacity: 0, y: 2 },
+    hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.15,
-        ease: "easeOut",
+        duration: 0.5,
+        ease: [0.25, 0.4, 0.25, 1],
       },
     },
   }
@@ -113,7 +113,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="background-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#background-grid)" />
@@ -159,7 +159,8 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
           <div className="self-stretch pt-[9px] overflow-hidden border-b border-border flex flex-col justify-center items-center gap-8 lg:gap-[66px] relative z-10">
             <motion.div
               initial="hidden"
-              animate="visible"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
               variants={containerVariants}
               className="pt-24 sm:pt-28 md:pt-32 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
             >
@@ -246,7 +247,13 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   {sponsorWebsites.length > 0 && (
                     <div className="w-full border-t border-dashed border-border/60 mb-12"></div>
                   )}
-                  <motion.div variants={containerVariants} className="mb-8">
+                  <motion.div
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: "-50px" }}
+                    variants={containerVariants}
+                    className="mb-8"
+                  >
                     <div className="text-center mb-8">
                       <h2 className="text-2xl font-bold text-foreground mb-2">All Websites</h2>
                       <p className="text-muted-foreground">Discover amazing Shadcn UI Registries</p>
@@ -255,10 +262,8 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                 </>
               )}
 
-              <motion.div
-                variants={containerVariants}
+              <div
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                style={{ willChange: 'opacity' }}
               >
                 {loading ? (
                   // Skeleton loading cards
@@ -309,7 +314,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                           {/* Grid pattern overlay */}
                           <defs>
                             <pattern id={`grid-skeleton-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
-                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
+                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20" />
                             </pattern>
                           </defs>
                           <rect width="100" height="100" fill={`url(#grid-skeleton-${index})`} className="opacity-30" />
@@ -344,161 +349,163 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   ))
                 ) : (
                   regularWebsites.map((website, index) => (
-                  <motion.div
-                    key={website._id || index}
-                    variants={cardVariants}
-                    className={`group cursor-pointer ${(website.featured || index === 0) ? "hover:-translate-y-1.5 transition-transform duration-300" : ""}`}
-                    style={{ willChange: 'transform, opacity' }}
-                  >
-                    {/* Enhanced SVG border container with geometric patterns */}
-                    <div className="relative h-[340px] w-full">
-                      {/* Featured badge */}
-                      {(website.featured || index === 0) && (
-                        <div className="absolute top-3 left-3 z-10">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-primary via-primary/80 to-primary/60 text-primary-foreground shadow-sm shadow-primary/40">
-                            Featured
-                          </span>
-                        </div>
-                      )}
+                    <motion.div
+                      key={website._id || index}
+                      initial="hidden"
+                      whileInView="visible"
+                      viewport={{ once: true, amount: 0.2 }}
+                      variants={cardVariants}
+                      className={`group cursor-pointer ${(website.featured || index === 0) ? "hover:-translate-y-1.5 transition-transform duration-300" : ""}`}
+                      style={{ willChange: 'transform, opacity' }}
+                    >
+                      {/* Enhanced SVG border container with geometric patterns */}
+                      <div className="relative h-[340px] w-full">
+                        {/* Featured badge */}
+                        {(website.featured || index === 0) && (
+                          <div className="absolute top-3 left-3 z-10">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-primary via-primary/80 to-primary/60 text-primary-foreground shadow-sm shadow-primary/40">
+                              Featured
+                            </span>
+                          </div>
+                        )}
 
-                      {/* Main SVG Border with geometric elements */}
-                      <svg
-                        className="absolute inset-0 w-full h-full"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 100 100"
-                        preserveAspectRatio="none"
-                      >
-                        {/* Main border rectangle - full edge to edge */}
-                        <rect
-                          x="0"
-                          y="0"
-                          width="100"
-                          height="100"
-                          rx="3"
-                          stroke={(website.featured || index === 0) ? `url(#featured-gradient-${index})` : "hsl(var(--border))"}
-                          strokeWidth={(website.featured || index === 0) ? 0.9 : 0.5}
-                          strokeDasharray={(website.featured || index === 0) ? "4 2" : "2 2"}
+                        {/* Main SVG Border with geometric elements */}
+                        <svg
+                          className="absolute inset-0 w-full h-full"
+                          xmlns="http://www.w3.org/2000/svg"
                           fill="none"
-                          className="opacity-60"
-                        />
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="none"
+                        >
+                          {/* Main border rectangle - full edge to edge */}
+                          <rect
+                            x="0"
+                            y="0"
+                            width="100"
+                            height="100"
+                            rx="3"
+                            stroke={(website.featured || index === 0) ? `url(#featured-gradient-${index})` : "hsl(var(--border))"}
+                            strokeWidth={(website.featured || index === 0) ? 0.9 : 0.5}
+                            strokeDasharray={(website.featured || index === 0) ? "4 2" : "2 2"}
+                            fill="none"
+                            className="opacity-60"
+                          />
 
-                        {/* Corner geometric elements */}
-                        <g className="opacity-40">
-                          {/* Top-left corner */}
-                          <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          {/* Corner geometric elements */}
+                          <g className="opacity-40">
+                            {/* Top-left corner */}
+                            <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
 
-                          {/* Top-right corner */}
-                          <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            {/* Top-right corner */}
+                            <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
 
-                          {/* Bottom-left corner */}
-                          <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            {/* Bottom-left corner */}
+                            <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
 
-                          {/* Bottom-right corner */}
-                          <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                        </g>
+                            {/* Bottom-right corner */}
+                            <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                          </g>
 
-                        {/* Grid pattern overlay */}
-                        <defs>
-                          {(website.featured || index === 0) && (
-                            <linearGradient id={`featured-gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="rgb(59,130,246)" />
-                              <stop offset="50%" stopColor="rgb(139,92,246)" />
-                              <stop offset="100%" stopColor="rgb(56,189,248)" />
-                            </linearGradient>
-                          )}
-                          <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
-                            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
-                          </pattern>
-                        </defs>
-                        <rect width="100" height="100" fill={`url(#grid-${index})`} className="opacity-30" />
-                      </svg>
+                          {/* Grid pattern overlay */}
+                          <defs>
+                            {(website.featured || index === 0) && (
+                              <linearGradient id={`featured-gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="rgb(59,130,246)" />
+                                <stop offset="50%" stopColor="rgb(139,92,246)" />
+                                <stop offset="100%" stopColor="rgb(56,189,248)" />
+                              </linearGradient>
+                            )}
+                            <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
+                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20" />
+                            </pattern>
+                          </defs>
+                          <rect width="100" height="100" fill={`url(#grid-${index})`} className="opacity-30" />
+                        </svg>
 
-                      {/* Card Content */}
-                      <div className="relative h-full w-full p-1">
-                        <div className={`h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col ${
-                          (website.featured || index === 0)
+                        {/* Card Content */}
+                        <div className="relative h-full w-full p-1">
+                          <div className={`h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col ${(website.featured || index === 0)
                             ? "border border-primary/40 shadow-[0_0_30px_rgba(59,130,246,0.35)] bg-gradient-to-br from-primary/10 via-primary/5 to-background/80 dark:from-primary/25 dark:via-primary/15 dark:to-background/40"
                             : ""
-                        }`}>
-                          {/* Image Section - OG Image proportions (16:9) */}
-                          <div className="relative h-44 bg-muted/50 overflow-hidden">
-                            {failedImages.has(website.image) ? (
-                              <div className="w-full h-full flex items-center justify-center bg-muted/70">
-                                <div className="text-center text-muted-foreground">
-                                  <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                  <p className="text-xs">Image unavailable</p>
+                            }`}>
+                            {/* Image Section - OG Image proportions (16:9) */}
+                            <div className="relative h-44 bg-muted/50 overflow-hidden">
+                              {failedImages.has(website.image) ? (
+                                <div className="w-full h-full flex items-center justify-center bg-muted/70">
+                                  <div className="text-center text-muted-foreground">
+                                    <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-xs">Image unavailable</p>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-full overflow-hidden">
-                                <Image
-                                  src={website.image}
-                                  alt={`${website.name} preview`}
-                                  width={400}
-                                  height={225}
-                                  className="w-full h-full object-cover transition-colors duration-500 ease-out group-hover:scale-105"
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                  onError={() => handleImageError(website.image)}
-                                  style={{ aspectRatio: '16/9' }}
-                                  loading={index < 6 ? "eager" : "lazy"}
-                                  placeholder="blur"
-                                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
-                                  priority={index < 6}
-                                  unoptimized={true}
-                                />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
-                          </div>
-
-                          {/* Content Section */}
-                          <div className="flex-1 p-4 flex flex-col">
-                            <div className="flex items-start gap-2 mb-3">
-                              <Globe className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-semibold text-base leading-tight text-foreground">
-                                    {website.name}
-                                  </h3>
-                                  <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-black/20 dark:bg-white/20 rounded-md">
-                                    {website.category}
-                                  </span>
+                              ) : (
+                                <div className="w-full h-full overflow-hidden">
+                                  <Image
+                                    src={website.image}
+                                    alt={`${website.name} preview`}
+                                    width={400}
+                                    height={225}
+                                    className="w-full h-full object-cover transition-colors duration-500 ease-out group-hover:scale-105"
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                    onError={() => handleImageError(website.image)}
+                                    style={{ aspectRatio: '16/9' }}
+                                    loading={index < 6 ? "eager" : "lazy"}
+                                    placeholder="blur"
+                                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                    priority={index < 6}
+                                    unoptimized={true}
+                                  />
                                 </div>
-                              </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
                             </div>
 
-                            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4 flex-1">
-                              {website.description}
-                            </p>
+                            {/* Content Section */}
+                            <div className="flex-1 p-4 flex flex-col">
+                              <div className="flex items-start gap-2 mb-3">
+                                <Globe className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="font-semibold text-base leading-tight text-foreground">
+                                      {website.name}
+                                    </h3>
+                                    <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-black/20 dark:bg-white/20 rounded-md">
+                                      {website.category}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
 
-                            {/* Action Button */}
-                            <div className="mt-auto">
-                              <a
-                                href={addRefParameter(website.url)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
-                              >
-                                <span>Visit Site</span>
-                                <ExternalLink className="w-3 h-3 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200" />
-                              </a>
+                              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4 flex-1">
+                                {website.description}
+                              </p>
+
+                              {/* Action Button */}
+                              <div className="mt-auto">
+                                <a
+                                  href={addRefParameter(website.url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
+                                >
+                                  <span>Visit Site</span>
+                                  <ExternalLink className="w-3 h-3 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200" />
+                                </a>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
+                    </motion.div>
                   ))
                 )}
-              </motion.div>
+              </div>
 
               {/* No results message */}
               {!loading && allFilteredWebsites.length === 0 && (
@@ -521,6 +528,6 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   )
 }
