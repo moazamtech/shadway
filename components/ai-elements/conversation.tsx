@@ -53,6 +53,16 @@ const conversationScrollStyles = `
     scrollbar-width: thin !important;
   }
 
+  /* Allow parent pages to hide scrollbars (e.g. .no-scrollbar) */
+  .conversation-scroll-container.no-scrollbar {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  .conversation-scroll-container.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
   /* Ensure smooth content flow */
   .stick-to-bottom-root {
     height: 100% !important;
@@ -85,7 +95,7 @@ export type ConversationProps = ComponentProps<typeof StickToBottom>;
 export const Conversation = ({ className, ...props }: ConversationProps) => {
   // Inject custom scroll styles
   useEffect(() => {
-    const styleElement = document.createElement('style');
+    const styleElement = document.createElement("style");
     styleElement.textContent = conversationScrollStyles;
     document.head.appendChild(styleElement);
     return () => {
@@ -104,7 +114,10 @@ export const Conversation = ({ className, ...props }: ConversationProps) => {
 
   return (
     <StickToBottom
-      className={cn("conversation-scroll-container relative flex-1 overflow-y-scroll", className)}
+      className={cn(
+        "conversation-scroll-container relative flex-1 overflow-y-scroll",
+        className,
+      )}
       initial="smooth"
       resize="smooth"
       role="log"
@@ -142,7 +155,7 @@ export const ConversationEmptyState = ({
   <div
     className={cn(
       "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
-      className
+      className,
     )}
     {...props}
   >
@@ -177,7 +190,7 @@ export const ConversationScrollButton = ({
       <Button
         className={cn(
           "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full",
-          className
+          className,
         )}
         onClick={handleScrollToBottom}
         size="icon"

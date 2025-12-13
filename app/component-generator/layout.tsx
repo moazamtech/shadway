@@ -1,17 +1,28 @@
-import { Metadata } from "next"
-import { generateSEOMetadata } from "@/lib/seo"
+import { Metadata } from "next";
+import { generateSEOMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generateSEOMetadata({
-  title: "AI Component Generator - Create Shadcn UI Components",
-  description: "Generate production-ready Shadcn UI components using AI. Describe any component you need and get instant, customizable React code.",
-  keywords: ["component generator", "shadcn ui", "ai", "react", "component builder", "code generator"],
-  url: "/component-generator"
-})
+  title:
+    "VibeCode - AI Component Generator | Create Beautiful React Components",
+  description:
+    "Generate production-ready React components with AI. VibeCode creates beautiful, responsive components using Shadcn colors and modern design patterns. Just describe what you need and get instant, customizable code.",
+  keywords: [
+    "vibecode",
+    "ai component generator",
+    "shadcn ui",
+    "react components",
+    "ai code generator",
+    "component builder",
+    "tailwind css",
+    "typescript",
+  ],
+  url: "/component-generator",
+});
 
 export default function ComponentGeneratorLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <>{children}</>
+  return <>{children}</>;
 }
