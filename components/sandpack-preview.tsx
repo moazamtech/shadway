@@ -96,7 +96,9 @@ const sandpackStyles = `
 `;
 
 type SandpackPreviewProps = {
-  code: string;
+  code?: string;
+  files?: Record<string, string>;
+  entryFile?: string;
   className?: string;
   showConsole?: boolean;
 };
@@ -121,17 +123,44 @@ function findPrimaryComponentName(src: string) {
   return "GeneratedComponent";
 }
 
-function rewriteSandboxImports(src: string) {
-  // Sandpack bundlers don't consistently respect TS path aliases. Rewrite common @/ imports to relative paths.
-  const replacements: Array<[RegExp, string]> = [
-    [/from\s+["']@\/lib\/utils["']/g, 'from "./lib/utils"'],
-    [/from\s+["']@\/lib\/cn["']/g, 'from "./lib/cn"'],
-    [/from\s+["']@\/components\/ui\//g, 'from "./components/ui/'],
-  ];
-  let out = src;
-  for (const [pattern, value] of replacements)
-    out = out.replace(pattern, value);
-  return out;
+function posixDirname(pathname: string) {
+  const normalized = pathname.replace(/\\/g, "/");
+  const idx = normalized.lastIndexOf("/");
+  if (idx <= 0) return "/";
+  return normalized.slice(0, idx);
+}
+
+function posixRelative(fromDir: string, toPath: string) {
+  const from = fromDir.replace(/\\/g, "/");
+  const to = toPath.replace(/\\/g, "/");
+  const fromParts = from.split("/").filter(Boolean);
+  const toParts = to.split("/").filter(Boolean);
+  let common = 0;
+  while (
+    common < fromParts.length &&
+    common < toParts.length &&
+    fromParts[common] === toParts[common]
+  ) {
+    common += 1;
+  }
+  const up = fromParts.length - common;
+  const rest = toParts.slice(common);
+  const prefix = up === 0 ? "." : Array(up).fill("..").join("/");
+  const joined = [prefix, ...rest].filter(Boolean).join("/");
+  return joined.startsWith(".") ? joined : `./${joined}`;
+}
+
+function stripModuleExtension(p: string) {
+  return p.replace(/\.(tsx|ts|jsx|js)$/i, "");
+}
+
+function rewriteAliasImportsForFile(src: string, fromFilePath: string) {
+  const fromDir = posixDirname(fromFilePath);
+  return src.replace(/from\s+["']@\/([^"']+)["']/g, (_m, target) => {
+    const toPath = `/${String(target)}`;
+    const rel = posixRelative(fromDir, toPath);
+    return `from "${stripModuleExtension(rel)}"`;
+  });
 }
 
 function rewriteLucideImports(src: string) {
@@ -271,7 +300,7 @@ function injectMissingImports(src: string) {
 // Heuristic to find the primary component name and wrap it for Sandpack
 function createAppFileFromCode(src: string) {
   src = injectMissingImports(src);
-  src = rewriteSandboxImports(src);
+  src = rewriteAliasImportsForFile(src, "/App.tsx");
   src = rewriteLucideImports(src);
   const componentNameFromSource = findPrimaryComponentName(src);
 
@@ -381,6 +410,8 @@ export default function App(){
 
 export function SandpackRuntimePreview({
   code,
+  files,
+  entryFile,
   className,
   showConsole = false,
 }: SandpackPreviewProps) {
@@ -397,8 +428,114 @@ export function SandpackRuntimePreview({
     };
   }, []);
 
-  const files = useMemo(() => {
-    const appTsx = createAppFileFromCode(code);
+  const sandpackFiles = useMemo(() => {
+    const normalizeGeneratedFiles = (input: Record<string, string>) => {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(input)) {
+        if (!v?.trim()) continue;
+        const normalized = k.startsWith("/") ? k : `/${k}`;
+        out[normalized] = v;
+      }
+      return out;
+    };
+
+    const transformGeneratedFile = (path: string, src: string) => {
+      let out = src;
+      out = injectMissingImports(out);
+      out = rewriteAliasImportsForFile(out, path);
+      out = rewriteLucideImports(out);
+      return out;
+    };
+
+    const createWrapperAppTsx = (entryPath: string) => {
+      const importPath = stripModuleExtension(
+        `./${entryPath.replace(/^\//, "")}`,
+      );
+      return `import * as React from "react";
+import Entry from "${importPath}";
+
+class __SandpackErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }>{
+  constructor(props: { children: React.ReactNode }){
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error){
+    return { error };
+  }
+  render(){
+    if (this.state.error){
+      return (
+        <div className="min-h-screen w-full bg-background text-foreground p-6">
+          <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
+            <h2 className="text-base font-semibold">Something went wrong</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The preview crashed while rendering the generated component.
+            </p>
+            <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs text-foreground">
+{String(this.state.error?.message || this.state.error)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function App(){
+  const Comp: any = Entry;
+  return (
+    <__SandpackErrorBoundary>
+      <div className="min-h-screen w-full bg-background text-foreground">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8">
+          {Comp ? <Comp /> : (
+            <div className="p-6">
+              <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
+                <h2 className="text-base font-semibold">Missing component export</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  The generator did not produce a top-level React component we could render.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </__SandpackErrorBoundary>
+  );
+}
+`;
+    };
+
+    let appTsx: string;
+    let generatedFiles: Record<string, string> | null = null;
+
+    if (files && Object.keys(files).length > 0) {
+      generatedFiles = normalizeGeneratedFiles(files);
+      const transformed: Record<string, string> = {};
+      for (const [path, src] of Object.entries(generatedFiles)) {
+        transformed[path] = transformGeneratedFile(path, src);
+      }
+      generatedFiles = transformed;
+
+      let entry =
+        entryFile && generatedFiles[entryFile] ? entryFile : undefined;
+      if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
+      if (!entry && generatedFiles["/App.tsx"]) entry = "/App.tsx";
+      if (!entry) entry = Object.keys(generatedFiles)[0];
+
+      if (generatedFiles["/App.tsx"]) {
+        const moved = generatedFiles["/GeneratedApp.tsx"]
+          ? "/GeneratedApp_1.tsx"
+          : "/GeneratedApp.tsx";
+        generatedFiles[moved] = generatedFiles["/App.tsx"];
+        delete generatedFiles["/App.tsx"];
+        if (entry === "/App.tsx") entry = moved;
+      }
+
+      appTsx = createWrapperAppTsx(entry);
+    } else {
+      appTsx = createAppFileFromCode(code || "");
+    }
 
     const indexTsx = `import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App";\nimport { initTwind } from "./twind";\nimport "./index.css";\n\n// Initialize Twind runtime Tailwind support (no CDN, no PostCSS)\ninitTwind();\n\nconst root = createRoot(document.getElementById("root")!);\nroot.render(<App />);`;
 
@@ -620,8 +757,16 @@ main, section, div {
       "/components/ui/input.tsx": { code: componentsInputTsx },
       "/components/ui/textarea.tsx": { code: componentsTextareaTsx },
       "/components/ui/separator.tsx": { code: componentsSeparatorTsx },
+      ...(generatedFiles
+        ? Object.fromEntries(
+            Object.entries(generatedFiles).map(([path, src]) => [
+              path,
+              { code: src },
+            ]),
+          )
+        : {}),
     } as const;
-  }, [code, isDark, SANDBOX_TRANSFORM_VERSION]);
+  }, [code, files, entryFile, isDark, SANDBOX_TRANSFORM_VERSION]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -632,7 +777,7 @@ main, section, div {
       <div className="fixed inset-0 z-50 bg-background">
         <SandpackProvider
           template="react-ts"
-          files={files}
+          files={sandpackFiles}
           options={{
             visibleFiles: ["/App.tsx"],
             activeFile: "/App.tsx",
@@ -679,7 +824,7 @@ main, section, div {
     <div className={cn("sandpack-wrapper", className)}>
       <SandpackProvider
         template="react-ts"
-        files={files}
+        files={sandpackFiles}
         options={{
           visibleFiles: ["/App.tsx"],
           activeFile: "/App.tsx",

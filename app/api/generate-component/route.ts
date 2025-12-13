@@ -211,6 +211,26 @@ Muted Section:
 [Your detailed thinking process here]
 </think>
 
+When the user asks for MULTIPLE components (or a small set of files), output MULTI-FILE format instead of <component>:
+
+<files entry="/entry.tsx">
+  <file path="/entry.tsx">
+  [Default export React component that composes the other generated components]
+  </file>
+  <file path="/components/hero.tsx">
+  [A subcomponent used by entry]
+  </file>
+  <file path="/components/feature-grid.tsx">
+  [Another subcomponent]
+  </file>
+</files>
+
+Multi-file rules:
+- Always include /entry.tsx and it MUST export default a React component.
+- You MAY use relative imports between your generated files (example: import Hero from "./components/hero";).
+- Keep the icon import list small and only import icons you render.
+- You may still import Shadcn UI components from the allowed list (Button/Card/Badge/Input/Separator/Textarea) and cn from @/lib/utils.
+
 <component>
 "use client"
 import React, { useState } from "react";
@@ -387,7 +407,7 @@ This component uses default data. In production, you can pass a \`tiers\` prop w
     ];
 
     const stream = (await openai.chat.completions.create({
-      model: "mistralai/devstral-2512:free",
+      model: "nex-agi/deepseek-v3.1-nex-n1:free",
       messages: messages as any,
       stream: true,
     } as any)) as any;
