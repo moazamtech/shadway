@@ -175,14 +175,28 @@ function rewriteLucideImports(src: string) {
     Discord: "MessageCircle",
     Telegram: "Send",
     Instagram: "Camera",
-    Twitter: "Twitter",
+    Twitter: "Globe",
+    X: "Globe",
+    Facebook: "Globe",
+    LinkedIn: "Briefcase",
+    Tiktok: "Music",
   };
+
+  // Determine which identifiers are used in the file, excluding lucide-react import lines.
+  // This must include non-JSX usage like `icon: Users` (common pattern for icon tables).
+  const srcSansLucideImports = src.replace(
+    /import\s*{\s*[\s\S]*?\s*}\s*from\s*["']lucide-react["']\s*;?\s*/g,
+    "",
+  );
 
   const jsxUsed = new Set<string>();
   const tagRegex = /<([A-Z][A-Za-z0-9_]*)\b/g;
-  for (const match of src.matchAll(tagRegex)) {
+  for (const match of srcSansLucideImports.matchAll(tagRegex)) {
     if (match[1]) jsxUsed.add(match[1]);
   }
+
+  const identifierUsed = (name: string) =>
+    new RegExp(String.raw`\\b${name}\\b`).test(srcSansLucideImports);
 
   return src.replace(
     /import\s*{\s*([\s\S]*?)\s*}\s*from\s*["']lucide-react["']\s*;?/g,
@@ -200,8 +214,9 @@ function rewriteLucideImports(src: string) {
         const importedName = (asMatch?.[1] || part).trim();
         const localName = (asMatch?.[2] || part).trim();
 
-        // Drop unused icons to avoid importing non-existent/huge lists.
-        if (!jsxUsed.has(localName)) continue;
+        // Drop truly unused icons to avoid importing non-existent/huge lists.
+        // Keep icons referenced outside JSX, e.g. `icon: Users`.
+        if (!jsxUsed.has(localName) && !identifierUsed(localName)) continue;
 
         const mappedImport = aliasMap[importedName] || importedName;
         const mappedLocal = localName;
@@ -221,6 +236,39 @@ function rewriteLucideImports(src: string) {
       return `import { ${capped.join(", ")} } from "lucide-react";`;
     },
   );
+}
+
+function repairMultilineJsxAttributeStrings(src: string) {
+  // Common LLM failure: break JSX string props across lines, causing
+  // "Unterminated string constant". Repair by collapsing newlines inside
+  // a set of common JSX string attributes.
+  const attrs = [
+    "className",
+    "title",
+    "placeholder",
+    "aria-label",
+    "aria-description",
+    "alt",
+    "id",
+    "htmlFor",
+    "href",
+    "src",
+    "value",
+    "name",
+  ];
+
+  const escapeRe = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const attrGroup = attrs.map(escapeRe).join("|");
+  const re = new RegExp(`\\b(${attrGroup})\\s*=\\s*"([\\s\\S]*?)"`, "g");
+
+  let out = src.replace(re, (_full, attrName, rawValue) => {
+    const repaired = String(rawValue).replace(/\r?\n\s*/g, " ");
+    return `${attrName}="${repaired}"`;
+  });
+
+  // Another common truncation: closing JSX tags missing the final `>` at end-of-line.
+  out = out.replace(/<\/([A-Za-z][A-Za-z0-9]*)\s*(?=\r?\n|$)/g, "</$1>");
+  return out;
 }
 
 function hasIdentifierDeclaration(src: string, name: string) {
@@ -263,6 +311,35 @@ function injectMissingImports(src: string) {
 
   const neededLucideIcons = ["Check"];
 
+  const neededOtherImports: Array<{ when: RegExp; importLine: string }> = [
+    // Generated code commonly uses framer-motion's `motion.*` but forgets to import it.
+    {
+      when: /\bmotion\.[A-Za-z]/,
+      importLine: `import { motion } from "framer-motion";`,
+    },
+    // React Router hooks are commonly used without imports.
+    {
+      when: /\buseLocation\s*\(/,
+      importLine: `import { useLocation } from "react-router-dom";`,
+    },
+    {
+      when: /\buseNavigate\s*\(/,
+      importLine: `import { useNavigate } from "react-router-dom";`,
+    },
+    {
+      when: /\buseParams\s*\(/,
+      importLine: `import { useParams } from "react-router-dom";`,
+    },
+    {
+      when: /\buseSearchParams\s*\(/,
+      importLine: `import { useSearchParams } from "react-router-dom";`,
+    },
+    {
+      when: /\buseMatch\s*\(/,
+      importLine: `import { useMatch } from "react-router-dom";`,
+    },
+  ];
+
   const missingLines: string[] = [];
 
   for (const entry of neededShadcn) {
@@ -283,6 +360,14 @@ function injectMissingImports(src: string) {
     }
   }
 
+  for (const entry of neededOtherImports) {
+    const importedName = entry.importLine.match(/import\s*{\s*([^}\s,]+)/)?.[1];
+    if (!importedName) continue;
+    if (entry.when.test(src) && !hasIdentifierDeclaration(src, importedName)) {
+      missingLines.push(entry.importLine);
+    }
+  }
+
   if (missingLines.length === 0) return src;
 
   const lines = src.split("\n");
@@ -299,6 +384,7 @@ function injectMissingImports(src: string) {
 
 // Heuristic to find the primary component name and wrap it for Sandpack
 function createAppFileFromCode(src: string) {
+  src = repairMultilineJsxAttributeStrings(src);
   src = injectMissingImports(src);
   src = rewriteAliasImportsForFile(src, "/App.tsx");
   src = rewriteLucideImports(src);
@@ -356,53 +442,23 @@ function createAppFileFromCode(src: string) {
   };`;
 
   const wrapper = `\n\n${defaultProps}
-class __SandpackErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }>{
-  constructor(props: { children: React.ReactNode }){
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error: Error){
-    return { error };
-  }
-  render(){
-    if (this.state.error){
-      return (
-        <div className="min-h-screen w-full bg-background text-foreground p-6">
-          <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-            <h2 className="text-base font-semibold">Something went wrong</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              The preview crashed while rendering the generated component.
-            </p>
-            <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs text-foreground">
-{String(this.state.error?.message || this.state.error)}
-            </pre>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export default function App(){
   const Comp: any = ${name};
   return (
-    <__SandpackErrorBoundary>
-      <div className="min-h-screen w-full bg-background text-foreground">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8">
-          {Comp ? <Comp {...__defaultProps} /> : (
-            <div className="p-6">
-              <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-                <h2 className="text-base font-semibold">Missing component export</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  The generator did not produce a top-level React component we could render.
-                </p>
-              </div>
+    <div className="min-h-screen w-full bg-background text-foreground">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+        {Comp ? <Comp {...__defaultProps} /> : (
+          <div className="p-6">
+            <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
+              <h2 className="text-base font-semibold">Missing component export</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The generator did not produce a top-level React component we could render.
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </__SandpackErrorBoundary>
+    </div>
   );
 }`;
   return sanitized + wrapper;
@@ -441,6 +497,7 @@ export function SandpackRuntimePreview({
 
     const transformGeneratedFile = (path: string, src: string) => {
       let out = src;
+      out = repairMultilineJsxAttributeStrings(out);
       out = injectMissingImports(out);
       out = rewriteAliasImportsForFile(out, path);
       out = rewriteLucideImports(out);
@@ -454,53 +511,23 @@ export function SandpackRuntimePreview({
       return `import * as React from "react";
 import Entry from "${importPath}";
 
-class __SandpackErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }>{
-  constructor(props: { children: React.ReactNode }){
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error: Error){
-    return { error };
-  }
-  render(){
-    if (this.state.error){
-      return (
-        <div className="min-h-screen w-full bg-background text-foreground p-6">
-          <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-            <h2 className="text-base font-semibold">Something went wrong</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              The preview crashed while rendering the generated component.
-            </p>
-            <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs text-foreground">
-{String(this.state.error?.message || this.state.error)}
-            </pre>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export default function App(){
   const Comp: any = Entry;
   return (
-    <__SandpackErrorBoundary>
-      <div className="min-h-screen w-full bg-background text-foreground">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8">
-          {Comp ? <Comp /> : (
-            <div className="p-6">
-              <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-                <h2 className="text-base font-semibold">Missing component export</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  The generator did not produce a top-level React component we could render.
-                </p>
-              </div>
+    <div className="min-h-screen w-full bg-background text-foreground">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+        {Comp ? <Comp /> : (
+          <div className="p-6">
+            <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
+              <h2 className="text-base font-semibold">Missing component export</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The generator did not produce a top-level React component we could render.
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </__SandpackErrorBoundary>
+    </div>
   );
 }
 `;
@@ -789,6 +816,15 @@ main, section, div {
               "lucide-react": "0.544.0",
               clsx: "latest",
               "class-variance-authority": "latest",
+              // Dynamic packages - Sandpack loads from CDN automatically
+              "react-router-dom": "latest",
+              "framer-motion": "latest",
+              axios: "latest",
+              zustand: "latest",
+              "@tanstack/react-query": "latest",
+              "react-hook-form": "latest",
+              zod: "latest",
+              // Add more as needed - Sandpack handles CDN loading
             },
           }}
           theme={isDark ? amethyst : githubLight}
@@ -836,6 +872,15 @@ main, section, div {
             "lucide-react": "0.544.0",
             clsx: "latest",
             "class-variance-authority": "latest",
+            // Dynamic packages - Sandpack loads from CDN automatically
+            "react-router-dom": "latest",
+            "framer-motion": "latest",
+            axios: "latest",
+            zustand: "latest",
+            "@tanstack/react-query": "latest",
+            "react-hook-form": "latest",
+            zod: "latest",
+            // Add more as needed - Sandpack handles CDN loading
           },
         }}
         theme={isDark ? amethyst : githubLight}

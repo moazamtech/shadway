@@ -6,6 +6,12 @@ import {
   ChainOfThoughtHeader,
 } from "@/components/ai-elements/chain-of-thought";
 import { SandpackRuntimePreview } from "@/components/sandpack-preview";
+import { FileTree } from "@/app/component-generator/components/file-tree";
+import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
+import {
+  SuggestionsGrid,
+  type Suggestion,
+} from "@/app/component-generator/components/suggestions-grid";
 import {
   Conversation,
   ConversationContent,
@@ -33,14 +39,18 @@ import {
   Code2Icon,
   CopyIcon,
   CheckIcon,
-  Maximize2Icon,
-  Minimize2Icon,
   CodeIcon,
+  FileIcon,
+  EyeIcon,
+  SaveIcon,
+  Loader2Icon,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 
 type Message = {
   id: string;
@@ -149,64 +159,73 @@ function CodeBlock({
 }
 
 // Smart AI-powered suggestions
-const SMART_SUGGESTIONS = [
+const SMART_SUGGESTIONS: Suggestion[] = [
   {
-    emoji: "💳",
-    title: "Pricing Section",
+    emoji: "🚀",
+    title: "Multi-Page Portfolio",
     prompt:
-      "Create a modern pricing section with 3 tiers (Basic, Pro, Enterprise), toggle for monthly/yearly pricing, feature lists with checkmarks, and a 'Most Popular' badge on the middle tier",
+      "Build a complete portfolio website with Home, About, Projects, and Contact views in /app folder using HashRouter. Include smooth page transitions with framer-motion and a responsive navbar.",
+  },
+  {
+    emoji: "🛒",
+    title: "E-Commerce App",
+    prompt:
+      "Create a full e-commerce app with product listing, product details, shopping cart, and checkout pages. Use zustand for state management and include product filtering.",
   },
   {
     emoji: "📊",
-    title: "Analytics Dashboard",
+    title: "Dashboard with Charts",
     prompt:
-      "Create an analytics dashboard card showing key metrics with animated counters, trend indicators (up/down arrows), percentage changes, and a mini chart visualization",
+      "Build an analytics dashboard with multiple pages (Overview, Analytics, Reports). Include interactive charts, metrics cards, and data tables with filtering.",
   },
   {
     emoji: "💬",
-    title: "Testimonial Slider",
+    title: "Chat Application",
     prompt:
-      "Create a testimonial carousel with customer photos, 5-star ratings, review text, company logos, automatic rotation, and navigation dots",
+      "Create a real-time chat interface with message list, chat rooms, and user profiles. Include message timestamps, typing indicators, and online status.",
   },
   {
     emoji: "📝",
-    title: "Contact Form",
+    title: "Blog Platform",
     prompt:
-      "Create a professional contact form with name, email, subject, message fields, form validation, error states, success message, and a submit button with loading state",
+      "Build a blog platform with Home (post listing), Post Detail, Create Post, and Author Profile pages. Use react-hook-form for post creation.",
   },
   {
-    emoji: "🎯",
-    title: "Feature Grid",
+    emoji: "🎮",
+    title: "Game Dashboard",
     prompt:
-      "Create a responsive feature grid (3 columns on desktop, 1 on mobile) with icons, titles, descriptions, and subtle hover effects for each feature card",
+      "Create a gaming dashboard with leaderboard, player stats, achievements, and match history pages. Include animated transitions and interactive elements.",
   },
   {
-    emoji: "🎨",
-    title: "Product Card",
+    emoji: "🎵",
+    title: "Music Player App",
     prompt:
-      "Create a product card with image, title, price, rating stars, 'Add to Cart' button, favorite icon, and a sale badge if discounted",
+      "Build a music player with library, playlists, now playing, and search pages. Include player controls, playlist management, and smooth animations.",
   },
   {
-    emoji: "📅",
-    title: "Event Calendar",
+    emoji: "📚",
+    title: "Learning Platform",
     prompt:
-      "Create a mini event calendar showing the current month, clickable dates, event indicators (dots), and a list of upcoming events for the selected date",
-  },
-  {
-    emoji: "🔔",
-    title: "Notification Panel",
-    prompt:
-      "Create a notification panel with different notification types (success, warning, error, info), timestamps, mark as read functionality, and clear all button",
+      "Create an online learning platform with course catalog, course details, lesson viewer, and progress tracking pages. Use react-router-dom for navigation.",
   },
 ];
 
 export default function ComponentGeneratorPage() {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedComponent, setGeneratedComponent] =
     useState<GeneratedComponent | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [editedFiles, setEditedFiles] = useState<Record<string, string>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentlyGeneratingFile, setCurrentlyGeneratingFile] = useState<
+    string | null
+  >(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isResizingRef = useRef(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -249,36 +268,65 @@ export default function ComponentGeneratorPage() {
     const componentMatch = text.match(componentRegex);
     const code = componentMatch ? componentMatch[1].trim() : "";
 
-    // Extract files from <files> tags
-    const filesRegex =
-      /<files(?:\s+entry=["']([^"']+)["'])?>([\s\S]*?)<\/files>/;
-    const filesMatch = text.match(filesRegex);
-    let files: Record<string, string> | undefined;
-    let entryFile: string | undefined;
-    if (filesMatch) {
-      files = {};
-      const inner = filesMatch[2];
-      const fileRegex = /<file\s+path=["']([^"']+)["']\s*>([\s\S]*?)<\/file>/g;
-      for (const m of inner.matchAll(fileRegex)) {
-        const path = (m[1] || "").trim();
-        const content = (m[2] || "").trim();
-        if (!path || !content) continue;
+    const extractFilesLoose = (input: string) => {
+      const start = input.search(/<files\b/i);
+      if (start === -1)
+        return {
+          files: undefined as Record<string, string> | undefined,
+          entryFile: undefined as string | undefined,
+        };
+
+      const endTagIdx = input.search(/<\/files>/i);
+      const end =
+        endTagIdx !== -1 ? endTagIdx + "</files>".length : input.length;
+      const block = input.slice(start, end);
+
+      const entryAttr = block.match(/<files\b[^>]*\bentry=["']([^"']+)["']/i);
+      const rawEntry = (entryAttr?.[1] || "").trim();
+      let entryFile: string | undefined = rawEntry
+        ? rawEntry.startsWith("/")
+          ? rawEntry
+          : `/${rawEntry}`
+        : undefined;
+
+      const files: Record<string, string> = {};
+      const tagRegex = /<file\s+path=["']([^"']+)["'][^>]*>/gi;
+      const matches = Array.from(block.matchAll(tagRegex));
+      for (let idx = 0; idx < matches.length; idx++) {
+        const m = matches[idx];
+        const path = String(m[1] || "").trim();
+        if (!path) continue;
         const normalized = path.startsWith("/") ? path : `/${path}`;
-        files[normalized] = content;
+
+        const contentStart = (m.index ?? 0) + m[0].length;
+        const nextTagStart =
+          idx + 1 < matches.length
+            ? (matches[idx + 1].index ?? block.length)
+            : block.length;
+        let sliceEnd = nextTagStart;
+
+        const closeIdx = block.indexOf("</file>", contentStart);
+        if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
+
+        const content = block.slice(contentStart, sliceEnd).trim();
+        if (content) files[normalized] = content;
       }
-      if (Object.keys(files).length === 0) files = undefined;
-      const rawEntry = (filesMatch[1] || "").trim();
-      if (rawEntry)
-        entryFile = rawEntry.startsWith("/") ? rawEntry : `/${rawEntry}`;
+
+      const finalFiles = Object.keys(files).length ? files : undefined;
       if (!entryFile)
-        entryFile = files?.["/entry.tsx"] ? "/entry.tsx" : undefined;
-      if (!entryFile) entryFile = files?.["/App.tsx"] ? "/App.tsx" : undefined;
-    }
+        entryFile = finalFiles?.["/entry.tsx"] ? "/entry.tsx" : undefined;
+      if (!entryFile)
+        entryFile = finalFiles?.["/App.tsx"] ? "/App.tsx" : undefined;
+      return { files: finalFiles, entryFile };
+    };
+
+    const { files, entryFile } = extractFilesLoose(text);
 
     // Remove <think> and <component> tags from displayed content
     let content = text.replace(thinkRegex, "");
     content = content.replace(/<component>[\s\S]*?<\/component>/g, "");
-    content = content.replace(/<files[\s\S]*?<\/files>/g, "");
+    // Strip any <files> block even if it's malformed or incomplete (prevents raw code from appearing in chat).
+    content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
     content = content.trim();
 
     return { reasoning, content, code, files, entryFile };
@@ -320,6 +368,55 @@ export default function ComponentGeneratorPage() {
     return { language: "tsx" };
   };
 
+  // File editing handlers
+  const handleFileSelect = useCallback((path: string) => {
+    setSelectedFile(path);
+    setViewMode("code");
+  }, []);
+
+  const handleFileEdit = useCallback((path: string, content: string) => {
+    setEditedFiles((prev) => ({
+      ...prev,
+      [path]: content,
+    }));
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const handleSaveFile = useCallback(() => {
+    if (!selectedFile || !hasUnsavedChanges) return;
+
+    setGeneratedComponent((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        files: {
+          ...prev.files,
+          ...editedFiles,
+        },
+      };
+    });
+
+    setHasUnsavedChanges(false);
+    toast.success("File saved successfully!");
+  }, [selectedFile, hasUnsavedChanges, editedFiles]);
+
+  // Auto-select first file when code generated
+  useEffect(() => {
+    if (generatedComponent?.files && !selectedFile) {
+      const firstFile = Object.keys(generatedComponent.files)[0];
+      if (firstFile) {
+        setSelectedFile(firstFile);
+      }
+    }
+  }, [generatedComponent, selectedFile]);
+
+  // Auto-open panel when generation starts
+  useEffect(() => {
+    if (currentlyGeneratingFile && !isPanelOpen) {
+      setIsPanelOpen(true);
+    }
+  }, [currentlyGeneratingFile, isPanelOpen]);
+
   const handleSubmit = useCallback(
     async ({ text }: { text?: string }) => {
       if (!text?.trim() || isGenerating) return;
@@ -344,130 +441,207 @@ export default function ComponentGeneratorPage() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       try {
-        abortControllerRef.current = new AbortController();
-
         const conversationHistory = messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
         }));
 
-        const response = await fetch("/api/generate-component", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: text,
-            conversationHistory,
-          }),
-          signal: abortControllerRef.current.signal,
-        });
+        const runGeneration = async (promptToSend: string) => {
+          abortControllerRef.current = new AbortController();
+          const response = await fetch("/api/generate-component", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt: promptToSend,
+              conversationHistory,
+            }),
+            signal: abortControllerRef.current.signal,
+          });
 
-        if (!response.ok) {
-          throw new Error("Failed to generate component");
-        }
+          if (!response.ok) {
+            throw new Error("Failed to generate component");
+          }
 
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let accumulatedContent = "";
-        let buffer = "";
-        let updateTimer: NodeJS.Timeout | null = null;
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let accumulatedContent = "";
+          let buffer = "";
+          let updateTimer: NodeJS.Timeout | null = null;
 
-        const updateMessages = () => {
-          const {
-            reasoning,
-            content: displayContent,
-            code,
-            files,
-            entryFile,
-          } = parseThinkingAndContent(accumulatedContent);
+          const updateMessages = () => {
+            const {
+              reasoning,
+              content: displayContent,
+              code,
+              files,
+              entryFile,
+            } = parseThinkingAndContent(accumulatedContent);
+            const safeDisplay =
+              displayContent?.trim() ||
+              (files
+                ? "Generated project files. Opening preview…"
+                : "Generating…");
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? {
+                      ...msg,
+                      content: safeDisplay,
+                      reasoning,
+                      code,
+                      files,
+                      entryFile,
+                    }
+                  : msg,
+              ),
+            );
+
+            if (files && (Object.keys(files).length > 0 || code)) {
+              const nextEntry =
+                (entryFile && files[entryFile] ? entryFile : undefined) ||
+                (files["/entry.tsx"] ? "/entry.tsx" : undefined) ||
+                (files["/App.tsx"] ? "/App.tsx" : undefined) ||
+                Object.keys(files)[0];
+
+              setGeneratedComponent((prev) => ({
+                code: files[nextEntry] || code || prev?.code || "",
+                files: files,
+                entryFile: nextEntry || entryFile || prev?.entryFile,
+                language: "tsx",
+                title: prev?.title || "Generated Component",
+              }));
+              setIsPanelOpen(true);
+            }
+          };
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                if (buffer.trim()) {
+                  const lines = buffer.split("\n");
+                  for (const line of lines) {
+                    if (!line.startsWith("data: ")) continue;
+                    const data = line.slice(6);
+                    if (!data || data === "[DONE]") continue;
+                    try {
+                      const parsed = JSON.parse(data);
+                      accumulatedContent +=
+                        parsed.choices?.[0]?.delta?.content || "";
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }
+                updateMessages();
+                if (updateTimer) clearTimeout(updateTimer);
+                setCurrentlyGeneratingFile(null);
+                break;
+              }
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines[lines.length - 1];
+
+              for (let i = 0; i < lines.length - 1; i++) {
+                const line = lines[i];
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (!data || data === "[DONE]") continue;
+                try {
+                  const parsed = JSON.parse(data);
+                  const delta = parsed.choices?.[0]?.delta?.content || "";
+                  if (!delta) continue;
+                  accumulatedContent += delta;
+
+                  // Open the panel ONLY when the model starts emitting code artifacts.
+                  if (
+                    delta.includes("<files") ||
+                    delta.includes("<component>") ||
+                    /<file\\s+path=[\"']/.test(delta)
+                  ) {
+                    setIsPanelOpen(true);
+                    setIsFullscreen(false);
+                    setViewMode("code");
+                    setGeneratedComponent(
+                      (prev) =>
+                        prev ?? {
+                          code: "",
+                          files: undefined,
+                          entryFile: undefined,
+                          language: "tsx",
+                          title: "Generated Component",
+                        },
+                    );
+                  }
+
+                  const filePathMatch = delta.match(
+                    /<file\s+path=["']([^"']+)["']/,
+                  );
+                  if (filePathMatch) {
+                    const filePath = filePathMatch[1];
+                    const normalized = filePath.startsWith("/")
+                      ? filePath
+                      : `/${filePath}`;
+                    setCurrentlyGeneratingFile(normalized);
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+
+              if (updateTimer) clearTimeout(updateTimer);
+              updateTimer = setTimeout(updateMessages, 50);
+            }
+          }
+
+          return accumulatedContent;
+        };
+
+        let raw = await runGeneration(text.trim());
+
+        if (abortControllerRef.current?.signal.aborted) return;
+
+        let artifacts = raw ? extractArtifactsFromResponse(raw) : null;
+
+        // If the model didn't output <files>/<component>, retry once with a strict formatting instruction.
+        if (
+          (!artifacts?.files || Object.keys(artifacts.files).length === 0) &&
+          !artifacts?.code
+        ) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
                     ...msg,
-                    content: displayContent,
-                    reasoning,
-                    code,
-                    files,
-                    entryFile,
+                    content: "Formatting output…",
+                    reasoning: "",
+                    files: undefined,
+                    code: "",
                   }
                 : msg,
             ),
           );
-        };
 
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-              // Process any remaining buffered data
-              if (buffer.trim()) {
-                const lines = buffer.split("\n");
-                for (const line of lines) {
-                  if (line.startsWith("data: ")) {
-                    const data = line.slice(6);
-                    if (data && data !== "[DONE]") {
-                      try {
-                        const parsed = JSON.parse(data);
-                        accumulatedContent +=
-                          parsed.choices?.[0]?.delta?.content || "";
-                      } catch (e) {
-                        // Skip invalid JSON
-                      }
-                    }
-                  }
-                }
-              }
-              updateMessages();
-              if (updateTimer) clearTimeout(updateTimer);
-              break;
-            }
+          const strictPrompt = `${text.trim()}\n\nIMPORTANT:\n- Respond ONLY with valid XML-like tags.\n- Start with <files entry=\"/App.tsx\"> and include one or more <file path=\"...\"> blocks.\n- Do not include markdown fences.\n- Do not include explanations outside the <files> block.`;
 
-            // Add to buffer and process complete lines
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-
-            // Keep the last incomplete line in the buffer
-            buffer = lines[lines.length - 1];
-
-            // Process complete lines
-            for (let i = 0; i < lines.length - 1; i++) {
-              const line = lines[i];
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6);
-                if (data && data !== "[DONE]") {
-                  try {
-                    const parsed = JSON.parse(data);
-                    accumulatedContent +=
-                      parsed.choices?.[0]?.delta?.content || "";
-                  } catch (e) {
-                    // Skip invalid JSON
-                  }
-                }
-              }
-            }
-
-            // Debounce UI updates for better performance
-            if (updateTimer) clearTimeout(updateTimer);
-            updateTimer = setTimeout(updateMessages, 50);
-          }
+          raw = await runGeneration(strictPrompt);
+          if (abortControllerRef.current?.signal.aborted) return;
+          artifacts = raw ? extractArtifactsFromResponse(raw) : null;
         }
 
-        // Extract and set the generated component
-        if (accumulatedContent) {
-          const { code, files, entryFile, language } =
-            extractArtifactsFromResponse(accumulatedContent);
-          if (files || code) {
-            setGeneratedComponent({
-              code,
-              files,
-              entryFile,
-              language,
-              title: "Generated Component",
-            });
-            setIsPanelOpen(true);
-          }
+        if (raw && artifacts && (artifacts.files || artifacts.code)) {
+          const { code, files, entryFile, language } = artifacts;
+          setGeneratedComponent({
+            code,
+            files,
+            entryFile,
+            language,
+            title: "Generated Component",
+          });
+          setIsPanelOpen(true);
+        } else {
+          toast.error("AI did not return files. Please try again.");
         }
       } catch (error: any) {
         if (error.name === "AbortError") {
@@ -522,6 +696,13 @@ export default function ComponentGeneratorPage() {
     (e: React.PointerEvent) => {
       if (!splitContainerRef.current) return;
       isResizingRef.current = true;
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       resizeFromClientX(e.clientX);
@@ -565,79 +746,14 @@ export default function ComponentGeneratorPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      {/* Header - Modern VibeCode Branding */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center gap-2 px-3 md:h-16 md:gap-4 md:px-6 lg:px-8">
-          {/* Left Side - VibeCode Logo and Title */}
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
-              <Zap className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold md:text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                VibeCode
-              </h1>
-              <p className="hidden text-xs text-muted-foreground sm:block">
-                AI Component Generator
-              </p>
-            </div>
-          </div>
-
-          {/* Right Side - Actions */}
-          <div className="ml-auto flex items-center gap-1 md:gap-2">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-xs text-muted-foreground">AI Ready</span>
-            </div>
-            {generatedComponent && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPreviewWidthPct(50)}
-                  className="hidden lg:flex"
-                  title="Reset split"
-                >
-                  Reset Split
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
-                  className="hidden md:flex"
-                  title={
-                    isFullscreen ? "Exit fullscreen" : "Fullscreen preview"
-                  }
-                >
-                  {isFullscreen ? (
-                    <Minimize2Icon className="h-4 w-4" />
-                  ) : (
-                    <Maximize2Icon className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant={isPanelOpen ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsPanelOpen(!isPanelOpen)}
-                  className="text-xs md:text-sm"
-                >
-                  {isPanelOpen ? (
-                    <>
-                      <XIcon className="mr-0 h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">Hide Preview</span>
-                    </>
-                  ) : (
-                    <>
-                      <Code2Icon className="mr-0 h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">Show Preview</span>
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <GeneratorHeader
+        hasGenerated={Boolean(generatedComponent)}
+        isPanelOpen={isPanelOpen}
+        onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+        onResetSplit={() => setPreviewWidthPct(50)}
+      />
 
       {/* Main Content - Responsive Split Layout */}
       <div
@@ -677,60 +793,37 @@ export default function ComponentGeneratorPage() {
               >
                 {messages.length === 0 ? (
                   <ConversationEmptyState
-                    title="Welcome to VibeCode"
-                    description="Generate beautiful, production-ready React components with AI. Just describe what you need, and watch the magic happen."
+                    title="Welcome to VibeCode AI"
+                    description="Your advanced React development assistant. Chat with me to discuss code, architecture, and best practices, or ask me to build complete multi-page applications with any packages you need."
                     icon={
                       <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border border-primary/20 shadow-lg">
                         <SparklesIcon className="h-10 w-10 text-primary" />
                       </div>
                     }
                   >
-                    <div className="mt-8 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          Try these examples
-                        </h3>
-                        <button
-                          onClick={refreshSuggestions}
-                          className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                        >
-                          <SparklesIcon className="h-3 w-3" />
-                          Refresh
-                        </button>
-                      </div>
-                      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                        {activeSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            onClick={() =>
-                              handleSubmit({
-                                text: suggestion.prompt,
-                              })
-                            }
-                            className="group relative overflow-hidden rounded-xl border bg-card p-4 text-left transition-all hover:shadow-md hover:border-primary/30"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div className="relative">
-                              <div className="font-semibold mb-1.5 group-hover:text-primary transition-colors flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <span className="text-lg">
-                                    {suggestion.emoji}
-                                  </span>
-                                </div>
-                                {suggestion.title}
-                              </div>
-                              <div className="text-xs text-muted-foreground line-clamp-2">
-                                {suggestion.prompt.split(",")[0]}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mt-6 text-center">
+                    <SuggestionsGrid
+                      suggestions={activeSuggestions}
+                      onRefresh={refreshSuggestions}
+                      onPick={(prompt) => handleSubmit({ text: prompt })}
+                    />
+                    <div className="mt-6 text-center space-y-2">
                       <p className="text-sm text-muted-foreground">
-                        Or describe your own component below
+                        Or ask me anything, or describe what you want to build
                       </p>
+                      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Code2Icon className="h-3 w-3" />
+                          <span>Multi-Page Apps</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Zap className="h-3 w-3" />
+                          <span>Any NPM Package</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <SparklesIcon className="h-3 w-3" />
+                          <span>Conversational AI</span>
+                        </div>
+                      </div>
                     </div>
                   </ConversationEmptyState>
                 ) : (
@@ -773,33 +866,64 @@ export default function ComponentGeneratorPage() {
                                   <AIResponse>{message.content}</AIResponse>
                                 </div>
                               )}
-                              {message.code && (
-                                <CodeBlock
-                                  code={
-                                    message.code ||
-                                    message.files?.["/App.tsx"] ||
-                                    ""
-                                  }
-                                  language="tsx"
-                                  isActive={
-                                    generatedComponent?.code === message.code ||
-                                    JSON.stringify(
-                                      generatedComponent?.files || {},
-                                    ) === JSON.stringify(message.files || {})
-                                  }
-                                  onRun={() => {
-                                    setGeneratedComponent({
-                                      code: message.code,
-                                      files: message.files,
-                                      entryFile: message.entryFile,
-                                      language: "tsx",
-                                      title: "Generated Component",
-                                    });
-                                    setIsPanelOpen(true);
-                                    setIsFullscreen(false);
-                                  }}
-                                />
-                              )}
+                              {message.files &&
+                                Object.keys(message.files).length > 0 && (
+                                  <div className="mt-4 p-4 rounded-lg border bg-card">
+                                    <div className="flex items-start gap-3">
+                                      <div className="p-2 rounded-lg bg-primary/10">
+                                        <CodeIcon className="h-5 w-5 text-primary" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="font-semibold text-sm mb-1">
+                                          Project Generated Successfully!
+                                        </h4>
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                          {Object.keys(message.files).length}{" "}
+                                          files created
+                                        </p>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="sm"
+                                            onClick={() => {
+                                              setGeneratedComponent({
+                                                code: message.code,
+                                                files: message.files,
+                                                entryFile: message.entryFile,
+                                                language: "tsx",
+                                                title: "Generated Component",
+                                              });
+                                              setIsPanelOpen(true);
+                                              setIsFullscreen(false);
+                                              setViewMode("preview");
+                                            }}
+                                          >
+                                            <EyeIcon className="h-4 w-4 mr-2" />
+                                            View Preview
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setGeneratedComponent({
+                                                code: message.code,
+                                                files: message.files,
+                                                entryFile: message.entryFile,
+                                                language: "tsx",
+                                                title: "Generated Component",
+                                              });
+                                              setIsPanelOpen(true);
+                                              setIsFullscreen(false);
+                                              setViewMode("code");
+                                            }}
+                                          >
+                                            <Code2Icon className="h-4 w-4 mr-2" />
+                                            View Code
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                             </div>
                           )}
                         </MessageContent>
@@ -818,7 +942,7 @@ export default function ComponentGeneratorPage() {
               <PromptInput onSubmit={handleSubmit} className="w-full">
                 <PromptInputBody>
                   <PromptInputTextarea
-                    placeholder="Describe your component... (e.g., 'Create a responsive contact form with validation')"
+                    placeholder="Ask me anything or describe what you want to build... (e.g., 'Build a portfolio site with 4 pages' or 'How do I use React Router?')"
                     disabled={isGenerating}
                     className="min-h-12 md:min-h-16 text-sm md:text-base resize-none"
                   />
@@ -867,11 +991,11 @@ export default function ComponentGeneratorPage() {
           </div>
         )}
 
-        {/* Preview Panel */}
+        {/* Preview/Code Panel */}
         {generatedComponent && isPanelOpen && (
           <div
             className={cn(
-              "border-t lg:border-t-0 transition-all duration-300 bg-muted/30 overflow-hidden flex flex-col",
+              "border-t lg:border-t-0 transition-all duration-300 bg-background overflow-hidden flex flex-col",
               isFullscreen ? "w-full" : "w-full lg:flex-none",
             )}
             style={
@@ -880,13 +1004,200 @@ export default function ComponentGeneratorPage() {
                 : undefined
             }
           >
-            <div className="flex-1 min-h-0">
-              <SandpackRuntimePreview
-                showConsole={false}
-                code={generatedComponent.code || ""}
-                files={generatedComponent.files}
-                entryFile={generatedComponent.entryFile}
-              />
+            {/* Toggle Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant={viewMode === "preview" ? "default" : "ghost"}
+                    onClick={() => setViewMode("preview")}
+                    className="h-8 gap-2"
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={viewMode === "code" ? "default" : "ghost"}
+                    onClick={() => setViewMode("code")}
+                    className="h-8 gap-2"
+                  >
+                    <Code2Icon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Code</span>
+                  </Button>
+                </div>
+
+                {/* Live generation status */}
+                {currentlyGeneratingFile && (
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 border border-primary/20">
+                    <Loader2Icon className="h-3 w-3 text-primary animate-spin" />
+                    <span className="text-xs text-primary font-medium hidden md:inline">
+                      Generating {currentlyGeneratingFile.split("/").pop()}...
+                    </span>
+                    <span className="text-xs text-primary font-medium md:hidden">
+                      Generating...
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {viewMode === "code" &&
+                selectedFile &&
+                !currentlyGeneratingFile && (
+                  <div className="flex items-center gap-2">
+                    {hasUnsavedChanges && (
+                      <span className="text-xs text-muted-foreground">
+                        Unsaved changes
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={handleSaveFile}
+                      disabled={!hasUnsavedChanges}
+                      className="h-8 gap-2"
+                    >
+                      <SaveIcon className="h-3 w-3" />
+                      <span className="hidden sm:inline">Save</span>
+                    </Button>
+                  </div>
+                )}
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 flex min-h-0">
+              {/* Main Content */}
+              <div className="flex-1 min-h-0">
+                {viewMode === "preview" ? (
+                  <div className="h-full w-full">
+                    {isGenerating || currentlyGeneratingFile ? (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <div className="text-center space-y-2 p-6 max-w-sm">
+                          <Loader2Icon className="h-10 w-10 mx-auto opacity-70 animate-spin" />
+                          <p className="text-sm">Generating files…</p>
+                          <p className="text-xs leading-relaxed">
+                            Switch to{" "}
+                            <span className="font-medium text-foreground">
+                              Code
+                            </span>{" "}
+                            to watch files appear in real time.
+                          </p>
+                        </div>
+                      </div>
+                    ) : generatedComponent.files &&
+                      Object.keys(generatedComponent.files).length > 0 ? (
+                      <SandpackRuntimePreview
+                        showConsole={true}
+                        code={generatedComponent.code || ""}
+                        files={{
+                          ...generatedComponent.files,
+                          ...editedFiles,
+                        }}
+                        entryFile={generatedComponent.entryFile}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <div className="text-center space-y-2">
+                          <Code2Icon className="h-12 w-12 mx-auto opacity-50" />
+                          <p className="text-sm">No files to preview</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-full flex min-h-0">
+                    {generatedComponent.files &&
+                      Object.keys(generatedComponent.files).length > 1 && (
+                        <div className="hidden md:block w-64 border-r bg-card overflow-y-auto">
+                          <FileTree
+                            files={generatedComponent.files}
+                            selectedFile={selectedFile}
+                            onFileSelect={handleFileSelect}
+                            generatingFile={currentlyGeneratingFile}
+                          />
+                        </div>
+                      )}
+
+                    <div className="flex-1 min-h-0 flex flex-col bg-background">
+                      {selectedFile ? (
+                        <>
+                          <div className="px-4 py-2 border-b bg-card text-sm text-muted-foreground flex items-center gap-2 justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileIcon className="h-4 w-4 shrink-0" />
+                              <span className="truncate">{selectedFile}</span>
+                            </div>
+
+                            {generatedComponent.files &&
+                              Object.keys(generatedComponent.files).length >
+                                1 && (
+                                <select
+                                  className="md:hidden h-8 max-w-[45%] rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                                  value={selectedFile}
+                                  onChange={(e) =>
+                                    handleFileSelect(e.target.value)
+                                  }
+                                  aria-label="Select file"
+                                >
+                                  {Object.keys(generatedComponent.files).map(
+                                    (path) => (
+                                      <option key={path} value={path}>
+                                        {path}
+                                      </option>
+                                    ),
+                                  )}
+                                </select>
+                              )}
+                          </div>
+                          <Editor
+                            height="100%"
+                            defaultLanguage="typescript"
+                            language={
+                              selectedFile?.endsWith(".tsx") ||
+                              selectedFile?.endsWith(".ts")
+                                ? "typescript"
+                                : selectedFile?.endsWith(".css")
+                                  ? "css"
+                                  : selectedFile?.endsWith(".json")
+                                    ? "json"
+                                    : "javascript"
+                            }
+                            value={
+                              editedFiles[selectedFile] ||
+                              generatedComponent.files?.[selectedFile] ||
+                              ""
+                            }
+                            onChange={(value) =>
+                              selectedFile &&
+                              handleFileEdit(selectedFile, value || "")
+                            }
+                            theme={isDark ? "vs-dark" : "vs"}
+                            options={{
+                              minimap: { enabled: false },
+                              renderValidationDecorations: "off",
+                              fontSize: 14,
+                              lineNumbers: "on",
+                              scrollBeyondLastLine: true,
+                              wordWrap: "on",
+                              automaticLayout: true,
+                              readOnly: !selectedFile,
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                          <div className="text-center space-y-2">
+                            <FileIcon className="h-12 w-12 mx-auto opacity-50" />
+                            <p className="text-sm">
+                              Select a file from the tree to edit
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
