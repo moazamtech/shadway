@@ -446,6 +446,74 @@ export default function ComponentGeneratorPage() {
           content: msg.content,
         }));
 
+        const buildProjectContext = () => {
+          const baseFiles = generatedComponent?.files
+            ? { ...generatedComponent.files, ...editedFiles }
+            : null;
+          if (!baseFiles) return null;
+
+          const allPaths = Object.keys(baseFiles).sort();
+          const mentioned =
+            text.match(/\/[A-Za-z0-9_\-./]+?\.(tsx|ts|jsx|js|css|json)/g) || [];
+          const prioritized = [
+            generatedComponent?.entryFile,
+            selectedFile,
+            ...mentioned,
+          ]
+            .filter(Boolean)
+            .map((p) => (String(p).startsWith("/") ? String(p) : `/${p}`));
+
+          const seen = new Set<string>();
+          const picks: string[] = [];
+          for (const p of prioritized) {
+            if (!p) continue;
+            if (seen.has(p)) continue;
+            if (!baseFiles[p]) continue;
+            seen.add(p);
+            picks.push(p);
+            if (picks.length >= 6) break;
+          }
+
+          // If nothing specific is referenced, include entry + a few top-level files.
+          if (picks.length === 0) {
+            const fallback = allPaths.filter((p) =>
+              /^\/(App|entry)\.(tsx|ts)$/.test(p),
+            );
+            for (const p of fallback) {
+              if (!seen.has(p) && baseFiles[p]) {
+                seen.add(p);
+                picks.push(p);
+              }
+            }
+            for (const p of allPaths) {
+              if (picks.length >= 4) break;
+              if (seen.has(p)) continue;
+              if (!baseFiles[p]) continue;
+              if (p.endsWith(".tsx") || p.endsWith(".ts")) {
+                seen.add(p);
+                picks.push(p);
+              }
+            }
+          }
+
+          const maxChars = 30000;
+          let out = `PROJECT CONTEXT (read-only):\n`;
+          out += `FILES:\n${allPaths.join("\n")}\n\n`;
+          out += `IMPORTANT:\n- Treat these files as the current project state.\n- If you are fixing/editing, output ONLY changed files inside <files>.\n\n`;
+
+          for (const p of picks) {
+            const content = String(baseFiles[p] || "");
+            if (!content.trim()) continue;
+            const chunk = `--- FILE: ${p} ---\n${content}\n\n`;
+            if (out.length + chunk.length > maxChars) break;
+            out += chunk;
+          }
+
+          return out;
+        };
+
+        const projectContext = buildProjectContext();
+
         const runGeneration = async (promptToSend: string) => {
           abortControllerRef.current = new AbortController();
           const response = await fetch("/api/generate-component", {
@@ -454,6 +522,7 @@ export default function ComponentGeneratorPage() {
             body: JSON.stringify({
               prompt: promptToSend,
               conversationHistory,
+              projectContext,
             }),
             signal: abortControllerRef.current.signal,
           });
@@ -503,13 +572,24 @@ export default function ComponentGeneratorPage() {
                 (files["/App.tsx"] ? "/App.tsx" : undefined) ||
                 Object.keys(files)[0];
 
-              setGeneratedComponent((prev) => ({
-                code: files[nextEntry] || code || prev?.code || "",
-                files: files,
-                entryFile: nextEntry || entryFile || prev?.entryFile,
-                language: "tsx",
-                title: prev?.title || "Generated Component",
-              }));
+              setGeneratedComponent((prev) => {
+                const mergedFiles = {
+                  ...(prev?.files || {}),
+                  ...files,
+                };
+                return {
+                  code:
+                    (nextEntry && mergedFiles[nextEntry]) ||
+                    files[nextEntry] ||
+                    code ||
+                    prev?.code ||
+                    "",
+                  files: mergedFiles,
+                  entryFile: nextEntry || entryFile || prev?.entryFile,
+                  language: "tsx",
+                  title: prev?.title || "Generated Component",
+                };
+              });
               setIsPanelOpen(true);
             }
           };
@@ -632,12 +712,17 @@ export default function ComponentGeneratorPage() {
 
         if (raw && artifacts && (artifacts.files || artifacts.code)) {
           const { code, files, entryFile, language } = artifacts;
-          setGeneratedComponent({
-            code,
-            files,
-            entryFile,
-            language,
-            title: "Generated Component",
+          setGeneratedComponent((prev) => {
+            const mergedFiles = files
+              ? { ...(prev?.files || {}), ...files }
+              : prev?.files;
+            return {
+              code: code || prev?.code,
+              files: mergedFiles,
+              entryFile: entryFile || prev?.entryFile,
+              language,
+              title: "Generated Component",
+            };
           });
           setIsPanelOpen(true);
         } else {
@@ -666,7 +751,7 @@ export default function ComponentGeneratorPage() {
         abortControllerRef.current = null;
       }
     },
-    [messages, isGenerating],
+    [messages, isGenerating, generatedComponent, editedFiles, selectedFile],
   );
 
   const handleStop = useCallback(() => {
