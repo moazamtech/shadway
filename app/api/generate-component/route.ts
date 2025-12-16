@@ -5,7 +5,7 @@ export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, conversationHistory } = await req.json();
+    const { prompt, conversationHistory, projectContext } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -411,6 +411,13 @@ export default function Navbar() {
 - Complete all object/array definitions before outputting
 - Never leave dangling commas or unclosed structures
 
+**EDIT/FIX MODE (IMPORTANT):**
+If the user asks you to fix/edit something in an existing generated project, you may receive a PROJECT CONTEXT block.
+- Treat PROJECT CONTEXT as the current project state.
+- Output ONLY changed files inside a single <files> block (do NOT repeat unchanged files).
+- Keep paths exactly the same.
+- If you need a file that is not included, ask for it (by path).
+
 **HOW SANDPACK WORKS IN OUR APP:**
 
 1. **Package Loading:** When you import packages, Sandpack automatically loads them from esm.sh CDN
@@ -428,6 +435,14 @@ export default function Navbar() {
 - Always test logic mentally before generating
 - Provide complete, production-ready code`,
       },
+      ...(projectContext
+        ? ([
+            {
+              role: "user",
+              content: String(projectContext),
+            },
+          ] as any)
+        : []),
       ...(conversationHistory || []),
       {
         role: "user",
