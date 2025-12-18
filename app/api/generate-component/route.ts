@@ -451,7 +451,7 @@ If the user asks you to fix/edit something in an existing generated project, you
     ];
 
     const stream = (await openai.chat.completions.create({
-      model: "nex-agi/deepseek-v3.1-nex-n1:free",
+      model: "xiaomi/mimo-v2-flash:free",
       messages: messages as any,
       stream: true,
     } as any)) as any;
