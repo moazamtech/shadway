@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "@vscode/codicons/dist/codicon.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/next";
 import { StructuredData } from "@/components/structured-data";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { generateSEOMetadata } from "@/lib/seo";
 const inter = Inter({
   variable: "--font-inter",
@@ -23,7 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   ...generateSEOMetadata({
     title: "Shadway - Curated Shadcn UI Website Collection",
-    description: "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
+    description:
+      "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
     keywords: [
       "shadcn ui figma",
       "Shadway",
@@ -46,15 +48,15 @@ export const metadata: Metadata = {
     ],
   }),
   other: {
-    'application-name': 'Shadway',
-    'apple-mobile-web-app-capable': 'yes',
-    'apple-mobile-web-app-status-bar-style': 'default',
-    'apple-mobile-web-app-title': 'Shadway',
-    'format-detection': 'telephone=no',
-    'mobile-web-app-capable': 'yes',
-    'msapplication-config': '/browserconfig.xml',
-    'msapplication-TileColor': '#000000',
-    'msapplication-tap-highlight': 'no',
+    "application-name": "Shadway",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "Shadway",
+    "format-detection": "telephone=no",
+    "mobile-web-app-capable": "yes",
+    "msapplication-config": "/browserconfig.xml",
+    "msapplication-TileColor": "#000000",
+    "msapplication-tap-highlight": "no",
   },
 };
 
