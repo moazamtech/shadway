@@ -7,7 +7,7 @@ import type { ComponentProps } from "react";
 import { useCallback, useEffect } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
-// Custom CSS for conversation scrolling
+// Custom CSS for conversation scrolling - Hiding scrollbars
 const conversationScrollStyles = `
   .conversation-scroll-container {
     height: 100%;
@@ -18,48 +18,11 @@ const conversationScrollStyles = `
     flex-direction: column;
     scroll-behavior: smooth;
     position: relative;
-  }
-
-  /* Scrollbar styling for webkit browsers */
-  .conversation-scroll-container::-webkit-scrollbar {
-    width: 12px !important;
-  }
-
-  .conversation-scroll-container::-webkit-scrollbar-track {
-    background: transparent !important;
-    margin: 4px 0 !important;
-  }
-
-  .conversation-scroll-container::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.6) !important;
-    border-radius: 6px !important;
-    border: 3px solid transparent !important;
-    background-clip: content-box !important;
-  }
-
-  .conversation-scroll-container::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.9) !important;
-    background-clip: content-box !important;
-  }
-
-  .conversation-scroll-container::-webkit-scrollbar-thumb:active {
-    background: hsl(var(--muted-foreground)) !important;
-    background-clip: content-box !important;
-  }
-
-  /* Firefox scrollbar */
-  .conversation-scroll-container {
-    scrollbar-color: hsl(var(--muted-foreground) / 0.6) transparent !important;
-    scrollbar-width: thin !important;
-  }
-
-  /* Allow parent pages to hide scrollbars (e.g. .no-scrollbar) */
-  .conversation-scroll-container.no-scrollbar {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
   }
 
-  .conversation-scroll-container.no-scrollbar::-webkit-scrollbar {
+  .conversation-scroll-container::-webkit-scrollbar {
     display: none !important;
   }
 
@@ -82,11 +45,6 @@ const conversationScrollStyles = `
   .conversation-scroll-container {
     -webkit-user-select: text !important;
     user-select: text !important;
-  }
-
-  /* Smooth scrolling for all elements */
-  * {
-    scroll-behavior: smooth !important;
   }
 `;
 

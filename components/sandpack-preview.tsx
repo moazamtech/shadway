@@ -12,6 +12,7 @@ import { githubLight, amethyst } from "@codesandbox/sandpack-themes";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SANDPACK_SHADCN_FILES } from "@/lib/sandpack-files";
 
 const SANDBOX_TRANSFORM_VERSION = 4;
 
@@ -25,6 +26,7 @@ const sandpackStyles = `
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
+    position: relative !important;
   }
 
   .sandpack-inner {
@@ -32,22 +34,40 @@ const sandpackStyles = `
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
-    flex: 1 !important;
+    flex: 1 1 0% !important;
     min-height: 0 !important;
+    position: relative !important;
   }
 
   .sp-layout {
     width: 100% !important;
     height: 100% !important;
-    flex: 1 !important;
-    min-height: 559% !important;
+    flex: 1 1 0% !important;
+    min-height: 600px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  .sp-stack {
+    height: 100% !important;
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+  }
+
+  .sp-preview-container {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   .sp-preview {
-    flex: 1 !important;
+    flex: 1 1 0% !important;
     min-height: 0 !important;
+    height: 100% !important;
     width: 100% !important;
     display: flex !important;
     flex-direction: column !important;
@@ -55,12 +75,17 @@ const sandpackStyles = `
   }
 
   .sp-preview-iframe {
-    flex: 1 !important;
+    flex: 1 1 0% !important;
     min-height: 0 !important;
+    height: 100% !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
+  }
+
+  .sp-preview-actions {
+    display: none !important;
   }
 
   iframe {
@@ -123,14 +148,18 @@ function findPrimaryComponentName(src: string) {
   return "GeneratedComponent";
 }
 
-function posixDirname(pathname: string) {
+function posixDirname(pathname: string | null | undefined) {
+  if (!pathname || typeof pathname !== 'string') return "/";
   const normalized = pathname.replace(/\\/g, "/");
   const idx = normalized.lastIndexOf("/");
   if (idx <= 0) return "/";
   return normalized.slice(0, idx);
 }
 
-function posixRelative(fromDir: string, toPath: string) {
+function posixRelative(fromDir: string | null | undefined, toPath: string | null | undefined) {
+  if (!fromDir || typeof fromDir !== 'string') return toPath || ".";
+  if (!toPath || typeof toPath !== 'string') return ".";
+
   const from = fromDir.replace(/\\/g, "/");
   const to = toPath.replace(/\\/g, "/");
   const fromParts = from.split("/").filter(Boolean);
@@ -154,7 +183,53 @@ function stripModuleExtension(p: string) {
   return p.replace(/\.(tsx|ts|jsx|js)$/i, "");
 }
 
-function rewriteAliasImportsForFile(src: string, fromFilePath: string) {
+function extractPackageDependencies(
+  sources: Array<string | undefined | null>,
+  baseDeps: Record<string, string>,
+) {
+  const importRegex =
+    /import\s+(?:[^"']+from\s+)?["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\)/g;
+  const pkgNames = new Set<string>();
+
+  const normalizePackageName = (specifier: string) => {
+    if (!specifier) return null;
+    if (specifier.startsWith(".") || specifier.startsWith("/")) return null;
+    if (specifier.startsWith("@/")) return null;
+
+    const cleaned = specifier.replace(/^node:/, "");
+    const parts = cleaned.split("/");
+    if (cleaned.startsWith("@")) {
+      if (parts.length >= 2) return `${parts[0]}/${parts[1]}`;
+      return cleaned;
+    }
+    return parts[0];
+  };
+
+  for (const src of sources) {
+    if (!src) continue;
+    let match: RegExpExecArray | null;
+    // Reset regex state since it's global
+    importRegex.lastIndex = 0;
+    while ((match = importRegex.exec(src)) !== null) {
+      const spec = match[1] || match[2];
+      const name = normalizePackageName(spec);
+      if (name) pkgNames.add(name);
+    }
+  }
+
+  const deps: Record<string, string> = {};
+  for (const name of pkgNames) {
+    if (baseDeps[name]) continue;
+    deps[name] = "latest";
+  }
+
+  return deps;
+}
+
+function rewriteAliasImportsForFile(src: string | null | undefined, fromFilePath: string | null | undefined) {
+  if (!src || typeof src !== 'string') return src || "";
+  if (!fromFilePath || typeof fromFilePath !== 'string') return src;
+
   const fromDir = posixDirname(fromFilePath);
   return src.replace(/from\s+["']@\/([^"']+)["']/g, (_m, target) => {
     const toPath = `/${String(target)}`;
@@ -163,79 +238,18 @@ function rewriteAliasImportsForFile(src: string, fromFilePath: string) {
   });
 }
 
-function rewriteLucideImports(src: string) {
-  // lucide-react does not include brand icons; rewrite common brand requests to safe equivalents.
-  const aliasMap: Record<string, string> = {
-    // Common "missing" icon names (vary across lucide versions)
-    Coin: "Coins",
-    Dog: "PawPrint",
-    Cat: "PawPrint",
-    PartyPopper: "Sparkles",
-
-    Discord: "MessageCircle",
-    Telegram: "Send",
-    Instagram: "Camera",
-    Twitter: "Globe",
-    X: "Globe",
-    Facebook: "Globe",
-    LinkedIn: "Briefcase",
-    Tiktok: "Music",
-  };
-
-  // Determine which identifiers are used in the file, excluding lucide-react import lines.
-  // This must include non-JSX usage like `icon: Users` (common pattern for icon tables).
-  const srcSansLucideImports = src.replace(
-    /import\s*{\s*[\s\S]*?\s*}\s*from\s*["']lucide-react["']\s*;?\s*/g,
-    "",
+function stripForbiddenImports(src: string) {
+  // Remove lucide-react and framer-motion imports entirely.
+  let out = src;
+  out = out.replace(
+    /import\s+[\s\S]*?from\s*["']lucide-react["']\s*;?/g,
+    "// lucide-react import removed (use inline SVGs)",
   );
-
-  const jsxUsed = new Set<string>();
-  const tagRegex = /<([A-Z][A-Za-z0-9_]*)\b/g;
-  for (const match of srcSansLucideImports.matchAll(tagRegex)) {
-    if (match[1]) jsxUsed.add(match[1]);
-  }
-
-  const identifierUsed = (name: string) =>
-    new RegExp(String.raw`\\b${name}\\b`).test(srcSansLucideImports);
-
-  return src.replace(
-    /import\s*{\s*([\s\S]*?)\s*}\s*from\s*["']lucide-react["']\s*;?/g,
-    (_full, rawImports) => {
-      const parts = String(rawImports)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const seenLocals = new Set<string>();
-      const rewritten: string[] = [];
-
-      for (const part of parts) {
-        const asMatch = part.match(/^([A-Za-z0-9_]+)\s+as\s+([A-Za-z0-9_]+)$/);
-        const importedName = (asMatch?.[1] || part).trim();
-        const localName = (asMatch?.[2] || part).trim();
-
-        // Drop truly unused icons to avoid importing non-existent/huge lists.
-        // Keep icons referenced outside JSX, e.g. `icon: Users`.
-        if (!jsxUsed.has(localName) && !identifierUsed(localName)) continue;
-
-        const mappedImport = aliasMap[importedName] || importedName;
-        const mappedLocal = localName;
-
-        // Avoid duplicate local bindings (causes "Identifier has already been declared")
-        if (seenLocals.has(mappedLocal)) continue;
-        seenLocals.add(mappedLocal);
-
-        if (mappedImport === mappedLocal) rewritten.push(mappedImport);
-        else rewritten.push(`${mappedImport} as ${mappedLocal}`);
-      }
-
-      if (rewritten.length === 0) return "";
-
-      // Keep imports reasonably small; if too many, keep the first N (already filtered by usage)
-      const capped = rewritten.slice(0, 40);
-      return `import { ${capped.join(", ")} } from "lucide-react";`;
-    },
+  out = out.replace(
+    /import\s+[\s\S]*?from\s*["']framer-motion["']\s*;?/g,
+    "// framer-motion import removed",
   );
+  return out;
 }
 
 function repairMultilineJsxAttributeStrings(src: string) {
@@ -273,7 +287,7 @@ function repairMultilineJsxAttributeStrings(src: string) {
 
 function hasIdentifierDeclaration(src: string, name: string) {
   const patterns: Array<RegExp> = [
-    new RegExp(String.raw`^\s*import\s+[^;]*\b${name}\b[^;]*;?`, "m"),
+    new RegExp(String.raw`^\s*import\s+(?!type\b)[^;]*\b${name}\b[^;]*;?`, "m"),
     new RegExp(String.raw`^\s*const\s+${name}\b`, "m"),
     new RegExp(String.raw`^\s*let\s+${name}\b`, "m"),
     new RegExp(String.raw`^\s*var\s+${name}\b`, "m"),
@@ -283,6 +297,30 @@ function hasIdentifierDeclaration(src: string, name: string) {
     new RegExp(String.raw`^\s*export\s+class\s+${name}\b`, "m"),
   ];
   return patterns.some((p) => p.test(src));
+}
+
+function hasNamedImportFromModule(
+  src: string,
+  name: string,
+  moduleName: string,
+) {
+  const pattern = new RegExp(
+    String.raw`^\s*import\s+(?!type\b)[^;]*\b${name}\b[^;]*from\s+["']${moduleName}["']\s*;?`,
+    "m",
+  );
+  return pattern.test(src);
+}
+
+function hasNamespaceImportFromModule(
+  src: string,
+  name: string,
+  moduleName: string,
+) {
+  const pattern = new RegExp(
+    String.raw`^\s*import\s+(?!type\b)\*\s+as\s+${name}\s+from\s+["']${moduleName}["']\s*;?`,
+    "m",
+  );
+  return pattern.test(src);
 }
 
 function isJsxTagUsed(src: string, tagName: string) {
@@ -309,14 +347,7 @@ function injectMissingImports(src: string) {
     },
   ];
 
-  const neededLucideIcons = ["Check"];
-
   const neededOtherImports: Array<{ when: RegExp; importLine: string }> = [
-    // Generated code commonly uses framer-motion's `motion.*` but forgets to import it.
-    {
-      when: /\bmotion\.[A-Za-z]/,
-      importLine: `import { motion } from "framer-motion";`,
-    },
     // React Router hooks are commonly used without imports.
     {
       when: /\buseLocation\s*\(/,
@@ -351,15 +382,6 @@ function injectMissingImports(src: string) {
     }
   }
 
-  for (const iconName of neededLucideIcons) {
-    if (
-      isJsxTagUsed(src, iconName) &&
-      !hasIdentifierDeclaration(src, iconName)
-    ) {
-      missingLines.push(`import { ${iconName} } from "lucide-react";`);
-    }
-  }
-
   for (const entry of neededOtherImports) {
     const importedName = entry.importLine.match(/import\s*{\s*([^}\s,]+)/)?.[1];
     if (!importedName) continue;
@@ -387,7 +409,7 @@ function createAppFileFromCode(src: string) {
   src = repairMultilineJsxAttributeStrings(src);
   src = injectMissingImports(src);
   src = rewriteAliasImportsForFile(src, "/App.tsx");
-  src = rewriteLucideImports(src);
+  src = stripForbiddenImports(src);
   const componentNameFromSource = findPrimaryComponentName(src);
 
   // Remove/transform default exports so we can safely provide our own default App export.
@@ -446,7 +468,7 @@ export default function App(){
   const Comp: any = ${name};
   return (
     <div className="min-h-screen w-full bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+      <div className="w-full">
         {Comp ? <Comp {...__defaultProps} /> : (
           <div className="p-6">
             <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
@@ -474,6 +496,36 @@ export function SandpackRuntimePreview({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const baseDependencies = useMemo(
+    () => ({
+      react: "latest",
+      "react-dom": "latest",
+      clsx: "latest",
+      "class-variance-authority": "latest",
+      "tailwind-merge": "latest",
+      "@radix-ui/react-slot": "latest",
+      "@radix-ui/react-separator": "latest",
+      "react-router-dom": "latest",
+      axios: "latest",
+      zustand: "latest",
+      "@tanstack/react-query": "latest",
+      "react-hook-form": "latest",
+      zod: "latest",
+      "lucide-react": "latest", // Re-adding lucide-react as it is often requested, but we strip imports if needed. actually user said NO lucide.
+      // Keeping it out if user said no.
+    }),
+    [],
+  );
+
+  const extractedDependencies = useMemo(() => {
+    const sources: Array<string | undefined | null> = [];
+    if (files && Object.keys(files).length > 0) {
+      for (const src of Object.values(files)) sources.push(src);
+    } else {
+      sources.push(code);
+    }
+    return extractPackageDependencies(sources, baseDependencies);
+  }, [files, code, baseDependencies]);
 
   React.useEffect(() => {
     const styleElement = document.createElement("style");
@@ -487,35 +539,48 @@ export function SandpackRuntimePreview({
   const sandpackFiles = useMemo(() => {
     const normalizeGeneratedFiles = (input: Record<string, string>) => {
       const out: Record<string, string> = {};
+      if (!input || typeof input !== 'object') return out;
+
       for (const [k, v] of Object.entries(input)) {
-        if (!v?.trim()) continue;
+        // Skip entries with null, undefined, or empty keys
+        if (k === null || k === undefined || k === '' || typeof k !== 'string') continue;
+        // Skip entries with empty or non-string values
+        if (!v || typeof v !== 'string' || !v.trim()) continue;
+
         const normalized = k.startsWith("/") ? k : `/${k}`;
         out[normalized] = v;
       }
       return out;
     };
 
-    const transformGeneratedFile = (path: string, src: string) => {
-      let out = src;
-      out = repairMultilineJsxAttributeStrings(out);
-      out = injectMissingImports(out);
-      out = rewriteAliasImportsForFile(out, path);
-      out = rewriteLucideImports(out);
-      return out;
+    const transformGeneratedFile = (path: string | null | undefined, src: string | null | undefined) => {
+      if (!path || typeof path !== 'string') return src || "";
+      if (!src || typeof src !== 'string') return "";
+
+      try {
+        let out = src;
+        out = repairMultilineJsxAttributeStrings(out);
+        out = injectMissingImports(out);
+        out = rewriteAliasImportsForFile(out, path);
+        out = stripForbiddenImports(out);
+        return out;
+      } catch (e) {
+        console.error("Error transforming file:", path, e);
+        return src;
+      }
     };
 
     const createWrapperAppTsx = (entryPath: string) => {
-      const importPath = stripModuleExtension(
-        `./${entryPath.replace(/^\//, "")}`,
-      );
+      const safeEntry = entryPath ? entryPath.replace(/^\//, "") : "App";
+      const importPath = stripModuleExtension(`./${safeEntry}`);
       return `import * as React from "react";
 import Entry from "${importPath}";
 
 export default function App(){
   const Comp: any = Entry;
   return (
-    <div className="min-h-screen w-full bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+    <div className="min-h-screen w-full bg-background text-foreground font-sans antialiased">
+      <div className="w-full h-full">
         {Comp ? <Comp /> : (
           <div className="p-6">
             <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
@@ -538,232 +603,313 @@ export default function App(){
 
     if (files && Object.keys(files).length > 0) {
       generatedFiles = normalizeGeneratedFiles(files);
-      const transformed: Record<string, string> = {};
-      for (const [path, src] of Object.entries(generatedFiles)) {
-        transformed[path] = transformGeneratedFile(path, src);
+
+      // Early return if no valid files after normalization
+      if (!generatedFiles || Object.keys(generatedFiles).length === 0) {
+        appTsx = createAppFileFromCode(code || "");
+      } else {
+        // Inject standard Shadcn components so they are available for import
+        generatedFiles = { ...generatedFiles, ...SANDPACK_SHADCN_FILES };
+
+        const transformed: Record<string, string> = {};
+        for (const [path, src] of Object.entries(generatedFiles)) {
+          // Double-check path is valid
+          if (!path || typeof path !== 'string') continue;
+          if (!src || typeof src !== 'string') continue;
+          transformed[path] = transformGeneratedFile(path, src);
+        }
+        generatedFiles = transformed;
+
+        // Find entry file with null safety
+        const validKeys = Object.keys(generatedFiles).filter(k => k && typeof k === 'string');
+        let entry: string | undefined =
+          entryFile && typeof entryFile === 'string' && generatedFiles[entryFile] ? entryFile : undefined;
+        if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
+        if (!entry && generatedFiles["/App.tsx"]) entry = "/App.tsx";
+        if (!entry && validKeys.length > 0) entry = validKeys[0];
+
+        if (generatedFiles["/App.tsx"]) {
+          const moved = generatedFiles["/GeneratedApp.tsx"]
+            ? "/GeneratedApp_1.tsx"
+            : "/GeneratedApp.tsx";
+          generatedFiles[moved] = generatedFiles["/App.tsx"];
+          delete generatedFiles["/App.tsx"];
+          if (entry === "/App.tsx") entry = moved;
+        }
+
+        appTsx = createWrapperAppTsx(entry || "/App.tsx");
       }
-      generatedFiles = transformed;
-
-      let entry =
-        entryFile && generatedFiles[entryFile] ? entryFile : undefined;
-      if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
-      if (!entry && generatedFiles["/App.tsx"]) entry = "/App.tsx";
-      if (!entry) entry = Object.keys(generatedFiles)[0];
-
-      if (generatedFiles["/App.tsx"]) {
-        const moved = generatedFiles["/GeneratedApp.tsx"]
-          ? "/GeneratedApp_1.tsx"
-          : "/GeneratedApp.tsx";
-        generatedFiles[moved] = generatedFiles["/App.tsx"];
-        delete generatedFiles["/App.tsx"];
-        if (entry === "/App.tsx") entry = moved;
-      }
-
-      appTsx = createWrapperAppTsx(entry);
     } else {
       appTsx = createAppFileFromCode(code || "");
     }
 
-    const indexTsx = `import React from "react";\nimport { createRoot } from "react-dom/client";\nimport App from "./App";\nimport { initTwind } from "./twind";\nimport "./index.css";\n\n// Initialize Twind runtime Tailwind support (no CDN, no PostCSS)\ninitTwind();\n\nconst root = createRoot(document.getElementById("root")!);\nroot.render(<App />);`;
+    const indexTsx = `import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import "./index.css";
 
-    const indexHtml = `<!doctype html>\n<html class=\"${isDark ? "dark" : ""}\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <meta name=\"color-scheme\" content=\"${isDark ? "dark" : "light"}\" />\n    <title>Sandpack Preview</title>\n  </head>\n  <body class=\"min-h-screen w-full\">\n    <div id=\"root\"></div>\n  </body>\n</html>`;
+const root = createRoot(document.getElementById("root")!);
+root.render(<App />);`;
 
-    const indexCss = `/* Shadcn Color Scheme Variables */
-:root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 89.8%;
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 63.9%;
-  --radius: 0.5rem;
-}
+    const indexHtml = `<!doctype html>
+<html class="${isDark ? "dark" : ""}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sandpack Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              card: 'hsl(var(--card))',
+              'card-foreground': 'hsl(var(--card-foreground))',
+              popover: 'hsl(var(--popover))',
+              'popover-foreground': 'hsl(var(--popover-foreground))',
+              primary: 'hsl(var(--primary))',
+              'primary-foreground': 'hsl(var(--primary-foreground))',
+              secondary: 'hsl(var(--secondary))',
+              'secondary-foreground': 'hsl(var(--secondary-foreground))',
+              muted: 'hsl(var(--muted))',
+              'muted-foreground': 'hsl(var(--muted-foreground))',
+              accent: 'hsl(var(--accent))',
+              'accent-foreground': 'hsl(var(--accent-foreground))',
+              destructive: 'hsl(var(--destructive))',
+              'destructive-foreground': 'hsl(var(--destructive-foreground))',
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
+            },
+            borderRadius: {
+              sm: 'calc(var(--radius) - 2px)',
+              md: 'var(--radius)',
+              lg: 'calc(var(--radius) + 2px)',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      :root {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 3.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 3.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 3.9%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 0 0% 96.1%;
+        --secondary-foreground: 0 0% 9%;
+        --muted: 0 0% 96.1%;
+        --muted-foreground: 0 0% 45.1%;
+        --accent: 0 0% 96.1%;
+        --accent-foreground: 0 0% 9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 89.8%;
+        --input: 0 0% 89.8%;
+        --ring: 0 0% 3.9%;
+        --radius: 0.5rem;
+      }
+      
+      .dark {
+        --background: 0 0% 3.9%;
+        --foreground: 0 0% 98%;
+        --card: 0 0% 3.9%;
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 3.9%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 0 0% 98%;
+        --primary-foreground: 0 0% 9%;
+        --secondary: 0 0% 14.9%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 0 0% 14.9%;
+        --muted-foreground: 0 0% 63.9%;
+        --accent: 0 0% 14.9%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 14.9%;
+        --input: 0 0% 14.9%;
+        --ring: 0 0% 83.1%;
+      }
+      
+      *, *::before, *::after {
+        border-color: hsl(var(--border));
+      }
+      
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen w-full bg-background text-foreground font-sans antialiased">
+    <div id="root"></div>
+  </body>
+</html>`;
 
-.dark {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 0 0% 83.1%;
-}
-
-/* Base styles */
+    // indexCss is minimal since Tailwind is loaded via CDN
+    const indexCss = `/* Tailwind CSS is loaded via CDN in index.html with tailwind.config */
 * {
-  box-sizing: border-box;
-  border-color: hsl(var(--border));
-}
-
-html {
-  color-scheme: light dark;
-}
-
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   margin: 0;
-  overflow: auto;
-}
-
-/* Hide scrollbars (keep scroll) */
-html, body {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none;
-}
-
-html, body, #root {
-  height: 100%;
-  width: 100%;
-}
-
-#root {
-  display: flex;
-  min-height: 100%;
-  min-width: 0;
-}
-
-main, section, div {
-  min-width: 0;
-}
-
-/* Utility classes for Shadcn colors */
-.bg-background { background-color: hsl(var(--background)); }
-.bg-foreground { background-color: hsl(var(--foreground)); }
-.bg-card { background-color: hsl(var(--card)); }
-.bg-card-foreground { background-color: hsl(var(--card-foreground)); }
-.bg-popover { background-color: hsl(var(--popover)); }
-.bg-popover-foreground { background-color: hsl(var(--popover-foreground)); }
-.bg-primary { background-color: hsl(var(--primary)); }
-.bg-primary-foreground { background-color: hsl(var(--primary-foreground)); }
-.bg-secondary { background-color: hsl(var(--secondary)); }
-.bg-secondary-foreground { background-color: hsl(var(--secondary-foreground)); }
-.bg-muted { background-color: hsl(var(--muted)); }
-.bg-muted-foreground { background-color: hsl(var(--muted-foreground)); }
-.bg-accent { background-color: hsl(var(--accent)); }
-.bg-accent-foreground { background-color: hsl(var(--accent-foreground)); }
-.bg-destructive { background-color: hsl(var(--destructive)); }
-.bg-destructive-foreground { background-color: hsl(var(--destructive-foreground)); }
-
-.text-background { color: hsl(var(--background)); }
-.text-foreground { color: hsl(var(--foreground)); }
-.text-card { color: hsl(var(--card)); }
-.text-card-foreground { color: hsl(var(--card-foreground)); }
-.text-popover { color: hsl(var(--popover)); }
-.text-popover-foreground { color: hsl(var(--popover-foreground)); }
-.text-primary { color: hsl(var(--primary)); }
-.text-primary-foreground { color: hsl(var(--primary-foreground)); }
-.text-secondary { color: hsl(var(--secondary)); }
-.text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
-.text-muted { color: hsl(var(--muted)); }
-.text-muted-foreground { color: hsl(var(--muted-foreground)); }
-.text-accent { color: hsl(var(--accent)); }
-.text-accent-foreground { color: hsl(var(--accent-foreground)); }
-.text-destructive { color: hsl(var(--destructive)); }
-.text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
-
-.border-border { border-color: hsl(var(--border)); }
-.border-input { border-color: hsl(var(--input)); }
-
-.ring-ring { --tw-ring-color: hsl(var(--ring)); }
-
-/* Opacity modifiers */
-.bg-primary\/90 { background-color: hsl(var(--primary) / 0.9); }
-.bg-primary\/80 { background-color: hsl(var(--primary) / 0.8); }
-.bg-secondary\/80 { background-color: hsl(var(--secondary) / 0.8); }
-.bg-accent\/90 { background-color: hsl(var(--accent) / 0.9); }
-
-/* Force full width */
-.container {
-  max-width: 100% !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
-[class*="max-w-"] {
-  max-width: 100% !important;
-}
-
-.mx-auto {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+  padding: 0;
+  box-sizing: border-box;
 }
 `;
 
-    const twindTs = `import { setup } from '@twind/core'\nimport presetTailwind from '@twind/preset-tailwind'\n\nexport function initTwind(){\n  setup({\n    presets: [presetTailwind({ darkMode: 'class' })],\n    hash: false,\n  })\n}`;
+    const tsconfig = JSON.stringify({
+      compilerOptions: {
+        target: "ES2020",
+        module: "ESNext",
+        jsx: "react-jsx",
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+        lib: ["dom", "es2020"],
+        baseUrl: ".",
+        paths: {
+          "@/*": ["./*"],
+        },
+      },
+    });
 
-    const pkgJson = `{\n  \"name\": \"sandpack-runtime\",\n  \"private\": true,\n  \"dependencies\": {\n    \"@twind/core\": \"^1.0.0-next.41\",\n    \"@twind/preset-tailwind\": \"^1.0.0-next.41\"\n  }\n}`;
+    const cnUtil = `export function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}`;
 
-    const cnUtil = `export function cn(...classes: Array<string | false | null | undefined>) {\n  return classes.filter(Boolean).join(' ');\n}`;
+    const utilsTs = `import { cn } from "./cn";
+export { cn };`;
 
-    const utilsTs = `import { cn } from "./cn";\n\nexport { cn };\n`;
+    const buttonTsx = `import React from 'react';
+import { cn } from '../lib/cn';
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+};
+export function Button({ className, variant = 'default', size = 'default', ...props }: ButtonProps) {
+  const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
+  const variants = {
+    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+    outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground',
+    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+  };
+  const sizes = {
+    default: 'h-10 px-4 py-2',
+    sm: 'h-9 px-3 rounded-md',
+    lg: 'h-11 px-8 rounded-md',
+    icon: 'h-10 w-10'
+  };
+  return <button className={cn(base, variants[variant as keyof typeof variants], sizes[size as keyof typeof sizes], className)} {...props} />;
+}`;
 
-    const buttonTsx = `import React from 'react';\nimport { cn } from '../lib/cn';\nexport type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {\n  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';\n  size?: 'default' | 'sm' | 'lg' | 'icon';\n};\nexport function Button({ className, variant = 'default', size = 'default', ...props }: ButtonProps){\n  const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';\n  const variants = {\n    default: 'bg-primary text-primary-foreground hover:bg-primary/90',\n    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',\n    outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground',\n    ghost: 'hover:bg-accent hover:text-accent-foreground',\n    destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'\n  };\n  const sizes = {\n    default: 'h-10 px-4 py-2',\n    sm: 'h-9 px-3 rounded-md',\n    lg: 'h-11 px-8 rounded-md',\n    icon: 'h-10 w-10'\n  };\n  return <button className={cn(base, variants[variant], sizes[size], className)} {...props} />;\n}`;
+    const cardTsx = `import React from 'react';
+import { cn } from '../lib/cn';
+export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('rounded-lg border border-border bg-card text-card-foreground shadow-sm', className)} {...props} />;
+}
+export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
+}
+export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;
+}
+export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
+}
+export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('p-6 pt-0', className)} {...props} />;
+}
+export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex items-center p-6 pt-0', className)} {...props} />;
+}`;
 
-    const cardTsx = `import React from 'react';\nimport { cn } from '../lib/cn';\nexport function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>){\n  return <div className={cn('rounded-lg border border-border bg-card text-card-foreground shadow-sm', className)} {...props} />;\n}\nexport function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>){\n  return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;\n}\nexport function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>){\n  return <h3 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;\n}\nexport function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>){\n  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;\n}\nexport function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>){\n  return <div className={cn('p-6 pt-0', className)} {...props} />;\n}\nexport function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>){\n  return <div className={cn('flex items-center p-6 pt-0', className)} {...props} />;\n}`;
+    const componentsButtonTsx = `export { Button } from "../../ui/button";
+export type { ButtonProps } from "../../ui/button";`;
 
-    const componentsButtonTsx = `export { Button } from "../../ui/button";\nexport type { ButtonProps } from "../../ui/button";\n`;
+    const componentsCardTsx = `export * from "../../ui/card";`;
 
-    const componentsCardTsx = `export * from "../../ui/card";\n`;
+    const componentsBadgeTsx = `import React from 'react';
+import { cn } from '../../lib/cn';
+export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' | 'destructive' | 'outline' };
+export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
+  const base = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+  const variants = {
+    default: 'border-transparent bg-primary text-primary-foreground',
+    secondary: 'border-transparent bg-secondary text-secondary-foreground',
+    destructive: 'border-transparent bg-destructive text-destructive-foreground',
+    outline: 'text-foreground'
+  };
+  return <span className={cn(base, variants[variant as keyof typeof variants], className)} {...props} />;
+}`;
 
-    const componentsBadgeTsx = `import React from 'react';\nimport { cn } from '../../lib/cn';\nexport type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' | 'destructive' | 'outline' };\nexport function Badge({ className, variant = 'default', ...props }: BadgeProps){\n  const base = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';\n  const variants = {\n    default: 'border-transparent bg-primary text-primary-foreground',\n    secondary: 'border-transparent bg-secondary text-secondary-foreground',\n    destructive: 'border-transparent bg-destructive text-destructive-foreground',\n    outline: 'text-foreground'\n  };\n  return <span className={cn(base, variants[variant], className)} {...props} />;\n}\n`;
+    const componentsInputTsx = `import React from 'react';
+import { cn } from '../../lib/cn';
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
+  return (
+    <input
+      ref={ref}
+      type={type}
+      className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
+      {...props}
+    />
+  );
+});
+Input.displayName = 'Input';`;
 
-    const componentsInputTsx = `import React from 'react';\nimport { cn } from '../../lib/cn';\nexport type InputProps = React.InputHTMLAttributes<HTMLInputElement>;\nexport const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {\n  return (\n    <input\n      ref={ref}\n      type={type}\n      className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}\n      {...props}\n    />\n  );\n});\nInput.displayName = 'Input';\n`;
+    const componentsTextareaTsx = `import React from 'react';
+import { cn } from '../../lib/cn';
+export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
+  return (
+    <textarea
+      ref={ref}
+      className={cn('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
+      {...props}
+    />
+  );
+});
+Textarea.displayName = 'Textarea';`;
 
-    const componentsTextareaTsx = `import React from 'react';\nimport { cn } from '../../lib/cn';\nexport type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;\nexport const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {\n  return (\n    <textarea\n      ref={ref}\n      className={cn('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}\n      {...props}\n    />\n  );\n});\nTextarea.displayName = 'Textarea';\n`;
+    const twindTs = `import { setup } from '@twind/core';
+import presetTailwind from '@twind/preset-tailwind';
 
-    const componentsSeparatorTsx = `import React from 'react';\nimport { cn } from '../../lib/cn';\nexport type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };\nexport function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps){\n  return (\n    <div\n      role={decorative ? 'none' : 'separator'}\n      aria-orientation={orientation}\n      className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)}\n      {...props}\n    />\n  );\n}\n`;
+export function initTwind() {
+  setup({
+    presets: [presetTailwind({ darkMode: 'class' })],
+    hash: false,
+  });
+}`;
 
-    const tsconfig = `{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "jsx": "react-jsx",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["dom", "es2020"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"]
-    }
-  }
+    const componentsSeparatorTsx = `import React from 'react';
+import { cn } from '../../lib/cn';
+export type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };
+export function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
+  return (
+    <div
+      role={decorative ? 'none' : 'separator'}
+      aria-orientation={orientation}
+      className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)}
+      {...props}
+    />
+  );
 }`;
 
     return {
@@ -772,7 +918,6 @@ main, section, div {
       "/index.css": { code: indexCss },
       "/index.html": { code: indexHtml },
       "/twind.ts": { code: twindTs },
-      "/package.json": { code: pkgJson },
       "/tsconfig.json": { code: tsconfig },
       "/lib/cn.ts": { code: cnUtil },
       "/lib/utils.ts": { code: utilsTs },
@@ -786,11 +931,13 @@ main, section, div {
       "/components/ui/separator.tsx": { code: componentsSeparatorTsx },
       ...(generatedFiles
         ? Object.fromEntries(
-            Object.entries(generatedFiles).map(([path, src]) => [
+          Object.entries(generatedFiles)
+            .filter(([path, src]) => path && typeof path === 'string' && src && typeof src === 'string')
+            .map(([path, src]) => [
               path,
               { code: src },
             ]),
-          )
+        )
         : {}),
     } as const;
   }, [code, files, entryFile, isDark, SANDBOX_TRANSFORM_VERSION]);
@@ -808,23 +955,14 @@ main, section, div {
           options={{
             visibleFiles: ["/App.tsx"],
             activeFile: "/App.tsx",
+            externalResources: [
+              "https://cdn.tailwindcss.com",
+            ],
           }}
           customSetup={{
             dependencies: {
-              react: "latest",
-              "react-dom": "latest",
-              "lucide-react": "0.544.0",
-              clsx: "latest",
-              "class-variance-authority": "latest",
-              // Dynamic packages - Sandpack loads from CDN automatically
-              "react-router-dom": "latest",
-              "framer-motion": "latest",
-              axios: "latest",
-              zustand: "latest",
-              "@tanstack/react-query": "latest",
-              "react-hook-form": "latest",
-              zod: "latest",
-              // Add more as needed - Sandpack handles CDN loading
+              ...baseDependencies,
+              ...extractedDependencies,
             },
           }}
           theme={isDark ? amethyst : githubLight}
@@ -857,35 +995,26 @@ main, section, div {
   }
 
   return (
-    <div className={cn("sandpack-wrapper", className)}>
+    <div className={cn("sandpack-wrapper h-full w-full", className)} style={{ minHeight: 0, flex: '1 1 0%' }}>
       <SandpackProvider
         template="react-ts"
         files={sandpackFiles}
         options={{
           visibleFiles: ["/App.tsx"],
           activeFile: "/App.tsx",
+          externalResources: [
+            "https://cdn.tailwindcss.com",
+          ],
         }}
         customSetup={{
           dependencies: {
-            react: "latest",
-            "react-dom": "latest",
-            "lucide-react": "0.544.0",
-            clsx: "latest",
-            "class-variance-authority": "latest",
-            // Dynamic packages - Sandpack loads from CDN automatically
-            "react-router-dom": "latest",
-            "framer-motion": "latest",
-            axios: "latest",
-            zustand: "latest",
-            "@tanstack/react-query": "latest",
-            "react-hook-form": "latest",
-            zod: "latest",
-            // Add more as needed - Sandpack handles CDN loading
+            ...baseDependencies,
+            ...extractedDependencies,
           },
         }}
         theme={isDark ? amethyst : githubLight}
       >
-        <div className="sandpack-inner">
+        <div className="sandpack-inner h-full w-full" style={{ minHeight: 0, flex: '1 1 0%' }}>
           {/* Fullscreen Toggle Button */}
           <div
             className={cn(
@@ -905,11 +1034,12 @@ main, section, div {
             </Button>
           </div>
 
-          <SandpackLayout className="sp-layout">
+          <SandpackLayout style={{ height: '100%', flex: '1 1 0%', minHeight: 0, border: 'none', borderRadius: 0 }}>
             <SandpackPreview
-              showOpenInCodeSandbox={true}
+              showOpenInCodeSandbox={false}
               showRefreshButton={true}
-              showRestartButton={true}
+              showRestartButton={false}
+              style={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
             />
           </SandpackLayout>
         </div>

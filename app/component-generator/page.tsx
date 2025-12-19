@@ -1,17 +1,7 @@
 "use client";
 
-import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtHeader,
-} from "@/components/ai-elements/chain-of-thought";
 import { SandpackRuntimePreview } from "@/components/sandpack-preview";
 import { FileTree } from "@/app/component-generator/components/file-tree";
-import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
-import {
-  SuggestionsGrid,
-  type Suggestion,
-} from "@/app/component-generator/components/suggestions-grid";
 import {
   Conversation,
   ConversationContent,
@@ -40,17 +30,23 @@ import {
   CopyIcon,
   CheckIcon,
   CodeIcon,
-  FileIcon,
   EyeIcon,
+  FileIcon,
   SaveIcon,
   Loader2Icon,
   Zap,
+  Maximize2Icon,
+  Minimize2Icon,
+  PaperclipIcon,
+  Link,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
+import { AnimatePresence, motion } from "framer-motion";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Message = {
   id: string;
@@ -69,6 +65,29 @@ type GeneratedComponent = {
   entryFile?: string;
   language: string;
   title: string;
+};
+
+const getFileTabIconClass = (path?: string | null) => {
+  if (!path) return "codicon-file";
+  const name = path.split("/").pop() || "";
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  const iconMap: Record<string, string> = {
+    tsx: "codicon-file-code",
+    ts: "codicon-file-code",
+    jsx: "codicon-file-code",
+    js: "codicon-file-code",
+    css: "codicon-symbol-color",
+    scss: "codicon-symbol-color",
+    json: "codicon-symbol-object",
+    md: "codicon-markdown",
+    html: "codicon-file-code",
+    svg: "codicon-file-media",
+    png: "codicon-file-media",
+    jpg: "codicon-file-media",
+    jpeg: "codicon-file-media",
+    gif: "codicon-file-media",
+  };
+  return iconMap[ext] || "codicon-file";
 };
 
 // Code Block Component with Copy Functionality
@@ -159,6 +178,12 @@ function CodeBlock({
 }
 
 // Smart AI-powered suggestions
+type Suggestion = {
+  emoji: string;
+  title: string;
+  prompt: string;
+};
+
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
     emoji: "🚀",
@@ -434,7 +459,7 @@ export default function ComponentGeneratorPage() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "⚡ Generating your component...",
+        content: "",
         timestamp: new Date(),
       };
 
@@ -554,13 +579,13 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                      ...msg,
-                      content: safeDisplay,
-                      reasoning,
-                      code,
-                      files,
-                      entryFile,
-                    }
+                    ...msg,
+                    content: safeDisplay,
+                    reasoning,
+                    code,
+                    files,
+                    entryFile,
+                  }
                   : msg,
               ),
             );
@@ -693,12 +718,12 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Formatting output…",
-                    reasoning: "",
-                    files: undefined,
-                    code: "",
-                  }
+                  ...msg,
+                  content: "Formatting output…",
+                  reasoning: "",
+                  files: undefined,
+                  code: "",
+                }
                 : msg,
             ),
           );
@@ -739,9 +764,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Sorry, I encountered an error. Please try again.",
-                  }
+                  ...msg,
+                  content: "Sorry, I encountered an error. Please try again.",
+                }
                 : msg,
             ),
           );
@@ -829,464 +854,483 @@ export default function ComponentGeneratorPage() {
     return () => media.removeEventListener("change", update);
   }, []);
 
+  const isMobile = !isDesktop;
+
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <GeneratorHeader
-        hasGenerated={Boolean(generatedComponent)}
-        isPanelOpen={isPanelOpen}
-        onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
-        isFullscreen={isFullscreen}
-        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-        onResetSplit={() => setPreviewWidthPct(50)}
-      />
+    <div className="flex h-screen w-full flex-col bg-background font-sans overflow-hidden">
+      {/* Header */}
+      <header className="flex-none h-14 border-b border-border bg-background/80 backdrop-blur-md z-40 px-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          {generatedComponent && !isPanelOpen && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsPanelOpen(true)}
+              className="h-9 gap-2 shadow-sm"
+            >
+              <EyeIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Preview</span>
+            </Button>
+          )}
+        </div>
+      </header>
 
       {/* Main Content - Responsive Split Layout */}
       <div
         ref={splitContainerRef}
-        className="flex flex-1 flex-col lg:flex-row overflow-hidden"
+        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative"
       >
         {/* Chat Section */}
         <div
           className={cn(
-            "min-h-0 flex flex-col transition-all duration-300 ease-in-out w-full lg:border-r",
-            isDesktop && generatedComponent && isPanelOpen && !isFullscreen
-              ? "lg:flex-none"
-              : "lg:flex-1",
-            isFullscreen && "hidden lg:flex lg:w-0",
+            "flex flex-col transition-all duration-300 ease-in-out bg-background relative z-0 min-h-0",
+            // Mobile: Always full width/height unless covered
+            "flex-1 w-full lg:h-full",
+            // Desktop: Resizable width handling
+            isPanelOpen && !isFullscreen ? "lg:flex-none lg:border-r border-border/40" : "lg:flex-1 lg:w-full"
           )}
           style={
-            isDesktop && generatedComponent && isPanelOpen && !isFullscreen
+            // Apply width only on desktop when panel is open and not fullscreen
+            isDesktop && isPanelOpen && !isFullscreen
               ? { width: `${100 - previewWidthPct}%` }
               : undefined
           }
         >
-          <Conversation className="flex-1 overflow-y-auto no-scrollbar">
-            <ConversationContent
-              className={
-                messages.length === 0
-                  ? "flex items-center justify-center min-h-full"
-                  : ""
-              }
-            >
-              <div
-                className={cn(
-                  "w-full px-3 sm:px-4 md:px-6",
-                  messages.length === 0
-                    ? "max-w-5xl mx-auto py-8"
-                    : "max-w-4xl mx-auto",
-                )}
-              >
-                {messages.length === 0 ? (
-                  <ConversationEmptyState
-                    title="Welcome to VibeCode AI"
-                    description="Your advanced React development assistant. Chat with me to discuss code, architecture, and best practices, or ask me to build complete multi-page applications with any packages you need."
-                    icon={
-                      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border border-primary/20 shadow-lg">
-                        <SparklesIcon className="h-10 w-10 text-primary" />
-                      </div>
-                    }
-                  >
-                    <SuggestionsGrid
-                      suggestions={activeSuggestions}
-                      onRefresh={refreshSuggestions}
-                      onPick={(prompt) => handleSubmit({ text: prompt })}
-                    />
-                    <div className="mt-6 text-center space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Or ask me anything, or describe what you want to build
-                      </p>
-                      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Code2Icon className="h-3 w-3" />
-                          <span>Multi-Page Apps</span>
+          <Conversation className="flex-1 overflow-hidden min-h-0">
+            <ConversationContent className={cn("flex flex-col w-full max-w-4xl mx-auto",
+              messages.length === 0 ? "h-full justify-center pb-16" : "p-3 sm:p-6 space-y-6 pb-2"
+            )}>
+              {messages.length === 0 ? (
+                /* Empty State / Hero - Perfectly Centered */
+                <div className="flex flex-col items-center justify-center space-y-10 text-center animate-in fade-in duration-500 delay-100 flex-1 min-h-0">
+                  <div className="space-y-6 max-w-2xl mx-auto px-4">
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground drop-shadow-sm">
+                      What will you build?
+                    </h1>
+                    <p className="text-muted-foreground text-lg md:text-xl leading-relaxed max-w-lg mx-auto">
+                      Generate full-stack React components, pages, or entire apps with VibeCode Architect.
+                    </p>
+                  </div>
+
+                  {/* Suggestions Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl text-left px-4">
+                    {activeSuggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSubmit({ text: suggestion.prompt })}
+                        className="p-5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/20 transition-all text-sm group flex items-start gap-4 hover:-translate-y-0.5"
+                      >
+                        <span className="text-2xl pt-0.5">{suggestion.emoji}</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-base group-hover:text-primary transition-colors">{suggestion.title}</span>
+                          <span className="text-xs text-muted-foreground/70 line-clamp-2 leading-relaxed">{suggestion.prompt}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Zap className="h-3 w-3" />
-                          <span>Any NPM Package</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <SparklesIcon className="h-3 w-3" />
-                          <span>Conversational AI</span>
-                        </div>
-                      </div>
-                    </div>
-                  </ConversationEmptyState>
-                ) : (
-                  <div className="space-y-6 py-6">
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/50 hover:text-primary/80 cursor-pointer transition-colors py-2" onClick={refreshSuggestions}>
+                    <SparklesIcon className="h-3.5 w-3.5" />
+                    <span>Refresh ideas</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6 pb-4">
+                  <div className="space-y-6">
                     {messages.map((message) => (
-                      <Message key={message.id} from={message.role}>
-                        <MessageAvatar
-                          src={
-                            message.role === "user"
-                              ? "/logos/671ff00d29c65f1f25fb28c0_95.png"
-                              : "/logos/66e99db1f5c63f46f7415051_020.png"
-                          }
-                          name={message.role === "user" ? "You" : "VibeCode AI"}
-                          className="h-8 w-8 md:h-9 md:w-9"
-                        />
-                        <MessageContent variant="flat">
+                      <Message
+                        key={message.id}
+                        from={message.role}
+                        className={cn(
+                          "animate-in fade-in slide-in-from-bottom-2 duration-300",
+                          message.role === "user" ? "justify-end" : "justify-start",
+                        )}
+                      >
+                        <MessageContent className={cn(
+                          "w-full px-0 py-0 rounded-none",
+                          message.role === "user" ? "items-end" : "items-start"
+                        )}>
                           {message.role === "user" ? (
-                            <p className="m-0 text-sm md:text-base">
-                              {message.content}
-                            </p>
+                            <div className="group relative inline-block max-w-[90%] sm:max-w-xl">
+                              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500" />
+                              <div className="relative rounded-2xl bg-zinc-900 dark:bg-zinc-100 border border-zinc-800 dark:border-zinc-200 px-5 py-3 text-zinc-100 dark:text-zinc-900 shadow-xl text-sm leading-relaxed font-medium">
+                                {message.content}
+                              </div>
+                            </div>
                           ) : (
-                            <div className="space-y-4">
-                              {message.reasoning && (
-                                <ChainOfThought defaultOpen={false}>
-                                  <ChainOfThoughtHeader>
-                                    <div className="flex items-center gap-2">
-                                      <SparklesIcon className="h-4 w-4" />
-                                      AI Thinking Process
-                                    </div>
-                                  </ChainOfThoughtHeader>
-                                  <ChainOfThoughtContent>
-                                    <div className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
-                                      {message.reasoning}
-                                    </div>
-                                  </ChainOfThoughtContent>
-                                </ChainOfThought>
-                              )}
-                              {message.content && (
-                                <div className="prose prose-sm max-w-none dark:prose-invert">
-                                  <AIResponse>{message.content}</AIResponse>
+                            <div className="w-full space-y-6">
+                              {/* Status Badge */}
+                              {message.files && (
+                                <div className="flex items-center gap-3 p-4 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-2xl text-sm font-medium animate-in zoom-in-95 duration-500 shadow-sm backdrop-blur-sm sm:max-w-max">
+                                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                    <CheckIcon className="h-4 w-4" />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold">Generation Complete</span>
+                                    <span className="text-xs opacity-70">Project files ready</span>
+                                  </div>
                                 </div>
                               )}
-                              {message.files &&
-                                Object.keys(message.files).length > 0 && (
-                                  <div className="mt-4 p-4 rounded-lg border bg-card">
-                                    <div className="flex items-start gap-3">
-                                      <div className="p-2 rounded-lg bg-primary/10">
-                                        <CodeIcon className="h-5 w-5 text-primary" />
-                                      </div>
-                                      <div className="flex-1">
-                                        <h4 className="font-semibold text-sm mb-1">
-                                          Project Generated Successfully!
-                                        </h4>
-                                        <p className="text-sm text-muted-foreground mb-3">
-                                          {Object.keys(message.files).length}{" "}
-                                          files created
-                                        </p>
-                                        <div className="flex gap-2">
-                                          <Button
-                                            size="sm"
-                                            onClick={() => {
-                                              setGeneratedComponent({
-                                                code: message.code,
-                                                files: message.files,
-                                                entryFile: message.entryFile,
-                                                language: "tsx",
-                                                title: "Generated Component",
-                                              });
-                                              setIsPanelOpen(true);
-                                              setIsFullscreen(false);
-                                              setViewMode("preview");
-                                            }}
-                                          >
-                                            <EyeIcon className="h-4 w-4 mr-2" />
-                                            View Preview
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                              setGeneratedComponent({
-                                                code: message.code,
-                                                files: message.files,
-                                                entryFile: message.entryFile,
-                                                language: "tsx",
-                                                title: "Generated Component",
-                                              });
-                                              setIsPanelOpen(true);
-                                              setIsFullscreen(false);
-                                              setViewMode("code");
-                                            }}
-                                          >
-                                            <Code2Icon className="h-4 w-4 mr-2" />
-                                            View Code
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
+
+                              {/* AI Response Text */}
+                              {message.content && (
+                                <div className="prose-wrapper animate-in fade-in duration-700">
+                                  <AIResponse className="text-[15px] leading-relaxed">
+                                    {message.content}
+                                  </AIResponse>
+                                </div>
+                              )}
+
+                              {/* Artifacts Grid */}
+                              {message.files && Object.keys(message.files).length > 0 && (
+                                <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
+                                  <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-50 ml-1">
+                                    Artifacts
                                   </div>
-                                )}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {Object.keys(message.files)
+                                      .slice(0, 4)
+                                      .map((path) => (
+                                        <div
+                                          key={path}
+                                          className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors group/file cursor-default"
+                                        >
+                                          <div className="h-7 w-7 rounded-lg bg-background flex items-center justify-center border border-border/50 group-hover/file:border-primary/30 transition-colors shrink-0">
+                                            <span className={cn("opacity-70 text-xs", getFileTabIconClass(path))} />
+                                          </div>
+                                          <span className="truncate text-xs font-mono text-muted-foreground group-hover/file:text-foreground transition-colors min-w-0">{path}</span>
+                                        </div>
+                                      ))}
+                                    {Object.keys(message.files).length > 4 && (
+                                      <div className="flex items-center justify-center p-3 text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
+                                        + {Object.keys(message.files).length - 4} more
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
+                                    <Button
+                                      size="sm"
+                                      className="h-10 px-6 bg-primary text-primary-foreground hover:opacity-90 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
+                                      onClick={() => {
+                                        setGeneratedComponent({
+                                          code: message.code,
+                                          files: message.files,
+                                          entryFile: message.entryFile,
+                                          language: "tsx",
+                                          title: "Generated Component",
+                                        });
+                                        setIsPanelOpen(true);
+                                        setIsFullscreen(false);
+                                        setViewMode("preview");
+                                      }}
+                                    >
+                                      <EyeIcon className="h-4 w-4 mr-2" />
+                                      Launch Preview
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setGeneratedComponent({
+                                          code: message.code,
+                                          files: message.files,
+                                          entryFile: message.entryFile,
+                                          language: "tsx",
+                                          title: "Generated Component",
+                                        });
+                                        setIsPanelOpen(true);
+                                        setIsFullscreen(false);
+                                        setViewMode("code");
+                                      }}
+                                      className="h-10 px-6 border-border hover:bg-muted/50 rounded-xl transition-all w-full sm:w-auto"
+                                    >
+                                      <Code2Icon className="h-4 w-4 mr-2" />
+                                      Code
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </MessageContent>
                       </Message>
                     ))}
+                    {isGenerating && (
+                      <div className="flex items-center gap-4 py-8 animate-in fade-in duration-500 max-w-xl mx-auto px-4">
+                        <div className="relative h-10 w-10 shrink-0">
+                          <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
+                          <div className="relative h-full w-full rounded-full border-2 border-t-primary border-r-primary/50 border-b-primary/20 border-l-transparent animate-spin" />
+                          <SparklesIcon className="absolute inset-0 m-auto h-4 w-4 text-primary animate-pulse" />
+                        </div>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="text-sm font-semibold tracking-tight truncate">Architecting...</span>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-widest opacity-60 truncate">AI processing</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
 
-          {/* Input Section - Enhanced */}
-          <div className="border-t p-2 sm:p-3 md:p-4 shrink-0 bg-background">
-            <div className="mx-auto w-full max-w-4xl">
+          {/* Fixed Input Area - Always Visible */}
+          <div className="relative p-12 sm:p-16 shrink-0 bg-transparent z-10">
+            <div className="mx-auto w-full max-w-3xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
-                <PromptInputBody>
+                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/50 bg-background/80 backdrop-blur-2xl shadow-lg hover:shadow-primary/5 transition-all duration-500 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 group">
+                  <div className="absolute -inset-[0.1px] bg-gradient-to-tr from-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                   <PromptInputTextarea
-                    placeholder="Ask me anything or describe what you want to build... (e.g., 'Build a portfolio site with 4 pages' or 'How do I use React Router?')"
+                    placeholder={messages.length === 0 ? "Describe your dream application..." : "Ask a follow-up question..."}
                     disabled={isGenerating}
-                    className="min-h-12 md:min-h-16 text-sm md:text-base resize-none"
+                    className="min-h-[44px] md:min-h-[52px] w-full p-3 md:p-4 text-sm md:text-base border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/30 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none"
                   />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <PromptInputTools>
-                    {isGenerating && (
+                  <PromptInputFooter className="px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
+                    <PromptInputTools>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={handleStop}
-                        className="text-xs"
+                        className="text-muted-foreground/40 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-full transition-all hover:bg-muted/50"
+                        type="button"
+                        onClick={() => toast.info("Attachments coming soon!")}
                       >
-                        <XIcon className="mr-2 h-3 w-3" />
-                        Stop
+                        <PaperclipIcon className="h-4 w-4" />
                       </Button>
-                    )}
-                    <p className="hidden md:block text-xs text-muted-foreground">
-                      Press{" "}
-                      <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs">
-                        Enter
-                      </kbd>{" "}
-                      to send
-                    </p>
-                  </PromptInputTools>
-                  <PromptInputSubmit
-                    disabled={isGenerating}
-                    status={isGenerating ? "streaming" : undefined}
-                  />
-                </PromptInputFooter>
+                      {isGenerating && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleStop}
+                          className="ml-2 h-7 text-[9px] font-bold tracking-widest uppercase text-destructive hover:text-destructive hover:bg-destructive/10 px-3 rounded-full border border-destructive/20 transition-all active:scale-95"
+                        >
+                          Stop
+                        </Button>
+                      )}
+                    </PromptInputTools>
+
+                    <div className="flex items-center gap-3">
+                      <PromptInputSubmit
+                        disabled={isGenerating}
+                        className={cn(
+                          "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-500 flex items-center justify-center",
+                          isGenerating
+                            ? "bg-muted text-muted-foreground cursor-not-allowed grayscale"
+                            : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 hover:shadow-primary/40"
+                        )}
+                        status={isGenerating ? "streaming" : undefined}
+                      >
+                        <Zap className={cn("h-4 w-4 md:h-5 md:w-5", isGenerating ? "animate-pulse" : "fill-current")} />
+                      </PromptInputSubmit>
+                    </div>
+                  </PromptInputFooter>
+                </PromptInputBody>
               </PromptInput>
             </div>
           </div>
         </div>
 
-        {/* Desktop resize handle */}
-        {isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize panels"
-            onPointerDown={startResize}
-            className="hidden lg:flex w-3 cursor-col-resize items-stretch bg-transparent hover:bg-muted/60 transition-colors"
-          >
-            <div className="mx-auto my-2 w-px rounded-full bg-border/70" />
-          </div>
-        )}
+        {/* Desktop Splitter Handle */}
+        {
+          isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize panels"
+              onPointerDown={startResize}
+              className="hidden lg:flex w-1 hover:w-1.5 -ml-0.5 z-10 cursor-col-resize items-stretch bg-border/40 hover:bg-primary/50 transition-all delay-75"
+            />
+          )
+        }
 
-        {/* Preview/Code Panel */}
-        {generatedComponent && isPanelOpen && (
-          <div
-            className={cn(
-              "border-t lg:border-t-0 transition-all duration-300 bg-background overflow-hidden flex flex-col",
-              isFullscreen ? "w-full" : "w-full lg:flex-none",
-            )}
-            style={
-              isDesktop && !isFullscreen
-                ? { width: `${previewWidthPct}%` }
-                : undefined
-            }
-          >
-            {/* Toggle Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant={viewMode === "preview" ? "default" : "ghost"}
-                    onClick={() => setViewMode("preview")}
-                    className="h-8 gap-2"
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Preview</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={viewMode === "code" ? "default" : "ghost"}
-                    onClick={() => setViewMode("code")}
-                    className="h-8 gap-2"
-                  >
-                    <Code2Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Code</span>
-                  </Button>
+        {/* Right Panel - Code/Preview */}
+        <AnimatePresence>
+          {
+            generatedComponent && isPanelOpen && (
+              <motion.div
+                initial={isMobile ? { y: "100%" } : { opacity: 0, x: 20 }}
+                animate={isMobile ? { y: 0 } : { opacity: 1, x: 0 }}
+                exit={isMobile ? { y: "100%" } : { opacity: 0, x: 20 }}
+                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                className={cn(
+                  "flex flex-col bg-background text-foreground transition-all duration-300 border-l border-border shadow-2xl min-h-0",
+                  // Mobile/Fullscreen: Fixed Cover. Desktop: Flex Item
+                  isMobile || isFullscreen ? "fixed inset-0 z-50 w-full h-full" : "relative lg:flex-none min-h-0 h-full"
+                )}
+                style={
+                  isDesktop && !isFullscreen
+                    ? { width: `${previewWidthPct}%`, height: '100%' }
+                    : undefined
+                }
+              >
+                {/* Panel Header */}
+                <div className="flex-none h-12 flex items-center bg-muted/30 border-b border-border select-none backdrop-blur-sm px-2 justify-between">
+                  <div className="flex items-center gap-1 h-3/4 bg-muted/20 p-1 rounded-lg border border-border/50">
+                    <button
+                      onClick={() => setViewMode("preview")}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                        viewMode === "preview"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      )}
+                    >
+                      <EyeIcon className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Preview</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode("code")}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                        viewMode === "code"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      )}
+                    >
+                      <Code2Icon className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Code</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {/* Mobile Specific Close Button Primary */}
+                    {isMobile && (
+                      <Button
+                        size="sm"
+                        onClick={() => setIsPanelOpen(false)}
+                        className="h-8 w-auto px-3 bg-primary text-primary-foreground hover:bg-primary/90 mr-1"
+                      >
+                        Done
+                      </Button>
+                    )}
+
+                    {!isMobile && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="h-8 w-8 p-0"
+                        title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                      >
+                        {isFullscreen ? <Minimize2Icon className="h-4 w-4" /> : <Maximize2Icon className="h-4 w-4" />}
+                      </Button>
+                    )}
+                    {!isMobile && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsPanelOpen(false)}
+                        className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Live generation status */}
-                {currentlyGeneratingFile && (
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 border border-primary/20">
-                    <Loader2Icon className="h-3 w-3 text-primary animate-spin" />
-                    <span className="text-xs text-primary font-medium hidden md:inline">
-                      Generating {currentlyGeneratingFile.split("/").pop()}...
-                    </span>
-                    <span className="text-xs text-primary font-medium md:hidden">
-                      Generating...
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {viewMode === "code" &&
-                selectedFile &&
-                !currentlyGeneratingFile && (
-                  <div className="flex items-center gap-2">
-                    {hasUnsavedChanges && (
-                      <span className="text-xs text-muted-foreground">
-                        Unsaved changes
-                      </span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={handleSaveFile}
-                      disabled={!hasUnsavedChanges}
-                      className="h-8 gap-2"
-                    >
-                      <SaveIcon className="h-3 w-3" />
-                      <span className="hidden sm:inline">Save</span>
-                    </Button>
-                  </div>
-                )}
-            </div>
-
-            {/* Content Area */}
-            <div className="flex-1 flex min-h-0">
-              {/* Main Content */}
-              <div className="flex-1 min-h-0">
-                {viewMode === "preview" ? (
-                  <div className="h-full w-full">
-                    {isGenerating || currentlyGeneratingFile ? (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <div className="text-center space-y-2 p-6 max-w-sm">
-                          <Loader2Icon className="h-10 w-10 mx-auto opacity-70 animate-spin" />
-                          <p className="text-sm">Generating files…</p>
-                          <p className="text-xs leading-relaxed">
-                            Switch to{" "}
-                            <span className="font-medium text-foreground">
-                              Code
-                            </span>{" "}
-                            to watch files appear in real time.
-                          </p>
-                        </div>
-                      </div>
-                    ) : generatedComponent.files &&
-                      Object.keys(generatedComponent.files).length > 0 ? (
+                {/* Content */}
+                <div className="flex-1 flex flex-col min-h-0 bg-background relative overflow-hidden">
+                  {viewMode === "preview" ? (
+                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950">
                       <SandpackRuntimePreview
-                        showConsole={true}
+                        showConsole={!isMobile}
                         code={generatedComponent.code || ""}
                         files={{
-                          ...generatedComponent.files,
+                          ...(generatedComponent.files || {}),
                           ...editedFiles,
                         }}
                         entryFile={generatedComponent.entryFile}
+                        className="flex-1 min-h-0"
                       />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <div className="text-center space-y-2">
-                          <Code2Icon className="h-12 w-12 mx-auto opacity-50" />
-                          <p className="text-sm">No files to preview</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-full flex min-h-0">
-                    {generatedComponent.files &&
-                      Object.keys(generatedComponent.files).length > 1 && (
-                        <div className="hidden md:block w-64 border-r bg-card overflow-y-auto">
+                    </div>
+                  ) : (
+                    <div className="flex flex-1 min-h-0 w-full">
+                      {/* Sidebar hidden on mobile code view to save space? or overlay? */}
+                      <div className={cn(
+                        "flex-none border-r border-border bg-muted/20 flex flex-col transition-all",
+                        isMobile ? "w-0 overflow-hidden hidden" : "w-60"
+                      )}>
+                        <div className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Explorer</div>
+                        <div className="flex-1 overflow-y-auto min-h-0">
                           <FileTree
-                            files={generatedComponent.files}
+                            files={generatedComponent.files || {}}
                             selectedFile={selectedFile}
                             onFileSelect={handleFileSelect}
                             generatingFile={currentlyGeneratingFile}
                           />
                         </div>
-                      )}
+                      </div>
 
-                    <div className="flex-1 min-h-0 flex flex-col bg-background">
-                      {selectedFile ? (
-                        <>
-                          <div className="px-4 py-2 border-b bg-card text-sm text-muted-foreground flex items-center gap-2 justify-between">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <FileIcon className="h-4 w-4 shrink-0" />
-                              <span className="truncate">{selectedFile}</span>
+                      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-card">
+                        {/* Mobile File Dropdown */}
+                        {isMobile && generatedComponent.files && (
+                          <div className="p-2 border-b border-border bg-muted/10 flex-none">
+                            <select
+                              className="w-full text-xs p-2 rounded border border-border bg-background text-foreground"
+                              value={selectedFile || ""}
+                              onChange={(e) => handleFileSelect(e.target.value)}
+                            >
+                              {Object.keys(generatedComponent.files).map(f => (
+                                <option key={f} value={f}>{f}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Editor */}
+                        <div className="flex-1 min-h-0 relative">
+                          {selectedFile ? (
+                            <Editor
+                              height="100%"
+                              defaultLanguage="typescript"
+                              language={selectedFile.endsWith(".css") ? "css" : selectedFile.endsWith(".json") ? "json" : "typescript"}
+                              value={editedFiles[selectedFile] || generatedComponent.files?.[selectedFile] || ""}
+                              onChange={(value) => selectedFile && handleFileEdit(selectedFile, value || "")}
+                              theme={isDark ? "vs-dark" : "light"}
+                              options={{
+                                minimap: { enabled: !isMobile },
+                                fontSize: isMobile ? 12 : 13,
+                                fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                                wordWrap: "on",
+                                padding: { top: 12 },
+                                automaticLayout: true,
+                                lineNumbers: "on",
+                                scrollBeyondLastLine: false,
+                                renderLineHighlight: "line",
+                                cursorBlinking: "smooth",
+                                smoothScrolling: true,
+                                // Hide syntax errors/markers
+                                renderValidationDecorations: "off",
+                                "semanticHighlighting.enabled": false,
+                              }}
+                              beforeMount={(monaco) => {
+                                // Disable TypeScript diagnostics
+                                monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                                  noSemanticValidation: true,
+                                  noSyntaxValidation: true,
+                                });
+                                monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                                  noSemanticValidation: true,
+                                  noSyntaxValidation: true,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                              Select file...
                             </div>
-
-                            {generatedComponent.files &&
-                              Object.keys(generatedComponent.files).length >
-                                1 && (
-                                <select
-                                  className="md:hidden h-8 max-w-[45%] rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                                  value={selectedFile}
-                                  onChange={(e) =>
-                                    handleFileSelect(e.target.value)
-                                  }
-                                  aria-label="Select file"
-                                >
-                                  {Object.keys(generatedComponent.files).map(
-                                    (path) => (
-                                      <option key={path} value={path}>
-                                        {path}
-                                      </option>
-                                    ),
-                                  )}
-                                </select>
-                              )}
-                          </div>
-                          <Editor
-                            height="100%"
-                            defaultLanguage="typescript"
-                            language={
-                              selectedFile?.endsWith(".tsx") ||
-                              selectedFile?.endsWith(".ts")
-                                ? "typescript"
-                                : selectedFile?.endsWith(".css")
-                                  ? "css"
-                                  : selectedFile?.endsWith(".json")
-                                    ? "json"
-                                    : "javascript"
-                            }
-                            value={
-                              editedFiles[selectedFile] ||
-                              generatedComponent.files?.[selectedFile] ||
-                              ""
-                            }
-                            onChange={(value) =>
-                              selectedFile &&
-                              handleFileEdit(selectedFile, value || "")
-                            }
-                            theme={isDark ? "vs-dark" : "vs"}
-                            options={{
-                              minimap: { enabled: false },
-                              renderValidationDecorations: "off",
-                              fontSize: 14,
-                              lineNumbers: "on",
-                              scrollBeyondLastLine: true,
-                              wordWrap: "on",
-                              automaticLayout: true,
-                              readOnly: !selectedFile,
-                            }}
-                          />
-                        </>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-muted-foreground">
-                          <div className="text-center space-y-2">
-                            <FileIcon className="h-12 w-12 mx-auto opacity-50" />
-                            <p className="text-sm">
-                              Select a file from the tree to edit
-                            </p>
-                          </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          }
+        </AnimatePresence>
+      </div >
+    </div >
   );
 }
