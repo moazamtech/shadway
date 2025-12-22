@@ -5,12 +5,10 @@ import { FileTree } from "@/app/component-generator/components/file-tree";
 import {
   Conversation,
   ConversationContent,
-  ConversationEmptyState,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import {
   Message,
-  MessageAvatar,
   MessageContent,
 } from "@/components/ai-elements/message";
 import AIResponse from "@/components/ui/chatresponse";
@@ -48,7 +46,7 @@ import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type Message = {
+type GeneratorMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -238,7 +236,7 @@ const SMART_SUGGESTIONS: Suggestion[] = [
 export default function ComponentGeneratorPage() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<GeneratorMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedComponent, setGeneratedComponent] =
     useState<GeneratedComponent | null>(null);
@@ -288,8 +286,8 @@ export default function ComponentGeneratorPage() {
     const thinkMatches = [...text.matchAll(thinkRegex)];
     const reasoning = thinkMatches.map((match) => match[1].trim()).join("\n\n");
 
-    // Extract code from <component> tags
-    const componentRegex = /<component>([\s\S]*?)<\/component>/;
+    // Extract code from <component> tags (loose for streaming)
+    const componentRegex = /<component>([\s\S]*?)(?:<\/component>|$)/;
     const componentMatch = text.match(componentRegex);
     const code = componentMatch ? componentMatch[1].trim() : "";
 
@@ -349,7 +347,7 @@ export default function ComponentGeneratorPage() {
 
     // Remove <think> and <component> tags from displayed content
     let content = text.replace(thinkRegex, "");
-    content = content.replace(/<component>[\s\S]*?<\/component>/g, "");
+    content = content.replace(/<component>[\s\S]*?(?:<\/component>|$)/g, "");
     // Strip any <files> block even if it's malformed or incomplete (prevents raw code from appearing in chat).
     content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
     content = content.trim();
@@ -446,7 +444,7 @@ export default function ComponentGeneratorPage() {
     async ({ text }: { text?: string }) => {
       if (!text?.trim() || isGenerating) return;
 
-      const userMessage: Message = {
+      const userMessage: GeneratorMessage = {
         id: Date.now().toString(),
         role: "user",
         content: text.trim(),
@@ -456,7 +454,7 @@ export default function ComponentGeneratorPage() {
       setMessages((prev) => [...prev, userMessage]);
       setIsGenerating(true);
 
-      const assistantMessage: Message = {
+      const assistantMessage: GeneratorMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: "",
@@ -1251,7 +1249,7 @@ export default function ComponentGeneratorPage() {
                         "flex-none border-r border-border bg-muted/20 flex flex-col transition-all",
                         isMobile ? "w-0 overflow-hidden hidden" : "w-60"
                       )}>
-                        <div className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Explorer</div>
+                        {/* <div className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Explorer</div> */}
                         <div className="flex-1 overflow-y-auto min-h-0">
                           <FileTree
                             files={generatedComponent.files || {}}
@@ -1296,7 +1294,7 @@ export default function ComponentGeneratorPage() {
                                 padding: { top: 12 },
                                 automaticLayout: true,
                                 lineNumbers: "on",
-                                scrollBeyondLastLine: false,
+                                scrollBeyondLastLine: true,
                                 renderLineHighlight: "line",
                                 cursorBlinking: "smooth",
                                 smoothScrolling: true,
@@ -1330,7 +1328,7 @@ export default function ComponentGeneratorPage() {
             )
           }
         </AnimatePresence>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
