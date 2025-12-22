@@ -5,7 +5,7 @@ export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, conversationHistory, projectContext } = await req.json();
+    const { prompt, conversationHistory, projectContext, reasoningEnabled } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -35,102 +35,28 @@ export async function POST(req: NextRequest) {
     const messages: any[] = [
       {
         role: "system",
-        content: `You are Shadway vibe coding platform - an advanced React development assistant. You help users build complete Vite + React applications with multiple pages and components talk with users and work with them like a friend.
+        content: `You are Shadway - an elite full-stack developer. You are helpful, professional, and precise.
 
-**CAPABILITIES:**
-- Generate complete multi-page Vite React applications everypage should have unique design concepted no same ai slop generator.
-- Use packages: react-router-dom, axios, zustand, @tanstack/react-query, zod, lucide-react, framer-motion.
-- Use **Lucide React** for icons and **Framer Motion** for animations or what user ask for animation package use that and also make sure that code your writing is perfectly designa and style and use google fonts for typography and use semantic tokens for colors and also fonts should be as user projects different minimilistic fonts futuristic fonts bold etc and also sometimes you write chines in the code or miss the system prompt how have to write code make sure everything you do should be perfect.
+**CONVERSATION RULES:**
+- If the user greets you or asks a non-technical question, respond briefly and naturally in English.
+- Do NOT generate code artifacts unless specifically requested.
+- **STRICT ENGLISH ONLY:** Never use Chinese characters or repetitive nonsense.
 
-**ARCHITECTURE & STYLE:**
-- **Tailwind CSS:** Use standard utility classes. DO NOT include @import "tailwindcss" in CSS.
-- **Fonts:** Create a /global.css file. Import Google Fonts using @import url().
-- **Entry:** The entry file MUST be /App.tsx. You MUST import "import './global.css'" in /App.tsx.
-- **Colors:** Use Shadcn semantic tokens (bg-background, text-foreground, bg-primary, etc.).
-- **Routing:** ALWAYS use HashRouter.
+**CODE GENERATION RULES:**
+- **QUALITY:** Build production-grade, premium Vite + React apps. Every detail must feel world-class.
+- **TAILWIND V4 SEMANTICS:** Use Tailwind CSS v4 semantic classes EXCLUSIVELY (e.g., bg-primary, text-muted-foreground, border-border, rounded-lg).
+- **CRITICAL:** DO NOT use @import "tailwindcss", @theme, or tailwind.config.js/ts. The environment handles styling via standard classes.
+- **FULL SCALE:** Always build full-page responsive layouts. Use min-h-screen and w-full for top-level containers to ensure they fill the preview panel.
+- **SHADCN STANDARDS:** Follow latest Shadcn UI patterns. Use semantic tokens correctly.
+- **LIBRARIES:** Use Lucide React for icons and Framer Motion for premium animations.
+- **ROUTING:** Use HashRouter from react-router-dom for all multi-page layouts.
+- **DESIGN:** Implement high-end aesthetics: glassmorphism, subtle gradients, and perfect typography using the Inter font.
 
-**OUTPUT FORMAT:**
-Every project generation MUST start with <think> planning tags, followed by a <files> block.
-
-<think>
-[Planning]
-</think>
-
-<files entry="/App.tsx">
-  <file path="/global.css">
-/* Tailwind CSS is loaded via CDN - DO NOT add @import tailwindcss */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-:root {
-  font-family: 'Inter', system-ui, sans-serif;
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 89.8%;
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 63.9%;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 0 0% 83.1%;
-}
-
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-  </file>
-  <file path="/App.tsx">
-import React from "react";
-import "./global.css";
-import { HashRouter, Routes, Route } from "react-router-dom";
-import Home from "./app/Home";
-
-export default function App() {
-  return (
-    <HashRouter>
-      <div className="min-h-screen bg-background text-foreground">
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </div>
-    </HashRouter>
-  );
-}
-  </file>
-</files>`,
+**OUTPUT FORMAT (Only when building):**
+- ALL architectural planning must reside inside <think> tags.
+- The project files must be encapsulated in a <files entry="/App.tsx"> block.
+- DO NOT provide any text or explanation outside of these tags during code generation.
+- Example: <think>Architectural plan...</think> <files><file path="/App.tsx">...</file></files>`,
       },
       ...(projectContext
         ? [
@@ -151,51 +77,66 @@ export default function App() {
       model: "xiaomi/mimo-v2-flash:free",
       messages: messages as any,
       stream: true,
-    } as any)) as any;
+      reasoning: { enabled: reasoningEnabled ?? true },
+      frequency_penalty: 0.5,
+      presence_penalty: 0.3,
+    } as any).catch((err: any) => {
+      console.error("OpenRouter Error:", err);
+      throw err;
+    })) as any;
 
     const encoder = new TextEncoder();
+    let isClosed = false;
     const readable = new ReadableStream({
       async start(controller) {
-        let isClosed = false;
-
         try {
           for await (const chunk of stream) {
             if (isClosed) break;
 
-            const message = chunk.choices?.[0]?.delta?.content || "";
-            if (message) {
+            const delta = chunk.choices?.[0]?.delta || {};
+            const content = delta.content || "";
+            const reasoning = (delta as any).reasoning || "";
+            const reasoning_details = (delta as any).reasoning_details;
+
+            if (content || reasoning || reasoning_details) {
               const sseData = `data: ${JSON.stringify({
                 choices: [
                   {
-                    delta: {
-                      content: message,
-                    },
+                    delta: { content, reasoning, reasoning_details },
                   },
                 ],
               })}\n\n`;
 
               try {
-                controller.enqueue(encoder.encode(sseData));
+                if (!isClosed) {
+                  controller.enqueue(encoder.encode(sseData));
+                }
               } catch (e) {
                 isClosed = true;
                 break;
               }
             }
           }
-        } catch (error) {
-          console.error("Stream error:", error);
+        } catch (error: any) {
           if (!isClosed) {
-            controller.error(error);
+            console.error("Stream Error:", error);
+            const errorMsg = error.message || "Provider stream error";
+            const errorSSE = `data: ${JSON.stringify({ error: errorMsg })}\n\n`;
+            try {
+              controller.enqueue(encoder.encode(errorSSE));
+            } catch (e) { }
           }
         } finally {
           if (!isClosed) {
-            controller.close();
+            try {
+              controller.close();
+            } catch (e) { }
             isClosed = true;
           }
         }
       },
       cancel() {
-        // User closed the connection
+        isClosed = true;
       },
     });
 
@@ -203,14 +144,26 @@ export default function App() {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        Connection: "keep-alive",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no", // Disable buffering in some proxies
       },
     });
   } catch (error: any) {
-    console.error("API error:", error);
+    console.error("API high-level error:", error);
+    const status = error.status || 500;
+    const message = error.message || "Something went wrong";
+
+    // Check for common provider errors
+    if (message.includes("524") || message.includes("timeout")) {
+      return NextResponse.json(
+        { error: "The AI provider timed out. This often happens with free models during peak times. Please try again in a few moments." },
+        { status: 504 },
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message || "Something went wrong" },
-      { status: 500 },
+      { error: message },
+      { status },
     );
   }
 }

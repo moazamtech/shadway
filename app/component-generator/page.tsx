@@ -1,5 +1,6 @@
 "use client";
 
+import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
 import { SandpackRuntimePreview } from "@/components/sandpack-preview";
 import { FileTree } from "@/app/component-generator/components/file-tree";
 import {
@@ -51,6 +52,7 @@ type GeneratorMessage = {
   role: "user" | "assistant";
   content: string;
   reasoning?: string;
+  reasoning_details?: any; // Native OR reasoning
   code?: string;
   files?: Record<string, string>;
   entryFile?: string;
@@ -88,6 +90,74 @@ const getFileTabIconClass = (path?: string | null) => {
   return iconMap[ext] || "codicon-file";
 };
 
+// SVG Chevron Icon
+const ChevronIcon = ({ isOpen, className }: { isOpen: boolean; className?: string }) => (
+  <svg
+    className={cn(
+      "h-3 w-3 shrink-0 transition-transform duration-150",
+      isOpen ? "rotate-90" : "rotate-0",
+      className
+    )}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+// Thinking Component
+function ThinkingProcess({ content, isFinished }: { content: string; isFinished?: boolean }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  if (!content) return null;
+
+  return (
+    <div className="group/thinking mb-4 overflow-hidden rounded-2xl border border-primary/10 bg-primary/[0.02] transition-all duration-300 hover:bg-primary/[0.04]">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex h-5 w-5 items-center justify-center">
+            {!isFinished ? (
+              <>
+                <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+                <SparklesIcon className="relative h-3.5 w-3.5 text-primary animate-pulse" />
+              </>
+            ) : (
+              <Zap className="h-3.5 w-3.5 text-primary/60" />
+            )}
+          </div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-primary/70">
+            {isFinished ? "Architectural Plan" : "Deep Thinking..."}
+          </span>
+        </div>
+        <ChevronIcon isOpen={isOpen} className="opacity-40 group-hover/thinking:opacity-80 transition-all duration-300" />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            <div className="px-4 pb-4">
+              <div className="relative rounded-xl bg-background/50 p-3 text-xs leading-relaxed text-muted-foreground/80 font-mono shadow-inner border border-primary/5">
+                <div className="absolute left-0 top-0 h-full w-1 rounded-l-xl bg-primary/20" />
+                {content}
+                {!isFinished && <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/40 animate-pulse align-middle" />}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // Code Block Component with Copy Functionality
 function CodeBlock({
   code,
@@ -114,11 +184,11 @@ function CodeBlock({
   };
 
   return (
-    <div className="relative group my-4 rounded-lg border bg-card overflow-hidden shadow-sm">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/50">
+    <div className="relative group my-4 rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
         <div className="flex items-center gap-2">
           <CodeIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             {language}
           </span>
         </div>
@@ -127,7 +197,7 @@ function CodeBlock({
             <button
               onClick={onRun}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 border",
+                "flex items-center gap-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 border",
                 isActive
                   ? "bg-primary text-primary-foreground border-primary/30"
                   : "text-foreground hover:text-primary bg-background hover:bg-accent",
@@ -135,12 +205,12 @@ function CodeBlock({
             >
               {isActive ? (
                 <>
-                  <Zap className="h-3.5 w-3.5" />
+                  <Zap className="h-3 w-3" />
                   Running
                 </>
               ) : (
                 <>
-                  <Zap className="h-3.5 w-3.5" />
+                  <Zap className="h-3 w-3" />
                   Run
                 </>
               )}
@@ -148,25 +218,25 @@ function CodeBlock({
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground hover:text-primary bg-background hover:bg-accent rounded-md transition-all duration-200 border"
+            className="flex items-center gap-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-foreground hover:text-primary bg-background hover:bg-accent rounded-md transition-all duration-200 border"
           >
             {copied ? (
               <>
-                <CheckIcon className="h-3.5 w-3.5 text-green-500" />
+                <CheckIcon className="h-3 w-3 text-green-500" />
                 <span className="text-green-500">Copied!</span>
               </>
             ) : (
               <>
-                <CopyIcon className="h-3.5 w-3.5" />
-                Copy Code
+                <CopyIcon className="h-3 w-3" />
+                <span>Copy</span>
               </>
             )}
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto max-h-[500px] overflow-y-auto bg-muted/30 no-scrollbar">
-        <pre className="p-4 text-sm leading-relaxed">
-          <code className="text-foreground font-mono text-xs sm:text-sm">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto bg-muted/10 no-scrollbar">
+        <pre className="p-4 text-xs leading-relaxed font-mono">
+          <code className="text-foreground/90">
             {code}
           </code>
         </pre>
@@ -249,6 +319,7 @@ export default function ComponentGeneratorPage() {
   const [currentlyGeneratingFile, setCurrentlyGeneratingFile] = useState<
     string | null
   >(null);
+  const [reasoningEnabled, setReasoningEnabled] = useState(true);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isResizingRef = useRef(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -467,6 +538,7 @@ export default function ComponentGeneratorPage() {
         const conversationHistory = messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
+          reasoning_details: msg.reasoning_details,
         }));
 
         const buildProjectContext = () => {
@@ -546,17 +618,21 @@ export default function ComponentGeneratorPage() {
               prompt: promptToSend,
               conversationHistory,
               projectContext,
+              reasoningEnabled,
             }),
             signal: abortControllerRef.current.signal,
           });
 
           if (!response.ok) {
-            throw new Error("Failed to generate component");
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || "Generation failed. The AI might be busy.");
           }
 
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let accumulatedContent = "";
+          let accumulatedReasoning = "";
+          let finalReasoningDetails: any = null;
           let buffer = "";
           let updateTimer: NodeJS.Timeout | null = null;
 
@@ -568,18 +644,17 @@ export default function ComponentGeneratorPage() {
               files,
               entryFile,
             } = parseThinkingAndContent(accumulatedContent);
-            const safeDisplay =
-              displayContent?.trim() ||
-              (files
-                ? "Generated project files. Opening preview…"
-                : "Generating…");
+
+            const displayReasoning = accumulatedReasoning || reasoning;
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
                     ...msg,
-                    content: safeDisplay,
-                    reasoning,
+                    content: displayContent?.trim() || (accumulatedReasoning && !displayContent ? "" : displayContent) || (files ? "Generated project files. Opening preview…" : "Generating…"),
+                    reasoning: displayReasoning,
+                    reasoning_details: finalReasoningDetails,
                     code,
                     files,
                     entryFile,
@@ -629,8 +704,12 @@ export default function ComponentGeneratorPage() {
                     if (!data || data === "[DONE]") continue;
                     try {
                       const parsed = JSON.parse(data);
-                      accumulatedContent +=
-                        parsed.choices?.[0]?.delta?.content || "";
+                      const delta = parsed.choices?.[0]?.delta || {};
+                      accumulatedContent += delta.content || "";
+                      accumulatedReasoning += delta.reasoning || "";
+                      if (delta.reasoning_details) {
+                        finalReasoningDetails = delta.reasoning_details;
+                      }
                     } catch {
                       // ignore
                     }
@@ -653,15 +732,57 @@ export default function ComponentGeneratorPage() {
                 if (!data || data === "[DONE]") continue;
                 try {
                   const parsed = JSON.parse(data);
-                  const delta = parsed.choices?.[0]?.delta?.content || "";
-                  if (!delta) continue;
-                  accumulatedContent += delta;
+                  const delta = parsed.choices?.[0]?.delta || {};
+                  const contentDelta = delta.content || "";
+                  const reasoningDelta = delta.reasoning || "";
+
+                  if (delta.reasoning_details) {
+                    finalReasoningDetails = delta.reasoning_details;
+                  }
+
+                  if (!contentDelta && !reasoningDelta && !delta.reasoning_details) continue;
+
+                  // --- SLOP GUARD (REFINED) ---
+                  const contentSlop = accumulatedContent.slice(-400);
+                  const reasoningSlop = accumulatedReasoning.slice(-400);
+                  const isSlop = (str: string) => {
+                    if (str.length < 200) return false;
+
+                    // 1. Detect long consecutive identical sequences
+                    for (let len = 2; len <= 12; len++) {
+                      const tail = str.slice(-len);
+                      // Ignore tail if it's just code symbols, whitespace, or boilerplate
+                      if (/^[ \n\t\r\.,\-\/\\\{\}\(\)\[\]<>='";:&!@#$%^&*\|?+~`]+$/.test(tail)) continue;
+
+                      // threshold: 40 repetitions is practically impossible in normal code
+                      const repeatedTail = tail.repeat(40);
+                      if (str.includes(repeatedTail)) return true;
+                    }
+
+                    // 2. Detect non-Latin gibberish loops
+                    const nonLatinTail = str.slice(-100);
+                    const nonLatinCount = (nonLatinTail.match(/[^\x00-\x7F]/g) || []).length;
+                    if (nonLatinCount > 85) return true;
+
+                    return false;
+                  };
+
+                  if (isSlop(contentSlop) || isSlop(reasoningSlop)) {
+                    console.error("Pathological slop detected, aborting stream.");
+                    abortControllerRef.current?.abort();
+                    toast.error("AI generation loop detected. Aborted to save context.");
+                    break;
+                  }
+                  // ----------------------------
+
+                  accumulatedContent += contentDelta;
+                  accumulatedReasoning += reasoningDelta;
 
                   // Open the panel ONLY when the model starts emitting code artifacts.
                   if (
-                    delta.includes("<files") ||
-                    delta.includes("<component>") ||
-                    /<file\\s+path=[\"']/.test(delta)
+                    contentDelta.includes("<files") ||
+                    contentDelta.includes("<component>") ||
+                    /<file\s+path=["']/.test(contentDelta)
                   ) {
                     setIsPanelOpen(true);
                     setIsFullscreen(false);
@@ -678,7 +799,8 @@ export default function ComponentGeneratorPage() {
                     );
                   }
 
-                  const filePathMatch = delta.match(
+                  const deltaForFiles = contentDelta; // use content for file path matching
+                  const filePathMatch = deltaForFiles.match(
                     /<file\s+path=["']([^"']+)["']/,
                   );
                   if (filePathMatch) {
@@ -857,27 +979,19 @@ export default function ComponentGeneratorPage() {
   return (
     <div className="flex h-screen w-full flex-col bg-background font-sans overflow-hidden">
       {/* Header */}
-      <header className="flex-none h-14 z-40 px-4 flex items-center justify-start">
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          {generatedComponent && !isPanelOpen && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsPanelOpen(true)}
-              className="h-9 gap-2 shadow-sm"
-            >
-              <EyeIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Preview</span>
-            </Button>
-          )}
-        </div>
-      </header>
+      <GeneratorHeader
+        hasGenerated={!!generatedComponent}
+        isPanelOpen={isPanelOpen}
+        onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+        onResetSplit={() => setPreviewWidthPct(50)}
+      />
 
       {/* Main Content - Responsive Split Layout */}
       <div
         ref={splitContainerRef}
-        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative"
+        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative bg-muted/5 dark:bg-muted/2"
       >
         {/* Chat Section */}
         <div
@@ -900,38 +1014,59 @@ export default function ComponentGeneratorPage() {
               messages.length === 0 ? "h-full justify-center pb-16" : "p-3 sm:p-6 space-y-6 pb-2"
             )}>
               {messages.length === 0 ? (
-                /* Empty State / Hero - Perfectly Centered */
-                <div className="flex flex-col items-center justify-center space-y-10 text-center animate-in fade-in duration-500 delay-100 flex-1 min-h-0">
-                  <div className="space-y-6 max-w-2xl mx-auto px-4">
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground drop-shadow-sm">
-                      What will you build?
+                /* Premium Hero Empty State */
+                <div className="flex flex-col items-center justify-center space-y-12 text-center animate-in fade-in zoom-in-95 duration-1000 flex-1 min-h-0 relative px-4">
+                  {/* Background Accents */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-full max-h-[500px] pointer-events-none opacity-20 dark:opacity-30">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-primary/10 via-transparent to-purple-500/10 blur-[120px] rounded-full" />
+                  </div>
+
+                  <div className="space-y-6 max-w-2xl mx-auto z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-2">
+
+                    </div>
+                    <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground -tight">
+                      Architecting <span className="bg-gradient-to-r from-primary via-primary/80 to-purple-500 bg-clip-text text-transparent">Vibes.</span>
                     </h1>
-                    <p className="text-muted-foreground text-lg md:text-xl leading-relaxed max-w-lg mx-auto">
-                      Generate full-stack React components, pages, or entire apps with VibeCode Architect.
+                    <p className="text-muted-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg mx-auto font-medium">
+                      The next generation of component generation. <br className="hidden sm:block" /> Fast, fluid, and perfectly styled.
                     </p>
                   </div>
 
-                  {/* Suggestions Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl text-left px-4">
+                  {/* Redesigned Bento Suggestions Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl text-left z-10">
                     {activeSuggestions.map((suggestion, i) => (
                       <button
                         key={i}
                         onClick={() => handleSubmit({ text: suggestion.prompt })}
-                        className="p-5 rounded-2xl border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/20 transition-all text-sm group flex items-start gap-4 hover:-translate-y-0.5"
+                        className="group relative p-6 rounded-[24px] border border-border/40 bg-background/40 backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20"
                       >
-                        <span className="text-2xl pt-0.5">{suggestion.emoji}</span>
-                        <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-base group-hover:text-primary transition-colors">{suggestion.title}</span>
-                          <span className="text-xs text-muted-foreground/70 line-clamp-2 leading-relaxed">{suggestion.prompt}</span>
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex items-center gap-5">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/5 text-2xl group-hover:bg-primary/10 transition-colors">
+                            {suggestion.emoji}
+                          </div>
+                          <div className="flex flex-col gap-1 pr-6">
+                            <span className="font-bold text-base leading-none group-hover:text-primary transition-colors">{suggestion.title}</span>
+                            <span className="text-xs text-muted-foreground/60 line-clamp-2 font-medium leading-[1.5]">
+                              {suggestion.prompt}
+                            </span>
+                          </div>
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                            <Zap className="h-4 w-4 text-primary" />
+                          </div>
                         </div>
                       </button>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/50 hover:text-primary/80 cursor-pointer transition-colors py-2" onClick={refreshSuggestions}>
-                    <SparklesIcon className="h-3.5 w-3.5" />
-                    <span>Refresh ideas</span>
-                  </div>
+                  <button
+                    onClick={refreshSuggestions}
+                    className="group flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-border/40 bg-background/50 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/20 transition-all z-10 shadow-sm active:scale-95"
+                  >
+                    <SparklesIcon className="h-3.5 w-3.5 group-hover:animate-pulse" />
+                    Refresh Inspiring Ideas
+                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 pb-4">
@@ -950,9 +1085,9 @@ export default function ComponentGeneratorPage() {
                           message.role === "user" ? "items-end" : "items-start"
                         )}>
                           {message.role === "user" ? (
-                            <div className="group relative inline-block max-w-[90%] sm:max-w-xl">
-                              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500" />
-                              <div className="relative rounded-2xl bg-zinc-900 dark:bg-zinc-100 border border-zinc-800 dark:border-zinc-200 px-5 py-3 text-zinc-100 dark:text-zinc-900 shadow-xl text-sm leading-relaxed font-medium">
+                            <div className="group relative inline-block max-w-[90%] sm:max-w-xl self-end">
+                              <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
+                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[15px] leading-relaxed font-medium">
                                 {message.content}
                               </div>
                             </div>
@@ -971,10 +1106,18 @@ export default function ComponentGeneratorPage() {
                                 </div>
                               )}
 
+                              {/* Thinking Process */}
+                              {message.reasoning && (
+                                <ThinkingProcess
+                                  content={message.reasoning}
+                                  isFinished={!!(message.content || message.files)}
+                                />
+                              )}
+
                               {/* AI Response Text */}
                               {message.content && (
-                                <div className="prose-wrapper animate-in fade-in duration-700">
-                                  <AIResponse className="text-[15px] leading-relaxed">
+                                <div className="prose-wrapper animate-in fade-in slide-in-from-top-2 duration-700">
+                                  <AIResponse className="text-[15px] leading-relaxed text-foreground/90 font-sans tracking-tight">
                                     {message.content}
                                   </AIResponse>
                                 </div>
@@ -1054,16 +1197,23 @@ export default function ComponentGeneratorPage() {
                         </MessageContent>
                       </Message>
                     ))}
-                    {isGenerating && (
-                      <div className="flex items-center gap-4 py-8 animate-in fade-in duration-500 max-w-xl mx-auto px-4">
+                    {isGenerating && !messages[messages.length - 1]?.reasoning && (
+                      <div className="flex items-center gap-4 py-6 animate-in fade-in slide-in-from-left-2 duration-500 max-w-xl px-4 translate-y-2 self-start ml-2">
                         <div className="relative h-10 w-10 shrink-0">
                           <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
-                          <div className="relative h-full w-full rounded-full border-2 border-t-primary border-r-primary/50 border-b-primary/20 border-l-transparent animate-spin" />
+                          <div className="relative h-full w-full rounded-full border-2 border-t-primary border-r-primary/50 border-b-primary/10 border-l-transparent animate-spin" />
                           <SparklesIcon className="absolute inset-0 m-auto h-4 w-4 text-primary animate-pulse" />
                         </div>
                         <div className="flex flex-col gap-1 min-w-0">
-                          <span className="text-sm font-semibold tracking-tight truncate">Architecting...</span>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-widest opacity-60 truncate">AI processing</span>
+                          <span className="text-[13px] font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent animate-pulse">Initializing Architect...</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-muted-foreground/50 uppercase tracking-widest font-black">Waking up vibes</span>
+                            <div className="flex gap-1">
+                              <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-0" />
+                              <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-150" />
+                              <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-300" />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1078,8 +1228,8 @@ export default function ComponentGeneratorPage() {
           <div className="relative p-12 sm:p-16 shrink-0 bg-transparent z-10">
             <div className="mx-auto w-full max-w-3xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
-                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/50 bg-background/80 backdrop-blur-2xl shadow-lg hover:shadow-primary/5 transition-all duration-500 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 group">
-                  <div className="absolute -inset-[0.1px] bg-gradient-to-tr from-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/40 bg-background/60 backdrop-blur-xl shadow-sm hover:shadow-primary/5 transition-all duration-500 focus-within:ring-1 focus-within:ring-primary/10 focus-within:border-primary/20 group">
+                  <div className="absolute -inset-[0.1px] bg-gradient-to-tr from-primary/5 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                   <PromptInputTextarea
                     placeholder={messages.length === 0 ? "Describe your dream application..." : "Ask a follow-up question..."}
                     disabled={isGenerating}
@@ -1096,12 +1246,29 @@ export default function ComponentGeneratorPage() {
                       >
                         <PaperclipIcon className="h-4 w-4" />
                       </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                        className={cn(
+                          "h-8 px-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all border",
+                          reasoningEnabled
+                            ? "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                            : "bg-muted/30 text-muted-foreground/40 border-transparent hover:bg-muted/50"
+                        )}
+                        title={reasoningEnabled ? "Reasoning Enabled" : "Reasoning Disabled"}
+                      >
+                        <SparklesIcon className={cn("h-3 w-3 sm:mr-1.5", reasoningEnabled ? "animate-pulse text-primary" : "opacity-40")} />
+                        <span className="hidden sm:inline">{reasoningEnabled ? "Reasoning" : "Thinking"}</span>
+                      </Button>
+
                       {isGenerating && (
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={handleStop}
-                          className="ml-2 h-7 text-[9px] font-bold tracking-widest uppercase text-destructive hover:text-destructive hover:bg-destructive/10 px-3 rounded-full border border-destructive/20 transition-all active:scale-95"
+                          className="ml-1 h-7 text-[9px] font-bold tracking-widest uppercase text-destructive hover:text-destructive hover:bg-destructive/10 px-3 rounded-full border border-destructive/20 transition-all active:scale-95"
                         >
                           Stop
                         </Button>
@@ -1109,6 +1276,7 @@ export default function ComponentGeneratorPage() {
                     </PromptInputTools>
 
                     <div className="flex items-center gap-3">
+
                       <PromptInputSubmit
                         disabled={isGenerating}
                         className={cn(
@@ -1152,9 +1320,9 @@ export default function ComponentGeneratorPage() {
                 exit={isMobile ? { y: "100%" } : { opacity: 0, x: 20 }}
                 transition={{ type: "spring", bounce: 0, duration: 0.4 }}
                 className={cn(
-                  "flex flex-col bg-background text-foreground transition-all duration-300 border-l border-border shadow-2xl min-h-0",
+                  "flex flex-col bg-background text-foreground transition-all duration-300 border border-border/40 shadow-sm min-h-0 overflow-hidden",
                   // Mobile/Fullscreen: Fixed Cover. Desktop: Flex Item
-                  isMobile || isFullscreen ? "fixed inset-0 z-50 w-full h-full" : "relative lg:flex-none min-h-0 h-full"
+                  isMobile || isFullscreen ? "fixed inset-0 z-50 w-full h-full" : "relative lg:flex-none min-h-0 h-[calc(100%-1rem)] mt-2 mr-2 mb-2 rounded-2xl md:rounded-3xl"
                 )}
                 style={
                   isDesktop && !isFullscreen
@@ -1228,18 +1396,18 @@ export default function ComponentGeneratorPage() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 flex flex-col min-h-0 bg-background relative overflow-hidden">
+                <div className="flex-1 flex flex-col min-h-0 bg-background relative overflow-hidden h-full">
                   {viewMode === "preview" ? (
-                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950">
+                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 h-full">
                       <SandpackRuntimePreview
-                        showConsole={!isMobile}
+                        showConsole={false}
                         code={generatedComponent.code || ""}
                         files={{
                           ...(generatedComponent.files || {}),
                           ...editedFiles,
                         }}
                         entryFile={generatedComponent.entryFile}
-                        className="flex-1 min-h-0"
+                        className="flex-1 min-h-0 h-full"
                       />
                     </div>
                   ) : (
