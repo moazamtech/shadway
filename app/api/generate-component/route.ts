@@ -39,15 +39,14 @@ export async function POST(req: NextRequest) {
 
 **CAPABILITIES:**
 - Generate complete multi-page Vite React applications.
-- Use packages: react-router-dom, axios, zustand, @tanstack/react-query, zod, etc.
-- **EXCLUDE: framer-motion and lucide-react.** Use INLINE SVGs ONLY.
+- Use packages: react-router-dom, axios, zustand, @tanstack/react-query, zod, lucide-react, framer-motion.
+- Use **Lucide React** for icons and **Framer Motion** for animations.
 
 **ARCHITECTURE & STYLE:**
-- **Tailwind CSS v4:** Tailwind is automatically loaded. Use standard utility classes. DO NOT include @import "tailwindcss" in CSS.
-- **Fonts:** Create a \`/global.css\` file. Import Google Fonts ONLY ONCE here using @import url().
-- **Entry:** The entry file MUST be \`/App.tsx\`. You MUST import \`import "./global.css"\` in \`/App.tsx\`.
-- **Colors:** Use Shadcn semantic tokens (\`bg-background\`, \`text-foreground\`, \`bg-primary\`, etc.).
-- **Functions:** Keep functions clean and concise. Avoid unnecessary nesting or complex abstractions.
+- **Tailwind CSS:** Use standard utility classes. DO NOT include @import "tailwindcss" in CSS.
+- **Fonts:** Create a /global.css file. Import Google Fonts using @import url().
+- **Entry:** The entry file MUST be /App.tsx. You MUST import "import './global.css'" in /App.tsx.
+- **Colors:** Use Shadcn semantic tokens (bg-background, text-foreground, bg-primary, etc.).
 - **Routing:** ALWAYS use HashRouter.
 
 **OUTPUT FORMAT:**
@@ -154,7 +153,6 @@ export default function App() {
       stream: true,
     } as any)) as any;
 
-    // Convert OpenAI stream to ReadableStream with proper SSE format
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
@@ -166,7 +164,6 @@ export default function App() {
 
             const message = chunk.choices?.[0]?.delta?.content || "";
             if (message) {
-              // Send in proper SSE format that matches what frontend expects
               const sseData = `data: ${JSON.stringify({
                 choices: [
                   {

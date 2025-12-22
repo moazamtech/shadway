@@ -239,17 +239,8 @@ function rewriteAliasImportsForFile(src: string | null | undefined, fromFilePath
 }
 
 function stripForbiddenImports(src: string) {
-  // Remove lucide-react and framer-motion imports entirely.
-  let out = src;
-  out = out.replace(
-    /import\s+[\s\S]*?from\s*["']lucide-react["']\s*;?/g,
-    "// lucide-react import removed (use inline SVGs)",
-  );
-  out = out.replace(
-    /import\s+[\s\S]*?from\s*["']framer-motion["']\s*;?/g,
-    "// framer-motion import removed",
-  );
-  return out;
+  // We no longer strip lucide-react or framer-motion as they are now allowed.
+  return src;
 }
 
 function repairMultilineJsxAttributeStrings(src: string) {
@@ -299,29 +290,7 @@ function hasIdentifierDeclaration(src: string, name: string) {
   return patterns.some((p) => p.test(src));
 }
 
-function hasNamedImportFromModule(
-  src: string,
-  name: string,
-  moduleName: string,
-) {
-  const pattern = new RegExp(
-    String.raw`^\s*import\s+(?!type\b)[^;]*\b${name}\b[^;]*from\s+["']${moduleName}["']\s*;?`,
-    "m",
-  );
-  return pattern.test(src);
-}
 
-function hasNamespaceImportFromModule(
-  src: string,
-  name: string,
-  moduleName: string,
-) {
-  const pattern = new RegExp(
-    String.raw`^\s*import\s+(?!type\b)\*\s+as\s+${name}\s+from\s+["']${moduleName}["']\s*;?`,
-    "m",
-  );
-  return pattern.test(src);
-}
 
 function isJsxTagUsed(src: string, tagName: string) {
   return new RegExp(String.raw`<${tagName}\b`, "m").test(src);
@@ -491,7 +460,6 @@ export function SandpackRuntimePreview({
   files,
   entryFile,
   className,
-  showConsole = false,
 }: SandpackPreviewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -511,8 +479,8 @@ export function SandpackRuntimePreview({
       "@tanstack/react-query": "latest",
       "react-hook-form": "latest",
       zod: "latest",
-      "lucide-react": "latest", // Re-adding lucide-react as it is often requested, but we strip imports if needed. actually user said NO lucide.
-      // Keeping it out if user said no.
+      "lucide-react": "latest",
+      "framer-motion": "latest",
     }),
     [],
   );
