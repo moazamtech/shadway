@@ -13,8 +13,13 @@ import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SANDPACK_SHADCN_FILES } from "@/lib/sandpack-files";
+import {
+  ColorSchemeConfig,
+  defaultColorSchemeConfig,
+  generateThemeCSS,
+} from "@/lib/color-scheme";
 
-const SANDBOX_TRANSFORM_VERSION = 4;
+const SANDBOX_TRANSFORM_VERSION = 5; // Bumped version for color scheme support
 
 const sandpackStyles = `
   * {
@@ -45,7 +50,7 @@ const sandpackStyles = `
     width: 100% !important;
     height: 100% !important;
     flex: 1 1 auto !important;
-    min-height: 100% !important;
+    min-height: 590% !important;
     display: flex !important;
     flex-direction: column !important;
     border: none !important;
@@ -133,6 +138,7 @@ type SandpackPreviewProps = {
   className?: string;
   showConsole?: boolean;
   title?: string;
+  colorScheme?: ColorSchemeConfig;
 };
 
 function findPrimaryComponentName(src: string) {
@@ -469,6 +475,7 @@ export function SandpackRuntimePreview({
   entryFile,
   className,
   showConsole = false,
+  colorScheme = defaultColorSchemeConfig,
 }: SandpackPreviewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -620,70 +627,15 @@ export default function App(){
       appTsx = createAppFileFromCode(code || "");
     }
 
+    // Generate the Tailwind v4 theme CSS from the color scheme
+    const themeCSS = generateThemeCSS(colorScheme, isDark);
+
     const indexTsx = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
-// Inject Tailwind v4 theme configuration
-const isDark = document.documentElement.classList.contains("dark");
-
-const tailwindTheme = \`
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  
-  --color-background: \${isDark ? "#0a0a0a" : "#ffffff"};
-  --color-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
-  --color-card: \${isDark ? "#0a0a0a" : "#ffffff"};
-  --color-card-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
-  --color-popover: \${isDark ? "#0a0a0a" : "#ffffff"};
-  --color-popover-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
-  --color-primary: \${isDark ? "#fafafa" : "#171717"};
-  --color-primary-foreground: \${isDark ? "#171717" : "#fafafa"};
-  --color-secondary: \${isDark ? "#262626" : "#f5f5f5"};
-  --color-secondary-foreground: \${isDark ? "#fafafa" : "#171717"};
-  --color-muted: \${isDark ? "#262626" : "#f5f5f5"};
-  --color-muted-foreground: \${isDark ? "#a1a1a1" : "#737373"};
-  --color-accent: \${isDark ? "#262626" : "#f5f5f5"};
-  --color-accent-foreground: \${isDark ? "#fafafa" : "#171717"};
-  --color-destructive: \${isDark ? "#7f1d1d" : "#ef4444"};
-  --color-destructive-foreground: #fafafa;
-  --color-border: \${isDark ? "#262626" : "#e5e5e5"};
-  --color-input: \${isDark ? "#262626" : "#e5e5e5"};
-  --color-ring: \${isDark ? "#d4d4d4" : "#0a0a0a"};
-  
-  --color-chart-1: \${isDark ? "#3b82f6" : "#e76e50"};
-  --color-chart-2: \${isDark ? "#22c55e" : "#2a9d90"};
-  --color-chart-3: \${isDark ? "#f59e0b" : "#264753"};
-  --color-chart-4: \${isDark ? "#a855f7" : "#e8c468"};
-  --color-chart-5: \${isDark ? "#ec4899" : "#f4a462"};
-  
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-full: 9999px;
-}
-
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  border-color: var(--color-border);
-}
-\`;
+// Tailwind v4 theme CSS (generated from color scheme)
+const tailwindTheme = ${JSON.stringify(themeCSS)};
 
 // Create and inject the Tailwind theme style element
 const styleEl = document.createElement("style");
@@ -897,7 +849,7 @@ body {
         )
         : {}),
     } as const;
-  }, [code, files, entryFile, isDark, SANDBOX_TRANSFORM_VERSION]);
+  }, [code, files, entryFile, isDark, colorScheme]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);

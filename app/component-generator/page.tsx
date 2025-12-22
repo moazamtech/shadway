@@ -46,6 +46,8 @@ import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ColorSchemeEditor } from "@/components/color-scheme-editor";
+import { ColorSchemeConfig, defaultColorSchemeConfig } from "@/lib/color-scheme";
 
 type GeneratorMessage = {
   id: string;
@@ -323,6 +325,9 @@ export default function ComponentGeneratorPage() {
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isResizingRef = useRef(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [colorScheme, setColorScheme] = useState<ColorSchemeConfig>(
+    defaultColorSchemeConfig,
+  );
   const [previewWidthPct, setPreviewWidthPct] = useState(() => {
     if (typeof window === "undefined") return 50;
     const saved = window.localStorage.getItem(
@@ -696,123 +701,132 @@ export default function ComponentGeneratorPage() {
             while (true) {
               const { done, value } = await reader.read();
               if (done) {
-                if (buffer.trim()) {
-                  const lines = buffer.split("\n");
-                  for (const line of lines) {
-                    if (!line.startsWith("data: ")) continue;
-                    const data = line.slice(6);
-                    if (!data || data === "[DONE]") continue;
-                    try {
-                      const parsed = JSON.parse(data);
-                      const delta = parsed.choices?.[0]?.delta || {};
-                      accumulatedContent += delta.content || "";
-                      accumulatedReasoning += delta.reasoning || "";
-                      if (delta.reasoning_details) {
-                        finalReasoningDetails = delta.reasoning_details;
-                      }
-                    } catch {
-                      // ignore
-                    }
-                  }
-                }
+                // Final content is in accumulatedContent
                 updateMessages();
                 if (updateTimer) clearTimeout(updateTimer);
                 setCurrentlyGeneratingFile(null);
                 break;
               }
 
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines[lines.length - 1];
+              // For plain text stream from Vercel AI SDK toTextStreamResponse()
+              // The decoded value IS the content - no parsing needed
+              const chunk = decoder.decode(value, { stream: true });
 
-              for (let i = 0; i < lines.length - 1; i++) {
-                const line = lines[i];
-                if (!line.startsWith("data: ")) continue;
-                const data = line.slice(6);
-                if (!data || data === "[DONE]") continue;
-                try {
-                  const parsed = JSON.parse(data);
-                  const delta = parsed.choices?.[0]?.delta || {};
-                  const contentDelta = delta.content || "";
-                  const reasoningDelta = delta.reasoning || "";
+              // Check if it looks like structured SSE (legacy format) or plain text
+              const isStructuredFormat = chunk.includes("0:") || chunk.includes("data: ");
 
-                  if (delta.reasoning_details) {
-                    finalReasoningDetails = delta.reasoning_details;
-                  }
+              if (isStructuredFormat) {
+                // Handle structured formats (Vercel AI SDK data format or legacy SSE)
+                buffer += chunk;
+                const lines = buffer.split("\n");
+                buffer = lines[lines.length - 1];
 
-                  if (!contentDelta && !reasoningDelta && !delta.reasoning_details) continue;
+                for (let i = 0; i < lines.length - 1; i++) {
+                  const line = lines[i].trim();
+                  if (!line) continue;
 
-                  // --- SLOP GUARD (REFINED) ---
-                  const contentSlop = accumulatedContent.slice(-400);
-                  const reasoningSlop = accumulatedReasoning.slice(-400);
-                  const isSlop = (str: string) => {
-                    if (str.length < 200) return false;
+                  let contentDelta = "";
 
-                    // 1. Detect long consecutive identical sequences
-                    for (let len = 2; len <= 12; len++) {
-                      const tail = str.slice(-len);
-                      // Ignore tail if it's just code symbols, whitespace, or boilerplate
-                      if (/^[ \n\t\r\.,\-\/\\\{\}\(\)\[\]<>='";:&!@#$%^&*\|?+~`]+$/.test(tail)) continue;
-
-                      // threshold: 40 repetitions is practically impossible in normal code
-                      const repeatedTail = tail.repeat(40);
-                      if (str.includes(repeatedTail)) return true;
+                  // Handle Vercel AI SDK format: 0:"text content"
+                  if (line.startsWith("0:")) {
+                    try {
+                      const textContent = JSON.parse(line.slice(2));
+                      if (typeof textContent === "string") {
+                        contentDelta = textContent;
+                      }
+                    } catch {
+                      // ignore parse errors
                     }
-
-                    // 2. Detect non-Latin gibberish loops
-                    const nonLatinTail = str.slice(-100);
-                    const nonLatinCount = (nonLatinTail.match(/[^\x00-\x7F]/g) || []).length;
-                    if (nonLatinCount > 85) return true;
-
-                    return false;
-                  };
-
-                  if (isSlop(contentSlop) || isSlop(reasoningSlop)) {
-                    console.error("Pathological slop detected, aborting stream.");
-                    abortControllerRef.current?.abort();
-                    toast.error("AI generation loop detected. Aborted to save context.");
-                    break;
                   }
-                  // ----------------------------
-
-                  accumulatedContent += contentDelta;
-                  accumulatedReasoning += reasoningDelta;
-
-                  // Open the panel ONLY when the model starts emitting code artifacts.
-                  if (
-                    contentDelta.includes("<files") ||
-                    contentDelta.includes("<component>") ||
-                    /<file\s+path=["']/.test(contentDelta)
-                  ) {
-                    setIsPanelOpen(true);
-                    setIsFullscreen(false);
-                    setViewMode("code");
-                    setGeneratedComponent(
-                      (prev) =>
-                        prev ?? {
-                          code: "",
-                          files: undefined,
-                          entryFile: undefined,
-                          language: "tsx",
-                          title: "Generated Component",
-                        },
-                    );
+                  // Handle finish message: d:{"finishReason":"stop"}
+                  else if (line.startsWith("d:") || line.startsWith("e:")) {
+                    continue;
+                  }
+                  // Handle legacy SSE format
+                  else if (line.startsWith("data: ")) {
+                    const data = line.slice(6);
+                    if (!data || data === "[DONE]") continue;
+                    try {
+                      const parsed = JSON.parse(data);
+                      const delta = parsed.choices?.[0]?.delta || {};
+                      contentDelta = delta.content || "";
+                    } catch {
+                      // ignore
+                    }
                   }
 
-                  const deltaForFiles = contentDelta; // use content for file path matching
-                  const filePathMatch = deltaForFiles.match(
-                    /<file\s+path=["']([^"']+)["']/,
-                  );
-                  if (filePathMatch) {
-                    const filePath = filePathMatch[1];
-                    const normalized = filePath.startsWith("/")
-                      ? filePath
-                      : `/${filePath}`;
-                    setCurrentlyGeneratingFile(normalized);
+                  if (contentDelta) {
+                    accumulatedContent += contentDelta;
                   }
-                } catch {
-                  // ignore
                 }
+              } else {
+                // Plain text stream - just accumulate directly
+                accumulatedContent += chunk;
+              }
+
+              // --- SLOP GUARD (check after each chunk) ---
+              const contentSlop = accumulatedContent.slice(-400);
+              const isSlop = (str: string) => {
+                if (str.length < 200) return false;
+
+                // 1. Detect long consecutive identical sequences
+                for (let len = 2; len <= 12; len++) {
+                  const tail = str.slice(-len);
+                  // Ignore tail if it's just code symbols, whitespace, or boilerplate
+                  if (/^[ \n\t\r\.,\-\/\\{}\(\)\[\]<>='";\:&!@#$%^&*\|?+~`]+$/.test(tail)) continue;
+
+                  // threshold: 40 repetitions is practically impossible in normal code
+                  const repeatedTail = tail.repeat(40);
+                  if (str.includes(repeatedTail)) return true;
+                }
+
+                // 2. Detect non-Latin gibberish loops
+                const nonLatinTail = str.slice(-100);
+                const nonLatinCount = (nonLatinTail.match(/[^\x00-\x7F]/g) || []).length;
+                if (nonLatinCount > 85) return true;
+
+                return false;
+              };
+
+              if (isSlop(contentSlop)) {
+                console.error("Pathological slop detected, aborting stream.");
+                abortControllerRef.current?.abort();
+                toast.error("AI generation loop detected. Aborted to save context.");
+                break;
+              }
+              // ----------------------------
+
+              // Check for code artifacts in current chunk to open the panel
+              if (
+                chunk.includes("<files") ||
+                chunk.includes("<component>") ||
+                /<file\s+path=["']/.test(chunk)
+              ) {
+                setIsPanelOpen(true);
+                setIsFullscreen(false);
+                setViewMode("code");
+                setGeneratedComponent(
+                  (prev) =>
+                    prev ?? {
+                      code: "",
+                      files: undefined,
+                      entryFile: undefined,
+                      language: "tsx",
+                      title: "Generated Component",
+                    },
+                );
+              }
+
+              // Check for file path in current chunk
+              const filePathMatch = chunk.match(
+                /<file\s+path=["']([^"']+)["']/,
+              );
+              if (filePathMatch) {
+                const filePath = filePathMatch[1];
+                const normalized = filePath.startsWith("/")
+                  ? filePath
+                  : `/${filePath}`;
+                setCurrentlyGeneratingFile(normalized);
               }
 
               if (updateTimer) clearTimeout(updateTimer);
@@ -1359,7 +1373,17 @@ export default function ComponentGeneratorPage() {
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  {viewMode === "preview" && (
+                    <div className="ml-2 border-l border-border pl-2">
+                      <ColorSchemeEditor
+                        value={colorScheme}
+                        onChange={setColorScheme}
+                        isDark={isDark}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1 ml-auto">
                     {/* Mobile Specific Close Button Primary */}
                     {isMobile && (
                       <Button
@@ -1408,6 +1432,7 @@ export default function ComponentGeneratorPage() {
                         }}
                         entryFile={generatedComponent.entryFile}
                         className="flex-1 min-h-0 h-full"
+                        colorScheme={colorScheme}
                       />
                     </div>
                   ) : (
