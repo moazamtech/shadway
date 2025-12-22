@@ -857,7 +857,7 @@ export default function ComponentGeneratorPage() {
   return (
     <div className="flex h-screen w-full flex-col bg-background font-sans overflow-hidden">
       {/* Header */}
-      <header className="flex-none h-14 border-b border-border bg-background/80 backdrop-blur-md z-40 px-4 flex items-center justify-between">
+      <header className="flex-none h-14 z-40 px-4 flex items-center justify-start">
         <div className="flex items-center gap-3">
           <ThemeToggle />
           {generatedComponent && !isPanelOpen && (
