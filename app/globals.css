@@ -148,16 +148,17 @@
     }
 }
 
-
-.hide-scrollbar {
-  /* For Firefox */
-  scrollbar-width: none;
-  
-  /* For Internet Explorer and Edge */
-  -ms-overflow-style: none;  
+/* Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  display: none;
 }
 
-/* For Chrome, Safari, Opera, and other Webkit-based browsers */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
+/* Firefox */
+html {
+  scrollbar-width: none;
+}
+
+/* IE 10+ */
+body {
+  -ms-overflow-style: none;
 }
