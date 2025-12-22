@@ -27,6 +27,8 @@ const sandpackStyles = `
     display: flex !important;
     flex-direction: column !important;
     position: relative !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
   }
 
   .sandpack-inner {
@@ -34,7 +36,7 @@ const sandpackStyles = `
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
-    flex: 1 1 0% !important;
+    flex: 1 1 auto !important;
     min-height: 0 !important;
     position: relative !important;
   }
@@ -42,31 +44,34 @@ const sandpackStyles = `
   .sp-layout {
     width: 100% !important;
     height: 100% !important;
-    flex: 1 1 0% !important;
-    min-height: 600px !important;
+    flex: 1 1 auto !important;
+    min-height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
     border: none !important;
     border-radius: 0 !important;
+    position: relative !important;
   }
 
   .sp-stack {
     height: 100% !important;
-    flex: 1 1 0% !important;
+    flex: 1 1 auto !important;
     min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .sp-preview-container {
-    flex: 1 1 0% !important;
-    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 100% !important;
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   .sp-preview {
-    flex: 1 1 0% !important;
-    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 100% !important;
     height: 100% !important;
     width: 100% !important;
     display: flex !important;
@@ -75,8 +80,8 @@ const sandpackStyles = `
   }
 
   .sp-preview-iframe {
-    flex: 1 1 0% !important;
-    min-height: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 100% !important;
     height: 100% !important;
     width: 100% !important;
     margin: 0 !important;
@@ -94,6 +99,7 @@ const sandpackStyles = `
     border: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    flex: 1 1 auto !important;
   }
 
   /* Hide scrollbars on Sandpack container */
@@ -126,6 +132,7 @@ type SandpackPreviewProps = {
   entryFile?: string;
   className?: string;
   showConsole?: boolean;
+  title?: string;
 };
 
 function findPrimaryComponentName(src: string) {
@@ -156,8 +163,8 @@ function posixDirname(pathname: string | null | undefined) {
   return normalized.slice(0, idx);
 }
 
-function posixRelative(fromDir: string | null | undefined, toPath: string | null | undefined) {
-  if (!fromDir || typeof fromDir !== 'string') return toPath || ".";
+function posixRelative(fromDir: string | null | undefined, toPath: string | null | undefined): string {
+  if (!fromDir || typeof fromDir !== 'string') return typeof toPath === 'string' ? toPath : ".";
   if (!toPath || typeof toPath !== 'string') return ".";
 
   const from = fromDir.replace(/\\/g, "/");
@@ -179,7 +186,8 @@ function posixRelative(fromDir: string | null | undefined, toPath: string | null
   return joined.startsWith(".") ? joined : `./${joined}`;
 }
 
-function stripModuleExtension(p: string) {
+function stripModuleExtension(p: string | null | undefined): string {
+  if (!p || typeof p !== 'string') return "";
   return p.replace(/\.(tsx|ts|jsx|js)$/i, "");
 }
 
@@ -460,6 +468,7 @@ export function SandpackRuntimePreview({
   files,
   entryFile,
   className,
+  showConsole = false,
 }: SandpackPreviewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -614,128 +623,111 @@ export default function App(){
     const indexTsx = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import "./index.css";
+
+// Inject Tailwind v4 theme configuration
+const isDark = document.documentElement.classList.contains("dark");
+
+const tailwindTheme = \`
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  --color-background: \${isDark ? "#0a0a0a" : "#ffffff"};
+  --color-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
+  --color-card: \${isDark ? "#0a0a0a" : "#ffffff"};
+  --color-card-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
+  --color-popover: \${isDark ? "#0a0a0a" : "#ffffff"};
+  --color-popover-foreground: \${isDark ? "#fafafa" : "#0a0a0a"};
+  --color-primary: \${isDark ? "#fafafa" : "#171717"};
+  --color-primary-foreground: \${isDark ? "#171717" : "#fafafa"};
+  --color-secondary: \${isDark ? "#262626" : "#f5f5f5"};
+  --color-secondary-foreground: \${isDark ? "#fafafa" : "#171717"};
+  --color-muted: \${isDark ? "#262626" : "#f5f5f5"};
+  --color-muted-foreground: \${isDark ? "#a1a1a1" : "#737373"};
+  --color-accent: \${isDark ? "#262626" : "#f5f5f5"};
+  --color-accent-foreground: \${isDark ? "#fafafa" : "#171717"};
+  --color-destructive: \${isDark ? "#7f1d1d" : "#ef4444"};
+  --color-destructive-foreground: #fafafa;
+  --color-border: \${isDark ? "#262626" : "#e5e5e5"};
+  --color-input: \${isDark ? "#262626" : "#e5e5e5"};
+  --color-ring: \${isDark ? "#d4d4d4" : "#0a0a0a"};
+  
+  --color-chart-1: \${isDark ? "#3b82f6" : "#e76e50"};
+  --color-chart-2: \${isDark ? "#22c55e" : "#2a9d90"};
+  --color-chart-3: \${isDark ? "#f59e0b" : "#264753"};
+  --color-chart-4: \${isDark ? "#a855f7" : "#e8c468"};
+  --color-chart-5: \${isDark ? "#ec4899" : "#f4a462"};
+  
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  border-color: var(--color-border);
+}
+\`;
+
+// Create and inject the Tailwind theme style element
+const styleEl = document.createElement("style");
+styleEl.setAttribute("type", "text/tailwindcss");
+styleEl.textContent = tailwindTheme;
+document.head.appendChild(styleEl);
 
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);`;
 
     const indexHtml = `<!doctype html>
-<html class="${isDark ? "dark" : ""}">
+<html class="${isDark ? "dark" : ""}" lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sandpack Preview</title>
+    <title>Preview</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              background: 'hsl(var(--background))',
-              foreground: 'hsl(var(--foreground))',
-              card: 'hsl(var(--card))',
-              'card-foreground': 'hsl(var(--card-foreground))',
-              popover: 'hsl(var(--popover))',
-              'popover-foreground': 'hsl(var(--popover-foreground))',
-              primary: 'hsl(var(--primary))',
-              'primary-foreground': 'hsl(var(--primary-foreground))',
-              secondary: 'hsl(var(--secondary))',
-              'secondary-foreground': 'hsl(var(--secondary-foreground))',
-              muted: 'hsl(var(--muted))',
-              'muted-foreground': 'hsl(var(--muted-foreground))',
-              accent: 'hsl(var(--accent))',
-              'accent-foreground': 'hsl(var(--accent-foreground))',
-              destructive: 'hsl(var(--destructive))',
-              'destructive-foreground': 'hsl(var(--destructive-foreground))',
-              border: 'hsl(var(--border))',
-              input: 'hsl(var(--input))',
-              ring: 'hsl(var(--ring))',
-            },
-            borderRadius: {
-              sm: 'calc(var(--radius) - 2px)',
-              md: 'var(--radius)',
-              lg: 'calc(var(--radius) + 2px)',
-            },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            },
-          },
-        },
-      }
-    </script>
-    <style>
-      :root {
-        --background: 0 0% 100%;
-        --foreground: 0 0% 3.9%;
-        --card: 0 0% 100%;
-        --card-foreground: 0 0% 3.9%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 0 0% 3.9%;
-        --primary: 0 0% 9%;
-        --primary-foreground: 0 0% 98%;
-        --secondary: 0 0% 96.1%;
-        --secondary-foreground: 0 0% 9%;
-        --muted: 0 0% 96.1%;
-        --muted-foreground: 0 0% 45.1%;
-        --accent: 0 0% 96.1%;
-        --accent-foreground: 0 0% 9%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 89.8%;
-        --input: 0 0% 89.8%;
-        --ring: 0 0% 3.9%;
-        --radius: 0.5rem;
-      }
-      
-      .dark {
-        --background: 0 0% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 0 0% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 0 0% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 0 0% 9%;
-        --secondary: 0 0% 14.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 0 0% 14.9%;
-        --muted-foreground: 0 0% 63.9%;
-        --accent: 0 0% 14.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 0 0% 14.9%;
-        --input: 0 0% 14.9%;
-        --ring: 0 0% 83.1%;
-      }
-      
-      *, *::before, *::after {
-        border-color: hsl(var(--border));
-      }
-      
-      body {
-        font-family: 'Inter', system-ui, sans-serif;
-        background-color: hsl(var(--background));
-        color: hsl(var(--foreground));
-        margin: 0;
-        padding: 0;
-      }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
-  <body class="min-h-screen w-full bg-background text-foreground font-sans antialiased">
+  <body>
     <div id="root"></div>
   </body>
 </html>`;
 
-    // indexCss is minimal since Tailwind is loaded via CDN
-    const indexCss = `/* Tailwind CSS is loaded via CDN in index.html with tailwind.config */
-* {
+    const indexCss = `/* Base styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 `;
 
@@ -757,150 +749,147 @@ root.render(<App />);`;
     });
 
     const cnUtil = `export function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(' ');
-}`;
+      return classes.filter(Boolean).join(' ');
+    } `;
 
     const utilsTs = `import { cn } from "./cn";
-export { cn };`;
+    export { cn }; `;
 
     const buttonTsx = `import React from 'react';
-import { cn } from '../lib/cn';
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
-};
-export function Button({ className, variant = 'default', size = 'default', ...props }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
-  const variants = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-    outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground',
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
-    destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-  };
-  const sizes = {
-    default: 'h-10 px-4 py-2',
-    sm: 'h-9 px-3 rounded-md',
-    lg: 'h-11 px-8 rounded-md',
-    icon: 'h-10 w-10'
-  };
-  return <button className={cn(base, variants[variant as keyof typeof variants], sizes[size as keyof typeof sizes], className)} {...props} />;
-}`;
+    import { cn } from '../lib/cn';
+    export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+      variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+      size?: 'default' | 'sm' | 'lg' | 'icon';
+    };
+    export function Button({ className, variant = 'default', size = 'default', ...props }: ButtonProps) {
+      const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
+      const variants = {
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground',
+        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+      };
+      const sizes = {
+        default: 'h-10 px-4 py-2',
+        sm: 'h-9 px-3 rounded-md',
+        lg: 'h-11 px-8 rounded-md',
+        icon: 'h-10 w-10'
+      };
+      return <button className={cn(base, variants[variant as keyof typeof variants], sizes[size as keyof typeof sizes], className)} {...props} />;
+    } `;
 
     const cardTsx = `import React from 'react';
-import { cn } from '../lib/cn';
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-lg border border-border bg-card text-card-foreground shadow-sm', className)} {...props} />;
-}
-export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
-}
-export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;
-}
-export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
-}
-export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-6 pt-0', className)} {...props} />;
-}
-export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center p-6 pt-0', className)} {...props} />;
-}`;
+    import { cn } from '../lib/cn';
+    export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+      return <div className={cn('rounded-lg border border-border bg-card text-card-foreground shadow-sm', className)} {...props} />;
+    }
+    export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+      return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
+    }
+    export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+      return <h3 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;
+    }
+    export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+      return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
+    }
+    export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+      return <div className={cn('p-6 pt-0', className)} {...props} />;
+    }
+    export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+      return <div className={cn('flex items-center p-6 pt-0', className)} {...props} />;
+    } `;
 
     const componentsButtonTsx = `export { Button } from "../../ui/button";
-export type { ButtonProps } from "../../ui/button";`;
+    export type { ButtonProps } from "../../ui/button"; `;
 
-    const componentsCardTsx = `export * from "../../ui/card";`;
+    const componentsCardTsx = `export * from "../../ui/card"; `;
 
     const componentsBadgeTsx = `import React from 'react';
-import { cn } from '../../lib/cn';
-export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' | 'destructive' | 'outline' };
-export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
-  const base = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
-  const variants = {
-    default: 'border-transparent bg-primary text-primary-foreground',
-    secondary: 'border-transparent bg-secondary text-secondary-foreground',
-    destructive: 'border-transparent bg-destructive text-destructive-foreground',
-    outline: 'text-foreground'
-  };
-  return <span className={cn(base, variants[variant as keyof typeof variants], className)} {...props} />;
-}`;
+    import { cn } from '../../lib/cn';
+    export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' | 'destructive' | 'outline' };
+    export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
+      const base = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
+      const variants = {
+        default: 'border-transparent bg-primary text-primary-foreground',
+        secondary: 'border-transparent bg-secondary text-secondary-foreground',
+        destructive: 'border-transparent bg-destructive text-destructive-foreground',
+        outline: 'text-foreground'
+      };
+      return <span className={cn(base, variants[variant as keyof typeof variants], className)} {...props} />;
+    } `;
 
     const componentsInputTsx = `import React from 'react';
-import { cn } from '../../lib/cn';
-export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
-  return (
-    <input
-      ref={ref}
-      type={type}
-      className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
-      {...props}
-    />
-  );
-});
-Input.displayName = 'Input';`;
+    import { cn } from '../../lib/cn';
+    export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
+    export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
+      return (
+        <input
+          ref={ref}
+          type={type}
+          className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
+          {...props}
+        />
+      );
+    });
+    Input.displayName = 'Input'; `;
 
     const componentsTextareaTsx = `import React from 'react';
-import { cn } from '../../lib/cn';
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
-  return (
-    <textarea
-      ref={ref}
-      className={cn('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
-      {...props}
-    />
-  );
-});
-Textarea.displayName = 'Textarea';`;
+    import { cn } from '../../lib/cn';
+    export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+    export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
+      return (
+        <textarea
+          ref={ref}
+          className={cn('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
+          {...props}
+        />
+      );
+    });
+    Textarea.displayName = 'Textarea'; `;
 
     const twindTs = `import { setup } from '@twind/core';
-import presetTailwind from '@twind/preset-tailwind';
+    import presetTailwind from '@twind/preset-tailwind';
 
-export function initTwind() {
-  setup({
-    presets: [presetTailwind({ darkMode: 'class' })],
-    hash: false,
-  });
-}`;
+    export function initTwind() {
+      setup({
+        presets: [presetTailwind({ darkMode: 'class' })],
+        hash: false,
+      });
+    } `;
 
     const componentsSeparatorTsx = `import React from 'react';
-import { cn } from '../../lib/cn';
-export type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };
-export function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
-  return (
-    <div
-      role={decorative ? 'none' : 'separator'}
-      aria-orientation={orientation}
-      className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)}
-      {...props}
-    />
-  );
-}`;
+    import { cn } from '../../lib/cn';
+    export type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };
+    export function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
+      return (
+        <div
+          role={decorative ? 'none' : 'separator'}
+          aria-orientation={orientation}
+          className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)}
+          {...props}
+        />
+      );
+    } `;
 
     return {
-      "/App.tsx": { code: appTsx },
-      "/index.tsx": { code: indexTsx },
-      "/index.css": { code: indexCss },
-      "/index.html": { code: indexHtml },
-      "/twind.ts": { code: twindTs },
-      "/tsconfig.json": { code: tsconfig },
-      "/lib/cn.ts": { code: cnUtil },
-      "/lib/utils.ts": { code: utilsTs },
-      "/ui/button.tsx": { code: buttonTsx },
-      "/ui/card.tsx": { code: cardTsx },
-      "/components/ui/button.tsx": { code: componentsButtonTsx },
-      "/components/ui/card.tsx": { code: componentsCardTsx },
-      "/components/ui/badge.tsx": { code: componentsBadgeTsx },
-      "/components/ui/input.tsx": { code: componentsInputTsx },
-      "/components/ui/textarea.tsx": { code: componentsTextareaTsx },
-      "/components/ui/separator.tsx": { code: componentsSeparatorTsx },
+      "/App.tsx": { code: String(appTsx) },
+      "/index.tsx": { code: String(indexTsx) },
+      "/index.css": { code: String(indexCss) },
+      "/index.html": { code: String(indexHtml) },
+      "/tsconfig.json": { code: String(tsconfig) },
+      "/lib/cn.ts": { code: String(cnUtil || "") },
+      "/lib/utils.ts": { code: String(utilsTs || "") },
+      "/components/ui/button.tsx": { code: String(componentsButtonTsx || "") },
+      "/components/ui/card.tsx": { code: String(componentsCardTsx || "") },
+      "/components/ui/badge.tsx": { code: String(componentsBadgeTsx || "") },
+      "/components/ui/input.tsx": { code: String(componentsInputTsx || "") },
+      "/components/ui/textarea.tsx": { code: String(componentsTextareaTsx || "") },
+      "/components/ui/separator.tsx": { code: String(componentsSeparatorTsx || "") },
       ...(generatedFiles
         ? Object.fromEntries(
           Object.entries(generatedFiles)
-            .filter(([path, src]) => path && typeof path === 'string' && src && typeof src === 'string')
+            .filter(([path, src]) => path && typeof path === 'string' && typeof src === 'string')
             .map(([path, src]) => [
               path,
               { code: src },
@@ -924,7 +913,8 @@ export function Separator({ className, orientation = 'horizontal', decorative = 
             visibleFiles: ["/App.tsx"],
             activeFile: "/App.tsx",
             externalResources: [
-              "https://cdn.tailwindcss.com",
+              "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
+              "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
             ],
           }}
           customSetup={{
@@ -971,7 +961,8 @@ export function Separator({ className, orientation = 'horizontal', decorative = 
           visibleFiles: ["/App.tsx"],
           activeFile: "/App.tsx",
           externalResources: [
-            "https://cdn.tailwindcss.com",
+            "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
+            "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
           ],
         }}
         customSetup={{
