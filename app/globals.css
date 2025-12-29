@@ -150,15 +150,47 @@
 
 /* Chrome, Safari, Edge */
 ::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 
 /* Firefox */
 html {
-  scrollbar-width: none;
+    scrollbar-width: none;
 }
 
 /* IE 10+ */
 body {
-  -ms-overflow-style: none;
+    -ms-overflow-style: none;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* View Transition for theme toggle */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 9999;
+}
+
+.dark::view-transition-old(root) {
+    z-index: 9999;
+}
+
+.dark::view-transition-new(root) {
+    z-index: 1;
 }
