@@ -811,7 +811,7 @@ function ConversationPromptInput() {
           </div>
 
           {/* Input area */}
-          <div className="shrink-0 z-20 bg-background">
+          <div className="shrink-0 z-20 py-3  bg-background">
             <div className="mx-auto w-full max-w-3xl px-4">
               <div className="rounded-t-2xl border border-b-0 border-border/50 bg-muted/50 backdrop-blur-xl">
                 {/* Image previews */}
