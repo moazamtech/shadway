@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useTheme } from "next-themes";
 import {
   SandpackProvider,
   SandpackLayout,
   SandpackPreview,
-  SandpackConsole,
+  useSandpackClient,
+  useSandpackConsole,
 } from "@codesandbox/sandpack-react";
 import { githubLight, amethyst } from "@codesandbox/sandpack-themes";
 import { cn } from "@/lib/utils";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SANDPACK_SHADCN_FILES } from "@/lib/sandpack-files";
 import {
@@ -18,118 +18,6 @@ import {
   defaultColorSchemeConfig,
   generateThemeCSS,
 } from "@/lib/color-scheme";
-
-const SANDBOX_TRANSFORM_VERSION = 5; // Bumped version for color scheme support
-
-const sandpackStyles = `
-  * {
-    box-sizing: border-box !important;
-  }
-
-  .sandpack-wrapper {
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    position: relative !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-  }
-
-  .sandpack-inner {
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    position: relative !important;
-  }
-
-  .sp-layout {
-    width: 100% !important;
-    height: 100% !important;
-    flex: 1 1 auto !important;
-    min-height: 590% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    border: none !important;
-    border-radius: 0 !important;
-    position: relative !important;
-  }
-
-  .sp-stack {
-    height: 100% !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .sp-preview-container {
-    flex: 1 1 auto !important;
-    min-height: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .sp-preview {
-    flex: 1 1 auto !important;
-    min-height: 100% !important;
-    height: 100% !important;
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-  }
-
-  .sp-preview-iframe {
-    flex: 1 1 auto !important;
-    min-height: 100% !important;
-    height: 100% !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-  }
-
-  .sp-preview-actions {
-    display: none !important;
-  }
-
-  iframe {
-    width: 100% !important;
-    height: 100% !important;
-    border: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    flex: 1 1 auto !important;
-  }
-
-  /* Hide scrollbars on Sandpack container */
-  .sp-code-editor {
-    overflow: hidden !important;
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
-  }
-
-  .sp-code-editor::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  /* Hide scrollbars in preview pane */
-  .sp-preview,
-  .sp-preview > * {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-  }
-
-  .sp-preview::-webkit-scrollbar,
-  .sp-preview > *::-webkit-scrollbar {
-    display: none !important;
-  }
-`;
 
 type SandpackPreviewProps = {
   code?: string;
@@ -139,6 +27,89 @@ type SandpackPreviewProps = {
   showConsole?: boolean;
   title?: string;
   colorScheme?: ColorSchemeConfig;
+  isDarkTheme?: boolean;
+  onPreviewUrlChange?: (url: string) => void;
+  onConsoleLogs?: (
+    logs: Array<{
+      level: "log" | "warn" | "error";
+      message: string;
+      timestamp: Date;
+    }>,
+  ) => void;
+};
+const SandpackPreviewUrlSync = ({
+  onUrlChange,
+}: {
+  onUrlChange?: (url: string) => void;
+}) => {
+  const { sandpack, getClient } = useSandpackClient();
+  const lastUrlRef = React.useRef("");
+
+  React.useEffect(() => {
+    if (!onUrlChange) return;
+    if (sandpack.status !== "done") return;
+    const client = getClient();
+    if (!client || typeof client.getCodeSandboxURL !== "function") return;
+
+    let cancelled = false;
+    client
+      .getCodeSandboxURL()
+      .then((result) => {
+        const nextUrl = result?.embedUrl || result?.editorUrl || "";
+        if (!nextUrl || cancelled || nextUrl === lastUrlRef.current) return;
+        lastUrlRef.current = nextUrl;
+        onUrlChange(nextUrl);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sandpack.status, getClient, onUrlChange]);
+
+  return null;
+};
+
+const SandpackConsoleBridge = ({
+  onLogs,
+}: {
+  onLogs?: (
+    logs: Array<{
+      level: "log" | "warn" | "error";
+      message: string;
+      timestamp: Date;
+    }>,
+  ) => void;
+}) => {
+  const { logs } = useSandpackConsole({
+    resetOnPreviewRestart: true,
+    showSyntaxError: true,
+    maxMessageCount: 200,
+  });
+
+  React.useEffect(() => {
+    if (!onLogs) return;
+    const mapped = logs
+      .filter((entry) => entry.method !== "clear")
+      .map((entry) => {
+        const level =
+          entry.method === "error"
+            ? "error"
+            : entry.method === "warn" || entry.method === "warning"
+              ? "warn"
+              : "log";
+        const message =
+          entry.data
+            ?.map((item) =>
+              typeof item === "string" ? item : JSON.stringify(item),
+            )
+            ?.join(" ") ?? "";
+        return { level, message, timestamp: new Date() };
+      });
+    onLogs(mapped);
+  }, [logs, onLogs]);
+
+  return null;
 };
 
 function findPrimaryComponentName(src: string) {
@@ -162,16 +133,20 @@ function findPrimaryComponentName(src: string) {
 }
 
 function posixDirname(pathname: string | null | undefined) {
-  if (!pathname || typeof pathname !== 'string') return "/";
+  if (!pathname || typeof pathname !== "string") return "/";
   const normalized = pathname.replace(/\\/g, "/");
   const idx = normalized.lastIndexOf("/");
   if (idx <= 0) return "/";
   return normalized.slice(0, idx);
 }
 
-function posixRelative(fromDir: string | null | undefined, toPath: string | null | undefined): string {
-  if (!fromDir || typeof fromDir !== 'string') return typeof toPath === 'string' ? toPath : ".";
-  if (!toPath || typeof toPath !== 'string') return ".";
+function posixRelative(
+  fromDir: string | null | undefined,
+  toPath: string | null | undefined,
+): string {
+  if (!fromDir || typeof fromDir !== "string")
+    return typeof toPath === "string" ? toPath : ".";
+  if (!toPath || typeof toPath !== "string") return ".";
 
   const from = fromDir.replace(/\\/g, "/");
   const to = toPath.replace(/\\/g, "/");
@@ -193,8 +168,29 @@ function posixRelative(fromDir: string | null | undefined, toPath: string | null
 }
 
 function stripModuleExtension(p: string | null | undefined): string {
-  if (!p || typeof p !== 'string') return "";
+  if (!p || typeof p !== "string") return "";
   return p.replace(/\.(tsx|ts|jsx|js)$/i, "");
+}
+
+function dedupeNamedImports(src: string) {
+  return src.replace(
+    /import\s+(type\s+)?{\s*([^}]+)\s*}\s*from\s*["']([^"']+)["']\s*;?/g,
+    (_full, typePrefix, names, from) => {
+      const seen = new Set<string>();
+      const deduped = names
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+        .filter((part) => {
+          const key = part.replace(/\s+as\s+.+$/, "");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .join(", ");
+      return `import ${typePrefix || ""}{ ${deduped} } from "${from}";`;
+    },
+  );
 }
 
 function extractPackageDependencies(
@@ -240,9 +236,12 @@ function extractPackageDependencies(
   return deps;
 }
 
-function rewriteAliasImportsForFile(src: string | null | undefined, fromFilePath: string | null | undefined) {
-  if (!src || typeof src !== 'string') return src || "";
-  if (!fromFilePath || typeof fromFilePath !== 'string') return src;
+function rewriteAliasImportsForFile(
+  src: string | null | undefined,
+  fromFilePath: string | null | undefined,
+) {
+  if (!src || typeof src !== "string") return src || "";
+  if (!fromFilePath || typeof fromFilePath !== "string") return src;
 
   const fromDir = posixDirname(fromFilePath);
   return src.replace(/from\s+["']@\/([^"']+)["']/g, (_m, target) => {
@@ -303,8 +302,6 @@ function hasIdentifierDeclaration(src: string, name: string) {
   ];
   return patterns.some((p) => p.test(src));
 }
-
-
 
 function isJsxTagUsed(src: string, tagName: string) {
   return new RegExp(String.raw`<${tagName}\b`, "m").test(src);
@@ -391,6 +388,7 @@ function injectMissingImports(src: string) {
 function createAppFileFromCode(src: string) {
   src = repairMultilineJsxAttributeStrings(src);
   src = injectMissingImports(src);
+  src = dedupeNamedImports(src);
   src = rewriteAliasImportsForFile(src, "/App.tsx");
   src = stripForbiddenImports(src);
   const componentNameFromSource = findPrimaryComponentName(src);
@@ -474,11 +472,13 @@ export function SandpackRuntimePreview({
   files,
   entryFile,
   className,
-  showConsole = false,
+  title,
   colorScheme = defaultColorSchemeConfig,
+  isDarkTheme = true,
+  onPreviewUrlChange,
+  onConsoleLogs,
 }: SandpackPreviewProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  // Use controlled state for Sandpack theme
   const [isFullscreen, setIsFullscreen] = useState(false);
   const baseDependencies = useMemo(
     () => ({
@@ -511,25 +511,17 @@ export function SandpackRuntimePreview({
     return extractPackageDependencies(sources, baseDependencies);
   }, [files, code, baseDependencies]);
 
-  React.useEffect(() => {
-    const styleElement = document.createElement("style");
-    styleElement.textContent = sandpackStyles;
-    document.head.appendChild(styleElement);
-    return () => {
-      document.head.removeChild(styleElement);
-    };
-  }, []);
-
   const sandpackFiles = useMemo(() => {
     const normalizeGeneratedFiles = (input: Record<string, string>) => {
       const out: Record<string, string> = {};
-      if (!input || typeof input !== 'object') return out;
+      if (!input || typeof input !== "object") return out;
 
       for (const [k, v] of Object.entries(input)) {
         // Skip entries with null, undefined, or empty keys
-        if (k === null || k === undefined || k === '' || typeof k !== 'string') continue;
+        if (k === null || k === undefined || k === "" || typeof k !== "string")
+          continue;
         // Skip entries with empty or non-string values
-        if (!v || typeof v !== 'string' || !v.trim()) continue;
+        if (!v || typeof v !== "string" || !v.trim()) continue;
 
         const normalized = k.startsWith("/") ? k : `/${k}`;
         out[normalized] = v;
@@ -537,14 +529,18 @@ export function SandpackRuntimePreview({
       return out;
     };
 
-    const transformGeneratedFile = (path: string | null | undefined, src: string | null | undefined) => {
-      if (!path || typeof path !== 'string') return src || "";
-      if (!src || typeof src !== 'string') return "";
+    const transformGeneratedFile = (
+      path: string | null | undefined,
+      src: string | null | undefined,
+    ) => {
+      if (!path || typeof path !== "string") return src || "";
+      if (!src || typeof src !== "string") return "";
 
       try {
         let out = src;
         out = repairMultilineJsxAttributeStrings(out);
         out = injectMissingImports(out);
+        out = dedupeNamedImports(out);
         out = rewriteAliasImportsForFile(out, path);
         out = stripForbiddenImports(out);
         return out;
@@ -598,16 +594,22 @@ export default function App(){
         const transformed: Record<string, string> = {};
         for (const [path, src] of Object.entries(generatedFiles)) {
           // Double-check path is valid
-          if (!path || typeof path !== 'string') continue;
-          if (!src || typeof src !== 'string') continue;
+          if (!path || typeof path !== "string") continue;
+          if (!src || typeof src !== "string") continue;
           transformed[path] = transformGeneratedFile(path, src);
         }
         generatedFiles = transformed;
 
         // Find entry file with null safety
-        const validKeys = Object.keys(generatedFiles).filter(k => k && typeof k === 'string');
+        const validKeys = Object.keys(generatedFiles).filter(
+          (k) => k && typeof k === "string",
+        );
         let entry: string | undefined =
-          entryFile && typeof entryFile === 'string' && generatedFiles[entryFile] ? entryFile : undefined;
+          entryFile &&
+          typeof entryFile === "string" &&
+          generatedFiles[entryFile]
+            ? entryFile
+            : undefined;
         if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
         if (!entry && generatedFiles["/App.tsx"]) entry = "/App.tsx";
         if (!entry && validKeys.length > 0) entry = validKeys[0];
@@ -628,7 +630,7 @@ export default function App(){
     }
 
     // Generate the Tailwind v4 theme CSS from the color scheme
-    const themeCSS = generateThemeCSS(colorScheme, isDark);
+    const themeCSS = generateThemeCSS(colorScheme, isDarkTheme);
 
     const indexTsx = `import React from "react";
 import { createRoot } from "react-dom/client";
@@ -647,7 +649,7 @@ const root = createRoot(document.getElementById("root")!);
 root.render(<App />);`;
 
     const indexHtml = `<!doctype html>
-<html class="${isDark ? "dark" : ""}" lang="en">
+<html class="${isDarkTheme ? "dark" : ""}" lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -707,51 +709,6 @@ body {
     const utilsTs = `import { cn } from "./cn";
     export { cn }; `;
 
-    const buttonTsx = `import React from 'react';
-    import { cn } from '../lib/cn';
-    export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-      variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-      size?: 'default' | 'sm' | 'lg' | 'icon';
-    };
-    export function Button({ className, variant = 'default', size = 'default', ...props }: ButtonProps) {
-      const base = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:pointer-events-none';
-      const variants = {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border border-border bg-background hover:bg-accent hover:text-accent-foreground',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-      };
-      const sizes = {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 px-3 rounded-md',
-        lg: 'h-11 px-8 rounded-md',
-        icon: 'h-10 w-10'
-      };
-      return <button className={cn(base, variants[variant as keyof typeof variants], sizes[size as keyof typeof sizes], className)} {...props} />;
-    } `;
-
-    const cardTsx = `import React from 'react';
-    import { cn } from '../lib/cn';
-    export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-      return <div className={cn('rounded-lg border border-border bg-card text-card-foreground shadow-sm', className)} {...props} />;
-    }
-    export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-      return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
-    }
-    export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-      return <h3 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />;
-    }
-    export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-      return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
-    }
-    export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-      return <div className={cn('p-6 pt-0', className)} {...props} />;
-    }
-    export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-      return <div className={cn('flex items-center p-6 pt-0', className)} {...props} />;
-    } `;
-
     const componentsButtonTsx = `export { Button } from "../../ui/button";
     export type { ButtonProps } from "../../ui/button"; `;
 
@@ -800,16 +757,6 @@ body {
     });
     Textarea.displayName = 'Textarea'; `;
 
-    const twindTs = `import { setup } from '@twind/core';
-    import presetTailwind from '@twind/preset-tailwind';
-
-    export function initTwind() {
-      setup({
-        presets: [presetTailwind({ darkMode: 'class' })],
-        hash: false,
-      });
-    } `;
-
     const componentsSeparatorTsx = `import React from 'react';
     import { cn } from '../../lib/cn';
     export type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };
@@ -836,24 +783,49 @@ body {
       "/components/ui/card.tsx": { code: String(componentsCardTsx || "") },
       "/components/ui/badge.tsx": { code: String(componentsBadgeTsx || "") },
       "/components/ui/input.tsx": { code: String(componentsInputTsx || "") },
-      "/components/ui/textarea.tsx": { code: String(componentsTextareaTsx || "") },
-      "/components/ui/separator.tsx": { code: String(componentsSeparatorTsx || "") },
-      ...(generatedFiles
+      "/components/ui/textarea.tsx": {
+        code: String(componentsTextareaTsx || ""),
+      },
+      "/components/ui/separator.tsx": {
+        code: String(componentsSeparatorTsx || ""),
+      },
+      ...(files
         ? Object.fromEntries(
-          Object.entries(generatedFiles)
-            .filter(([path, src]) => path && typeof path === 'string' && typeof src === 'string')
-            .map(([path, src]) => [
-              path,
-              { code: src },
-            ]),
-        )
+            Object.entries(files)
+              .filter(
+                ([path, src]) =>
+                  path && typeof path === "string" && typeof src === "string",
+              )
+              .map(([path, src]) => [path, { code: src }]),
+          )
         : {}),
     } as const;
-  }, [code, files, entryFile, isDark, colorScheme]);
+  }, [code, files, entryFile, isDarkTheme, colorScheme]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
+
+  const FullscreenToggle = (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleFullscreen}
+      className={cn(
+        "h-7 w-7 rounded-md transition-colors",
+        isDarkTheme
+          ? "text-white/70 hover:text-white hover:bg-white/10"
+          : "text-black/70 hover:text-black hover:bg-black/5",
+      )}
+      title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+    >
+      {isFullscreen ? (
+        <Minimize2 className="h-3.5 w-3.5" />
+      ) : (
+        <Maximize2 className="h-3.5 w-3.5" />
+      )}
+    </Button>
+  );
 
   if (isFullscreen) {
     return (
@@ -866,7 +838,7 @@ body {
             activeFile: "/App.tsx",
             externalResources: [
               "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
-              "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+              "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
             ],
           }}
           customSetup={{
@@ -875,27 +847,21 @@ body {
               ...extractedDependencies,
             },
           }}
-          theme={isDark ? amethyst : githubLight}
+          theme={isDarkTheme ? amethyst : githubLight}
         >
+          <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
           <div className="relative h-screen flex flex-col">
-            {/* Fullscreen Toggle Button */}
-            <div className="absolute top-3 right-3 z-20 bg-background/90 backdrop-blur-sm rounded-lg shadow-md">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleFullscreen}
-                className="h-9 w-9 hover:bg-accent"
-                title="Exit fullscreen"
-              >
-                <Minimize2 className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <SandpackLayout className="!h-screen !border-0">
+            <SandpackLayout className="h-full w-full flex-1 min-h-0 border-0 rounded-none">
               <SandpackPreview
                 showOpenInCodeSandbox={false}
                 showRefreshButton={true}
                 showRestartButton={true}
+                className="h-full w-full flex-1 min-h-0"
+                actionsChildren={
+                  <div className="flex items-center gap-1">
+                    {FullscreenToggle}
+                  </div>
+                }
               />
             </SandpackLayout>
           </div>
@@ -905,7 +871,7 @@ body {
   }
 
   return (
-    <div className={cn("sandpack-wrapper h-full w-full", className)} style={{ minHeight: 0, flex: '1 1 0%' }}>
+    <div className={cn("absolute inset-0", className)}>
       <SandpackProvider
         template="react-ts"
         files={sandpackFiles}
@@ -914,7 +880,7 @@ body {
           activeFile: "/App.tsx",
           externalResources: [
             "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
-            "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+            "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
           ],
         }}
         customSetup={{
@@ -923,37 +889,35 @@ body {
             ...extractedDependencies,
           },
         }}
-        theme={isDark ? amethyst : githubLight}
+        theme={isDarkTheme ? amethyst : githubLight}
       >
-        <div className="sandpack-inner h-full w-full" style={{ minHeight: 0, flex: '1 1 0%' }}>
-          {/* Fullscreen Toggle Button */}
-          <div
-            className={cn(
-              "absolute top-3 right-3 z-20",
-              isDark ? "bg-neutral-800/90" : "bg-white/90",
-              "backdrop-blur-sm rounded-lg shadow-md",
-            )}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreen}
-              className="h-9 w-9 hover:bg-accent"
-              title="Enter fullscreen"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <SandpackLayout style={{ height: '100%', flex: '1 1 0%', minHeight: 0, border: 'none', borderRadius: 0 }}>
-            <SandpackPreview
-              showOpenInCodeSandbox={false}
-              showRefreshButton={true}
-              showRestartButton={false}
-              style={{ height: '100%', flex: '1 1 0%', minHeight: 0 }}
-            />
-          </SandpackLayout>
-        </div>
+        <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
+        <SandpackLayout
+          style={{
+            position: "absolute",
+            inset: 0,
+            border: "none",
+            borderRadius: 0,
+            background: "transparent",
+          }}
+        >
+          <SandpackPreview
+            showOpenInCodeSandbox={false}
+            showRefreshButton={true}
+            showRestartButton={false}
+            style={{
+              position: "absolute",
+              inset: 0,
+              height: "100%",
+              width: "100%",
+            }}
+            actionsChildren={
+              <div className="flex items-center gap-1 pr-1">
+                {FullscreenToggle}
+              </div>
+            }
+          />
+        </SandpackLayout>
       </SandpackProvider>
     </div>
   );

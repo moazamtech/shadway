@@ -48,6 +48,12 @@ export function Navbar() {
       icon: Sparkles,
       description: "AI-powered component builder"
     },
+    {
+      name: "AI CHATBOT",
+      href: "/chatbot",
+      icon: Sparkles,
+      description: "AI-powered T3CHAT CLONE"
+    },
   ]
 
   return (
