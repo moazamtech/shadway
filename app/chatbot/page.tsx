@@ -141,73 +141,112 @@ export const MessageComponent = memo(
     const text = getMessageText(message.content);
     const images = getMessageImages(message.content);
 
+    const copyText = async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    };
+
     return (
       <Message
         className={cn(
-          "mx-auto flex w-full max-w-3xl flex-col gap-2 px-2 md:px-10",
+          "mx-auto flex w-full max-w-3xl flex-col gap-2",
           isAssistant ? "items-start" : "items-end",
         )}
       >
         {isAssistant ? (
-          <div className="group flex w-full flex-col gap-0">
-            <MessageContent
-              className="text-foreground prose w-full min-w-0 flex-1 rounded-2xl border border-border/40 bg-muted/30 px-5 py-4 shadow-sm backdrop-blur-sm"
-              markdown
-            >
-              {text}
-            </MessageContent>
-            <MessageActions
-              className={cn(
-                "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-                isLastMessage && "opacity-100",
-              )}
-            >
-              <MessageAction tooltip="Copy" delayDuration={100}>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Copy />
+          <div className="group flex w-full flex-col gap-2">
+            {/* Assistant Avatar & Label */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 ring-1 ring-foreground/10">
+                <Sparkles className="h-3.5 w-3.5 text-foreground/70" />
+              </div>
+              <span className="text-sm font-semibold text-foreground/80">
+                Shadway
+              </span>
+            </div>
+
+            {/* Message Content */}
+            <div className="pl-9">
+              <MessageContent
+                className="text-foreground prose prose-neutral dark:prose-invert w-full min-w-0 flex-1 max-w-none text-[15px] leading-[1.75] [&_p]:my-4 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-4 [&_ol]:my-4 [&_li]:my-1.5 [&_pre]:my-4 [&_blockquote]:my-4 [&_h1]:mt-8 [&_h1]:mb-4 [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:mt-5 [&_h3]:mb-2 [&_code]:text-[13px]"
+                markdown
+              >
+                {text}
+              </MessageContent>
+
+              {/* Actions */}
+              <MessageActions
+                className={cn(
+                  "mt-4 flex gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100",
+                  isLastMessage && "opacity-100",
+                )}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2.5 gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                  onClick={copyText}
+                >
+                  <Copy className="h-3 w-3" />
+                  <span>Copy</span>
                 </Button>
-              </MessageAction>
-              <MessageAction tooltip="Upvote" delayDuration={100}>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <ThumbsUp />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
                 </Button>
-              </MessageAction>
-              <MessageAction tooltip="Downvote" delayDuration={100}>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <ThumbsDown />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
                 </Button>
-              </MessageAction>
-            </MessageActions>
+              </MessageActions>
+            </div>
           </div>
         ) : (
-          <div className="group flex w-full flex-col items-end gap-1">
+          <div className="group flex w-full flex-col items-end gap-2">
+            {/* User Images */}
             {images.length > 0 && (
-              <div className="flex flex-wrap gap-2 max-w-[85%] sm:max-w-[75%]">
+              <div className="flex flex-wrap justify-end gap-2 max-w-[80%]">
                 {images.map((src, i) => (
                   <img
                     key={i}
                     src={src}
                     alt="Uploaded"
-                    className="max-h-48 rounded-2xl border border-border/40 object-cover shadow-sm"
+                    className="max-h-52 rounded-2xl border border-border/20 object-cover shadow-sm"
                   />
                 ))}
               </div>
             )}
+
+            {/* User Message */}
             {text && (
-              <MessageContent className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl px-5 py-2.5 whitespace-pre-wrap shadow-md sm:max-w-[75%]">
+              <MessageContent className="bg-foreground text-background max-w-[80%] rounded-2xl px-4 py-3 whitespace-pre-wrap text-[15px] leading-relaxed">
                 {text}
               </MessageContent>
             )}
+
+            {/* User Actions */}
             <MessageActions
               className={cn(
-                "flex gap-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                "mr-1 flex gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100",
               )}
             >
-              <MessageAction tooltip="Copy" delayDuration={100}>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Copy />
-                </Button>
-              </MessageAction>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={copyText}
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
             </MessageActions>
           </div>
         )}
@@ -219,10 +258,22 @@ export const MessageComponent = memo(
 MessageComponent.displayName = "MessageComponent";
 
 const LoadingMessage = memo(() => (
-  <Message className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-0 md:px-10">
-    <div className="group flex w-full flex-col gap-0">
-      <div className="text-foreground prose w-full min-w-0 flex-1 rounded-lg bg-transparent p-0">
+  <Message className="mx-auto flex w-full max-w-3xl flex-col items-start gap-2">
+    <div className="flex w-full flex-col gap-2">
+      {/* Assistant Avatar & Label */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 ring-1 ring-foreground/10">
+          <Sparkles className="h-3.5 w-3.5 text-foreground/70 animate-pulse" />
+        </div>
+        <span className="text-sm font-semibold text-foreground/80">
+          Shadway
+        </span>
+      </div>
+
+      {/* Loading Indicator */}
+      <div className="pl-9 flex items-center gap-3 py-1">
         <DotsLoader />
+        <span className="text-sm text-muted-foreground/60">Thinking...</span>
       </div>
     </div>
   </Message>
@@ -231,11 +282,19 @@ const LoadingMessage = memo(() => (
 LoadingMessage.displayName = "LoadingMessage";
 
 const ErrorMessage = memo(({ error }: { error: string }) => (
-  <Message className="not-prose mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-0 md:px-10">
-    <div className="group flex w-full flex-col items-start gap-0">
-      <div className="text-primary flex min-w-0 flex-1 flex-row items-center gap-2 rounded-xl border-2 border-red-300 bg-red-300/20 px-3 py-2">
-        <AlertTriangle size={16} className="text-red-500" />
-        <p className="text-red-500">{error}</p>
+  <Message className="not-prose mx-auto flex w-full max-w-3xl flex-col items-start gap-2 px-2 md:px-6">
+    <div className="flex w-full flex-col gap-1">
+      {/* Error Indicator */}
+      <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 shrink-0">
+          <AlertTriangle className="h-4 w-4 text-red-500" />
+        </div>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-sm font-medium text-red-500">
+            Error occurred
+          </span>
+          <p className="text-sm text-red-400/80 break-words">{error}</p>
+        </div>
       </div>
     </div>
   </Message>
@@ -703,10 +762,11 @@ function ConversationPromptInput() {
 
           {/* Main chat area */}
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-12 bg-gradient-to-b from-background to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-background to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 bg-gradient-to-t from-background to-transparent" />
 
-            <ChatContainerRoot className="relative h-full space-y-0 overflow-y-auto">
-              <ChatContainerContent className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-4 pt-20 md:px-8">
+            <ChatContainerRoot className="relative h-full space-y-0 overflow-y-auto scroll-smooth">
+              <ChatContainerContent className="mx-auto w-full max-w-3xl space-y-6 px-4 pb-32 pt-20 md:px-6">
                 {messages.length === 0 && (
                   <div className="mx-auto flex max-w-2xl flex-col items-center px-4 pt-16 text-center">
                     <div className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 shadow-lg">
@@ -723,28 +783,27 @@ function ConversationPromptInput() {
                     <div className="mt-8 flex flex-wrap justify-center gap-3">
                       {[
                         {
-                          label: "Create",
+                          label: "Math",
                           icon: Sparkles,
-                          prompt:
-                            "Write a crisp product announcement for my app.",
+                          prompt: "What is 9 + 10?",
                         },
                         {
-                          label: "Explore",
+                          label: "Space",
                           icon: Compass,
                           prompt:
-                            "Brainstorm 10 marketing ideas for a developer tool.",
+                            "What is a black hole and why is it so scary?",
                         },
                         {
-                          label: "Code",
+                          label: "Music",
                           icon: Code2,
                           prompt:
-                            "Help me refactor a React component for readability.",
+                            "Who is Machel Fackson and why do people love him?",
                         },
                         {
-                          label: "Learn",
+                          label: "Random",
                           icon: GraduationCap,
                           prompt:
-                            "Explain a hard concept with a simple example.",
+                            "If a tomato is a fruit, is ketchup a smoothie?",
                         },
                       ].map(({ label, icon: Icon, prompt }) => (
                         <Button
@@ -763,10 +822,10 @@ function ConversationPromptInput() {
                     {/* Suggestion cards */}
                     <div className="mt-10 w-full overflow-hidden rounded-2xl border border-border/40 bg-card/50 shadow-lg backdrop-blur-sm">
                       {[
-                        "Turn this idea into a step-by-step plan.",
-                        "Suggest a clean UI for a chat app.",
-                        "Explain an error message and how to fix it.",
-                        "Draft a short, friendly email reply.",
+                        "Why do we park in driveways but drive on parkways?",
+                        "Can you explain quantum physics like I'm 5?",
+                        "What came first, the chicken or the egg?",
+                        "Is water wet or does it make things wet?",
                       ].map((t, i) => (
                         <button
                           key={t}
@@ -811,22 +870,22 @@ function ConversationPromptInput() {
           </div>
 
           {/* Input area */}
-          <div className="shrink-0 z-20 py-3  bg-background">
+          <div className="shrink-0 z-20 py-4">
             <div className="mx-auto w-full max-w-3xl px-4">
-              <div className="rounded-t-2xl border border-b-0 border-border/50 bg-muted/50 backdrop-blur-xl">
+              <div className="rounded-3xl border border-border/40 shadow-sm">
                 {/* Image previews */}
                 {images.length > 0 && (
-                  <div className="flex flex-wrap gap-2 px-4 pt-3">
+                  <div className="flex flex-wrap gap-2 px-4 pt-4">
                     {images.map((img, i) => (
                       <div key={i} className="relative group">
                         <img
                           src={img}
                           alt="Preview"
-                          className="size-16 rounded-lg border border-border/50 object-cover"
+                          className="size-16 rounded-xl border border-border/30 object-cover"
                         />
                         <button
                           onClick={() => removeImage(i)}
-                          className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-transform hover:scale-110"
+                          className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-transform hover:scale-110"
                         >
                           <X size={12} />
                         </button>
@@ -835,8 +894,8 @@ function ConversationPromptInput() {
                   </div>
                 )}
 
-                {/* Textarea and send button row */}
-                <div className="flex items-end gap-2 px-3 pt-3 pb-2">
+                {/* Textarea */}
+                <div className="px-4 pt-4 pb-3">
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -846,9 +905,9 @@ function ConversationPromptInput() {
                         onSubmit();
                       }
                     }}
-                    placeholder="Message Shadway..."
+                    placeholder="Ask me anything..."
                     rows={1}
-                    className="min-h-[40px] max-h-[200px] flex-1 resize-none rounded-xl border-0 bg-transparent px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
+                    className="w-full min-h-[44px] max-h-[200px] resize-none bg-transparent text-[15px] leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none"
                     style={{
                       height: "auto",
                       overflow: "hidden",
@@ -862,34 +921,20 @@ function ConversationPromptInput() {
                         target.scrollHeight > 200 ? "auto" : "hidden";
                     }}
                   />
-                  <Button
-                    size="icon"
-                    disabled={
-                      (!input.trim() && images.length === 0) || isLoading
-                    }
-                    onClick={onSubmit}
-                    className="size-9 shrink-0 rounded-xl bg-primary shadow-sm transition-all hover:bg-primary/90 disabled:opacity-40"
-                  >
-                    {!isLoading ? (
-                      <ArrowUp size={18} />
-                    ) : (
-                      <span className="size-3 rounded-sm bg-primary-foreground" />
-                    )}
-                  </Button>
                 </div>
 
-                {/* Bottom row with model selector and actions - no border */}
-                <div className="flex items-center justify-between gap-2 px-3 pb-2">
+                {/* Bottom toolbar */}
+                <div className="flex items-center justify-between gap-3 px-3 pb-3">
                   <div className="flex items-center gap-1">
                     {/* Model selector */}
                     <Select
                       value={selectedModel}
                       onValueChange={setSelectedModel}
                     >
-                      <SelectTrigger className="h-7 w-auto gap-1.5 rounded-md border-0 bg-transparent px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                      <SelectTrigger className="h-8 w-auto gap-1.5 rounded-lg border-0 bg-muted/50 px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                         <SelectValue placeholder="Model" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/50">
+                      <SelectContent className="rounded-xl border-border/40">
                         {MODELS.map((model) => (
                           <SelectItem
                             key={model.value}
@@ -902,31 +947,6 @@ function ConversationPromptInput() {
                       </SelectContent>
                     </Select>
 
-                    <div className="mx-0.5 h-4 w-px bg-border/40" />
-
-                    {/* Feature toggles */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <Sparkles size={14} />
-                      <span className="hidden sm:inline">Reasoning</span>
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <Compass size={14} />
-                      <span className="hidden sm:inline">Web Search</span>
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
                     {/* Image upload */}
                     {supportsImages && (
                       <>
@@ -943,20 +963,15 @@ function ConversationPromptInput() {
                           variant="ghost"
                           size="icon"
                           onClick={() => fileInputRef.current?.click()}
-                          className="size-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="size-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >
-                          <ImagePlus size={14} />
+                          <ImagePlus size={16} />
                         </Button>
                       </>
                     )}
+                  </div>
 
-                    {/* Keyboard shortcut hint */}
-                    <div className="hidden items-center gap-1 text-[10px] text-muted-foreground/50 sm:flex">
-                      <kbd className="rounded border border-border/40 bg-background/50 px-1 py-0.5 font-mono">
-                        Enter
-                      </kbd>
-                    </div>
-
+                  <div className="flex items-center gap-2">
                     {/* Stop button when loading */}
                     {isLoading && (
                       <Button
@@ -964,14 +979,36 @@ function ConversationPromptInput() {
                         variant="ghost"
                         size="sm"
                         onClick={() => abortControllerRef.current?.abort()}
-                        className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="h-8 rounded-lg px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
                         Stop
                       </Button>
                     )}
+
+                    {/* Send button */}
+                    <Button
+                      size="icon"
+                      disabled={
+                        (!input.trim() && images.length === 0) || isLoading
+                      }
+                      onClick={onSubmit}
+                      className="size-8 rounded-lg bg-foreground text-background shadow-sm transition-all hover:bg-foreground/90 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      {!isLoading ? (
+                        <ArrowUp size={16} strokeWidth={2.5} />
+                      ) : (
+                        <span className="size-2.5 rounded-sm bg-background animate-pulse" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
+
+              {/* Disclaimer */}
+              <p className="mt-2 text-center text-[10px] text-muted-foreground/40">
+                Shadway can make mistakes. Consider checking important
+                information.
+              </p>
             </div>
           </div>
         </div>

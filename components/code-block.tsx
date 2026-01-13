@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Terminal } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Copy, Terminal, FileCode2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { codeToHtml } from "shiki";
 
 interface CodeBlockProps {
   children?: React.ReactNode;
@@ -18,6 +19,81 @@ interface CodeBlockCodeProps {
   className?: string;
 }
 
+// Language display names
+const languageNames: Record<string, string> = {
+  js: "JavaScript",
+  javascript: "JavaScript",
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  tsx: "TSX",
+  jsx: "JSX",
+  py: "Python",
+  python: "Python",
+  rb: "Ruby",
+  ruby: "Ruby",
+  go: "Go",
+  rust: "Rust",
+  rs: "Rust",
+  java: "Java",
+  cpp: "C++",
+  c: "C",
+  cs: "C#",
+  csharp: "C#",
+  php: "PHP",
+  swift: "Swift",
+  kotlin: "Kotlin",
+  scala: "Scala",
+  sql: "SQL",
+  html: "HTML",
+  css: "CSS",
+  scss: "SCSS",
+  sass: "Sass",
+  less: "Less",
+  json: "JSON",
+  yaml: "YAML",
+  yml: "YAML",
+  xml: "XML",
+  md: "Markdown",
+  markdown: "Markdown",
+  bash: "Bash",
+  sh: "Shell",
+  shell: "Shell",
+  zsh: "Zsh",
+  powershell: "PowerShell",
+  ps1: "PowerShell",
+  dockerfile: "Dockerfile",
+  docker: "Docker",
+  graphql: "GraphQL",
+  gql: "GraphQL",
+  prisma: "Prisma",
+  vue: "Vue",
+  svelte: "Svelte",
+  astro: "Astro",
+  plaintext: "Plain Text",
+  text: "Plain Text",
+};
+
+// Language icons mapping
+const getLanguageIcon = (lang: string) => {
+  const iconLangs = [
+    "typescript",
+    "ts",
+    "tsx",
+    "javascript",
+    "js",
+    "jsx",
+    "python",
+    "py",
+    "rust",
+    "go",
+    "java",
+  ];
+  if (iconLangs.includes(lang.toLowerCase())) {
+    return <FileCode2 className="h-3.5 w-3.5" />;
+  }
+  return <Terminal className="h-3.5 w-3.5" />;
+};
+
 export function CodeBlock({
   children,
   code,
@@ -31,7 +107,7 @@ export function CodeBlock({
     return (
       <div
         className={cn(
-          "group relative rounded-lg bg-muted/50 border border-border/50 my-4",
+          "group relative my-4 overflow-hidden rounded-xl border border-border/50 bg-[#0d1117] dark:bg-[#0d1117] shadow-lg",
           className,
         )}
       >
@@ -92,10 +168,53 @@ export function CodeBlockCode({
   className,
 }: CodeBlockCodeProps) {
   const [copied, setCopied] = useState(false);
+  const [highlightedCode, setHighlightedCode] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const displayLanguage = languageNames[language.toLowerCase()] || language;
+  const trimmedCode = code.trim();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function highlight() {
+      try {
+        const html = await codeToHtml(trimmedCode, {
+          lang: language.toLowerCase(),
+          theme: "github-dark-default",
+        });
+        if (isMounted) {
+          setHighlightedCode(html);
+          setIsLoading(false);
+        }
+      } catch {
+        // Fallback if language not supported
+        try {
+          const html = await codeToHtml(trimmedCode, {
+            lang: "text",
+            theme: "github-dark-default",
+          });
+          if (isMounted) {
+            setHighlightedCode(html);
+            setIsLoading(false);
+          }
+        } catch {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+      }
+    }
+
+    highlight();
+    return () => {
+      isMounted = false;
+    };
+  }, [trimmedCode, language]);
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(trimmedCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -105,27 +224,47 @@ export function CodeBlockCode({
 
   return (
     <div className={cn("relative", className)}>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-        <span className="text-xs text-muted-foreground font-mono">
-          {language}
-        </span>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-[#161b22]">
+        <div className="flex items-center gap-2">
+          <span className="text-zinc-400">{getLanguageIcon(language)}</span>
+          <span className="text-xs font-medium text-zinc-400">
+            {displayLanguage}
+          </span>
+        </div>
         <Button
-          size="icon"
+          size="sm"
           variant="ghost"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/80"
+          className="h-7 px-2 gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/10 transition-all"
           onClick={copyToClipboard}
         >
           {copied ? (
-            <Check className="h-3 w-3 text-green-500" />
+            <>
+              <Check className="h-3.5 w-3.5 text-green-400" />
+              <span className="text-green-400">Copied!</span>
+            </>
           ) : (
-            <Copy className="h-3 w-3" />
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              <span>Copy</span>
+            </>
           )}
-          <span className="sr-only">{copied ? "Copied" : "Copy code"}</span>
         </Button>
       </div>
-      <pre className="overflow-x-auto p-4">
-        <code className="text-sm font-mono text-foreground/90">{code}</code>
-      </pre>
+
+      {/* Code Content */}
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {isLoading ? (
+          <pre className="p-4 text-sm font-mono leading-relaxed">
+            <code className="text-zinc-300">{trimmedCode}</code>
+          </pre>
+        ) : (
+          <div
+            className="shiki-wrapper [&_pre]:!bg-transparent [&_pre]:p-4 [&_pre]:m-0 [&_code]:text-sm [&_code]:leading-relaxed [&_.line]:min-h-[1.5em]"
+            dangerouslySetInnerHTML={{ __html: highlightedCode }}
+          />
+        )}
+      </div>
     </div>
   );
 }

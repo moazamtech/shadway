@@ -262,7 +262,7 @@ function CodeBlock({
   );
 }
 
-// Smart AI-powered suggestions
+// Smart AI-powered suggestions for component blocks
 type Suggestion = {
   emoji: string;
   title: string;
@@ -271,52 +271,52 @@ type Suggestion = {
 
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
-    emoji: "🚀",
-    title: "Multi-Page Portfolio",
+    emoji: "✨",
+    title: "Hero Section",
     prompt:
-      "Build a complete portfolio website with Home, About, Projects, and Contact views in /app folder using HashRouter. Include smooth page transitions with framer-motion and a responsive navbar.",
+      "Create a modern hero section with a large headline, subtext, CTA buttons, and a gradient background. Include subtle animations and responsive design.",
   },
   {
-    emoji: "🛒",
-    title: "E-Commerce App",
+    emoji: "🧭",
+    title: "Navigation Header",
     prompt:
-      "Create a full e-commerce app with product listing, product details, shopping cart, and checkout pages. Use zustand for state management and include product filtering.",
+      "Build a responsive navigation header with logo, nav links, and a mobile hamburger menu. Include smooth transitions and sticky positioning.",
   },
   {
-    emoji: "📊",
-    title: "Dashboard with Charts",
+    emoji: "💰",
+    title: "Pricing Cards",
     prompt:
-      "Build an analytics dashboard with multiple pages (Overview, Analytics, Reports). Include interactive charts, metrics cards, and data tables with filtering.",
+      "Create a pricing section with 3 tier cards (Basic, Pro, Enterprise). Include feature lists, highlighted recommended plan, and CTA buttons.",
+  },
+  {
+    emoji: "🎯",
+    title: "Features Grid",
+    prompt:
+      "Build a features section with a grid of feature cards. Each card has an icon, title, and description. Include hover effects and responsive layout.",
   },
   {
     emoji: "💬",
-    title: "Chat Application",
+    title: "Testimonials",
     prompt:
-      "Create a real-time chat interface with message list, chat rooms, and user profiles. Include message timestamps, typing indicators, and online status.",
+      "Create a testimonials section with customer quotes, avatars, names, and company logos. Include a carousel or grid layout with smooth animations.",
   },
   {
-    emoji: "📝",
-    title: "Blog Platform",
+    emoji: "📩",
+    title: "Contact Form",
     prompt:
-      "Build a blog platform with Home (post listing), Post Detail, Create Post, and Author Profile pages. Use react-hook-form for post creation.",
+      "Build a contact form section with name, email, message fields, and submit button. Include form validation and a modern card design.",
   },
   {
-    emoji: "🎮",
-    title: "Game Dashboard",
+    emoji: "👣",
+    title: "Footer Section",
     prompt:
-      "Create a gaming dashboard with leaderboard, player stats, achievements, and match history pages. Include animated transitions and interactive elements.",
+      "Create a footer with multiple columns for links, social icons, newsletter signup, and copyright. Responsive design with clean typography.",
   },
   {
-    emoji: "🎵",
-    title: "Music Player App",
+    emoji: "📊",
+    title: "Stats Section",
     prompt:
-      "Build a music player with library, playlists, now playing, and search pages. Include player controls, playlist management, and smooth animations.",
-  },
-  {
-    emoji: "📚",
-    title: "Learning Platform",
-    prompt:
-      "Create an online learning platform with course catalog, course details, lesson viewer, and progress tracking pages. Use react-router-dom for navigation.",
+      "Build a stats/metrics section with animated counters showing key numbers like users, downloads, rating. Include icons and responsive grid.",
   },
 ];
 
@@ -1100,21 +1100,20 @@ export default function ComponentGeneratorPage() {
             >
               {messages.length === 0 ? (
                 /* Premium Hero Empty State */
-                <div className="flex flex-col items-center justify-center space-y-12 text-center animate-in fade-in zoom-in-95 duration-1000 flex-1 min-h-0 relative px-4">
+                <div className="flex flex-col items-center justify-center space-y-6 lg:space-y-8 text-center animate-in fade-in zoom-in-95 duration-1000 flex-1 min-h-0 relative px-4">
                   {/* Background Accents */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-full max-h-[500px] pointer-events-none opacity-20 dark:opacity-30">
                     <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-primary/10 via-transparent to-purple-500/10 blur-[120px] rounded-full" />
                   </div>
 
-                  <div className="space-y-6 max-w-2xl mx-auto z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-2"></div>
-                    <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground -tight">
+                  <div className="space-y-4 max-w-2xl mx-auto z-10">
+                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
                       Architecting{" "}
                       <span className="bg-gradient-to-r from-primary via-primary/80 to-purple-500 bg-clip-text text-transparent">
                         Vibes.
                       </span>
                     </h1>
-                    <p className="text-muted-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg mx-auto font-medium">
+                    <p className="text-muted-foreground/80 text-base sm:text-lg lg:text-xl leading-relaxed max-w-lg mx-auto font-medium">
                       The next generation of component generation.{" "}
                       <br className="hidden sm:block" /> Fast, fluid, and
                       perfectly styled.
@@ -1122,30 +1121,27 @@ export default function ComponentGeneratorPage() {
                   </div>
 
                   {/* Redesigned Bento Suggestions Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl text-left z-10">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-4xl text-left z-10">
                     {activeSuggestions.map((suggestion, i) => (
                       <button
                         key={i}
                         onClick={() =>
                           handleSubmit({ text: suggestion.prompt })
                         }
-                        className="group relative p-6 rounded-[24px] border border-border/40 bg-background/40 backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20"
+                        className="group relative p-4 rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20"
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative flex items-center gap-5">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/5 text-2xl group-hover:bg-primary/10 transition-colors">
+                        <div className="relative flex flex-col items-center text-center gap-2.5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-xl group-hover:bg-primary/10 transition-colors">
                             {suggestion.emoji}
                           </div>
-                          <div className="flex flex-col gap-1 pr-6">
-                            <span className="font-bold text-base leading-none group-hover:text-primary transition-colors">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-bold text-sm leading-tight group-hover:text-primary transition-colors">
                               {suggestion.title}
                             </span>
-                            <span className="text-xs text-muted-foreground/60 line-clamp-2 font-medium leading-[1.5]">
+                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2 font-medium leading-snug">
                               {suggestion.prompt}
                             </span>
-                          </div>
-                          <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
-                            <Zap className="h-4 w-4 text-primary" />
                           </div>
                         </div>
                       </button>
@@ -1154,10 +1150,10 @@ export default function ComponentGeneratorPage() {
 
                   <button
                     onClick={refreshSuggestions}
-                    className="group flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-border/40 bg-background/50 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/20 transition-all z-10 shadow-sm active:scale-95"
+                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border/40 bg-background/50 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/20 transition-all z-10 shadow-sm active:scale-95"
                   >
-                    <SparklesIcon className="h-3.5 w-3.5 group-hover:animate-pulse" />
-                    Refresh Inspiring Ideas
+                    <SparklesIcon className="h-3 w-3 group-hover:animate-pulse" />
+                    Refresh Ideas
                   </button>
                 </div>
               ) : (
