@@ -48,19 +48,19 @@ const SandpackPreviewUrlSync = ({
   React.useEffect(() => {
     if (!onUrlChange) return;
     if (sandpack.status !== "done") return;
-    const client = getClient();
+    const client = getClient() as any;
     if (!client || typeof client.getCodeSandboxURL !== "function") return;
 
     let cancelled = false;
     client
       .getCodeSandboxURL()
-      .then((result) => {
+      .then((result: any) => {
         const nextUrl = result?.embedUrl || result?.editorUrl || "";
         if (!nextUrl || cancelled || nextUrl === lastUrlRef.current) return;
         lastUrlRef.current = nextUrl;
         onUrlChange(nextUrl);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -92,12 +92,13 @@ const SandpackConsoleBridge = ({
     const mapped = logs
       .filter((entry) => entry.method !== "clear")
       .map((entry) => {
-        const level =
+        const level = (
           entry.method === "error"
             ? "error"
-            : entry.method === "warn" || entry.method === "warning"
+            : entry.method === "warn"
               ? "warn"
-              : "log";
+              : "log"
+        ) as "log" | "warn" | "error";
         const message =
           entry.data
             ?.map((item) =>
@@ -179,9 +180,9 @@ function dedupeNamedImports(src: string) {
       const seen = new Set<string>();
       const deduped = names
         .split(",")
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0)
-        .filter((part) => {
+        .map((part: any) => part.trim())
+        .filter((part: any) => part.length > 0)
+        .filter((part: any) => {
           const key = part.replace(/\s+as\s+.+$/, "");
           if (seen.has(key)) return false;
           seen.add(key);
@@ -245,7 +246,19 @@ function rewriteAliasImportsForFile(
 
   const fromDir = posixDirname(fromFilePath);
   return src.replace(/from\s+["']@\/([^"']+)["']/g, (_m, target) => {
-    const toPath = `/${String(target)}`;
+    let normalizedTarget = target;
+
+    // Special handling for Shadcn UI components which are lowercase in our sandpack-files
+    if (target.startsWith("components/ui/")) {
+      const parts = target.split("/");
+      const last = parts.pop();
+      if (last) {
+        parts.push(last.toLowerCase());
+        normalizedTarget = parts.join("/");
+      }
+    }
+
+    const toPath = `/${String(normalizedTarget)}`;
     const rel = posixRelative(fromDir, toPath);
     return `from "${stripModuleExtension(rel)}"`;
   });
@@ -606,8 +619,8 @@ export default function App(){
         );
         let entry: string | undefined =
           entryFile &&
-          typeof entryFile === "string" &&
-          generatedFiles[entryFile]
+            typeof entryFile === "string" &&
+            generatedFiles[entryFile]
             ? entryFile
             : undefined;
         if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
@@ -702,130 +715,26 @@ body {
       },
     });
 
-    const cnUtil = `export function cn(...classes: Array<string | false | null | undefined>) {
-      return classes.filter(Boolean).join(' ');
-    } `;
-
-    const utilsTs = `import { cn } from "./cn";
-    export { cn }; `;
-
-    const componentsButtonTsx = `export { Button } from "../../ui/button";
-    export type { ButtonProps } from "../../ui/button"; `;
-
-    const componentsCardTsx = `export * from "../../ui/card"; `;
-
-    const componentsBadgeTsx = `import React from 'react';
-    import { cn } from '../../lib/cn';
-    export type BadgeProps = React.HTMLAttributes<HTMLSpanElement> & { variant?: 'default' | 'secondary' | 'destructive' | 'outline' };
-    export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
-      const base = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
-      const variants = {
-        default: 'border-transparent bg-primary text-primary-foreground',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        destructive: 'border-transparent bg-destructive text-destructive-foreground',
-        outline: 'text-foreground'
-      };
-      return <span className={cn(base, variants[variant as keyof typeof variants], className)} {...props} />;
-    } `;
-
-    const componentsInputTsx = `import React from 'react';
-    import { cn } from '../../lib/cn';
-    export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
-    export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, type, ...props }, ref) => {
-      return (
-        <input
-          ref={ref}
-          type={type}
-          className={cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
-          {...props}
-        />
-      );
-    });
-    Input.displayName = 'Input'; `;
-
-    const componentsTextareaTsx = `import React from 'react';
-    import { cn } from '../../lib/cn';
-    export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
-    export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
-      return (
-        <textarea
-          ref={ref}
-          className={cn('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', className)}
-          {...props}
-        />
-      );
-    });
-    Textarea.displayName = 'Textarea'; `;
-
-    const componentsSeparatorTsx = `import React from 'react';
-    import { cn } from '../../lib/cn';
-    export type SeparatorProps = React.HTMLAttributes<HTMLDivElement> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean };
-    export function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
-      return (
-        <div
-          role={decorative ? 'none' : 'separator'}
-          aria-orientation={orientation}
-          className={cn(orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px', 'shrink-0 bg-border', className)}
-          {...props}
-        />
-      );
-    } `;
-
     return {
       "/App.tsx": { code: String(appTsx) },
       "/index.tsx": { code: String(indexTsx) },
       "/index.css": { code: String(indexCss) },
       "/index.html": { code: String(indexHtml) },
       "/tsconfig.json": { code: String(tsconfig) },
-      "/lib/cn.ts": { code: String(cnUtil || "") },
-      "/lib/utils.ts": { code: String(utilsTs || "") },
-      "/components/ui/button.tsx": { code: String(componentsButtonTsx || "") },
-      "/components/ui/card.tsx": { code: String(componentsCardTsx || "") },
-      "/components/ui/badge.tsx": { code: String(componentsBadgeTsx || "") },
-      "/components/ui/input.tsx": { code: String(componentsInputTsx || "") },
-      "/components/ui/textarea.tsx": {
-        code: String(componentsTextareaTsx || ""),
-      },
-      "/components/ui/separator.tsx": {
-        code: String(componentsSeparatorTsx || ""),
-      },
-      ...(files
+      ...(generatedFiles
         ? Object.fromEntries(
-            Object.entries(files)
-              .filter(
-                ([path, src]) =>
-                  path && typeof path === "string" && typeof src === "string",
-              )
-              .map(([path, src]) => [path, { code: src }]),
-          )
+          Object.entries(generatedFiles)
+            .filter(
+              ([path, src]) =>
+                path && typeof path === "string" && typeof src === "string",
+            )
+            .map(([path, src]) => [path, { code: src }]),
+        )
         : {}),
     } as const;
   }, [code, files, entryFile, isDarkTheme, colorScheme]);
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
-  const FullscreenToggle = (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleFullscreen}
-      className={cn(
-        "h-7 w-7 rounded-md transition-colors",
-        isDarkTheme
-          ? "text-white/70 hover:text-white hover:bg-white/10"
-          : "text-black/70 hover:text-black hover:bg-black/5",
-      )}
-      title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-    >
-      {isFullscreen ? (
-        <Minimize2 className="h-3.5 w-3.5" />
-      ) : (
-        <Maximize2 className="h-3.5 w-3.5" />
-      )}
-    </Button>
-  );
+  const FullscreenToggle = null;
 
   if (isFullscreen) {
     return (

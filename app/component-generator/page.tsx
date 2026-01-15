@@ -38,6 +38,7 @@ import {
   Minimize2Icon,
   PaperclipIcon,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -174,7 +175,7 @@ function CodeBlock({
 
   return (
     <div className="relative group my-4 rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-12 w-full border-b bg-muted/30">
         <div className="flex items-center gap-2">
           <CodeIcon className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -1085,7 +1086,7 @@ export default function ComponentGeneratorPage() {
           <Conversation className="flex-1 overflow-hidden min-h-0 relative">
             <ConversationContent
               className={cn(
-                "flex flex-col w-full max-w-4xl mx-auto",
+                "flex flex-col w-full max-w-6xl mx-auto",
                 messages.length === 0
                   ? "min-h-full justify-center py-12 md:py-24"
                   : "p-3 sm:p-6 space-y-6 pb-2",
@@ -1093,12 +1094,12 @@ export default function ComponentGeneratorPage() {
             >
               {messages.length === 0 ? (
                 /* Premium Static Empty State */
-                <div className="flex flex-col items-center justify-center max-w-5xl mx-auto text-center px-4 pt-12 pb-16 flex-1 relative w-full">
-                  <div className="space-y-6 w-full mb-8">
-                    <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground uppercase italic leading-[0.9] scale-y-110">
+                <div className="flex flex-col items-center justify-center max-w-6xl mx-auto text-center px-4 flex-1 relative w-full">
+                  <div className="space-y-6 w-full">
+                    <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
                       SHADWAY <span className="text-primary not-italic tracking-normal">ARCHITECT</span>
                     </h2>
-                    <p className="max-w-xl mx-auto text-sm md:text-lg text-muted-foreground/50 font-medium leading-relaxed px-4">
+                    <p className="max-w-2xl mx-auto text-sm md:text-lg text-muted-foreground/50 font-medium leading-relaxed px-4">
                       The next-gen AI engineering engine. Transform your vision into production-ready React components with unprecedented speed and precision.
                     </p>
                   </div>
@@ -1135,7 +1136,7 @@ export default function ComponentGeneratorPage() {
                           )}
                         >
                           {message.role === "user" ? (
-                            <div className="group relative inline-block max-w-[90%] sm:max-w-xl self-end">
+                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl self-end">
                               <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
                               <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[15px] leading-relaxed font-medium">
                                 {message.content}
@@ -1292,60 +1293,55 @@ export default function ComponentGeneratorPage() {
             <ConversationScrollButton />
           </Conversation>
 
-          {/* Fixed Input Area - Always Visible */}
-          <div className="relative px-6 py-10 md:px-12 md:py-14 shrink-0 bg-transparent z-10 mt-auto">
-            <div className="mx-auto w-full max-w-4xl relative">
+          {/* Fixed Input Area - Centered and Elevated */}
+          <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-10 mt-auto">
+            <div className="mx-auto w-full max-w-3xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
-                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/40 bg-background/60 backdrop-blur-xl shadow-sm hover:shadow-primary/5 transition-all duration-500 focus-within:ring-1 focus-within:ring-primary/10 focus-within:border-primary/20 group">
-                  <div className="absolute -inset-[0.1px] bg-gradient-to-tr from-primary/5 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border bg-background/95 dark:bg-background/40 backdrop-blur-xl shadow-xl hover:shadow-primary/5 transition-all duration-700 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 group overflow-hidden">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/10 via-transparent to-primary/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none z-0" />
+
                   <PromptInputTextarea
                     placeholder={
                       messages.length === 0
-                        ? "Describe your dream application..."
-                        : "Ask a follow-up question..."
+                        ? "What are we building today?"
+                        : "Refine your design..."
                     }
                     disabled={isGenerating}
-                    className="min-h-[44px] md:min-h-[52px] w-full p-3 md:p-4 text-sm md:text-base border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/30 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none"
+                    className="relative z-10 min-h-[44px] md:min-h-[48px] w-full p-4 md:p-5 text-[15px] md:text-base border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-tight overflow-y-auto no-scrollbar resize-none"
                   />
-                  <PromptInputFooter className="px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
-                    <PromptInputTools>
+
+                  <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
+                    <PromptInputTools className="flex items-center gap-1.5">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-muted-foreground/40 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-full transition-all hover:bg-muted/50"
+                        className="text-muted-foreground/50 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-full transition-all hover:bg-muted/50"
                         type="button"
                         onClick={() => toast.info("Attachments coming soon!")}
                       >
                         <PaperclipIcon className="h-4 w-4" />
                       </Button>
 
+                      <div className="h-3 w-[1px] bg-border/60 mx-0.5" />
+
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => setReasoningEnabled(!reasoningEnabled)}
                         className={cn(
-                          "h-8 px-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all border",
+                          "h-8 px-3 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border shadow-sm",
                           reasoningEnabled
-                            ? "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
-                            : "bg-muted/30 text-muted-foreground/40 border-transparent hover:bg-muted/50",
+                            ? "bg-primary/10 text-primary border-primary/30"
+                            : "bg-muted/20 text-muted-foreground/60 border-transparent hover:bg-muted/30",
                         )}
-                        title={
-                          reasoningEnabled
-                            ? "Reasoning Enabled"
-                            : "Reasoning Disabled"
-                        }
                       >
                         <SparklesIcon
                           className={cn(
-                            "h-3 w-3 sm:mr-1.5",
-                            reasoningEnabled
-                              ? "animate-pulse text-primary"
-                              : "opacity-40",
+                            "h-3 w-3 mr-1.5",
+                            reasoningEnabled ? "animate-pulse" : "opacity-40",
                           )}
                         />
-                        <span className="hidden sm:inline">
-                          {reasoningEnabled ? "Reasoning" : "Thinking"}
-                        </span>
+                        <span>{reasoningEnabled ? "Architect" : "Base"}</span>
                       </Button>
 
                       {isGenerating && (
@@ -1353,28 +1349,27 @@ export default function ComponentGeneratorPage() {
                           size="sm"
                           variant="ghost"
                           onClick={handleStop}
-                          className="ml-1 h-7 text-[9px] font-bold tracking-widest uppercase text-destructive hover:text-destructive hover:bg-destructive/10 px-3 rounded-full border border-destructive/20 transition-all active:scale-95"
+                          className="h-8 px-3 text-[9px] font-bold uppercase text-destructive border border-destructive/20 rounded-full hover:bg-destructive/5"
                         >
                           Stop
                         </Button>
                       )}
                     </PromptInputTools>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <PromptInputSubmit
                         disabled={isGenerating}
                         className={cn(
-                          "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-500 flex items-center justify-center",
+                          "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-300 flex items-center justify-center",
                           isGenerating
-                            ? "bg-muted text-muted-foreground cursor-not-allowed grayscale"
-                            : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 hover:shadow-primary/40",
+                            ? "bg-muted text-muted-foreground cursor-not-allowed"
+                            : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
                         )}
-                        status={isGenerating ? "streaming" : undefined}
                       >
                         <Zap
                           className={cn(
-                            "h-4 w-4 md:h-5 md:w-5",
-                            isGenerating ? "animate-pulse" : "fill-current",
+                            "h-4 w-4",
+                            isGenerating && "animate-pulse text-primary-foreground"
                           )}
                         />
                       </PromptInputSubmit>
@@ -1387,18 +1382,20 @@ export default function ComponentGeneratorPage() {
         </div>
 
         {/* Desktop Splitter Handle */}
-        {isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize panels"
-            onPointerDown={startResize}
-            className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center -mx-1 transition-all"
-          >
-            <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
-            <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
-          </div>
-        )}
+        {
+          isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize panels"
+              onPointerDown={startResize}
+              className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center px-1 transition-all"
+            >
+              <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
+              <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
+            </div>
+          )
+        }
 
         {/* Right Panel - Code/Preview */}
         <AnimatePresence>
@@ -1409,11 +1406,10 @@ export default function ComponentGeneratorPage() {
               exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className={cn(
-                "flex flex-col bg-background/80 backdrop-blur-xl text-foreground transition-all duration-300 border border-border/60 shadow-2xl min-h-0 overflow-hidden",
-                // Mobile/Fullscreen: Fixed Cover. Desktop: Flex Item
+                "flex flex-col bg-background text-foreground transition-all duration-300 border border-border/60 shadow-2xl overflow-hidden backdrop-blur-xl",
                 isMobile || isFullscreen
-                  ? "fixed inset-0 z-50 w-full h-full"
-                  : "relative lg:flex-none min-h-0 h-[calc(100%-1.5rem)] mt-2 mr-3 mb-3 rounded-2xl md:rounded-3xl",
+                  ? "fixed inset-0 z-50 w-full h-full rounded-none"
+                  : "relative flex-none h-[calc(100%-1.5rem)] my-3 mr-3 rounded-2xl md:rounded-3xl z-40",
               )}
               style={
                 isDesktop && !isFullscreen
@@ -1450,6 +1446,13 @@ export default function ComponentGeneratorPage() {
                   </button>
                 </div>
 
+                {isGenerating && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20 animate-pulse ml-4">
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">Architect Generating...</span>
+                  </div>
+                )}
+
                 {viewMode === "preview" && (
                   <div className="ml-2 border-l border-border pl-2">
                     <ColorSchemeEditor
@@ -1461,21 +1464,6 @@ export default function ComponentGeneratorPage() {
                 )}
 
                 <div className="flex items-center gap-2 ml-auto">
-                  {!isMobile && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setIsFullscreen(!isFullscreen)}
-                      className="h-9 w-9 p-0 rounded-xl hover:bg-background/80 hover:text-primary transition-all shadow-sm border border-transparent hover:border-border"
-                      title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                    >
-                      {isFullscreen ? (
-                        <Minimize2Icon className="h-4 w-4" />
-                      ) : (
-                        <Maximize2Icon className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
                   {!isMobile ? (
                     <Button
                       size="sm"
@@ -1620,7 +1608,7 @@ export default function ComponentGeneratorPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

@@ -31,7 +31,7 @@ export function GeneratorHeader({
         className,
       )}
     >
-      <div className="flex h-16 items-center justify-between px-4 md:px-6 lg:px-8 max-w-[2000px] mx-auto">
+      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto uppercase">
         <div className="flex items-center gap-4">
           <div className="relative flex h-10 w-10 overflow-hidden p-1 shadow-sm transition-transform hover:scale-105">
             <Image
@@ -63,19 +63,6 @@ export function GeneratorHeader({
           {hasGenerated && (
             <div className="flex items-center gap-2 pl-3 ml-1 border-l border-border/40">
               <Button
-                variant="ghost"
-                size="icon"
-                onClick={onToggleFullscreen}
-                className="hidden md:flex h-9 w-9 rounded-xl hover:bg-primary/5 text-muted-foreground hover:text-primary transition-colors"
-                title={isFullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-              >
-                {isFullscreen ? (
-                  <Minimize2Icon className="h-4 w-4" />
-                ) : (
-                  <Maximize2Icon className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
                 variant={isPanelOpen ? "default" : "outline"}
                 size="sm"
                 onClick={onTogglePanel}
@@ -102,6 +89,6 @@ export function GeneratorHeader({
           )}
         </div>
       </div>
-    </header>
+    </header >
   );
 }

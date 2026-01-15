@@ -14,7 +14,7 @@ const client = new OpenAI({
 export async function POST(req: Request) {
     try {
         const systemPrompt = `You are a creative UI/UX design assistant. 
-    Generate 4 unique, futuristic, and highly creative UI component ideas for a design-to-code platform.
+    Generate 4 unique, futuristic, and highly creative UI blocks ideas for a design-to-code platform.
     
     Each suggestion must have:
     - emoji: A single relevant emoji.
@@ -26,12 +26,12 @@ export async function POST(req: Request) {
     Constraints:
     - Focus on futuristic, sleek, and high-end professional UI.
     - Use terms like "glassmorphism", "bento grid", "dynamic micro-interactions", "SVG masking", "neo-brutalism", "AI-driven layout".
-    - Each prompt should be 15-25 words.
+    - Each prompt should be 15-25 words also add design specifications and we are genenrate blocks like hero section contact form and roadmap feature defined there cool fully responsiev design.
     
     Return ONLY the JSON array.`;
 
         const response = await client.chat.completions.create({
-            model: "google/gemini-2.0-flash-exp:free",
+            model: "xiaomi/mimo-v2-flash:free",
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: "Generate 4 fresh UI component suggestions." }
