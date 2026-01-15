@@ -21,58 +21,51 @@ export function SuggestionsGrid({
   className?: string;
 }) {
   return (
-    <div className={cn("mt-10 space-y-6 w-full", className)}>
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+    <div className={cn("mt-6 space-y-4 w-full", className)}>
+      <div className="flex items-center justify-between gap-4 px-1">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-primary" />
-          <h3 className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-foreground/40">
-            Inspire your next vision
+          <div className="h-1.5 w-1.5 rounded-full bg-primary/40" />
+          <h3 className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50">
+            Design Templates
           </h3>
         </div>
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
           className={cn(
-            "group w-full sm:w-auto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 px-4 py-2 rounded-xl border",
-            isRefreshing
-              ? "bg-primary/10 text-primary border-primary/20 opacity-70"
-              : "text-muted-foreground hover:text-primary bg-muted/20 hover:bg-primary/5 border-border/40"
+            "text-[9px] font-black uppercase tracking-widest flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground/60 hover:text-foreground",
+            isRefreshing && "opacity-50 cursor-not-allowed"
           )}
           type="button"
         >
           <RefreshCcw className={cn(
-            "h-3 w-3 transition-transform duration-500",
-            isRefreshing ? "animate-spin" : "group-hover:rotate-180"
+            "h-2.5 w-2.5",
+            isRefreshing && "animate-spin"
           )} />
-          {isRefreshing ? "Generating..." : "Refresh Ideas"}
+          {isRefreshing ? "Architecting..." : "Refresh"}
         </button>
       </div>
+
       <div className={cn(
-        "grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 w-full transition-opacity duration-300",
+        "grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 w-full",
         isRefreshing && "opacity-40 pointer-events-none"
       )}>
         {suggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onPick(suggestion.prompt)}
-            className="group relative overflow-hidden rounded-2xl border border-border/50 bg-background/40 backdrop-blur-sm p-4 sm:p-5 text-left transition-all duration-300 hover:bg-background/60 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 active:scale-[0.98]"
+            className="group flex flex-col items-start p-3 rounded-xl border border-border/40 bg-background/30 hover:bg-background/80 hover:border-primary/20 text-left"
             type="button"
           >
-            <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-              <ArrowRight className="h-4 w-4 text-primary" />
-            </div>
-
-            <div className="relative z-10 flex flex-col h-full uppercase">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center text-lg mb-4 group-hover:bg-primary/10 transition-colors">
-                {suggestion.emoji}
-              </div>
-              <h4 className="text-xs md:text-sm font-black text-foreground mb-2 group-hover:text-primary transition-colors tracking-tight">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs grayscale group-hover:grayscale-0">{suggestion.emoji}</span>
+              <h4 className="text-[10px] font-black uppercase tracking-tight text-foreground/70 group-hover:text-primary truncate">
                 {suggestion.title}
               </h4>
-              <p className="text-[10px] md:text-[11px] text-muted-foreground/70 line-clamp-3 leading-relaxed font-medium lowercase">
-                {suggestion.prompt}
-              </p>
             </div>
+            <p className="text-[9px] text-muted-foreground/50 line-clamp-2 leading-snug font-medium lowercase">
+              {suggestion.prompt}
+            </p>
           </button>
         ))}
       </div>

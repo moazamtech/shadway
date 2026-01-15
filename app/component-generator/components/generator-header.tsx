@@ -6,14 +6,12 @@ import { cn } from "@/lib/utils";
 import { Code2Icon, Maximize2Icon, Minimize2Icon, XIcon, Zap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
+import Link from "next/link";
 
 export function GeneratorHeader({
   hasGenerated,
   isPanelOpen,
   onTogglePanel,
-  isFullscreen,
-  onToggleFullscreen,
-  onResetSplit,
   className,
 }: {
   hasGenerated: boolean;
@@ -33,7 +31,8 @@ export function GeneratorHeader({
     >
       <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto uppercase">
         <div className="flex items-center gap-4">
-          <div className="relative flex h-10 w-10 overflow-hidden p-1 shadow-sm transition-transform hover:scale-105">
+       <Link href="/">  
+          <div className="relative flex h-10 w-10 overflow-hidden p-1 transition-transform hover:scale-105">
             <Image
               src="/logo.png"
               alt="Shadway Logo"
@@ -42,8 +41,9 @@ export function GeneratorHeader({
               priority
             />
           </div>
+          </Link>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
+            <h1 className="text-xl font-black font-serif tracking-tight text-foreground sm:text-2xl">
               SHADWAY
             </h1>
             <div className="flex items-center gap-1.5">
