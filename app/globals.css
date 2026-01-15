@@ -148,8 +148,9 @@
     }
 }
 
-/* Chrome, Safari, Edge */
-::-webkit-scrollbar {
+/* Chrome, Safari, Edge - Hide scrollbars only on main surfaces */
+body::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
     display: none;
 }
 
@@ -167,6 +168,7 @@ body {
     * {
         @apply border-border outline-ring/50;
     }
+
     body {
         @apply bg-background text-foreground;
     }
@@ -193,4 +195,29 @@ body {
 
 .dark::view-transition-new(root) {
     z-index: 1;
+}
+
+/* Global Chat & Typography Overrides */
+.conversation-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.prose-container {
+    @apply max-w-none text-foreground leading-[1.65] text-[15.5px] font-sans tracking-[-0.01em];
+}
+
+.prose-container h1,
+.prose-container h2,
+.prose-container h3 {
+    @apply font-bold tracking-tight mb-4;
+}
+
+.prose-container p {
+    @apply mb-4 leading-relaxed;
+}
+
+.prose-container ul,
+.prose-container ol {
+    @apply my-4 space-y-2;
 }
