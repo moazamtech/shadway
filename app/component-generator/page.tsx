@@ -3,6 +3,8 @@
 import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
 import { SandpackRuntimePreview } from "@/components/sandpack-preview";
 import { FileTree } from "@/app/component-generator/components/file-tree";
+import { SuggestionsGrid } from "@/app/component-generator/components/suggestions-grid";
+import Image from "next/image";
 import {
   Conversation,
   ConversationContent,
@@ -23,18 +25,19 @@ import {
   SparklesIcon,
   XIcon,
   Code2Icon,
+  FileCode2Icon,
   CopyIcon,
   CheckIcon,
   CodeIcon,
   EyeIcon,
   FileIcon,
-  SaveIcon,
-  Loader2Icon,
+  FileJson,
+  Hash,
   Zap,
   Maximize2Icon,
   Minimize2Icon,
   PaperclipIcon,
-  Link,
+  ChevronRight,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -42,12 +45,12 @@ import { cn } from "@/lib/utils";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { ColorSchemeEditor } from "@/components/color-scheme-editor";
 import {
   ColorSchemeConfig,
   defaultColorSchemeConfig,
 } from "@/lib/color-scheme";
+import { StickToBottom } from "use-stick-to-bottom";
 
 type GeneratorMessage = {
   id: string;
@@ -69,51 +72,16 @@ type GeneratedComponent = {
   title: string;
 };
 
-const getFileTabIconClass = (path?: string | null) => {
-  if (!path) return "codicon-file";
-  const name = path.split("/").pop() || "";
-  const ext = name.split(".").pop()?.toLowerCase() || "";
-  const iconMap: Record<string, string> = {
-    tsx: "codicon-file-code",
-    ts: "codicon-file-code",
-    jsx: "codicon-file-code",
-    js: "codicon-file-code",
-    css: "codicon-symbol-color",
-    scss: "codicon-symbol-color",
-    json: "codicon-symbol-object",
-    md: "codicon-markdown",
-    html: "codicon-file-code",
-    svg: "codicon-file-media",
-    png: "codicon-file-media",
-    jpg: "codicon-file-media",
-    jpeg: "codicon-file-media",
-    gif: "codicon-file-media",
-  };
-  return iconMap[ext] || "codicon-file";
+const FileIconComponent = ({ path, className }: { path: string; className?: string }) => {
+  const ext = path.split(".").pop()?.toLowerCase() || "";
+  if (ext === "tsx" || ext === "jsx") return <FileCode2Icon className={cn("h-4 w-4 text-cyan-500", className)} />;
+  if (ext === "ts" || ext === "js") return <Code2Icon className={cn("h-4 w-4 text-blue-500", className)} />;
+  if (ext === "css") return <Hash className={cn("h-4 w-4 text-purple-500", className)} />;
+  if (ext === "json") return <FileJson className={cn("h-4 w-4 text-amber-500", className)} />;
+  return <FileIcon className={cn("h-4 w-4 text-muted-foreground", className)} />;
 };
 
-// SVG Chevron Icon
-const ChevronIcon = ({
-  isOpen,
-  className,
-}: {
-  isOpen: boolean;
-  className?: string;
-}) => (
-  <svg
-    className={cn(
-      "h-3 w-3 shrink-0 transition-transform duration-150",
-      isOpen ? "rotate-90" : "rotate-0",
-      className,
-    )}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-);
+// ChevronRight is imported from Lucide
 
 // Thinking Component
 function ThinkingProcess({
@@ -148,9 +116,11 @@ function ThinkingProcess({
             {isFinished ? "Architectural Plan" : "Deep Thinking..."}
           </span>
         </div>
-        <ChevronIcon
-          isOpen={isOpen}
-          className="opacity-40 group-hover/thinking:opacity-80 transition-all duration-300"
+        <ChevronRight
+          className={cn(
+            "h-4 w-4 opacity-40 group-hover/thinking:opacity-80 transition-all duration-300",
+            isOpen && "rotate-90"
+          )}
         />
       </button>
       <AnimatePresence>
@@ -328,6 +298,7 @@ export default function ComponentGeneratorPage() {
   const [generatedComponent, setGeneratedComponent] =
     useState<GeneratedComponent | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isRefreshingSuggestions, setIsRefreshingSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editedFiles, setEditedFiles] = useState<Record<string, string>>({});
@@ -358,9 +329,27 @@ export default function ComponentGeneratorPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Rotate suggestions for variety
-  const refreshSuggestions = useCallback(() => {
-    const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
-    setActiveSuggestions(shuffled.slice(0, 4));
+  // AI-powered suggestions refresh
+  const refreshSuggestions = useCallback(async () => {
+    setIsRefreshingSuggestions(true);
+    try {
+      const resp = await fetch("/api/generate-suggestions", { method: "POST" });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setActiveSuggestions(data.slice(0, 4));
+          return;
+        }
+      }
+      // Fallback to shuffle if API fails
+      const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
+      setActiveSuggestions(shuffled.slice(0, 4));
+    } catch (e) {
+      const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
+      setActiveSuggestions(shuffled.slice(0, 4));
+    } finally {
+      setIsRefreshingSuggestions(false);
+    }
   }, []);
 
   const parseThinkingAndContent = (
@@ -677,21 +666,21 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                      ...msg,
-                      content:
-                        displayContent?.trim() ||
-                        (accumulatedReasoning && !displayContent
-                          ? ""
-                          : displayContent) ||
-                        (files
-                          ? "Generated project files. Opening preview…"
-                          : "Generating…"),
-                      reasoning: displayReasoning,
-                      reasoning_details: finalReasoningDetails,
-                      code,
-                      files,
-                      entryFile,
-                    }
+                    ...msg,
+                    content:
+                      displayContent?.trim() ||
+                      (accumulatedReasoning && !displayContent
+                        ? ""
+                        : displayContent) ||
+                      (files
+                        ? "Generated project files. Opening preview…"
+                        : "Generating…"),
+                    reasoning: displayReasoning,
+                    reasoning_details: finalReasoningDetails,
+                    code,
+                    files,
+                    entryFile,
+                  }
                   : msg,
               ),
             );
@@ -916,12 +905,12 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Formatting output…",
-                    reasoning: "",
-                    files: undefined,
-                    code: "",
-                  }
+                  ...msg,
+                  content: "Formatting output…",
+                  reasoning: "",
+                  files: undefined,
+                  code: "",
+                }
                 : msg,
             ),
           );
@@ -962,9 +951,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Sorry, I encountered an error. Please try again.",
-                  }
+                  ...msg,
+                  content: "Sorry, I encountered an error. Please try again.",
+                }
                 : msg,
             ),
           );
@@ -1089,72 +1078,39 @@ export default function ComponentGeneratorPage() {
               : undefined
           }
         >
-          <Conversation className="flex-1 overflow-hidden min-h-0">
+          {/* Progressive Blur Overlays - Lightened and Slimmed */}
+          <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-background via-background/20 to-transparent pointer-events-none z-20" />
+          <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none z-20" />
+
+          <Conversation className="flex-1 overflow-hidden min-h-0 relative">
             <ConversationContent
               className={cn(
                 "flex flex-col w-full max-w-4xl mx-auto",
                 messages.length === 0
-                  ? "h-full justify-center pb-16"
+                  ? "min-h-full justify-center py-12 md:py-24"
                   : "p-3 sm:p-6 space-y-6 pb-2",
               )}
             >
               {messages.length === 0 ? (
-                /* Premium Hero Empty State */
-                <div className="flex flex-col items-center justify-center space-y-6 lg:space-y-8 text-center animate-in fade-in zoom-in-95 duration-1000 flex-1 min-h-0 relative px-4">
-                  {/* Background Accents */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-full max-h-[500px] pointer-events-none opacity-20 dark:opacity-30">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-primary/10 via-transparent to-purple-500/10 blur-[120px] rounded-full" />
-                  </div>
-
-                  <div className="space-y-4 max-w-2xl mx-auto z-10">
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
-                      Architecting{" "}
-                      <span className="bg-gradient-to-r from-primary via-primary/80 to-purple-500 bg-clip-text text-transparent">
-                        Vibes.
-                      </span>
-                    </h1>
-                    <p className="text-muted-foreground/80 text-base sm:text-lg lg:text-xl leading-relaxed max-w-lg mx-auto font-medium">
-                      The next generation of component generation.{" "}
-                      <br className="hidden sm:block" /> Fast, fluid, and
-                      perfectly styled.
+                /* Premium Static Empty State */
+                <div className="flex flex-col items-center justify-center max-w-5xl mx-auto text-center px-4 pt-12 pb-16 flex-1 relative w-full">
+                  <div className="space-y-6 w-full mb-8">
+                    <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground uppercase italic leading-[0.9] scale-y-110">
+                      SHADWAY <span className="text-primary not-italic tracking-normal">ARCHITECT</span>
+                    </h2>
+                    <p className="max-w-xl mx-auto text-sm md:text-lg text-muted-foreground/50 font-medium leading-relaxed px-4">
+                      The next-gen AI engineering engine. Transform your vision into production-ready React components with unprecedented speed and precision.
                     </p>
                   </div>
 
-                  {/* Redesigned Bento Suggestions Grid */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-4xl text-left z-10">
-                    {activeSuggestions.map((suggestion, i) => (
-                      <button
-                        key={i}
-                        onClick={() =>
-                          handleSubmit({ text: suggestion.prompt })
-                        }
-                        className="group relative p-4 rounded-2xl border border-border/40 bg-background/40 backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative flex flex-col items-center text-center gap-2.5">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-xl group-hover:bg-primary/10 transition-colors">
-                            {suggestion.emoji}
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="font-bold text-sm leading-tight group-hover:text-primary transition-colors">
-                              {suggestion.title}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground/60 line-clamp-2 font-medium leading-snug">
-                              {suggestion.prompt}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="w-full mt-8 md:mt-12">
+                    <SuggestionsGrid
+                      suggestions={activeSuggestions}
+                      onPick={(p) => handleSubmit({ text: p })}
+                      onRefresh={refreshSuggestions}
+                      isRefreshing={isRefreshingSuggestions}
+                    />
                   </div>
-
-                  <button
-                    onClick={refreshSuggestions}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border/40 bg-background/50 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/20 transition-all z-10 shadow-sm active:scale-95"
-                  >
-                    <SparklesIcon className="h-3 w-3 group-hover:animate-pulse" />
-                    Refresh Ideas
-                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-6 pb-4">
@@ -1164,7 +1120,7 @@ export default function ComponentGeneratorPage() {
                         key={message.id}
                         from={message.role}
                         className={cn(
-                          "animate-in fade-in slide-in-from-bottom-2 duration-300",
+                          "duration-300",
                           message.role === "user"
                             ? "justify-end"
                             : "justify-start",
@@ -1214,10 +1170,10 @@ export default function ComponentGeneratorPage() {
                                 />
                               )}
 
-                              {/* AI Response Text */}
+                              {/* AI Response Text - Removed re-triggering animations */}
                               {message.content && (
-                                <div className="prose-wrapper animate-in fade-in slide-in-from-top-2 duration-700">
-                                  <AIResponse className="text-[15px] leading-relaxed text-foreground/90 font-sans tracking-tight">
+                                <div className="prose-wrapper">
+                                  <AIResponse className="text-[15px] leading-relaxed text-foreground font-sans tracking-tight">
                                     {message.content}
                                   </AIResponse>
                                 </div>
@@ -1239,12 +1195,7 @@ export default function ComponentGeneratorPage() {
                                             className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors group/file cursor-default"
                                           >
                                             <div className="h-7 w-7 rounded-lg bg-background flex items-center justify-center border border-border/50 group-hover/file:border-primary/30 transition-colors shrink-0">
-                                              <span
-                                                className={cn(
-                                                  "opacity-70 text-xs",
-                                                  getFileTabIconClass(path),
-                                                )}
-                                              />
+                                              <FileIconComponent path={path} />
                                             </div>
                                             <span className="truncate text-xs font-mono text-muted-foreground group-hover/file:text-foreground transition-colors min-w-0">
                                               {path}
@@ -1253,13 +1204,13 @@ export default function ComponentGeneratorPage() {
                                         ))}
                                       {Object.keys(message.files).length >
                                         4 && (
-                                        <div className="flex items-center justify-center p-3 text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
-                                          +{" "}
-                                          {Object.keys(message.files).length -
-                                            4}{" "}
-                                          more
-                                        </div>
-                                      )}
+                                          <div className="flex items-center justify-center p-3 text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
+                                            +{" "}
+                                            {Object.keys(message.files).length -
+                                              4}{" "}
+                                            more
+                                          </div>
+                                        )}
                                     </div>
                                     <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
                                       <Button
@@ -1342,8 +1293,8 @@ export default function ComponentGeneratorPage() {
           </Conversation>
 
           {/* Fixed Input Area - Always Visible */}
-          <div className="relative p-12 sm:p-16 shrink-0 bg-transparent z-10">
-            <div className="mx-auto w-full max-w-3xl relative">
+          <div className="relative px-6 py-10 md:px-12 md:py-14 shrink-0 bg-transparent z-10 mt-auto">
+            <div className="mx-auto w-full max-w-4xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
                 <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/40 bg-background/60 backdrop-blur-xl shadow-sm hover:shadow-primary/5 transition-all duration-500 focus-within:ring-1 focus-within:ring-primary/10 focus-within:border-primary/20 group">
                   <div className="absolute -inset-[0.1px] bg-gradient-to-tr from-primary/5 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
@@ -1442,56 +1393,59 @@ export default function ComponentGeneratorPage() {
             aria-orientation="vertical"
             aria-label="Resize panels"
             onPointerDown={startResize}
-            className="hidden lg:flex w-1 hover:w-1.5 -ml-0.5 z-10 cursor-col-resize items-stretch bg-border/40 hover:bg-primary/50 transition-all delay-75"
-          />
+            className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center -mx-1 transition-all"
+          >
+            <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
+            <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
+          </div>
         )}
 
         {/* Right Panel - Code/Preview */}
         <AnimatePresence>
           {generatedComponent && isPanelOpen && (
             <motion.div
-              initial={isMobile ? { y: "100%" } : { opacity: 0, x: 20 }}
-              animate={isMobile ? { y: 0 } : { opacity: 1, x: 0 }}
-              exit={isMobile ? { y: "100%" } : { opacity: 0, x: 20 }}
-              transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+              initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }}
+              animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, x: 0 }}
+              exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className={cn(
-                "flex flex-col bg-background text-foreground transition-all duration-300 border border-border/40 shadow-sm min-h-0 overflow-hidden",
+                "flex flex-col bg-background/80 backdrop-blur-xl text-foreground transition-all duration-300 border border-border/60 shadow-2xl min-h-0 overflow-hidden",
                 // Mobile/Fullscreen: Fixed Cover. Desktop: Flex Item
                 isMobile || isFullscreen
                   ? "fixed inset-0 z-50 w-full h-full"
-                  : "relative lg:flex-none min-h-0 h-[calc(100%-1rem)] mt-2 mr-2 mb-2 rounded-2xl md:rounded-3xl",
+                  : "relative lg:flex-none min-h-0 h-[calc(100%-1.5rem)] mt-2 mr-3 mb-3 rounded-2xl md:rounded-3xl",
               )}
               style={
                 isDesktop && !isFullscreen
-                  ? { width: `${previewWidthPct}%`, height: "100%" }
+                  ? { width: `${previewWidthPct}%`, height: "calc(100% - 1.5rem)" }
                   : undefined
               }
             >
               {/* Panel Header */}
-              <div className="flex-none h-12 flex items-center bg-muted/30 border-b border-border select-none backdrop-blur-sm px-2 justify-between">
-                <div className="flex items-center gap-1 h-3/4 bg-muted/20 p-1 rounded-lg border border-border/50">
+              <div className="flex-none h-14 flex items-center bg-muted/40 border-b border-border/60 select-none backdrop-blur-xl px-4 justify-between">
+                <div className="flex items-center gap-1 bg-background/50 p-1 rounded-xl border border-border/80 shadow-inner">
                   <button
                     onClick={() => setViewMode("preview")}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                      "flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300",
                       viewMode === "preview"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background",
                     )}
                   >
-                    <EyeIcon className="h-3.5 w-3.5" />
+                    <EyeIcon className="h-4 w-4" />
                     <span className="hidden sm:inline">Preview</span>
                   </button>
                   <button
                     onClick={() => setViewMode("code")}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all",
+                      "flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300",
                       viewMode === "code"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background",
                     )}
                   >
-                    <Code2Icon className="h-3.5 w-3.5" />
+                    <Code2Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">Code</span>
                   </button>
                 </div>
@@ -1506,24 +1460,13 @@ export default function ComponentGeneratorPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-1 ml-auto">
-                  {/* Mobile Specific Close Button Primary */}
-                  {isMobile && (
-                    <Button
-                      size="sm"
-                      onClick={() => setIsPanelOpen(false)}
-                      className="h-8 w-auto px-3 bg-primary text-primary-foreground hover:bg-primary/90 mr-1"
-                    >
-                      Done
-                    </Button>
-                  )}
-
+                <div className="flex items-center gap-2 ml-auto">
                   {!isMobile && (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setIsFullscreen(!isFullscreen)}
-                      className="h-8 w-8 p-0"
+                      className="h-9 w-9 p-0 rounded-xl hover:bg-background/80 hover:text-primary transition-all shadow-sm border border-transparent hover:border-border"
                       title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
                     >
                       {isFullscreen ? (
@@ -1533,138 +1476,146 @@ export default function ComponentGeneratorPage() {
                       )}
                     </Button>
                   )}
-                  {!isMobile && (
+                  {!isMobile ? (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setIsPanelOpen(false)}
-                      className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                      className="h-9 w-9 p-0 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all border border-transparent hover:border-destructive/20"
                     >
                       <XIcon className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsPanelOpen(false)}
+                      className="h-9 truncate px-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20"
+                    >
+                      Close
                     </Button>
                   )}
                 </div>
               </div>
 
               {/* Content */}
+              {/* Content Panels with Persistence */}
               <div className="flex-1 flex flex-col min-h-0 bg-background relative overflow-hidden h-full">
-                {viewMode === "preview" ? (
-                  <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-950 h-full">
-                    <SandpackRuntimePreview
-                      showConsole={false}
-                      code={generatedComponent.code || ""}
-                      files={{
-                        ...(generatedComponent.files || {}),
-                        ...editedFiles,
-                      }}
-                      entryFile={generatedComponent.entryFile}
-                      className="flex-1 min-h-0 h-full"
-                      colorScheme={colorScheme}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-1 min-h-0 w-full">
-                    {/* Sidebar hidden on mobile code view to save space? or overlay? */}
-                    <div
-                      className={cn(
-                        "flex-none border-r border-border bg-muted/20 flex flex-col transition-all",
-                        isMobile ? "w-0 overflow-hidden hidden" : "w-60",
-                      )}
-                    >
-                      {/* <div className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Explorer</div> */}
-                      <div className="flex-1 overflow-y-auto min-h-0">
-                        <FileTree
-                          files={generatedComponent.files || {}}
-                          selectedFile={selectedFile}
-                          onFileSelect={handleFileSelect}
-                          generatingFile={currentlyGeneratingFile}
-                        />
-                      </div>
-                    </div>
+                {/* Preview Panel */}
+                <div
+                  className={cn(
+                    "absolute inset-0 flex flex-col min-h-0 bg-white dark:bg-zinc-950 transition-all duration-300",
+                    viewMode === "preview" ? "opacity-100 z-10 visible scale-100" : "opacity-0 z-0 invisible scale-[0.98]"
+                  )}
+                >
+                  <SandpackRuntimePreview
+                    showConsole={false}
+                    code={generatedComponent.code || ""}
+                    files={{
+                      ...(generatedComponent.files || {}),
+                      ...editedFiles,
+                    }}
+                    entryFile={generatedComponent.entryFile}
+                    className="flex-1 min-h-0 h-full"
+                    colorScheme={colorScheme}
+                  />
+                </div>
 
-                    <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-card">
-                      {/* Mobile File Dropdown */}
-                      {isMobile && generatedComponent.files && (
-                        <div className="p-2 border-b border-border bg-muted/10 flex-none">
-                          <select
-                            className="w-full text-xs p-2 rounded border border-border bg-background text-foreground"
-                            value={selectedFile || ""}
-                            onChange={(e) => handleFileSelect(e.target.value)}
-                          >
-                            {Object.keys(generatedComponent.files).map((f) => (
-                              <option key={f} value={f}>
-                                {f}
-                              </option>
-                            ))}
-                          </select>
+                {/* Code Editor Panel */}
+                <div
+                  className={cn(
+                    "absolute inset-0 flex min-h-0 w-full transition-all duration-300",
+                    viewMode === "code" ? "opacity-100 z-10 visible scale-100" : "opacity-0 z-0 invisible scale-[0.98]"
+                  )}
+                >
+                  {/* Sidebar */}
+                  <div
+                    className={cn(
+                      "flex-none border-r border-border bg-muted/20 flex flex-col transition-all",
+                      isMobile ? "w-0 overflow-hidden hidden" : "w-60",
+                    )}
+                  >
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                      <FileTree
+                        files={generatedComponent.files || {}}
+                        selectedFile={selectedFile}
+                        onFileSelect={handleFileSelect}
+                        generatingFile={currentlyGeneratingFile}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-card">
+                    {/* Mobile File Dropdown */}
+                    {isMobile && generatedComponent.files && (
+                      <div className="p-2 border-b border-border bg-muted/10 flex-none">
+                        <select
+                          className="w-full text-xs p-2 rounded border border-border bg-background text-foreground"
+                          value={selectedFile || ""}
+                          onChange={(e) => handleFileSelect(e.target.value)}
+                        >
+                          {Object.keys(generatedComponent.files).map((f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Editor */}
+                    <div className="flex-1 min-h-0 relative">
+                      {selectedFile ? (
+                        <Editor
+                          height="100%"
+                          defaultLanguage="typescript"
+                          language={
+                            selectedFile.endsWith(".css")
+                              ? "css"
+                              : selectedFile.endsWith(".json")
+                                ? "json"
+                                : "typescript"
+                          }
+                          value={
+                            editedFiles[selectedFile] ||
+                            generatedComponent.files?.[selectedFile] ||
+                            ""
+                          }
+                          onChange={(value) =>
+                            selectedFile &&
+                            handleFileEdit(selectedFile, value || "")
+                          }
+                          theme={isDark ? "vs-dark" : "light"}
+                          options={{
+                            minimap: { enabled: !isMobile },
+                            fontSize: isMobile ? 12 : 13,
+                            fontFamily:
+                              "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                            wordWrap: "on",
+                            padding: { top: 12 },
+                            automaticLayout: true,
+                            lineNumbers: "on",
+                            scrollBeyondLastLine: true,
+                            renderLineHighlight: "line",
+                            cursorBlinking: "smooth",
+                            smoothScrolling: true,
+                            renderValidationDecorations: "off",
+                            "semanticHighlighting.enabled": false,
+                          }}
+                          beforeMount={(monaco) => {
+                            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                              noSemanticValidation: true,
+                              noSyntaxValidation: true,
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                          Select file to edit...
                         </div>
                       )}
-
-                      {/* Editor */}
-                      <div className="flex-1 min-h-0 relative">
-                        {selectedFile ? (
-                          <Editor
-                            height="100%"
-                            defaultLanguage="typescript"
-                            language={
-                              selectedFile.endsWith(".css")
-                                ? "css"
-                                : selectedFile.endsWith(".json")
-                                  ? "json"
-                                  : "typescript"
-                            }
-                            value={
-                              editedFiles[selectedFile] ||
-                              generatedComponent.files?.[selectedFile] ||
-                              ""
-                            }
-                            onChange={(value) =>
-                              selectedFile &&
-                              handleFileEdit(selectedFile, value || "")
-                            }
-                            theme={isDark ? "vs-dark" : "light"}
-                            options={{
-                              minimap: { enabled: !isMobile },
-                              fontSize: isMobile ? 12 : 13,
-                              fontFamily:
-                                "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-                              wordWrap: "on",
-                              padding: { top: 12 },
-                              automaticLayout: true,
-                              lineNumbers: "on",
-                              scrollBeyondLastLine: true,
-                              renderLineHighlight: "line",
-                              cursorBlinking: "smooth",
-                              smoothScrolling: true,
-                              // Hide syntax errors/markers
-                              renderValidationDecorations: "off",
-                              "semanticHighlighting.enabled": false,
-                            }}
-                            beforeMount={(monaco) => {
-                              // Disable TypeScript diagnostics
-                              monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
-                                {
-                                  noSemanticValidation: true,
-                                  noSyntaxValidation: true,
-                                },
-                              );
-                              monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(
-                                {
-                                  noSemanticValidation: true,
-                                  noSyntaxValidation: true,
-                                },
-                              );
-                            }}
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-                            Select file...
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </motion.div>
           )}

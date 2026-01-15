@@ -27,42 +27,7 @@ import { cn } from '@/lib/utils';
 import 'katex/dist/katex.min.css';
 
 // Custom CSS for chat scrolling and VS Code-like styles
-const chatStyles = `
-  .conversation-container {
-    height: 100% !important;
-    overflow-y: scroll !important;
-    overflow-x: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    scroll-behavior: smooth !important;
-  }
-
-  .conversation-container::-webkit-scrollbar {
-    width: 6px !important;
-  }
-
-  .conversation-container::-webkit-scrollbar-track {
-    background: transparent !important;
-  }
-
-  .conversation-container::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 100, 0.2) !important;
-    border-radius: 9px !important;
-  }
-
-  .conversation-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 100, 100, 0.4) !important;
-  }
-
-  /* Typography Enhancements */
-  .prose-container h1, .prose-container h2, .prose-container h3 {
-    letter-spacing: -0.02em;
-  }
-  
-  .prose-container p {
-    line-height: 1.75;
-  }
-`;
+const chatStyles = ""; // Moved to global CSS
 
 // Type definitions
 interface CodeElementProps {
@@ -194,7 +159,7 @@ const components: Components = {
   ),
 
   p: ({ node, children, className, ...props }: CodeElementProps) => (
-    <p className={cn('mb-5 leading-relaxed text-foreground/80 text-[15px] font-sans tracking-tight', className)} {...props}>
+    <p className={cn('mb-4 leading-relaxed text-foreground font-sans tracking-tight', className)} {...props}>
       {children}
     </p>
   ),
@@ -340,12 +305,7 @@ const cleanMarkdownContent = (content: string): string => {
 export const AIResponse = memo<AIResponseProps>(
   ({ className, options, children, ...props }) => {
     useEffect(() => {
-      const styleElement = document.createElement('style');
-      styleElement.textContent = chatStyles;
-      document.head.appendChild(styleElement);
-      return () => {
-        document.head.removeChild(styleElement);
-      };
+      // Styles are now handled globally in globals.css
     }, []);
 
     const cleanedContent = typeof children === 'string' ? cleanMarkdownContent(children) : children;

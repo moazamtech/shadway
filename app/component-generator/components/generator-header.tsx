@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Code2Icon, Maximize2Icon, Minimize2Icon, XIcon, Zap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import Image from "next/image";
 
 export function GeneratorHeader({
   hasGenerated,
@@ -26,62 +27,80 @@ export function GeneratorHeader({
   return (
     <header
       className={cn(
-        "z-50 top-0",
+        "z-50 top-0 w-full",
         className,
       )}
     >
-      <div className="container flex h-14 items-center gap-2 px-3 md:h-16 md:gap-4 md:px-6 lg:px-8">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Zap className="h-5 w-5 md:h-6 md:w-6 fill-current" />
+      <div className="flex h-16 items-center justify-between px-4 md:px-6 lg:px-8 max-w-[2000px] mx-auto">
+        <div className="flex items-center gap-4">
+          <div className="relative flex h-10 w-10 overflow-hidden p-1 shadow-sm transition-transform hover:scale-105">
+            <Image
+              src="/logo.png"
+              alt="Shadway Logo"
+              fill
+              className="object-contain p-1"
+              priority
+            />
           </div>
-          <div>
-            <h1 className="text-base font-black italic md:text-xl tracking-tighter uppercase leading-none">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
               SHADWAY
             </h1>
-            <p className="hidden text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest sm:block mt-0.5">
-              Architect V2
-            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                Architect V2 Professional
+              </p>
+            </div>
           </div>
         </div>
 
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center px-1.5 py-1">
+            <ThemeToggle />
+          </div>
 
-        {hasGenerated && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleFullscreen}
-              className="hidden md:flex"
-              title={isFullscreen ? "Exit fullscreen" : "Fullscreen preview"}
-            >
-              {isFullscreen ? (
-                <Minimize2Icon className="h-4 w-4" />
-              ) : (
-                <Maximize2Icon className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant={isPanelOpen ? "default" : "outline"}
-              size="sm"
-              onClick={onTogglePanel}
-              className="text-xs md:text-sm"
-            >
-              {isPanelOpen ? (
-                <>
-                  <XIcon className="mr-0 h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">Hide Preview</span>
-                </>
-              ) : (
-                <>
-                  <Code2Icon className="mr-0 h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">Show Preview</span>
-                </>
-              )}
-            </Button>
-          </>
-        )}
+          {hasGenerated && (
+            <div className="flex items-center gap-2 pl-3 ml-1 border-l border-border/40">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleFullscreen}
+                className="hidden md:flex h-9 w-9 rounded-xl hover:bg-primary/5 text-muted-foreground hover:text-primary transition-colors"
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen preview"}
+              >
+                {isFullscreen ? (
+                  <Minimize2Icon className="h-4 w-4" />
+                ) : (
+                  <Maximize2Icon className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant={isPanelOpen ? "default" : "outline"}
+                size="sm"
+                onClick={onTogglePanel}
+                className={cn(
+                  "h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300",
+                  isPanelOpen
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30"
+                    : "border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary"
+                )}
+              >
+                {isPanelOpen ? (
+                  <>
+                    <XIcon className="mr-2 h-3.5 w-3.5" />
+                    <span className="hidden md:inline">Hide Panel</span>
+                  </>
+                ) : (
+                  <>
+                    <Code2Icon className="mr-2 h-3.5 w-3.5" />
+                    <span className="hidden md:inline">Live Preview</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

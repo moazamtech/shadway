@@ -8,67 +8,13 @@ import { useCallback, useEffect } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 // Custom CSS for conversation scrolling - Hiding scrollbars
-const conversationScrollStyles = `
-  .conversation-scroll-container {
-    height: 100%;
-    width: 100%;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    scroll-behavior: smooth;
-    position: relative;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-  }
-
-  .conversation-scroll-container::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  /* Ensure smooth content flow */
-  .stick-to-bottom-root {
-    height: 100% !important;
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .stick-to-bottom-content {
-    flex: 1 !important;
-    overflow-y: visible !important;
-    overflow-x: hidden !important;
-    width: 100% !important;
-  }
-
-  /* Enable mouse wheel scrolling */
-  .conversation-scroll-container {
-    -webkit-user-select: text !important;
-    user-select: text !important;
-  }
-`;
+const conversationScrollStyles = ""; // Moved to globals.css
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
 export const Conversation = ({ className, ...props }: ConversationProps) => {
   // Inject custom scroll styles
-  useEffect(() => {
-    const styleElement = document.createElement("style");
-    styleElement.textContent = conversationScrollStyles;
-    document.head.appendChild(styleElement);
-    return () => {
-      document.head.removeChild(styleElement);
-    };
-  }, []);
-
-  // Handle mouse wheel scrolling
-  const handleWheel = useCallback((e: WheelEvent) => {
-    const container = e.currentTarget as HTMLElement;
-    if (container) {
-      // Allow default scroll behavior - don't prevent it
-      container.scrollTop += e.deltaY;
-    }
-  }, []);
+  // Styles handled globally in globals.css
 
   return (
     <StickToBottom
@@ -79,7 +25,6 @@ export const Conversation = ({ className, ...props }: ConversationProps) => {
       initial="smooth"
       resize="smooth"
       role="log"
-      onWheel={handleWheel as any}
       {...props}
     />
   );
