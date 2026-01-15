@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 **CODE GENERATION RULES:**
 - **TAILWIND V4:** Use semantic classes only (bg-primary, text-foreground).
 - **ANIMATION:** Use motion/react for ALL transitions.
-- **OUTPUT:** Plan in <think>, files in <files entry="/App.tsx">. No other text.`;
+- **OUTPUT:** Plan in <think>. Briefly explain your architectural decisions and interact with the USER naturally. When generating component code, use <files entry="/App.tsx">. Always remain in character as Shadway.`;
 
     const messages: Array<{
       role: "system" | "user" | "assistant";

@@ -14,19 +14,19 @@ const client = new OpenAI({
 export async function POST(req: Request) {
     try {
         const systemPrompt = `You are a creative UI/UX design assistant. 
-    Generate 4 unique, futuristic, and highly creative UI blocks ideas for a design-to-code platform.
+    Generate 6 unique, futuristic, and highly creative Landing Page or Website ideas for a design-to-code platform.
     
     Each suggestion must have:
     - emoji: A single relevant emoji.
     - title: A short, punchy title (2-3 words).
-    - prompt: A detailed, engineering-focused prompt that describes the component's layout, aesthetic, and behavior.
+    - prompt: A detailed, engineering-focused prompt that describes the website's layout, aesthetic, behavior, and specific sections.
     
     Format the output as a JSON array of objects.
     
     Constraints:
-    - Focus on futuristic, sleek, and high-end professional UI.
-    - Use terms like "glassmorphism", "bento grid", "dynamic micro-interactions", "SVG masking", "neo-brutalism", "AI-driven layout".
-    - Each prompt should be 15-25 words also add design specifications and we are genenrate blocks like hero section contact form and roadmap feature defined there cool fully responsiev design.
+    - Focus on full landing pages or sophisticated multi-section websites.
+    - Use terms like "glassmorphism", "bento grid", "dynamic micro-interactions", "SVG masking", "neo-brutalism", "AI-driven layout", "parallax orchestration", "grainy aesthetic".
+    - Each prompt should be 20-35 words, defining the unique value proposition and design language.
     
     Return ONLY the JSON array.`;
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             model: "xiaomi/mimo-v2-flash:free",
             messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: "Generate 4 fresh UI component suggestions." }
+                { role: "user", content: "Generate 6 fresh landing page and website architecture suggestions." }
             ],
             response_format: { type: "json_object" },
             temperature: 0.8,

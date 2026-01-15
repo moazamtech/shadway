@@ -92,37 +92,45 @@ function ThinkingProcess({
   content: string;
   isFinished?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false); // Default to closed for a cleaner 'loader' look
 
   if (!content) return null;
 
   return (
-    <div className="group/thinking mb-4 overflow-hidden rounded-2xl border border-primary/10 bg-primary/[0.02] transition-all duration-300 hover:bg-primary/[0.04]">
+    <div className="group/thinking mb-4 overflow-hidden rounded-2xl border border-border/40 bg-muted/5 transition-all duration-300">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
       >
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex h-5 w-5 items-center justify-center">
-            {!isFinished ? (
-              <>
-                <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
-                <SparklesIcon className="relative h-3.5 w-3.5 text-primary animate-pulse" />
-              </>
-            ) : (
-              <Zap className="h-3.5 w-3.5 text-primary/60" />
-            )}
-          </div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-primary/70">
-            {isFinished ? "Architectural Plan" : "Deep Thinking..."}
+        <div className="flex items-center gap-3">
+          {!isFinished ? (
+            <div className="flex h-5 w-5 items-center justify-center">
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            </div>
+          ) : (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <CheckIcon className="h-3 w-3 text-emerald-500" />
+            </div>
+          )}
+          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/60 transition-colors group-hover/thinking:text-foreground">
+            {isFinished ? "Analysis Finalized" : "Architecting Masterpiece..."}
           </span>
         </div>
-        <ChevronRight
-          className={cn(
-            "h-4 w-4 opacity-40 group-hover/thinking:opacity-80 transition-all duration-300",
-            isOpen && "rotate-90"
+        <div className="flex items-center gap-2">
+          {!isFinished && (
+            <div className="flex gap-1 pr-2">
+              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-0" />
+              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-150" />
+              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-300" />
+            </div>
           )}
-        />
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 opacity-30 group-hover/thinking:opacity-80 transition-all duration-300",
+              isOpen && "rotate-90"
+            )}
+          />
+        </div>
       </button>
       <AnimatePresence>
         {isOpen && (
@@ -133,11 +141,10 @@ function ThinkingProcess({
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
             <div className="px-4 pb-4">
-              <div className="relative rounded-xl bg-background/50 p-3 text-xs leading-relaxed text-muted-foreground/80 font-mono shadow-inner border border-primary/5">
-                <div className="absolute left-0 top-0 h-full w-1 rounded-l-xl bg-primary/20" />
+              <div className="relative rounded-xl bg-background/40 p-3.5 text-xs leading-relaxed text-muted-foreground/60 font-mono shadow-inner border border-border/10 italic">
                 {content}
                 {!isFinished && (
-                  <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/40 animate-pulse align-middle" />
+                  <span className="inline-block w-1 h-3 ml-1 bg-primary/30 animate-pulse align-middle" />
                 )}
               </div>
             </div>
@@ -325,7 +332,7 @@ export default function ComponentGeneratorPage() {
     return Math.min(72, Math.max(28, parsed));
   });
   const [activeSuggestions, setActiveSuggestions] = useState(
-    SMART_SUGGESTIONS.slice(0, 4),
+    SMART_SUGGESTIONS.slice(0, 6),
   );
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -338,16 +345,16 @@ export default function ComponentGeneratorPage() {
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data) && data.length > 0) {
-          setActiveSuggestions(data.slice(0, 4));
+          setActiveSuggestions(data.slice(0, 6));
           return;
         }
       }
       // Fallback to shuffle if API fails
       const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
-      setActiveSuggestions(shuffled.slice(0, 4));
+      setActiveSuggestions(shuffled.slice(0, 6));
     } catch (e) {
       const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
-      setActiveSuggestions(shuffled.slice(0, 4));
+      setActiveSuggestions(shuffled.slice(0, 6));
     } finally {
       setIsRefreshingSuggestions(false);
     }
@@ -668,14 +675,7 @@ export default function ComponentGeneratorPage() {
                 msg.id === assistantMessage.id
                   ? {
                     ...msg,
-                    content:
-                      displayContent?.trim() ||
-                      (accumulatedReasoning && !displayContent
-                        ? ""
-                        : displayContent) ||
-                      (files
-                        ? "Generated project files. Opening preview…"
-                        : "Generating…"),
+                    content: displayContent?.trim() || "",
                     reasoning: displayReasoning,
                     reasoning_details: finalReasoningDetails,
                     code,
@@ -1096,11 +1096,11 @@ export default function ComponentGeneratorPage() {
                 /* Premium Static Empty State */
                 <div className="flex flex-col items-center justify-center max-w-6xl mx-auto text-center px-4 flex-1 relative w-full">
                   <div className="space-y-6 w-full">
-                    <h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
+                    <h2 className="text-2xl md:text-4xl font-serif lg:text-5xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
                       SHADWAY <span className="text-primary not-italic tracking-normal">ARCHITECT</span>
                     </h2>
-                    <p className="max-w-2xl mx-auto text-sm md:text-lg text-muted-foreground/50 font-medium leading-relaxed px-4">
-                      The next-gen AI engineering engine. Transform your vision into production-ready React components with unprecedented speed and precision.
+                    <p className="max-w-xl mx-auto text-[11px] md:text-sm text-muted-foreground/40 font-medium leading-relaxed px-4">
+                      The next-gen AI engineering engine. Transform vision into production-ready React components with unprecedented speed.
                     </p>
                   </div>
 
@@ -1143,25 +1143,8 @@ export default function ComponentGeneratorPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="w-full space-y-6">
-                              {/* Status Badge */}
-                              {message.files && (
-                                <div className="flex items-center gap-3 p-4 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-2xl text-sm font-medium animate-in zoom-in-95 duration-500 shadow-sm backdrop-blur-sm sm:max-w-max">
-                                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                    <CheckIcon className="h-4 w-4" />
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className="font-semibold">
-                                      Generation Complete
-                                    </span>
-                                    <span className="text-xs opacity-70">
-                                      Project files ready
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Thinking Process */}
+                            <div className="w-full space-y-8">
+                              {/* Thinking Process - Always First */}
                               {message.reasoning && (
                                 <ThinkingProcess
                                   content={message.reasoning}
@@ -1171,88 +1154,104 @@ export default function ComponentGeneratorPage() {
                                 />
                               )}
 
-                              {/* AI Response Text - Removed re-triggering animations */}
+                              {/* AI Response Text - Premium Conversational Typography */}
                               {message.content && (
-                                <div className="prose-wrapper">
-                                  <AIResponse className="text-[15px] leading-relaxed text-foreground font-sans tracking-tight">
+                                <div className="max-w-3xl px-1">
+                                  <AIResponse className="text-[16px] leading-[1.6] text-foreground/90 font-medium tracking-tight">
                                     {message.content}
                                   </AIResponse>
                                 </div>
                               )}
 
-                              {/* Artifacts Grid */}
+                              {/* Compact Artifact Capsule Card */}
                               {message.files &&
                                 Object.keys(message.files).length > 0 && (
-                                  <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-50 ml-1">
-                                      Artifacts
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                      {Object.keys(message.files)
-                                        .slice(0, 4)
-                                        .map((path) => (
-                                          <div
-                                            key={path}
-                                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors group/file cursor-default"
-                                          >
-                                            <div className="h-7 w-7 rounded-lg bg-background flex items-center justify-center border border-border/50 group-hover/file:border-primary/30 transition-colors shrink-0">
-                                              <FileIconComponent path={path} />
+                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                    {/* Ambient Glow */}
+                                    <div className="absolute -top-12 -right-12 h-32 w-32 bg-primary/5 blur-3xl pointer-events-none" />
+
+                                    <div className="p-6 md:p-8 space-y-6">
+                                      {/* Scaled-down Header */}
+                                      <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-500/10">
+                                          <CheckIcon className="h-5 w-5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h3 className="text-sm font-black uppercase tracking-tight leading-none text-foreground/80">
+                                            Architectural <span className="text-primary">Deploy</span>
+                                          </h3>
+                                          <p className="text-[9px] text-muted-foreground/40 font-bold tracking-widest uppercase mt-1">
+                                            {Object.keys(message.files).length} Files Synchronized
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Small Capsule File Grid */}
+                                      <div className="flex flex-wrap gap-2">
+                                        {Object.keys(message.files)
+                                          .slice(0, 5)
+                                          .map((path) => (
+                                            <div
+                                              key={path}
+                                              className="group/file inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-muted/30 border border-border/40 hover:border-primary/30 transition-all duration-300"
+                                            >
+                                              <div className="h-6 w-6 rounded-full bg-background flex items-center justify-center border border-border/20 group-hover/file:bg-primary/5 group-hover/file:border-primary/20 transition-all">
+                                                <FileIconComponent path={path} className="h-3 w-3" />
+                                              </div>
+                                              <span className="text-[10px] font-bold text-muted-foreground/80 group-hover/file:text-foreground truncate max-w-[80px]">
+                                                {path.split("/").pop()}
+                                              </span>
                                             </div>
-                                            <span className="truncate text-xs font-mono text-muted-foreground group-hover/file:text-foreground transition-colors min-w-0">
-                                              {path}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      {Object.keys(message.files).length >
-                                        4 && (
-                                          <div className="flex items-center justify-center p-3 text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
-                                            +{" "}
-                                            {Object.keys(message.files).length -
-                                              4}{" "}
-                                            more
+                                          ))}
+                                        {Object.keys(message.files).length > 5 && (
+                                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
+                                            +{Object.keys(message.files).length - 5}
                                           </div>
                                         )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-border/40">
-                                      <Button
-                                        size="sm"
-                                        className="h-10 px-6 bg-primary text-primary-foreground hover:opacity-90 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
-                                        onClick={() => {
-                                          setGeneratedComponent({
-                                            code: message.code,
-                                            files: message.files,
-                                            entryFile: message.entryFile,
-                                            language: "tsx",
-                                            title: "Generated Component",
-                                          });
-                                          setIsPanelOpen(true);
-                                          setIsFullscreen(false);
-                                          setViewMode("preview");
-                                        }}
-                                      >
-                                        <EyeIcon className="h-4 w-4 mr-2" />
-                                        Launch Preview
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                          setGeneratedComponent({
-                                            code: message.code,
-                                            files: message.files,
-                                            entryFile: message.entryFile,
-                                            language: "tsx",
-                                            title: "Generated Component",
-                                          });
-                                          setIsPanelOpen(true);
-                                          setIsFullscreen(false);
-                                          setViewMode("code");
-                                        }}
-                                        className="h-10 px-6 border-border hover:bg-muted/50 rounded-xl transition-all w-full sm:w-auto"
-                                      >
-                                        <Code2Icon className="h-4 w-4 mr-2" />
-                                        Code
-                                      </Button>
+                                      </div>
+
+                                      {/* Responsive Multi-Action Buttons */}
+                                      <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                                        <Button
+                                          size="sm"
+                                          className="h-11 sm:flex-1 bg-primary text-primary-foreground font-black uppercase tracking-tight text-[11px] rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-95 group/btn"
+                                          onClick={() => {
+                                            setGeneratedComponent({
+                                              code: message.code,
+                                              files: message.files,
+                                              entryFile: message.entryFile,
+                                              language: "tsx",
+                                              title: "Generated Component",
+                                            });
+                                            setIsPanelOpen(true);
+                                            setIsFullscreen(false);
+                                            setViewMode("preview");
+                                          }}
+                                        >
+                                          <Zap className="h-3.5 w-3.5 mr-2 group-hover/btn:animate-pulse" />
+                                          Launch Preview
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setGeneratedComponent({
+                                              code: message.code,
+                                              files: message.files,
+                                              entryFile: message.entryFile,
+                                              language: "tsx",
+                                              title: "Generated Component",
+                                            });
+                                            setIsPanelOpen(true);
+                                            setIsFullscreen(false);
+                                            setViewMode("code");
+                                          }}
+                                          className="h-11 sm:flex-1 border-border/60 bg-transparent hover:bg-muted/30 text-foreground/80 font-black uppercase tracking-tight text-[11px] rounded-xl transition-all"
+                                        >
+                                          <Code2Icon className="h-3.5 w-3.5 mr-2" />
+                                          Inspect Code
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
@@ -1263,27 +1262,11 @@ export default function ComponentGeneratorPage() {
                     ))}
                     {isGenerating &&
                       !messages[messages.length - 1]?.reasoning && (
-                        <div className="flex items-center gap-4 py-6 animate-in fade-in slide-in-from-left-2 duration-500 max-w-xl px-4 translate-y-2 self-start ml-2">
-                          <div className="relative h-10 w-10 shrink-0">
-                            <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
-                            <div className="relative h-full w-full rounded-full border-2 border-t-primary border-r-primary/50 border-b-primary/10 border-l-transparent animate-spin" />
-                            <SparklesIcon className="absolute inset-0 m-auto h-4 w-4 text-primary animate-pulse" />
-                          </div>
-                          <div className="flex flex-col gap-1 min-w-0">
-                            <span className="text-[13px] font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent animate-pulse">
-                              Initializing Architect...
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] text-muted-foreground/50 uppercase tracking-widest font-black">
-                                Waking up vibes
-                              </span>
-                              <div className="flex gap-1">
-                                <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-0" />
-                                <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-150" />
-                                <span className="h-0.5 w-0.5 rounded-full bg-primary/30 animate-bounce delay-300" />
-                              </div>
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
+                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                          <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
+                            Architecting...
+                          </span>
                         </div>
                       )}
                   </div>

@@ -222,11 +222,11 @@ export function FileTree({
             Explorer
           </span>
         </div>
-        <div className="bg-background/50 px-1.5 py-0.5 rounded-md border border-border/40 shadow-sm">
+        {/* <div className="bg-background/50 px-1.5 py-0.5 rounded-md border border-border/40 shadow-sm">
           <span className="text-[10px] font-bold text-primary/80">
             {fileCount}
           </span>
-        </div>
+        </div> */}
       </div>
 
       {/* Tree */}
