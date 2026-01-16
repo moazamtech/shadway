@@ -18,7 +18,6 @@ export async function POST(req: Request) {
       prompt,
       conversationHistory,
       projectContext,
-      reasoningEnabled,
       maxTokens,
     } = await req.json();
 
@@ -51,7 +50,12 @@ export async function POST(req: Request) {
 **CODE GENERATION RULES:**
 - **TAILWIND V4:** Use semantic classes only (bg-primary, text-foreground).
 - **ANIMATION:** Use motion/react for ALL transitions.
-- **OUTPUT:** Plan in <think>. Briefly explain your architectural decisions and interact with the USER naturally. When generating component code, use <files entry="/App.tsx">. If you create a component inside the /components directory, ENSURE you import and use it within /App.tsx so it's visible in the preview. Always remain in character as Shadway.`;
+- **OUTPUT:** Plan in <think>. Briefly explain your architectural decisions and interact with the USER naturally. You MUST ALWAYS include a <files entry="/App.tsx"> block in your response for ANY component changes. 
+    **CRITICAL:** 
+    - NEVER use markdown code blocks (triple backticks).
+    - NEVER output raw code outside of <file path="..."> tags.
+    - If the user asks for a feature, provide the FULL updated code within the <files> architecture.
+    - Always remain in character as Shadway.`;
 
     const messages: Array<{
       role: "system" | "user" | "assistant";

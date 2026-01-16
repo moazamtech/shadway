@@ -250,51 +250,51 @@ type Suggestion = {
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
     emoji: "✨",
-    title: "Hero Section",
+    title: "Premium Landing Page",
     prompt:
-      "Create a modern hero section with a large headline, subtext, CTA buttons, and a gradient background. Include subtle animations and responsive design.",
+      "Create an AWWWARDS-level landing page with a multi-layered hero section using SVG masking, grain textures, and matte lighting. Include sophisticated motion/react transitions and high visual density.",
   },
   {
     emoji: "🧭",
-    title: "Navigation Header",
+    title: "Architectural Header",
     prompt:
-      "Build a responsive navigation header with logo, nav links, and a mobile hamburger menu. Include smooth transitions and sticky positioning.",
+      "Build a legendary navigation header with glassmorphism, dynamic blur effects, and sophisticated mobile orchestration. Use technical motifs and geometric separators.",
   },
   {
     emoji: "💰",
-    title: "Pricing Cards",
+    title: "Experimental Pricing",
     prompt:
-      "Create a pricing section with 3 tier cards (Basic, Pro, Enterprise). Include feature lists, highlighted recommended plan, and CTA buttons.",
+      "Architect a unique pricing section with unconventional geometry using clip-path, custom SVG wave patterns, and 3D hover transformations.",
   },
   {
     emoji: "🎯",
-    title: "Features Grid",
+    title: "Technical Feature Grid",
     prompt:
-      "Build a features section with a grid of feature cards. Each card has an icon, title, and description. Include hover effects and responsive layout.",
+      "Create a data-rich feature grid with SVG patterns, matte lighting, and staggered entrance animations. Focus on technical density and geometric motifs.",
   },
   {
     emoji: "💬",
-    title: "Testimonials",
+    title: "Cinematic Testimonials",
     prompt:
-      "Create a testimonials section with customer quotes, avatars, names, and company logos. Include a carousel or grid layout with smooth animations.",
+      "Build a cinematic testimonial section with glassmorphism cards, animated SVG grain textures, and sophisticated motion/react transitions.",
   },
   {
     emoji: "📩",
-    title: "Contact Form",
+    title: "Matte Contact Design",
     prompt:
-      "Build a contact form section with name, email, message fields, and submit button. Include form validation and a modern card design.",
+      "Design a premium contact section with matte lighting effects, custom SVG background patterns, and sophisticated input field micro-animations.",
   },
   {
     emoji: "👣",
-    title: "Footer Section",
+    title: "Geometric Footer",
     prompt:
-      "Create a footer with multiple columns for links, social icons, newsletter signup, and copyright. Responsive design with clean typography.",
+      "Architect a multi-column footer with heavy technical density, custom SVG motifs, and high-end typography using geometric separators.",
   },
   {
     emoji: "📊",
-    title: "Stats Section",
+    title: "Data-Rich Stats",
     prompt:
-      "Build a stats/metrics section with animated counters showing key numbers like users, downloads, rating. Include icons and responsive grid.",
+      "Create a premium stats section with animated SVG counters, matte lighting, and geometric motifs using clip-path for visual impact.",
   },
 ];
 
@@ -433,11 +433,14 @@ export default function ComponentGeneratorPage() {
 
     const { files, entryFile } = extractFilesLoose(text);
 
-    // Remove <think> and <component> tags from displayed content
-    let content = text.replace(thinkRegex, "");
-    content = content.replace(/<component>[\s\S]*?(?:<\/component>|$)/g, "");
-    // Strip any <files> block even if it's malformed or incomplete (prevents raw code from appearing in chat).
+    // Remove all XML-like tags and their internal content from the displayed chat text
+    let content = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
     content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
+    content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
+
+    // Aggressively remove any lingering markdown code fences to prevent "spillage" in chat
+    content = content.replace(/```[\s\S]*?(```|$)/g, "");
+
     content = content.trim();
 
     return { reasoning, content, code, files, entryFile };
@@ -897,32 +900,6 @@ export default function ComponentGeneratorPage() {
 
         let artifacts = raw ? extractArtifactsFromResponse(raw) : null;
 
-        // If the model didn't output <files>/<component>, retry once with a strict formatting instruction.
-        if (
-          (!artifacts?.files || Object.keys(artifacts.files).length === 0) &&
-          !artifacts?.code
-        ) {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? {
-                  ...msg,
-                  content: "Cooking Fire type shi…",
-                  reasoning: "",
-                  files: undefined,
-                  code: "",
-                }
-                : msg,
-            ),
-          );
-
-          const strictPrompt = `${text.trim()}\n\nIMPORTANT:\n- Respond ONLY with valid XML-like tags.\n- Start with <files entry=\"/App.tsx\"> and include one or more <file path=\"...\"> blocks.\n- Do not include markdown fences.\n- Do not include explanations outside the <files> block.`;
-
-          raw = await runGeneration(strictPrompt);
-          if (abortControllerRef.current?.signal.aborted) return;
-          artifacts = raw ? extractArtifactsFromResponse(raw) : null;
-        }
-
         if (raw && artifacts && (artifacts.files || artifacts.code)) {
           const { code, files, entryFile, language } = artifacts;
           setGeneratedComponent((prev) => {
@@ -939,7 +916,11 @@ export default function ComponentGeneratorPage() {
           });
           setIsPanelOpen(true);
         } else {
-          toast.error("AI did not return files. Please try again.");
+          // If no artifacts found, still update with what we have (content/reasoning) 
+          // but don't force a retry. The enhanced prompt should handle this.
+          if (!raw) {
+            toast.error("AI did not return any content. Please try again.");
+          }
         }
       } catch (error: any) {
         if (error.name === "AbortError") {
@@ -1138,19 +1119,23 @@ export default function ComponentGeneratorPage() {
                         from={message.role}
                         className={cn(
                           "duration-300",
-                          "justify-center",
+                          message.role === "user"
+                            ? "justify-end"
+                            : "justify-start",
                         )}
                       >
                         <MessageContent
                           className={cn(
                             "w-full px-0 py-0 rounded-none",
-                            "items-center",
+                            message.role === "user"
+                              ? "items-end"
+                              : "items-start",
                           )}
                         >
                           {message.role === "user" ? (
-                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl">
+                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl self-end">
                               <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
-                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium text-center">
+                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium">
                                 {message.content}
                               </div>
                             </div>
@@ -1170,8 +1155,8 @@ export default function ComponentGeneratorPage() {
 
                               {/* AI Response Text - Premium Conversational Typography */}
                               {message.content && (
-                                <div className="max-w-3xl px-1 w-full flex justify-center">
-                                  <AIResponse className="text-[15px] leading-[1.6] text-foreground/90 font-medium tracking-tight text-left">
+                                <div className="max-w-3xl px-1">
+                                  <AIResponse className="text-[15px] leading-[1.6] text-foreground/90 font-medium tracking-tight">
                                     {message.content}
                                   </AIResponse>
                                 </div>
@@ -1180,7 +1165,7 @@ export default function ComponentGeneratorPage() {
                               {/* Compact Artifact Capsule Card */}
                               {message.files &&
                                 Object.keys(message.files).length > 0 && (
-                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
                                     {/* Ambient Glow */}
                                     <div className="absolute -top-12 -right-12 h-32 w-32 bg-primary/5 blur-3xl pointer-events-none" />
 
@@ -1275,7 +1260,7 @@ export default function ComponentGeneratorPage() {
                       </Message>
                     ))}
                     {isGenerating && !messages[messages.length - 1]?.reasoning && (
-                      <div className="flex items-center justify-center gap-3 py-4 animate-in fade-in slide-in-from-bottom-1 duration-500">
+                      <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
                         <Loader2 className="h-4 w-4 text-primary animate-spin" />
                         <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
                           Architecting...
@@ -1319,26 +1304,6 @@ export default function ComponentGeneratorPage() {
                       </Button>
 
                       <div className="h-3 w-[1px] bg-border/60 mx-0.5" />
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setReasoningEnabled(!reasoningEnabled)}
-                        className={cn(
-                          "h-8 px-3 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border shadow-sm",
-                          reasoningEnabled
-                            ? "bg-primary/10 text-primary border-primary/30"
-                            : "bg-muted/20 text-muted-foreground/60 border-transparent hover:bg-muted/30",
-                        )}
-                      >
-                        <SparklesIcon
-                          className={cn(
-                            "h-3 w-3 mr-1.5",
-                            reasoningEnabled ? "animate-pulse" : "opacity-40",
-                          )}
-                        />
-                        <span>{reasoningEnabled ? "Architect" : "Base"}</span>
-                      </Button>
 
                       {isGenerating && (
                         <Button
