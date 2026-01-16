@@ -39,6 +39,7 @@ import {
   PaperclipIcon,
   ChevronRight,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -46,7 +47,6 @@ import { cn } from "@/lib/utils";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
-import { ColorSchemeEditor } from "@/components/color-scheme-editor";
 import {
   ColorSchemeConfig,
   defaultColorSchemeConfig,
@@ -73,13 +73,25 @@ type GeneratedComponent = {
   title: string;
 };
 
-const FileIconComponent = ({ path, className }: { path: string; className?: string }) => {
+const FileIconComponent = ({
+  path,
+  className,
+}: {
+  path: string;
+  className?: string;
+}) => {
   const ext = path.split(".").pop()?.toLowerCase() || "";
-  if (ext === "tsx" || ext === "jsx") return <FileCode2Icon className={cn("h-4 w-4 text-cyan-500", className)} />;
-  if (ext === "ts" || ext === "js") return <Code2Icon className={cn("h-4 w-4 text-blue-500", className)} />;
-  if (ext === "css") return <Hash className={cn("h-4 w-4 text-purple-500", className)} />;
-  if (ext === "json") return <FileJson className={cn("h-4 w-4 text-amber-500", className)} />;
-  return <FileIcon className={cn("h-4 w-4 text-muted-foreground", className)} />;
+  if (ext === "tsx" || ext === "jsx")
+    return <FileCode2Icon className={cn("h-4 w-4 text-cyan-500", className)} />;
+  if (ext === "ts" || ext === "js")
+    return <Code2Icon className={cn("h-4 w-4 text-blue-500", className)} />;
+  if (ext === "css")
+    return <Hash className={cn("h-4 w-4 text-purple-500", className)} />;
+  if (ext === "json")
+    return <FileJson className={cn("h-4 w-4 text-amber-500", className)} />;
+  return (
+    <FileIcon className={cn("h-4 w-4 text-muted-foreground", className)} />
+  );
 };
 
 // ChevronRight is imported from Lucide
@@ -127,7 +139,7 @@ function ThinkingProcess({
           <ChevronRight
             className={cn(
               "h-3.5 w-3.5 opacity-30 group-hover/thinking:opacity-80 transition-all duration-300",
-              isOpen && "rotate-90"
+              isOpen && "rotate-90",
             )}
           />
         </div>
@@ -264,13 +276,13 @@ const SMART_SUGGESTIONS: Suggestion[] = [
     emoji: "💰",
     title: "Experimental Pricing",
     prompt:
-      "Architect a unique pricing section with unconventional geometry using clip-path, custom SVG wave patterns, and 3D hover transformations.",
+      "Create an professional pricing section with pricings and yearly and monthly button.",
   },
   {
     emoji: "🎯",
     title: "Technical Feature Grid",
     prompt:
-      "Create a data-rich feature grid with SVG patterns, matte lighting, and staggered entrance animations. Focus on technical density and geometric motifs.",
+      "Create a data-rich feature grid with staggered entrance animations. Focus on technical density and geometric motifs.",
   },
   {
     emoji: "💬",
@@ -334,6 +346,7 @@ export default function ComponentGeneratorPage() {
   const [activeSuggestions, setActiveSuggestions] = useState(
     SMART_SUGGESTIONS.slice(0, 6),
   );
+  const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Rotate suggestions for variety
@@ -677,14 +690,14 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                    ...msg,
-                    content: displayContent?.trim() || "",
-                    reasoning: displayReasoning,
-                    reasoning_details: finalReasoningDetails,
-                    code,
-                    files,
-                    entryFile,
-                  }
+                      ...msg,
+                      content: displayContent?.trim() || "",
+                      reasoning: displayReasoning,
+                      reasoning_details: finalReasoningDetails,
+                      code,
+                      files,
+                      entryFile,
+                    }
                   : msg,
               ),
             );
@@ -916,7 +929,7 @@ export default function ComponentGeneratorPage() {
           });
           setIsPanelOpen(true);
         } else {
-          // If no artifacts found, still update with what we have (content/reasoning) 
+          // If no artifacts found, still update with what we have (content/reasoning)
           // but don't force a retry. The enhanced prompt should handle this.
           if (!raw) {
             toast.error("AI did not return any content. Please try again.");
@@ -933,9 +946,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                  ...msg,
-                  content: "Sorry, I encountered an error. Please try again.",
-                }
+                    ...msg,
+                    content: "Sorry, I encountered an error. Please try again.",
+                  }
                 : msg,
             ),
           );
@@ -1077,27 +1090,32 @@ export default function ComponentGeneratorPage() {
           }
         >
           {/* Progressive Blur Overlays - Lightened and Slimmed */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-12 bg-gradient-to-b from-background via-background/40 to-transparent pointer-events-none z-10 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-48 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-20 backdrop-blur-[12px] [mask-image:linear-gradient(to_top,black,transparent)]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-12 bg-gradient-to-b from-background via-background/40 to-transparent pointer-events-none z-10 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-full max-w-3xl h-36 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-20 backdrop-blur-[12px] [mask-image:linear-gradient(to_top,black,transparent)]" />
 
           <Conversation className="flex-1 overflow-hidden min-h-0 relative">
             <ConversationContent
               className={cn(
-                "flex flex-col w-full max-w-4xl mx-auto",
+                "flex flex-col w-full max-w-3xl mx-auto",
                 messages.length === 0
                   ? "min-h-full justify-center py-12 md:py-24"
-                  : "p-3 sm:p-6 space-y-6 pb-24",
+                  : "p-3 sm:p-6 space-y-6 pb-32",
               )}
             >
               {messages.length === 0 ? (
                 /* Premium Static Empty State */
-                <div className="flex flex-col items-center justify-center max-w-4xl mx-auto text-center px-4 flex-1 relative w-full">
+                <div className="flex flex-col items-center justify-center max-w-3xl mx-auto text-center px-4 flex-1 relative w-full">
                   <div className="space-y-6 w-full">
                     <h2 className="text-2xl md:text-4xl font-serif lg:text-5xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
-                      SHADWAY <span className="text-primary not-italic tracking-normal">ARCHITECT</span>
+                      SHADWAY{" "}
+                      <span className="text-primary not-italic tracking-normal">
+                        ARCHITECT
+                      </span>
                     </h2>
                     <p className="max-w-xl mx-auto text-[11px] md:text-sm text-muted-foreground/40 font-medium leading-relaxed px-4">
-                      The next-gen AI engineering engine. Transform vision into production-ready React components with unprecedented speed.
+                      The next-gen AI engineering engine. Transform vision into
+                      production-ready React components with unprecedented
+                      speed.
                     </p>
                   </div>
 
@@ -1177,10 +1195,14 @@ export default function ComponentGeneratorPage() {
                                         </div>
                                         <div className="min-w-0">
                                           <h3 className="text-sm font-black uppercase tracking-tight leading-none text-foreground/80">
-                                            Architectural <span className="text-primary">Deploy</span>
+                                            Architectural{" "}
+                                            <span className="text-primary">
+                                              Deploy
+                                            </span>
                                           </h3>
                                           <p className="text-[9px] text-muted-foreground/40 font-bold tracking-widest uppercase mt-1">
-                                            {Object.keys(message.files).length} Files Synchronized
+                                            {Object.keys(message.files).length}{" "}
+                                            Files Synchronized
                                           </p>
                                         </div>
                                       </div>
@@ -1195,16 +1217,22 @@ export default function ComponentGeneratorPage() {
                                               className="group/file inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-muted/30 border border-border/40 hover:border-primary/30 transition-all duration-300"
                                             >
                                               <div className="h-6 w-6 rounded-full bg-background flex items-center justify-center border border-border/20 group-hover/file:bg-primary/5 group-hover/file:border-primary/20 transition-all">
-                                                <FileIconComponent path={path} className="h-3 w-3" />
+                                                <FileIconComponent
+                                                  path={path}
+                                                  className="h-3 w-3"
+                                                />
                                               </div>
                                               <span className="text-[10px] font-bold text-muted-foreground/80 group-hover/file:text-foreground truncate max-w-[80px]">
                                                 {path.split("/").pop()}
                                               </span>
                                             </div>
                                           ))}
-                                        {Object.keys(message.files).length > 5 && (
+                                        {Object.keys(message.files).length >
+                                          5 && (
                                           <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
-                                            +{Object.keys(message.files).length - 5}
+                                            +
+                                            {Object.keys(message.files).length -
+                                              5}
                                           </div>
                                         )}
                                       </div>
@@ -1259,14 +1287,15 @@ export default function ComponentGeneratorPage() {
                         </MessageContent>
                       </Message>
                     ))}
-                    {isGenerating && !messages[messages.length - 1]?.reasoning && (
-                      <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
-                        <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                        <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
-                          Architecting...
-                        </span>
-                      </div>
-                    )}
+                    {isGenerating &&
+                      !messages[messages.length - 1]?.reasoning && (
+                        <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
+                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                          <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
+                            Architecting...
+                          </span>
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -1330,7 +1359,8 @@ export default function ComponentGeneratorPage() {
                         <Zap
                           className={cn(
                             "h-4 w-4",
-                            isGenerating && "animate-pulse text-primary-foreground"
+                            isGenerating &&
+                              "animate-pulse text-primary-foreground",
                           )}
                         />
                       </PromptInputSubmit>
@@ -1343,28 +1373,30 @@ export default function ComponentGeneratorPage() {
         </div>
 
         {/* Desktop Splitter Handle */}
-        {
-          isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize panels"
-              onPointerDown={startResize}
-              className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center px-1 transition-all"
-            >
-              <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
-              <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
-            </div>
-          )
-        }
+        {isDesktop && generatedComponent && isPanelOpen && !isFullscreen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panels"
+            onPointerDown={startResize}
+            className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center px-1 transition-all"
+          >
+            <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
+            <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
+          </div>
+        )}
 
         {/* Right Panel - Code/Preview */}
         <AnimatePresence>
           {generatedComponent && isPanelOpen && (
             <motion.div
-              initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }}
+              initial={
+                isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }
+              }
               animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, x: 0 }}
-              exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }}
+              exit={
+                isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }
+              }
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className={cn(
                 "flex flex-col bg-background text-foreground transition-all duration-300 border border-border/60 shadow-2xl overflow-hidden backdrop-blur-xl",
@@ -1374,7 +1406,10 @@ export default function ComponentGeneratorPage() {
               )}
               style={
                 isDesktop && !isFullscreen
-                  ? { width: `${previewWidthPct}%`, height: "calc(100% - 1.5rem)" }
+                  ? {
+                      width: `${previewWidthPct}%`,
+                      height: "calc(100% - 1.5rem)",
+                    }
                   : undefined
               }
             >
@@ -1410,17 +1445,23 @@ export default function ComponentGeneratorPage() {
                 {isGenerating && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20 animate-pulse ml-4">
                     <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">Architect Generating...</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">
+                      Architect Generating...
+                    </span>
                   </div>
                 )}
 
                 {viewMode === "preview" && (
                   <div className="ml-2 border-l border-border pl-2">
-                    <ColorSchemeEditor
-                      value={colorScheme}
-                      onChange={setColorScheme}
-                      isDark={isDark}
-                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPreviewReloadKey((prev) => prev + 1)}
+                      className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+                    >
+                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                      Reload
+                    </Button>
                   </div>
                 )}
 
@@ -1453,10 +1494,13 @@ export default function ComponentGeneratorPage() {
                 <div
                   className={cn(
                     "absolute inset-0 flex flex-col min-h-0 bg-white dark:bg-zinc-950 transition-all duration-300",
-                    viewMode === "preview" ? "opacity-100 z-10 visible scale-100" : "opacity-0 z-0 invisible scale-[0.98]"
+                    viewMode === "preview"
+                      ? "opacity-100 z-10 visible scale-100"
+                      : "opacity-0 z-0 invisible scale-[0.98]",
                   )}
                 >
                   <SandpackRuntimePreview
+                    key={`preview-${previewReloadKey}`}
                     showConsole={false}
                     code={generatedComponent.code || ""}
                     files={{
@@ -1473,7 +1517,9 @@ export default function ComponentGeneratorPage() {
                 <div
                   className={cn(
                     "absolute inset-0 flex min-h-0 w-full transition-all duration-300",
-                    viewMode === "code" ? "opacity-100 z-10 visible scale-100" : "opacity-0 z-0 invisible scale-[0.98]"
+                    viewMode === "code"
+                      ? "opacity-100 z-10 visible scale-100"
+                      : "opacity-0 z-0 invisible scale-[0.98]",
                   )}
                 >
                   {/* Sidebar */}
@@ -1551,10 +1597,12 @@ export default function ComponentGeneratorPage() {
                             "semanticHighlighting.enabled": false,
                           }}
                           beforeMount={(monaco) => {
-                            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-                              noSemanticValidation: true,
-                              noSyntaxValidation: true,
-                            });
+                            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(
+                              {
+                                noSemanticValidation: true,
+                                noSyntaxValidation: true,
+                              },
+                            );
                           }}
                         />
                       ) : (
@@ -1569,7 +1617,7 @@ export default function ComponentGeneratorPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
