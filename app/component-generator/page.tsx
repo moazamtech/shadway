@@ -907,7 +907,7 @@ export default function ComponentGeneratorPage() {
               msg.id === assistantMessage.id
                 ? {
                   ...msg,
-                  content: "Formatting output…",
+                  content: "Cooking Fire type shi…",
                   reasoning: "",
                   files: undefined,
                   code: "",
@@ -972,6 +972,21 @@ export default function ComponentGeneratorPage() {
       abortControllerRef.current.abort();
     }
   }, []);
+
+  const handleReset = useCallback(() => {
+    if (isGenerating) {
+      abortControllerRef.current?.abort();
+    }
+    setMessages([]);
+    setGeneratedComponent(null);
+    setIsPanelOpen(false);
+    setEditedFiles({});
+    setSelectedFile(null);
+    setHasUnsavedChanges(false);
+    setCurrentlyGeneratingFile(null);
+    setIsGenerating(false);
+    toast.success("New session started");
+  }, [isGenerating]);
 
   const setClampedPreviewWidthPct = useCallback((pct: number) => {
     setPreviewWidthPct(Math.min(72, Math.max(28, pct)));
@@ -1051,6 +1066,7 @@ export default function ComponentGeneratorPage() {
         hasGenerated={!!generatedComponent}
         isPanelOpen={isPanelOpen}
         onTogglePanel={() => setIsPanelOpen(!isPanelOpen)}
+        onReset={handleReset}
         isFullscreen={isFullscreen}
         onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
         onResetSplit={() => setPreviewWidthPct(50)}
@@ -1080,21 +1096,21 @@ export default function ComponentGeneratorPage() {
           }
         >
           {/* Progressive Blur Overlays - Lightened and Slimmed */}
-          <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-background via-background/20 to-transparent pointer-events-none z-20" />
-          <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none z-20" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-12 bg-gradient-to-b from-background via-background/40 to-transparent pointer-events-none z-10 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-48 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-20 backdrop-blur-[12px] [mask-image:linear-gradient(to_top,black,transparent)]" />
 
           <Conversation className="flex-1 overflow-hidden min-h-0 relative">
             <ConversationContent
               className={cn(
-                "flex flex-col w-full max-w-6xl mx-auto",
+                "flex flex-col w-full max-w-4xl mx-auto",
                 messages.length === 0
                   ? "min-h-full justify-center py-12 md:py-24"
-                  : "p-3 sm:p-6 space-y-6 pb-2",
+                  : "p-3 sm:p-6 space-y-6 pb-24",
               )}
             >
               {messages.length === 0 ? (
                 /* Premium Static Empty State */
-                <div className="flex flex-col items-center justify-center max-w-6xl mx-auto text-center px-4 flex-1 relative w-full">
+                <div className="flex flex-col items-center justify-center max-w-4xl mx-auto text-center px-4 flex-1 relative w-full">
                   <div className="space-y-6 w-full">
                     <h2 className="text-2xl md:text-4xl font-serif lg:text-5xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
                       SHADWAY <span className="text-primary not-italic tracking-normal">ARCHITECT</span>
@@ -1104,7 +1120,7 @@ export default function ComponentGeneratorPage() {
                     </p>
                   </div>
 
-                  <div className="w-full mt-8 md:mt-12">
+                  <div className="w-full mt-4 md:mt-6">
                     <SuggestionsGrid
                       suggestions={activeSuggestions}
                       onPick={(p) => handleSubmit({ text: p })}
@@ -1122,23 +1138,19 @@ export default function ComponentGeneratorPage() {
                         from={message.role}
                         className={cn(
                           "duration-300",
-                          message.role === "user"
-                            ? "justify-end"
-                            : "justify-start",
+                          "justify-center",
                         )}
                       >
                         <MessageContent
                           className={cn(
                             "w-full px-0 py-0 rounded-none",
-                            message.role === "user"
-                              ? "items-end"
-                              : "items-start",
+                            "items-center",
                           )}
                         >
                           {message.role === "user" ? (
-                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl self-end">
+                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl">
                               <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
-                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[15px] leading-relaxed font-medium">
+                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium text-center">
                                 {message.content}
                               </div>
                             </div>
@@ -1146,18 +1158,20 @@ export default function ComponentGeneratorPage() {
                             <div className="w-full space-y-8">
                               {/* Thinking Process - Always First */}
                               {message.reasoning && (
-                                <ThinkingProcess
-                                  content={message.reasoning}
-                                  isFinished={
-                                    !!(message.content || message.files)
-                                  }
-                                />
+                                <div className="max-w-xl mx-auto w-full">
+                                  <ThinkingProcess
+                                    content={message.reasoning}
+                                    isFinished={
+                                      !!(message.content || message.files)
+                                    }
+                                  />
+                                </div>
                               )}
 
                               {/* AI Response Text - Premium Conversational Typography */}
                               {message.content && (
-                                <div className="max-w-3xl px-1">
-                                  <AIResponse className="text-[16px] leading-[1.6] text-foreground/90 font-medium tracking-tight">
+                                <div className="max-w-3xl px-1 w-full flex justify-center">
+                                  <AIResponse className="text-[15px] leading-[1.6] text-foreground/90 font-medium tracking-tight text-left">
                                     {message.content}
                                   </AIResponse>
                                 </div>
@@ -1166,7 +1180,7 @@ export default function ComponentGeneratorPage() {
                               {/* Compact Artifact Capsule Card */}
                               {message.files &&
                                 Object.keys(message.files).length > 0 && (
-                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-700">
                                     {/* Ambient Glow */}
                                     <div className="absolute -top-12 -right-12 h-32 w-32 bg-primary/5 blur-3xl pointer-events-none" />
 
@@ -1260,15 +1274,14 @@ export default function ComponentGeneratorPage() {
                         </MessageContent>
                       </Message>
                     ))}
-                    {isGenerating &&
-                      !messages[messages.length - 1]?.reasoning && (
-                        <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
-                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                          <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
-                            Architecting...
-                          </span>
-                        </div>
-                      )}
+                    {isGenerating && !messages[messages.length - 1]?.reasoning && (
+                      <div className="flex items-center justify-center gap-3 py-4 animate-in fade-in slide-in-from-bottom-1 duration-500">
+                        <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                        <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
+                          Architecting...
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1277,7 +1290,7 @@ export default function ComponentGeneratorPage() {
           </Conversation>
 
           {/* Fixed Input Area - Centered and Elevated */}
-          <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-10 mt-auto">
+          <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-30 mt-auto">
             <div className="mx-auto w-full max-w-3xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
                 <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border bg-background/95 dark:bg-background/40 backdrop-blur-xl shadow-xl hover:shadow-primary/5 transition-all duration-700 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 group overflow-hidden">
@@ -1290,7 +1303,7 @@ export default function ComponentGeneratorPage() {
                         : "Refine your design..."
                     }
                     disabled={isGenerating}
-                    className="relative z-10 min-h-[44px] md:min-h-[48px] w-full p-4 md:p-5 text-[15px] md:text-base border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-tight overflow-y-auto no-scrollbar resize-none"
+                    className="relative z-10 min-h-[40px] md:min-h-[44px] w-full p-3 md:p-3.5 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-tight overflow-y-auto no-scrollbar resize-none"
                   />
 
                   <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
