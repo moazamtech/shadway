@@ -12,11 +12,13 @@ export function GeneratorHeader({
   hasGenerated,
   isPanelOpen,
   onTogglePanel,
+  onReset,
   className,
 }: {
   hasGenerated: boolean;
   isPanelOpen: boolean;
   onTogglePanel: () => void;
+  onReset: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onResetSplit: () => void;
@@ -31,16 +33,16 @@ export function GeneratorHeader({
     >
       <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto uppercase">
         <div className="flex items-center gap-4">
-       <Link href="/">  
-          <div className="relative flex h-10 w-10 overflow-hidden p-1 transition-transform hover:scale-105">
-            <Image
-              src="/logo.png"
-              alt="Shadway Logo"
-              fill
-              className="object-contain p-1"
-              priority
-            />
-          </div>
+          <Link href="/">
+            <div className="relative flex h-10 w-10 overflow-hidden p-1 transition-transform hover:scale-105">
+              <Image
+                src="/logo.png"
+                alt="Shadway Logo"
+                fill
+                className="object-contain p-1"
+                priority
+              />
+            </div>
           </Link>
           <div className="flex flex-col">
             <h1 className="text-xl font-black font-serif tracking-tight text-foreground sm:text-2xl">
@@ -55,13 +57,22 @@ export function GeneratorHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center px-1.5 py-1">
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 px-3 py-1 border-r border-border/40 mr-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border-border/60 border-dashed hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+            >
+              <Zap className="h-3.5 w-3.5 md:mr-2 fill-primary/10" />
+              <span className="hidden md:inline">New Chat</span>
+            </Button>
             <ThemeToggle />
           </div>
 
           {hasGenerated && (
-            <div className="flex items-center gap-2 pl-3 ml-1 border-l border-border/40">
+            <div className="flex items-center gap-2 pl-3">
               <Button
                 variant={isPanelOpen ? "default" : "outline"}
                 size="sm"
@@ -89,6 +100,6 @@ export function GeneratorHeader({
           )}
         </div>
       </div>
-    </header >
+    </header>
   );
 }

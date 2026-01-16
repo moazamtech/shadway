@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     
     Constraints:
     - Focus on full landing pages or sophisticated multi-section websites.
-    - Use terms like "glassmorphism", "bento grid", "dynamic micro-interactions", "SVG masking", "neo-brutalism", "AI-driven layout", "parallax orchestration", "grainy aesthetic".
+    - Use terms like "Solana Memecoin landing page", "Professional Landing page", "Crypto Landing page", "NFT Landing page", "AI Landing page", "Sass Landing page ", "aesthetic Landing page".
     - Each prompt should be 20-35 words, defining the unique value proposition and design language.
     
     Return ONLY the JSON array.`;
