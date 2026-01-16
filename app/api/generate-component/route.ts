@@ -47,6 +47,32 @@ export async function POST(req: Request) {
 - **TAILWIND V4:** Use semantic classes only (bg-primary, text-foreground).
 - **ANIMATION:** Use motion/react for ALL transitions.
 - **VITE REACT ONLY:** Target a Vite + React + TypeScript setup. Do NOT use Next.js APIs, file conventions, or next/* imports.
+- **SANDBOX FILE TREE:** The preview runtime provides these files by default (you can import from them directly):
+  /
+  |- App.tsx
+  |- index.tsx
+  |- index.html
+  |- index.css
+  |- tsconfig.json
+  |- lib/
+  |  |- utils.ts
+  |- global.css
+  |- components/
+  |  |- ui/
+  |  |  |- avatar.tsx
+  |  |  |- badge.tsx
+  |  |  |- button.tsx
+  |  |  |- card.tsx
+  |  |  |- checkbox.tsx
+  |  |  |- container.tsx
+  |  |  |- input.tsx
+  |  |  |- label.tsx
+  |  |  |- separator.tsx
+  |  |  |- skeleton.tsx
+  |  |  |- slider.tsx
+  |  |  |- switch.tsx
+  |  |  |- tabs.tsx
+  |  |  |- textarea.tsx
 - **OUTPUT:** Plan in <think>. Briefly explain your architectural decisions and interact with the USER naturally. You MUST ALWAYS include a <files entry="/App.tsx"> block in your response for ANY component changes.
     **CRITICAL:**
     - NEVER use markdown code blocks (triple backticks).
