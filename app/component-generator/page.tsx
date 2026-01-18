@@ -393,7 +393,12 @@ export default function ComponentGeneratorPage() {
     const code = componentMatch ? componentMatch[1].trim() : "";
 
     const extractFilesLoose = (input: string) => {
-      const start = input.search(/<files\b/i);
+      const filesStart = input.search(/<files\b/i);
+      const firstFileTag = input.search(/<(?:file|entry)\b/i);
+
+      // If we don't find <files> but we do find <file> or <entry>, we use that as the start
+      const start = filesStart !== -1 ? filesStart : firstFileTag;
+
       if (start === -1)
         return {
           files: undefined as Record<string, string> | undefined,
@@ -414,8 +419,10 @@ export default function ComponentGeneratorPage() {
         : undefined;
 
       const files: Record<string, string> = {};
-      const tagRegex = /<file\s+path=["']([^"']+)["'][^>]*>/gi;
+      // Handle <file path="..."> or <entry path="..."> or <file name="...">
+      const tagRegex = /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["'][^>]*>/gi;
       const matches = Array.from(block.matchAll(tagRegex));
+
       for (let idx = 0; idx < matches.length; idx++) {
         const m = matches[idx];
         const path = String(m[1] || "").trim();
@@ -429,7 +436,17 @@ export default function ComponentGeneratorPage() {
             : block.length;
         let sliceEnd = nextTagStart;
 
-        const closeIdx = block.indexOf("</file>", contentStart);
+        // Look for either </file> or </entry>
+        const closeFileIdx = block.indexOf("</file>", contentStart);
+        const closeEntryIdx = block.indexOf("</entry>", contentStart);
+
+        let closeIdx = -1;
+        if (closeFileIdx !== -1 && (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)) {
+          closeIdx = closeFileIdx;
+        } else {
+          closeIdx = closeEntryIdx;
+        }
+
         if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
 
         const content = block.slice(contentStart, sliceEnd).trim();
@@ -438,9 +455,7 @@ export default function ComponentGeneratorPage() {
 
       const finalFiles = Object.keys(files).length ? files : undefined;
       if (!entryFile)
-        entryFile = finalFiles?.["/entry.tsx"] ? "/entry.tsx" : undefined;
-      if (!entryFile)
-        entryFile = finalFiles?.["/App.tsx"] ? "/App.tsx" : undefined;
+        entryFile = finalFiles?.["/entry.tsx"] || finalFiles?.["/App.tsx"] || (finalFiles ? Object.keys(finalFiles)[0] : undefined);
       return { files: finalFiles, entryFile };
     };
 
@@ -450,6 +465,7 @@ export default function ComponentGeneratorPage() {
     let content = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
     content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
     content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
+    content = content.replace(/<(?:file|entry)\b[\s\S]*?(?:<\/(?:file|entry)>|$)/gi, "");
 
     // Aggressively remove any lingering markdown code fences to prevent "spillage" in chat
     content = content.replace(/```[\s\S]*?(```|$)/g, "");
@@ -690,14 +706,14 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                      ...msg,
-                      content: displayContent?.trim() || "",
-                      reasoning: displayReasoning,
-                      reasoning_details: finalReasoningDetails,
-                      code,
-                      files,
-                      entryFile,
-                    }
+                    ...msg,
+                    content: displayContent?.trim() || "",
+                    reasoning: displayReasoning,
+                    reasoning_details: finalReasoningDetails,
+                    code,
+                    files,
+                    entryFile,
+                  }
                   : msg,
               ),
             );
@@ -946,9 +962,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Sorry, I encountered an error. Please try again.",
-                  }
+                  ...msg,
+                  content: "Sorry, I encountered an error. Please try again.",
+                }
                 : msg,
             ),
           );
@@ -1229,12 +1245,12 @@ export default function ComponentGeneratorPage() {
                                           ))}
                                         {Object.keys(message.files).length >
                                           5 && (
-                                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
-                                            +
-                                            {Object.keys(message.files).length -
-                                              5}
-                                          </div>
-                                        )}
+                                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
+                                              +
+                                              {Object.keys(message.files).length -
+                                                5}
+                                            </div>
+                                          )}
                                       </div>
 
                                       {/* Responsive Multi-Action Buttons */}
@@ -1360,7 +1376,7 @@ export default function ComponentGeneratorPage() {
                           className={cn(
                             "h-4 w-4",
                             isGenerating &&
-                              "animate-pulse text-primary-foreground",
+                            "animate-pulse text-primary-foreground",
                           )}
                         />
                       </PromptInputSubmit>
@@ -1407,9 +1423,9 @@ export default function ComponentGeneratorPage() {
               style={
                 isDesktop && !isFullscreen
                   ? {
-                      width: `${previewWidthPct}%`,
-                      height: "calc(100% - 1.5rem)",
-                    }
+                    width: `${previewWidthPct}%`,
+                    height: "calc(100% - 1.5rem)",
+                  }
                   : undefined
               }
             >
