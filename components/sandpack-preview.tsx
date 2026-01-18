@@ -459,17 +459,34 @@ function createAppFileFromCode(src: string) {
 
   const wrapper = `\n\n${defaultProps}
 export default function App(){
-  const Comp: any = ${name};
+  const Comp: any = typeof ${name} !== "undefined" ? ${name} : null;
   return (
     <div className="min-h-screen w-full bg-background text-foreground">
       <div className="w-full">
         {Comp ? <Comp {...__defaultProps} /> : (
-          <div className="p-6">
-            <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-              <h2 className="text-base font-semibold">Missing component export</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                The generator did not produce a top-level React component we could render.
+          <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 text-center px-6 py-24">
+            <div className="relative">
+              <div className="absolute inset-0 blur-3xl bg-orange-600/20 rounded-full animate-pulse" />
+              <div className="text-6xl md:text-8xl animate-bounce">
+                🔥
+              </div>
+            </div>
+            <div className="space-y-4 max-w-2xl">
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-foreground leading-[0.8]">
+                vibecraft with shadway
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium tracking-tight">
+                generate unique ideas web app in free
               </p>
+              <div className="pt-6">
+                <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-orange-600/10 border border-orange-600/20 text-orange-500 text-sm font-black uppercase tracking-[0.2em]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
+                  your app is in cooking
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -582,12 +599,29 @@ export default function App(){
     <div className="min-h-screen w-full bg-background text-foreground font-sans antialiased">
       <div className="w-full h-full">
         {Comp ? <Comp /> : (
-          <div className="p-6">
-            <div className="mx-auto max-w-2xl rounded-xl border bg-card p-5 text-card-foreground shadow-sm">
-              <h2 className="text-base font-semibold">Missing component export</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                The generator did not produce a top-level React component we could render.
+          <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 text-center px-6 py-24">
+            <div className="relative">
+              <div className="absolute inset-0 blur-3xl bg-orange-600/20 rounded-full animate-pulse" />
+              <div className="text-6xl md:text-8xl animate-bounce">
+                🔥
+              </div>
+            </div>
+            <div className="space-y-4 max-w-2xl">
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-foreground leading-[0.8]">
+                vibecraft with shadway
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground font-medium tracking-tight">
+                generate unique ideas web app in free
               </p>
+              <div className="pt-6">
+                <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-orange-600/10 border border-orange-600/20 text-orange-500 text-sm font-black uppercase tracking-[0.2em]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
+                  your app is in cooking
+                </div>
+              </div>
             </div>
           </div>
         )}
