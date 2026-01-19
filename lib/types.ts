@@ -83,6 +83,7 @@ export interface ComponentRegistry {
   type: string;
   title: string;
   description: string;
+  category: string;
   files: {
     path: string;
     content: string;

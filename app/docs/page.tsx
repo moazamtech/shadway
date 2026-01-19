@@ -18,6 +18,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PreviewProps = { isHovered: boolean };
 
@@ -323,6 +324,121 @@ const TablesPreview = ({ isHovered }: PreviewProps) => (
   </div>
 );
 
+const HeroPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    {/* Floating Elements Background */}
+    <motion.div 
+      animate={isHovered ? { y: [0, -10, 0], opacity: [0.1, 0.3, 0.1] } : { y: 0, opacity: 0.1 }}
+      transition={{ duration: 4, repeat: Infinity }}
+      className="absolute top-4 left-4 w-12 h-12 rounded-full bg-blue-500 blur-xl"
+    />
+    <div className="relative z-10 w-full flex flex-col items-center gap-3">
+      <motion.div 
+        animate={isHovered ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+        transition={{ duration: 3, repeat: Infinity }}
+        className="w-3/4 h-5 bg-foreground/10 rounded-full mb-1"
+      />
+      <div className="w-1/2 h-2 bg-muted-foreground/10 rounded-full" />
+      <div className="flex gap-2 mt-2">
+        <motion.div 
+          animate={isHovered ? { y: [0, -4, 0] } : { y: 0 }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="h-8 w-20 bg-primary rounded-lg shadow-lg flex items-center justify-center"
+        >
+          <div className="w-10 h-1.5 bg-primary-foreground/40 rounded-full" />
+        </motion.div>
+        <div className="h-8 w-20 bg-background border border-border rounded-lg flex items-center justify-center">
+          <div className="w-10 h-1.5 bg-muted-foreground/20 rounded-full" />
+        </div>
+      </div>
+    </div>
+    <motion.div 
+      animate={isHovered ? { opacity: [0.3, 0.6, 0.3] } : { opacity: 0.3 }}
+      transition={{ duration: 2, repeat: Infinity }}
+      className="absolute bottom-[-20px] w-full h-24 bg-gradient-to-t from-primary/20 to-transparent blur-md"
+    />
+  </div>
+);
+
+const ContactPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex gap-3 items-center">
+    <div className="flex-1 space-y-2">
+      <div className="h-3 w-3 rounded-full bg-primary/20" />
+      <div className="h-1.5 w-full bg-muted-foreground/10 rounded-full" />
+      <div className="h-1.5 w-2/3 bg-muted-foreground/10 rounded-full" />
+    </div>
+    <motion.div 
+      initial={{ x: 0 }}
+      animate={isHovered ? { x: [0, -4, 0] } : { x: 0 }}
+      transition={{ duration: 3, repeat: Infinity }}
+      className="flex-1 bg-card border border-border rounded-lg p-2 space-y-2 shadow-sm"
+    >
+       <div className="h-6 w-full bg-muted rounded border border-border/50 px-1.5 flex items-center">
+         <div className="h-1 w-1/2 bg-muted-foreground/20 rounded-full" />
+       </div>
+       <div className="h-4 w-full bg-primary rounded" />
+    </motion.div>
+  </div>
+);
+
+const FooterPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex flex-col relative overflow-hidden">
+    <div className="flex-1 flex gap-6 mt-2 opacity-40">
+       <div className="flex-1 space-y-2">
+          <div className="h-2 w-1/2 bg-muted-foreground/30 rounded-full" />
+          <div className="h-1 w-full bg-muted-foreground/10 rounded-full" />
+          <div className="h-1 w-2/3 bg-muted-foreground/10 rounded-full" />
+       </div>
+       <div className="flex-1 space-y-2">
+          <div className="h-2 w-1/2 bg-muted-foreground/30 rounded-full" />
+          <div className="h-1 w-full bg-muted-foreground/10 rounded-full" />
+          <div className="h-1 w-2/3 bg-muted-foreground/10 rounded-full" />
+       </div>
+    </div>
+    <div className="mt-auto pt-4 border-t border-border/40 flex items-center justify-between">
+       <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-primary/10" />
+          <div className="h-2 w-16 bg-muted-foreground/20 rounded-full" />
+       </div>
+       <div className="flex gap-1.5">
+          {[0, 1, 2].map(i => (
+            <motion.div 
+              key={i}
+              animate={isHovered ? { scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0.3 }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
+              className="h-4 w-4 rounded-full bg-muted-foreground"
+            />
+          ))}
+       </div>
+    </div>
+    <motion.div 
+      animate={isHovered ? { x: ["-100%", "200%"] } : { x: "-100%" }}
+      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+      className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
+    />
+  </div>
+);
+
+const AboutPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex gap-4 items-center">
+    <motion.div 
+      initial={{ rotate: 0 }}
+      animate={isHovered ? { rotate: [0, 5, 0] } : { rotate: 0 }}
+      transition={{ duration: 4, repeat: Infinity }}
+      className="w-1/2 aspect-video bg-muted border border-border rounded-lg flex items-center justify-center"
+    >
+       <ImageIcon className="w-6 h-6 text-muted-foreground/20" />
+    </motion.div>
+    <div className="flex-1 space-y-2">
+      <div className="h-2 w-2/3 bg-foreground/10 rounded-full" />
+      <div className="space-y-1">
+        <div className="h-1 w-full bg-muted-foreground/10 rounded-full" />
+        <div className="h-1 w-full bg-muted-foreground/10 rounded-full" />
+        <div className="h-1 w-3/4 bg-muted-foreground/10 rounded-full" />
+      </div>
+    </div>
+  </div>
+);
 
 const ComponentsPreview = ({ isHovered }: PreviewProps) => (
   <div className="w-full h-full bg-muted/20 p-4 flex flex-col gap-3 justify-center">
@@ -364,6 +480,7 @@ const ComponentsPreview = ({ isHovered }: PreviewProps) => (
 
 const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Components": ComponentsPreview,
+  "Ui": ComponentsPreview,
   "AI Interface": AIPreview,
   "Dialogs": DialogPreview,
   "File Upload": FileUploadPreview,
@@ -373,23 +490,28 @@ const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Sidebar": SidebarPreview,
   "Analytics": StatsPreview,
   "Data Tables": TablesPreview,
+  "Hero": HeroPreview,
+  "Contact": ContactPreview,
+  "Footer": FooterPreview,
+  "About": AboutPreview,
 };
 
-// Components data
-const components = [
-  {
-    name: "Alert",
-    description: "Display important messages and notifications to users.",
-    type: "registry:component"
-  },
-  {
-    name: "Button", 
-    description: "Interactive elements for user actions and navigation.",
-    type: "registry:component"
-  },
-];
-
 export default function BlocksPage() {
+  const [items, setItems] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch("/registry")
+      .then(res => res.json())
+      .then(data => {
+        setItems(data.items || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setLoading(false);
+      });
+  }, []);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -398,31 +520,121 @@ export default function BlocksPage() {
     },
   };
 
+  // 1. Group items present in the registry
+  const registryCategoriesMap = items.reduce((acc: any, item: any) => {
+    const cat = item.category || "ui";
+    if (!acc[cat]) {
+      acc[cat] = {
+        name: cat.charAt(0).toUpperCase() + cat.slice(1),
+        count: 0,
+        originalCategory: cat.toLowerCase()
+      };
+    }
+    acc[cat].count++;
+    return acc;
+  }, {});
+
+  const dynamicCategories = Object.values(registryCategoriesMap).map((cat: any) => {
+    const config = categories.find(c => c.name.toLowerCase() === cat.name.toLowerCase()) || {
+      description: `Collection of ${cat.name} blocks and components.`,
+      icon: Layout
+    };
+    
+    return {
+      ...config,
+      name: cat.name,
+      blocks: cat.count,
+      originalCategory: cat.originalCategory,
+      isDynamic: true
+    };
+  });
+
+  // 2. Identify remaining hardcoded categories for "Future Blocks"
+  const dynamicNames = new Set(dynamicCategories.map(c => c.name.toLowerCase()));
+  const staticCategories = categories
+    .filter(cat => !dynamicNames.has(cat.name.toLowerCase()))
+    .map(cat => ({ ...cat, isDynamic: false }));
+
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-background text-foreground px-4 py-12 md:px-8 md:py-16">
+      <section className="mb-20 text-center space-y-6">
+        <Skeleton className="h-10 md:h-16 w-64 md:w-96 mx-auto rounded-xl" />
+        <div className="space-y-3 mt-4">
+          <Skeleton className="h-5 w-full max-w-xl mx-auto rounded-lg" />
+          <Skeleton className="h-5 w-3/4 max-w-lg mx-auto rounded-lg" />
+        </div>
+      </section>
+
+        <section className="max-w-7xl mx-auto space-y-12">
+          <div className="flex items-center gap-4">
+             <Skeleton className="h-4 w-32 rounded" />
+             <div className="h-px flex-1 bg-border/60" />
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-background text-foreground px-4 py-12 md:px-8 md:py-16">
       {/* Header */}
-      <section className="mb-16 text-center space-y-6">
-        <h1 className="text-4xl md:text-7xl font-extrabold tracking-tighter">
+      <section className="mb-20 text-center space-y-6">
+        <h1 className="text-4xl md:text-7xl font-extrabold font-serif tracking-tighter">
           UI LIBRARY<span className="text-primary">.</span>
         </h1>
         <p className="mx-auto max-w-2xl text-lg md:text-xl text-muted-foreground font-light">
-          Interactive component previews.
+          Premium blocks and components designed for 
           <br className="hidden sm:block" />
-          Designed for the next generation of apps.
+          modern web applications.
         </p>
       </section>
 
-      {/* Grid */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto"
-      >
-        {categories.map((category, index) => (
-          <Card key={category.name} category={category} index={index} />
-        ))}
-      </motion.div>
+      {/* Dynamic Blocks Section */}
+      <section className="max-w-7xl mx-auto space-y-12">
+        <div className="flex items-center gap-4">
+           <h2 className="text-sm font-bold tracking-[0.2em] uppercase text-primary">Active Registry</h2>
+           <div className="h-px flex-1 bg-border/60" />
+        </div>
+        
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {dynamicCategories.map((category, index) => (
+            <Card key={category.name} category={category} index={index} />
+          ))}
+        </motion.div>
+      </section>
+
+      {/* Static / Future Blocks Section */}
+      {staticCategories.length > 0 && (
+        <section className="max-w-7xl mx-auto mt-32 space-y-12">
+          <div className="flex items-center gap-4">
+             <h2 className="text-sm font-bold tracking-[0.2em] uppercase text-muted-foreground">Coming Soon</h2>
+             <div className="h-px flex-1 bg-border/60" />
+          </div>
+
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {staticCategories.map((category, index) => (
+              <Card key={category.name} category={category} index={index + dynamicCategories.length} />
+            ))}
+          </motion.div>
+        </section>
+      )}
     </div>
   );
 }
@@ -430,19 +642,19 @@ export default function BlocksPage() {
 function Card({ category, index }: { category: any; index: number }) {
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } as any },
   };
 
   const [isHovered, setIsHovered] = React.useState(false);
 
-  const Preview = PREVIEWS[category.name] || AIPreview; // Fallback
+  const Preview = PREVIEWS[category.name] || PREVIEWS[category.name.charAt(0).toUpperCase() + category.name.slice(1).toLowerCase()] || AIPreview; 
 
   const CardContent = (
     <motion.div
       variants={itemVariants}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-sm cursor-pointer"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-sm cursor-pointer"
     >
       <div className="h-44 w-full border-b border-border/40 relative bg-muted/5 group-hover:bg-muted/10 transition-colors">
         <Preview isHovered={isHovered} />
@@ -476,14 +688,40 @@ function Card({ category, index }: { category: any; index: number }) {
     </motion.div>
   );
 
-  // If it's the Components category, wrap with Link
-  if (category.name === "Components") {
+  // Only link dynamic categories
+  if (category.isDynamic) {
     return (
-      <Link href="/components">
+      <Link href={`/docs/${category.originalCategory || "ui"}`} className="h-full">
         {CardContent}
       </Link>
     );
   }
 
-  return CardContent;
+  return (
+    <div className="h-full cursor-default grayscale-[0.1] opacity-90 transition-all hover:opacity-100">
+      {CardContent}
+    </div>
+  );
+}
+function CardSkeleton() {
+  return (
+    <div className="flex flex-col h-full overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="h-44 w-full border-b border-border/40 relative bg-muted/5 p-12 flex items-center justify-center">
+        <div className="w-full h-full border-2 border-dashed border-primary/5 rounded-lg opacity-20" />
+      </div>
+      <div className="p-5 flex flex-col flex-grow">
+        <div className="mb-4 space-y-3">
+          <Skeleton className="h-7 w-3/4" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+        </div>
+        <div className="mt-auto flex items-center justify-between pt-2">
+          <Skeleton className="h-6 w-28 rounded-full" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      </div>
+    </div>
+  );
 }

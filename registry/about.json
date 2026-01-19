@@ -1,0 +1,21 @@
+{
+    "name": "about",
+    "type": "registry:block",
+    "title": "Professional About Section",
+    "description": "A sophisticated about section with a feature list, statistics overlay, and hero image area.",
+    "category": "about",
+    "files": [
+        {
+            "path": "registry/about/about.tsx",
+            "content": "\"use client\";\n\nimport React from \"react\";\nimport { Button } from \"@/components/ui/button\";\nimport { motion } from \"framer-motion\";\nimport { CheckCircle2, Trophy, Users, Rocket } from \"lucide-react\";\n\nexport function About() {\n  const stats = [\n    { label: \"Founded\", value: \"2024\", icon: Rocket },\n    { label: \"Clients\", value: \"500+\", icon: Users },\n    { label: \"Awards\", value: \"12\", icon: Trophy },\n  ];\n\n  const features = [\n    \"Pixel perfect design implementation\",\n    \"Highly optimized for performance\",\n    \"Accessibility first approach (a11y)\",\n    \"Fully customizable via Tailwind CSS\",\n  ];\n\n  return (\n    <section className=\"w-full py-20 bg-background overflow-hidden text-left\">\n      <div className=\"container px-4 mx-auto\">\n        <div className=\"flex flex-col lg:flex-row items-center gap-16\">\n          <div className=\"w-full lg:w-1/2 space-y-8\">\n            <div className=\"space-y-4\">\n              <h2 className=\"text-3xl md:text-5xl font-bold tracking-tight\">\n                Crafting interfaces that <span className=\"text-primary italic\">matter.</span>\n              </h2>\n              <p className=\"text-lg text-muted-foreground font-light leading-relaxed\">\n                At Shadway, we believe that every pixel has a purpose. \n                Our team of designers and engineers work tirelessly to bring \n                you the highest quality React components for your next big idea.\n              </p>\n            </div>\n\n            <div className=\"grid grid-cols-1 sm:grid-cols-2 gap-4\">\n              {features.map((feature, i) => (\n                <div key={i} className=\"flex items-center gap-2\">\n                  <CheckCircle2 className=\"w-5 h-5 text-primary shrink-0\" />\n                  <span className=\"text-sm font-medium\">{feature}</span>\n                </div>\n              ))}\n            </div>\n\n            <div className=\"flex items-center gap-4 pt-4\">\n              <Button size=\"lg\" className=\"px-8\">Learn More</Button>\n              <Button size=\"lg\" variant=\"ghost\">Meet the team</Button>\n            </div>\n          </div>\n\n          <div className=\"w-full lg:w-1/2 relative\">\n            <motion.div \n              initial={{ opacity: 0, scale: 0.95 }}\n              animate={{ opacity: 1, scale: 1 }}\n              className=\"relative aspect-square rounded-3xl bg-muted border overflow-hidden shadow-2xl\"\n            >\n              <div className=\"absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent\" />\n              <div className=\"absolute inset-0 flex items-center justify-center\">\n                 <span className=\"text-muted-foreground font-mono text-sm opacity-20 italic\">\n                   Company Image Placeholder\n                 </span>\n              </div>\n            </motion.div>\n\n            {/* Stats Overlay */}\n            <div className=\"absolute -bottom-10 -left-10 hidden xl:flex flex-col gap-4 p-6 rounded-2xl border bg-card shadow-xl\">\n              {stats.map((stat, i) => (\n                <div key={i} className=\"flex items-center gap-3\">\n                  <div className=\"w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center\">\n                    <stat.icon className=\"w-4 h-4 text-primary\" />\n                  </div>\n                  <div>\n                    <p className=\"text-xs text-muted-foreground uppercase tracking-wider font-bold\">{stat.label}</p>\n                    <p className=\"text-sm font-bold\">{stat.value}</p>\n                  </div>\n                </div>\n              ))}\n            </div>\n          </div>\n        </div>\n      </div>\n    </section>\n  );\n}",
+            "type": "registry:block"
+        }
+    ],
+    "dependencies": [
+        "framer-motion",
+        "lucide-react"
+    ],
+    "registryDependencies": [
+        "button"
+    ]
+}
