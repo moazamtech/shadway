@@ -14,7 +14,7 @@ export async function GET(
     const { db } = await connectToDatabase();
     const websites = db.collection<Website>('websites');
 
-    const website = await websites.findOne({ _id: new ObjectId(id) });
+    const website = await websites.findOne({ _id: new ObjectId(id) as any });
 
     if (!website) {
       return NextResponse.json(
@@ -74,7 +74,7 @@ export async function PUT(
     };
 
     const result = await websites.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: new ObjectId(id) as any },
       { $set: updateData }
     );
 
@@ -113,7 +113,7 @@ export async function DELETE(
     const { db } = await connectToDatabase();
     const websites = db.collection<Website>('websites');
 
-    const result = await websites.deleteOne({ _id: new ObjectId(id) });
+    const result = await websites.deleteOne({ _id: new ObjectId(id) as any });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

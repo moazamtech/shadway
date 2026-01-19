@@ -571,9 +571,7 @@ function ConversationPromptInput() {
           messages: [...messages, userMessage].map((m) => ({
             role: m.role,
             content: m.content,
-            ...(m.reasoning_details && {
-              reasoning_details: m.reasoning_details,
-            }),
+            ...(m.reasoning_details ? { reasoning_details: m.reasoning_details } : {}),
           })),
           model: selectedModel,
         }),

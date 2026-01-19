@@ -8,7 +8,7 @@ export async function captureScreenshotAndUpload(url: string): Promise<string> {
   await page.goto(url, { waitUntil: 'networkidle2' });
 
   const filePath = `/tmp/screenshot-${Date.now()}.png`;
-  await page.screenshot({ path: filePath, fullPage: true });
+  await page.screenshot({ path: filePath, fullPage: true } as any);
   await browser.close();
 
   const cloudinaryUrl = await uploadToCloudinary(filePath, "og_images");

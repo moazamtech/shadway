@@ -49,7 +49,7 @@ export const CodeBlockContent = async ({
           transformerNotationErrorLevel({
             matchAlgorithm: 'v3',
           }),
-        ],
+        ] as any,
       })
     : children;
 

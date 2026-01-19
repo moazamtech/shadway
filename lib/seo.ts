@@ -199,7 +199,7 @@ function generateUniqueWebsiteKeywords(website: Website): string[] {
 function generateUniqueWebsiteDescription(website: Website): string {
   const categoryName = website.category.charAt(0).toUpperCase() + website.category.slice(1)
   const hasTags = website.tags && website.tags.length > 0
-  const techStack = hasTags ? website.tags.join(', ') : 'modern web technologies'
+  const techStack = hasTags ? website.tags?.join(', ') : 'modern web technologies'
 
   // Use hash of website name to determine which description to use
   // This ensures consistency for the same website

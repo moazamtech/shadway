@@ -135,7 +135,7 @@ function ConversationPromptInput() {
 
   const { messages, sendMessage, status, error } = useChat({
     api: "/api/chatbot",
-  });
+  } as any) as any;
 
   const handleSubmit = () => {
     if (!input.trim()) return;
@@ -148,13 +148,13 @@ function ConversationPromptInput() {
     <div className="flex h-screen flex-col overflow-hidden">
       <ChatContainerRoot className="relative flex-1 space-y-0 overflow-y-auto">
         <ChatContainerContent className="space-y-12 px-4 py-12">
-          {messages.map((message, index) => {
+          {(messages as any[]).map((message, index) => {
             const isLastMessage = index === messages.length - 1;
 
             return (
               <MessageComponent
                 key={message.id}
-                message={message}
+                message={message as any}
                 isLastMessage={isLastMessage}
               />
             );

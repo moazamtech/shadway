@@ -20,6 +20,7 @@ import {
   Users,
   Layers,
   Code,
+  Eye,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
