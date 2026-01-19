@@ -8,6 +8,9 @@ import { Hero } from "@/components/blocks/hero";
 import { Contact } from "@/components/blocks/contact";
 import { Footer } from "@/components/blocks/footer";
 import { About } from "@/components/blocks/about";
+import { FeaturesBento } from "@/registry/features-bento/features-bento";
+import { TestimonialsMarquee } from "@/registry/testimonials-marquee/testimonials-marquee";
+import { CtaParticles } from "@/registry/cta-particles/cta-particles";
 
 // This is a registry of "Demo" components that will be shown in the preview tab.
 // Each key matches a component "name" in the registry.json
@@ -36,6 +39,9 @@ const PREVIEW_REGISTRY: Record<string, React.ComponentType> = {
   "contact": Contact,
   "footer": Footer,
   "about": About,
+  "features-bento": FeaturesBento,
+  "testimonials-marquee": TestimonialsMarquee,
+  "cta-particles": CtaParticles,
 };
 
 interface ComponentPreviewProps {
