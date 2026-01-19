@@ -86,6 +86,16 @@ const data = {
       icon: Layers,
     },
     {
+      title: 'Components Admin',
+      url: '/admin/components',
+      icon: Code,
+    },
+    {
+      title: 'View Library',
+      url: '/docs',
+      icon: Eye,
+    },
+    {
       title: 'Users',
       url: '/admin/users',
       icon: Users,

@@ -7,25 +7,33 @@ export function ensureDir() {
   if (!fs.existsSync(registryDir)) fs.mkdirSync(registryDir, { recursive: true });
 }
 
-export async function saveComponent({ name, title, description, code }) {
+export async function saveComponent({ name, title, description, category, code }: {
+  name: string;
+  title?: string;
+  description?: string;
+  category: string;
+  code: string;
+}) {
   ensureDir();
 
   const compDir = path.join(registryDir, name);
-  fs.mkdirSync(compDir, { recursive: true });
+  if (!fs.existsSync(compDir)) fs.mkdirSync(compDir, { recursive: true });
 
   // 1️⃣ Write TSX component file
   const tsxPath = path.join(compDir, `${name}.tsx`);
   fs.writeFileSync(tsxPath, code);
 
-  // 2️⃣ Create individual component JSON
+  // 2️⃣ Create individual component JSON (Shadcn Schema)
   const item = {
     name,
-    type: "registry:component",
-    title,
-    description,
+    type: category === "ui" ? "registry:ui" : "registry:component",
+    title: title || name,
+    description: description || "",
+    category: category || "general",
     files: [
       {
         path: `registry/${name}/${name}.tsx`,
+        content: code,
         type: "registry:component",
       },
     ],
@@ -40,15 +48,19 @@ export async function saveComponent({ name, title, description, code }) {
   const registryFile = path.join(registryDir, "registry.json");
   const registry = fs.existsSync(registryFile)
     ? JSON.parse(fs.readFileSync(registryFile, "utf8"))
-    : { name: "my-registry", items: [] };
+    : { name: "shadway", items: [] };
 
   if (!registry.items.find((i: any) => i.name === name)) {
-    registry.items.push({ name, type: "registry:component" });
+    registry.items.push({
+      name,
+      type: item.type,
+      category: item.category
+    });
   }
 
   fs.writeFileSync(registryFile, JSON.stringify(registry, null, 2));
 
-  return { name, path: `/r/${name}.json` };
+  return { name, path: `/r/${name}.json`, category: item.category };
 }
 
 export function getComponent(name: string) {

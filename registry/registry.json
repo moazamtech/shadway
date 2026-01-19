@@ -3,11 +3,33 @@
   "items": [
     {
       "name": "button",
-      "type": "registry:component"
+      "type": "registry:ui",
+      "category": "ui"
     },
     {
       "name": "alert",
-      "type": "registry:component"
+      "type": "registry:ui",
+      "category": "ui"
+    },
+    {
+      "name": "hero",
+      "type": "registry:block",
+      "category": "hero"
+    },
+    {
+      "name": "contact",
+      "type": "registry:block",
+      "category": "contact"
+    },
+    {
+      "name": "footer",
+      "type": "registry:block",
+      "category": "footer"
+    },
+    {
+      "name": "about",
+      "type": "registry:block",
+      "category": "about"
     }
   ]
 }
