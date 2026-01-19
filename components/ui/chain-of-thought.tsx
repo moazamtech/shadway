@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import React from "react"
-import { ChevronDownIcon, DotFilledIcon } from "@radix-ui/react-icons"
+import { ChevronDown, Dot } from "lucide-react"
 
 export type ChainOfThoughtItemProps = React.ComponentProps<"div">
 
@@ -54,18 +54,18 @@ export const ChainOfThoughtTrigger = ({
             {leftIcon}
           </span>
           {swapIconOnHover && (
-            <ChevronDownIcon className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-data-[state=open]:rotate-180" />
+          <ChevronDown className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 group-data-[state=open]:rotate-180" />
           )}
         </span>
       ) : (
         <span className="relative inline-flex size-4 items-center justify-center">
-          <DotFilledIcon className="size-2 fill-current" />
+          <Dot className="size-2 fill-current" />
         </span>
       )}
       <span>{children}</span>
     </div>
     {!leftIcon && (
-      <ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+      <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
     )}
   </CollapsibleTrigger>
 )

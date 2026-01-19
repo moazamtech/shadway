@@ -14,8 +14,8 @@ const client = new OpenAI({
 type Message = {
   role: "user" | "assistant" | "system";
   content:
-    | string
-    | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  | string
+  | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   reasoning_details?: unknown;
 };
 
@@ -37,21 +37,30 @@ export async function POST(req: Request) {
 
   const stream = await client.chat.completions.create({
     model,
-    messages: messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-      ...(m.reasoning_details && { reasoning_details: m.reasoning_details }),
-    })),
+    messages: messages.map((m) => {
+      const msg: any = {
+        role: m.role,
+        content: m.content,
+      };
+      if (m.reasoning_details) {
+        msg.reasoning_details = m.reasoning_details;
+      }
+      return msg;
+    }),
     stream: true,
-    ...(supportsReasoning && { reasoning: { enabled: true } }),
-  } as Parameters<typeof client.chat.completions.create>[0]);
+    ...(supportsReasoning ? { reasoning: { enabled: true } } : {}),
+  } as any);
 
   const encoder = new TextEncoder();
 
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of stream) {
+        if (!stream || typeof (stream as any)[Symbol.asyncIterator] !== 'function') {
+          throw new Error("Response is not a stream");
+        }
+
+        for await (const chunk of (stream as any)) {
           const choice = chunk.choices[0];
           const content = choice?.delta?.content;
 
@@ -61,7 +70,7 @@ export async function POST(req: Request) {
           }
 
           // Handle reasoning_details if present
-          const delta = choice?.delta as { reasoning_details?: unknown };
+          const delta = choice?.delta as any;
           if (delta?.reasoning_details) {
             const reasoningData = `r:${JSON.stringify(delta.reasoning_details)}\n`;
             controller.enqueue(encoder.encode(reasoningData));

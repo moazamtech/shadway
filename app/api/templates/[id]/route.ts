@@ -7,10 +7,11 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!params.id || !ObjectId.isValid(params.id)) {
+    const { id } = await params;
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: 'Invalid template ID' },
         { status: 400 }
@@ -20,7 +21,7 @@ export async function GET(
     const { db } = await connectToDatabase();
     const templates = db.collection<Template>('templates');
 
-    const template = await templates.findOne({ _id: new ObjectId(params.id) });
+    const template = await templates.findOne({ _id: new ObjectId(id) as any });
 
     if (!template) {
       return NextResponse.json(
@@ -41,9 +42,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -72,7 +74,7 @@ export async function PUT(
       );
     }
 
-    if (!params.id || !ObjectId.isValid(params.id)) {
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: 'Invalid template ID' },
         { status: 400 }
@@ -95,7 +97,7 @@ export async function PUT(
     };
 
     const result = await templates.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) as any },
       { $set: updateData }
     );
 
@@ -118,9 +120,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -130,7 +133,7 @@ export async function DELETE(
       );
     }
 
-    if (!params.id || !ObjectId.isValid(params.id)) {
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: 'Invalid template ID' },
         { status: 400 }
@@ -140,7 +143,7 @@ export async function DELETE(
     const { db } = await connectToDatabase();
     const templates = db.collection<Template>('templates');
 
-    const result = await templates.deleteOne({ _id: new ObjectId(params.id) });
+    const result = await templates.deleteOne({ _id: new ObjectId(id) as any });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

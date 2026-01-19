@@ -2,10 +2,10 @@ import { NextAuthOptions, User as NextAuthUser } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from './mongodb';
-import { User } from './types';
+import { User as DbUser } from './types';
 
 declare module 'next-auth' {
-  interface User extends NextAuthUser {
+  interface User {
     role: string;
   }
 
@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const { db } = await connectToDatabase();
-          const users = db.collection<User>('users');
+          const users = db.collection<DbUser>('users');
 
           const user = await users.findOne({ email: credentials.email });
 

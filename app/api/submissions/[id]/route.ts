@@ -7,9 +7,10 @@ import { ObjectId } from 'mongodb';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -33,7 +34,7 @@ export async function PUT(
     const submissions = db.collection<Submission>('submissions');
 
     const result = await submissions.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) as any },
       {
         $set: {
           status,
@@ -61,9 +62,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== 'admin') {
@@ -76,7 +78,7 @@ export async function DELETE(
     const { db } = await connectToDatabase();
     const submissions = db.collection<Submission>('submissions');
 
-    const result = await submissions.deleteOne({ _id: new ObjectId(params.id) });
+    const result = await submissions.deleteOne({ _id: new ObjectId(id) as any });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

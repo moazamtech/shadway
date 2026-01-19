@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion, Variants } from "framer-motion"
 import { ExternalLink, Sparkles, Crown, Star, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Website } from "@/lib/types"
@@ -15,7 +15,7 @@ interface SponsorCardProps {
 export function SponsorCard({ website, tier, index }: SponsorCardProps) {
   const isPremium = tier === 'premium'
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,

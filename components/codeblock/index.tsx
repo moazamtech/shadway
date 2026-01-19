@@ -326,7 +326,7 @@ const highlight = (
       transformerNotationErrorLevel({
         matchAlgorithm: 'v3',
       }),
-    ],
+    ] as any,
   });
 
 type CodeBlockData = {

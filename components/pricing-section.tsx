@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CheckCircleIcon, StarIcon } from 'lucide-react';
 import Link from 'next/link';
-import { motion, Transition } from 'framer-motion';
+import { motion, Transition, Variants } from 'framer-motion';
 
 type FREQUENCY = 'monthly' | 'yearly';
 const frequencies: FREQUENCY[] = ['monthly', 'yearly'];
@@ -255,7 +255,7 @@ export function BorderTrail({
   onAnimationComplete,
   style,
 }: BorderTrailProps) {
-  const BASE_TRANSITION = {
+  const BASE_TRANSITION: any = {
     repeat: Infinity,
     duration: 5,
     ease: 'linear',
@@ -276,7 +276,7 @@ export function BorderTrail({
         transition={{
           ...(transition ?? BASE_TRANSITION),
           delay: delay,
-        }}
+        } as Transition}
         onAnimationComplete={onAnimationComplete}
       />
     </div>
