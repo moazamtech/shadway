@@ -65,11 +65,8 @@ export function ComponentPreview({ name }: ComponentPreviewProps) {
   }
 
   return (
-    <div className="relative w-full min-h-[300px] flex items-center justify-center p-6 md:p-12 bg-background/50 rounded-xl border-dashed border-2">
+    <div className="w-full">
       <PreviewComponent />
-      <div className="absolute bottom-4 right-4 text-[10px] font-mono text-muted-foreground opacity-50 uppercase tracking-widest">
-        Native Preview
-      </div>
     </div>
   );
 }
