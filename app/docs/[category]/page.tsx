@@ -139,6 +139,7 @@ export default function CategoryPage() {
               name={component.name}
               title={component.title || component.name}
               description={component.description}
+              category={category as string}
               code={component.files[0]?.content || ""}
               installCommand={`npx shadcn@latest add https://shadway.online/r/${component.name}.json`}
             />

@@ -11,7 +11,6 @@ import {
   Eye, 
   Copy, 
   Check, 
-  ExternalLink,
   Terminal,
   ArrowUpRight
 } from "lucide-react";
@@ -33,7 +32,10 @@ interface RegistryBlockProps {
   description: string;
   index: number;
   code: string;
+  category?: string;
   installCommand?: string;
+  githubUrl?: string;
+  docsUrl?: string;
 }
 
 export function RegistryBlock({ 
@@ -42,7 +44,10 @@ export function RegistryBlock({
   description, 
   index, 
   code,
-  installCommand 
+  category,
+  installCommand,
+  githubUrl,
+  docsUrl
 }: RegistryBlockProps) {
   const [activeView, setActiveView] = useState<"preview" | "code">("preview");
   const [viewport, setViewport] = useState<number>(100);
@@ -79,7 +84,10 @@ export function RegistryBlock({
     window.open(v0Url, "_blank", "noopener,noreferrer");
   };
 
-  const handleEditorDidMount = (editor: any, monaco: any) => {
+  const monacoRef = React.useRef<any>(null);
+
+  const handleBeforeMount = (monaco: any) => {
+    monacoRef.current = monaco;
     // Custom High-Fidelity Dark Theme
     monaco.editor.defineTheme("shadway-dark", {
       base: "vs-dark",
@@ -104,7 +112,6 @@ export function RegistryBlock({
       },
     });
 
-    // Custom High-Fidelity Light Theme
     monaco.editor.defineTheme("shadway-light", {
       base: "vs",
       inherit: true,
@@ -128,6 +135,21 @@ export function RegistryBlock({
       },
     });
   };
+
+  React.useEffect(() => {
+    if (monacoRef.current && mounted) {
+      const theme = resolvedTheme === "light" ? "shadway-light" : "shadway-dark";
+      monacoRef.current.editor.setTheme(theme);
+    }
+  }, [resolvedTheme, mounted]);
+
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+  React.useEffect(() => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "UPDATE_THEME", theme: resolvedTheme }, "*");
+    }
+  }, [resolvedTheme]);
 
   return (
     <div className="group relative flex flex-col space-y-0 py-16 transition-all duration-300">
@@ -206,7 +228,10 @@ export function RegistryBlock({
       </div>
 
       {/* Main Content Area */}
-      <div className="relative border-l border-r border-dashed border-border overflow-hidden bg-background min-h-[500px]">
+      <div 
+        className="relative border-l border-r border-dashed border-border overflow-hidden bg-background"
+        style={{ height: 600 }}
+      >
         <BorderBeam borderWidth={1.5} duration={10} delay={index * 2} className="from-transparent via-blue-500/40 to-transparent" />
         
         <AnimatePresence mode="wait">
@@ -218,17 +243,32 @@ export function RegistryBlock({
               exit={{ opacity: 0 }}
               className="w-full h-full"
             >
-              <ResizablePanelGroup direction="horizontal">
+              <ResizablePanelGroup direction="horizontal" className="h-full w-full">
                 <ResizablePanel 
                   ref={panelRef}
                   defaultSize={viewport} 
                   minSize={30}
                   className={cn(
-                    "relative flex items-center justify-center py-20 px-8 sm:px-16",
+                    "relative flex items-center justify-center bg-muted/5",
                     isResizing && "transition-all duration-500 ease-in-out"
                   )}
                 >
-                  <ComponentPreview name={name} />
+                  <div className="w-full h-full relative">
+                     <iframe 
+                       ref={iframeRef}
+                       src={`/preview/${name}`}
+                       className="w-full h-full border-0 rounded-xl bg-background shadow-sm overflow-hidden"
+                       title={`${name} preview`}
+                       loading="lazy"
+                       onLoad={(e) => {
+                         // Optional: could stop a loading spinner here
+                         const iframe = e.currentTarget;
+                         if (iframe.contentWindow) {
+                            iframe.contentWindow.postMessage({ type: "UPDATE_THEME", theme: resolvedTheme }, "*");
+                         }
+                       }}
+                     />
+                  </div>
                 </ResizablePanel>
                 <ResizableHandle withHandle className="bg-border/40 hover:bg-primary/50 transition-colors w-1.5" />
                 <ResizablePanel 
@@ -288,7 +328,7 @@ export function RegistryBlock({
                   height="100%"
                   defaultLanguage="typescript"
                   value={code}
-                  onMount={handleEditorDidMount}
+                  beforeMount={handleBeforeMount}
                   theme={mounted ? (resolvedTheme === "light" ? "shadway-light" : "shadway-dark") : "shadway-dark"}
                   options={{
                     readOnly: true,
@@ -328,9 +368,22 @@ export function RegistryBlock({
         ) : <div />}
         
         <div className="flex items-center gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30">
-           <a href="#" className="hover:text-primary transition-colors flex items-center gap-1.5">Docs <ArrowUpRight className="w-3 h-3" /></a>
-           <a href="#" className="hover:text-primary transition-colors flex items-center gap-1.5">Props <ArrowUpRight className="w-3 h-3" /></a>
-           <a href="#" className="hover:text-primary transition-colors flex items-center gap-1.5">Github <ArrowUpRight className="w-3 h-3" /></a>
+           <a 
+             href={docsUrl || `/docs/${category || "ui"}#${name}`} 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             className="hover:text-primary transition-colors flex items-center gap-1.5"
+           >
+             Docs <ArrowUpRight className="w-3 h-3" />
+           </a>
+           <a 
+             href={githubUrl || `https://github.com/moazamtech/shadway/blob/main/registry/${category || "ui"}/${name}.tsx`} 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             className="hover:text-primary transition-colors flex items-center gap-1.5"
+           >
+             Github <ArrowUpRight className="w-3 h-3" />
+           </a>
         </div>
       </div>
     </div>

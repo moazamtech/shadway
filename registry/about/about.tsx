@@ -20,15 +20,15 @@ export function About() {
   ];
 
   return (
-    <section className="w-full py-20 bg-background overflow-hidden text-left">
-      <div className="container px-4 mx-auto">
-        <div className="flex flex-col lg:flex-row items-center gap-16">
+    <section className="w-full py-16 md:py-24 bg-background overflow-hidden text-left">
+      <div className="container px-4 sm:px-6 mx-auto">
+        <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
           <div className="w-full lg:w-1/2 space-y-8">
             <div className="space-y-4">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-[1.2]">
                 Crafting interfaces that <span className="text-primary italic">matter.</span>
               </h2>
-              <p className="text-lg text-muted-foreground font-light leading-relaxed">
+              <p className="text-base sm:text-lg text-muted-foreground font-light leading-relaxed">
                 At Shadway, we believe that every pixel has a purpose. 
                 Our team of designers and engineers work tirelessly to bring 
                 you the highest quality React components for your next big idea.
@@ -44,36 +44,36 @@ export function About() {
               ))}
             </div>
 
-            <div className="flex items-center gap-4 pt-4">
-              <Button size="lg" className="px-8">Learn More</Button>
-              <Button size="lg" variant="ghost">Meet the team</Button>
+            <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+              <Button size="lg" className="w-full sm:w-auto px-8">Learn More</Button>
+              <Button size="lg" variant="ghost" className="w-full sm:w-auto">Meet the team</Button>
             </div>
           </div>
 
-          <div className="w-full lg:w-1/2 relative">
+          <div className="w-full lg:w-1/2 relative mt-12 lg:mt-0">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-square rounded-3xl bg-muted border overflow-hidden shadow-2xl"
+              className="relative aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl bg-muted border overflow-hidden shadow-2xl"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
               <div className="absolute inset-0 flex items-center justify-center">
-                 <span className="text-muted-foreground font-mono text-sm opacity-20 italic">
+                 <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-6 text-center">
                    Company Image Placeholder
                  </span>
               </div>
             </motion.div>
 
-            {/* Stats Overlay */}
-            <div className="absolute -bottom-10 -left-10 hidden xl:flex flex-col gap-4 p-6 rounded-2xl border bg-card shadow-xl">
+            {/* Stats Overlay - Fluid version */}
+            <div className="absolute -bottom-6 -left-4 sm:-bottom-10 sm:-left-10 flex flex-col gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border bg-card shadow-xl z-10 scale-90 sm:scale-100 origin-bottom-left max-w-[160px] sm:max-w-none">
               {stats.map((stat, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <stat.icon className="w-4 h-4 text-primary" />
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">{stat.label}</p>
-                    <p className="text-sm font-bold">{stat.value}</p>
+                  <div className="min-w-0">
+                    <p className="text-[9px] sm:text-xs text-muted-foreground uppercase tracking-wider font-bold truncate">{stat.label}</p>
+                    <p className="text-xs sm:text-sm font-bold">{stat.value}</p>
                   </div>
                 </div>
               ))}
