@@ -1,0 +1,20 @@
+{
+    "name": "cta-particles",
+    "type": "registry:block",
+    "dependencies": [
+        "framer-motion",
+        "lucide-react",
+        "clsx",
+        "tailwind-merge"
+    ],
+    "registryDependencies": [
+        "button"
+    ],
+    "files": [
+        {
+            "path": "registry/cta-particles/cta-particles.tsx",
+            "type": "registry:component"
+        }
+    ],
+    "category": "cta"
+}

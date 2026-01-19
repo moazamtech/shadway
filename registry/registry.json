@@ -2,14 +2,19 @@
   "name": "shadway",
   "items": [
     {
-      "name": "button",
-      "type": "registry:ui",
-      "category": "ui"
+      "name": "features-bento",
+      "type": "registry:block",
+      "category": "features"
     },
     {
-      "name": "alert",
-      "type": "registry:ui",
-      "category": "ui"
+      "name": "testimonials-marquee",
+      "type": "registry:block",
+      "category": "testimonials"
+    },
+    {
+      "name": "cta-particles",
+      "type": "registry:block",
+      "category": "cta"
     },
     {
       "name": "hero",

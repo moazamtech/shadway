@@ -478,6 +478,74 @@ const ComponentsPreview = ({ isHovered }: PreviewProps) => (
   </div>
 );
 
+const FeaturesPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex flex-col justify-center gap-2">
+     <div className="grid grid-cols-2 gap-2">
+       <motion.div 
+         animate={isHovered ? { scale: [1, 0.95, 1] } : { scale: 1 }}
+         transition={{ duration: 2, repeat: Infinity }}
+         className="aspect-square rounded-lg bg-primary/10 border border-primary/20"
+       />
+       <motion.div 
+         animate={isHovered ? { scale: [1, 0.95, 1] } : { scale: 1 }}
+         transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+         className="aspect-square rounded-lg bg-card border border-border" 
+       />
+       <motion.div 
+         animate={isHovered ? { scale: [1, 0.95, 1] } : { scale: 1 }}
+         transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
+         className="col-span-2 h-8 rounded-lg bg-muted border border-border"
+       />
+     </div>
+  </div>
+);
+
+const TestimonialsPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex flex-col justify-center overflow-hidden">
+     <motion.div
+       animate={isHovered ? { x: [-20, -50, -20] } : { x: -20 }}
+       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+       className="flex gap-2"
+     >
+       {[1, 2, 3, 4].map(i => (
+         <div key={i} className="min-w-[80px] h-16 bg-card border border-border rounded-lg p-2 space-y-1">
+           <div className="flex gap-0.5">
+             {[1,2,3].map(s => <div key={s} className="w-1 h-1 rounded-full bg-amber-500" />)}
+           </div>
+           <div className="h-1 w-full bg-muted rounded-full" />
+           <div className="h-1 w-2/3 bg-muted rounded-full" />
+         </div>
+       ))}
+     </motion.div>
+  </div>
+);
+
+const CtaPreview = ({ isHovered }: PreviewProps) => (
+  <div className="w-full h-full bg-muted/20 p-4 flex items-center justify-center relative overflow-hidden">
+     {/* Particles */}
+     {[...Array(5)].map((_, i) => (
+       <motion.div
+         key={i}
+         animate={isHovered ? { 
+           y: [0, -20, 0], 
+           opacity: [0, 1, 0] 
+         } : { y: 0, opacity: 0 }}
+         transition={{ duration: 2, repeat: Infinity, delay: i * 0.4 }}
+         className="absolute w-1 h-1 bg-primary rounded-full"
+         style={{ left: `${20 + i * 15}%`, top: '60%' }}
+       />
+     ))}
+     
+     <motion.div 
+       animate={isHovered ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+       transition={{ duration: 1.5, repeat: Infinity }}
+       className="relative z-10 px-4 py-2 bg-primary rounded-lg shadow-lg"
+     >
+       <div className="h-2 w-12 bg-primary-foreground/40 rounded-full" />
+     </motion.div>
+  </div>
+);
+
 const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Components": ComponentsPreview,
   "Ui": ComponentsPreview,
@@ -494,6 +562,9 @@ const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Contact": ContactPreview,
   "Footer": FooterPreview,
   "About": AboutPreview,
+  "Features": FeaturesPreview,
+  "Testimonials": TestimonialsPreview,
+  "Cta": CtaPreview,
 };
 
 export default function BlocksPage() {
@@ -522,7 +593,7 @@ export default function BlocksPage() {
 
   // 1. Group items present in the registry
   const registryCategoriesMap = items.reduce((acc: any, item: any) => {
-    const cat = item.category || "ui";
+    const cat = item.category || "other";
     if (!acc[cat]) {
       acc[cat] = {
         name: cat.charAt(0).toUpperCase() + cat.slice(1),
@@ -573,7 +644,7 @@ export default function BlocksPage() {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+            {[1].map((i) => (
               <CardSkeleton key={i} />
             ))}
           </div>
@@ -691,7 +762,7 @@ function Card({ category, index }: { category: any; index: number }) {
   // Only link dynamic categories
   if (category.isDynamic) {
     return (
-      <Link href={`/docs/${category.originalCategory || "ui"}`} className="h-full">
+      <Link href={`/docs/${category.originalCategory || "hero"}`} className="h-full">
         {CardContent}
       </Link>
     );

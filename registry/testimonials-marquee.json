@@ -1,0 +1,16 @@
+{
+    "name": "testimonials-marquee",
+    "type": "registry:block",
+    "dependencies": [
+        "framer-motion",
+        "lucide-react"
+    ],
+    "registryDependencies": [],
+    "files": [
+        {
+            "path": "registry/testimonials-marquee/testimonials-marquee.tsx",
+            "type": "registry:component"
+        }
+    ],
+    "category": "testimonials"
+}

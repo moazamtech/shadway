@@ -1,0 +1,16 @@
+{
+    "name": "features-bento",
+    "type": "registry:block",
+    "dependencies": [
+        "framer-motion",
+        "lucide-react"
+    ],
+    "registryDependencies": [],
+    "files": [
+        {
+            "path": "registry/features-bento/features-bento.tsx",
+            "type": "registry:component"
+        }
+    ],
+    "category": "features"
+}
