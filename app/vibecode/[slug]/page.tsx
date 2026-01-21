@@ -6,6 +6,7 @@ import { Footer } from "@/components/footer";
 import VibecodePreviewClient, {
   SerializedVibecodeComponent,
 } from "./preview-client";
+import { TextHoverEffect } from "@/components/site-components/text-hover-effect";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -61,6 +62,9 @@ export default async function VibecodeDetailPage({ params }: PageProps) {
           <VibecodePreviewClient item={serialized} />
         </div>
       </main>
+      <div className="items-center justify-start mx-auto  max-w-[1300px] overflow-x-hidden">
+        <TextHoverEffect text="SHADWAY" />
+      </div>
     </div>
   );
 }
