@@ -21,6 +21,9 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   SparklesIcon,
   XIcon,
@@ -40,6 +43,7 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
+  UploadCloud,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -47,6 +51,15 @@ import { cn } from "@/lib/utils";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSession } from "next-auth/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ColorSchemeConfig,
   defaultColorSchemeConfig,
@@ -312,6 +325,7 @@ const SMART_SUGGESTIONS: Suggestion[] = [
 
 export default function ComponentGeneratorPage() {
   const { resolvedTheme } = useTheme();
+  const { data: session } = useSession();
   const isDark = resolvedTheme === "dark";
   const [messages, setMessages] = useState<GeneratorMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -348,6 +362,18 @@ export default function ComponentGeneratorPage() {
   );
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isGeneratingPublishDetails, setIsGeneratingPublishDetails] =
+    useState(false);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const [publishTitle, setPublishTitle] = useState("");
+  const [publishDescription, setPublishDescription] = useState("");
+  const [publishCategory, setPublishCategory] = useState("");
+  const [publishTags, setPublishTags] = useState("");
+  const [publishThumbnailUrl, setPublishThumbnailUrl] = useState("");
+  const publishThumbnailInputRef = useRef<HTMLInputElement | null>(null);
+  const isAdmin = session?.user?.role === "admin";
 
   // Rotate suggestions for variety
   // AI-powered suggestions refresh
@@ -420,7 +446,8 @@ export default function ComponentGeneratorPage() {
 
       const files: Record<string, string> = {};
       // Handle <file path="..."> or <entry path="..."> or <file name="...">
-      const tagRegex = /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["'][^>]*>/gi;
+      const tagRegex =
+        /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["'][^>]*>/gi;
       const matches = Array.from(block.matchAll(tagRegex));
 
       for (let idx = 0; idx < matches.length; idx++) {
@@ -441,7 +468,10 @@ export default function ComponentGeneratorPage() {
         const closeEntryIdx = block.indexOf("</entry>", contentStart);
 
         let closeIdx = -1;
-        if (closeFileIdx !== -1 && (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)) {
+        if (
+          closeFileIdx !== -1 &&
+          (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)
+        ) {
           closeIdx = closeFileIdx;
         } else {
           closeIdx = closeEntryIdx;
@@ -455,7 +485,10 @@ export default function ComponentGeneratorPage() {
 
       const finalFiles = Object.keys(files).length ? files : undefined;
       if (!entryFile)
-        entryFile = finalFiles?.["/entry.tsx"] || finalFiles?.["/App.tsx"] || (finalFiles ? Object.keys(finalFiles)[0] : undefined);
+        entryFile =
+          finalFiles?.["/entry.tsx"] ||
+          finalFiles?.["/App.tsx"] ||
+          (finalFiles ? Object.keys(finalFiles)[0] : undefined);
       return { files: finalFiles, entryFile };
     };
 
@@ -465,7 +498,10 @@ export default function ComponentGeneratorPage() {
     let content = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
     content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
     content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
-    content = content.replace(/<(?:file|entry)\b[\s\S]*?(?:<\/(?:file|entry)>|$)/gi, "");
+    content = content.replace(
+      /<(?:file|entry)\b[\s\S]*?(?:<\/(?:file|entry)>|$)/gi,
+      "",
+    );
 
     // Aggressively remove any lingering markdown code fences to prevent "spillage" in chat
     content = content.replace(/```[\s\S]*?(```|$)/g, "");
@@ -542,6 +578,193 @@ export default function ComponentGeneratorPage() {
     setHasUnsavedChanges(false);
     toast.success("File saved successfully!");
   }, [selectedFile, hasUnsavedChanges, editedFiles]);
+
+  const getLastUserPrompt = useCallback(() => {
+    const lastUser = [...messages].reverse().find((msg) => msg.role === "user");
+    return lastUser?.content?.trim() || "";
+  }, [messages]);
+
+  const openPublishDialog = useCallback(() => {
+    if (!generatedComponent) {
+      toast.error("Generate a component before publishing.");
+      return;
+    }
+    setPublishTitle(
+      generatedComponent.title &&
+        generatedComponent.title !== "Generated Component"
+        ? generatedComponent.title
+        : "New Vibecode Component",
+    );
+    const prompt = getLastUserPrompt();
+    setPublishDescription(
+      prompt
+        ? prompt.slice(0, 280)
+        : "AI-generated component built in Shadway.",
+    );
+    setIsPublishOpen(true);
+  }, [generatedComponent, getLastUserPrompt]);
+
+  const handleGeneratePublishDetails = useCallback(async () => {
+    if (!generatedComponent) {
+      toast.error("Generate a component before generating details.");
+      return;
+    }
+
+    setIsGeneratingPublishDetails(true);
+    try {
+      const response = await fetch("/api/vibecode/generate-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: getLastUserPrompt(),
+          code: generatedComponent.code,
+          files: generatedComponent.files,
+          entryFile: generatedComponent.entryFile,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Failed to generate details");
+      }
+
+      const data = await response.json();
+      if (typeof data?.title === "string") {
+        setPublishTitle(data.title);
+      }
+      if (typeof data?.description === "string") {
+        setPublishDescription(data.description);
+      }
+      if (typeof data?.category === "string") {
+        setPublishCategory(data.category);
+      }
+      if (Array.isArray(data?.tags)) {
+        setPublishTags(data.tags.join(", "));
+      }
+
+      toast.success("Generated details from AI.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to generate details";
+      toast.error(message);
+    } finally {
+      setIsGeneratingPublishDetails(false);
+    }
+  }, [generatedComponent, getLastUserPrompt]);
+
+  const handleThumbnailUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setIsUploadingThumbnail(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/upload-image", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData?.error || "Failed to upload thumbnail");
+        }
+
+        const data = await response.json();
+        if (data?.url) {
+          setPublishThumbnailUrl(data.url);
+          toast.success("Thumbnail uploaded.");
+        } else {
+          throw new Error("Upload succeeded without a URL");
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to upload thumbnail";
+        toast.error(message);
+      } finally {
+        setIsUploadingThumbnail(false);
+        event.target.value = "";
+      }
+    },
+    [],
+  );
+
+  const handlePublish = useCallback(async () => {
+    if (!generatedComponent) {
+      toast.error("No generated component to publish.");
+      return;
+    }
+    if (!isAdmin) {
+      toast.error("Admin access required to publish.");
+      return;
+    }
+    if (!publishTitle.trim() || !publishDescription.trim()) {
+      toast.error("Title and description are required.");
+      return;
+    }
+    if (isUploadingThumbnail) {
+      toast.error("Please wait for the thumbnail upload to finish.");
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      const response = await fetch("/api/vibecode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: publishTitle,
+          description: publishDescription,
+          category: publishCategory || undefined,
+          tags: publishTags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          thumbnailUrl: publishThumbnailUrl || undefined,
+          prompt: getLastUserPrompt(),
+          code: generatedComponent.code,
+          files: generatedComponent.files,
+          entryFile:
+            generatedComponent.files &&
+            generatedComponent.entryFile &&
+            generatedComponent.files[generatedComponent.entryFile]
+              ? generatedComponent.entryFile
+              : undefined,
+          language: generatedComponent.language || "tsx",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || "Failed to publish component");
+      }
+
+      const data = await response.json();
+      toast.success("Component published to Vibecode!");
+      setIsPublishOpen(false);
+      if (data?.slug) {
+        toast.success(`Published as ${data.slug}`);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to publish component";
+      toast.error(message);
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [
+    generatedComponent,
+    isAdmin,
+    publishTitle,
+    publishDescription,
+    publishCategory,
+    publishTags,
+    publishThumbnailUrl,
+    isUploadingThumbnail,
+    getLastUserPrompt,
+  ]);
 
   // Auto-select first file when code generated
   useEffect(() => {
@@ -706,14 +929,14 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                    ...msg,
-                    content: displayContent?.trim() || "",
-                    reasoning: displayReasoning,
-                    reasoning_details: finalReasoningDetails,
-                    code,
-                    files,
-                    entryFile,
-                  }
+                      ...msg,
+                      content: displayContent?.trim() || "",
+                      reasoning: displayReasoning,
+                      reasoning_details: finalReasoningDetails,
+                      code,
+                      files,
+                      entryFile,
+                    }
                   : msg,
               ),
             );
@@ -962,9 +1185,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                  ...msg,
-                  content: "Sorry, I encountered an error. Please try again.",
-                }
+                    ...msg,
+                    content: "Sorry, I encountered an error. Please try again.",
+                  }
                 : msg,
             ),
           );
@@ -1245,12 +1468,12 @@ export default function ComponentGeneratorPage() {
                                           ))}
                                         {Object.keys(message.files).length >
                                           5 && (
-                                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
-                                              +
-                                              {Object.keys(message.files).length -
-                                                5}
-                                            </div>
-                                          )}
+                                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
+                                            +
+                                            {Object.keys(message.files).length -
+                                              5}
+                                          </div>
+                                        )}
                                       </div>
 
                                       {/* Responsive Multi-Action Buttons */}
@@ -1376,7 +1599,7 @@ export default function ComponentGeneratorPage() {
                           className={cn(
                             "h-4 w-4",
                             isGenerating &&
-                            "animate-pulse text-primary-foreground",
+                              "animate-pulse text-primary-foreground",
                           )}
                         />
                       </PromptInputSubmit>
@@ -1423,9 +1646,9 @@ export default function ComponentGeneratorPage() {
               style={
                 isDesktop && !isFullscreen
                   ? {
-                    width: `${previewWidthPct}%`,
-                    height: "calc(100% - 1.5rem)",
-                  }
+                      width: `${previewWidthPct}%`,
+                      height: "calc(100% - 1.5rem)",
+                    }
                   : undefined
               }
             >
@@ -1477,6 +1700,20 @@ export default function ComponentGeneratorPage() {
                     >
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
                       Reload
+                    </Button>
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <div className="ml-2 border-l border-border pl-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={openPublishDialog}
+                      className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-primary/40 hover:border-primary/70 hover:bg-primary/10 text-primary transition-all"
+                    >
+                      <SparklesIcon className="mr-2 h-3.5 w-3.5" />
+                      Publish
                     </Button>
                   </div>
                 )}
@@ -1634,6 +1871,141 @@ export default function ComponentGeneratorPage() {
           )}
         </AnimatePresence>
       </div>
+
+      <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Publish to Vibecode</DialogTitle>
+            <DialogDescription>
+              Share this generated component on the public Vibecode gallery.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Generate a clean title, description, category, and tags from the
+              component.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleGeneratePublishDetails}
+              disabled={isGeneratingPublishDetails}
+              className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider"
+            >
+              {isGeneratingPublishDetails
+                ? "Generating..."
+                : "Generate with AI"}
+            </Button>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="publish-title">Title</Label>
+              <Input
+                id="publish-title"
+                value={publishTitle}
+                onChange={(e) => setPublishTitle(e.target.value)}
+                placeholder="Polished Hero Section"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="publish-description">Description</Label>
+              <Textarea
+                id="publish-description"
+                value={publishDescription}
+                onChange={(e) => setPublishDescription(e.target.value)}
+                placeholder="High-impact hero with motion and layered gradients."
+                rows={4}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="publish-category">Category</Label>
+              <Input
+                id="publish-category"
+                value={publishCategory}
+                onChange={(e) => setPublishCategory(e.target.value)}
+                placeholder="Landing, Pricing, Hero, Footer"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="publish-tags">Tags (comma-separated)</Label>
+              <Input
+                id="publish-tags"
+                value={publishTags}
+                onChange={(e) => setPublishTags(e.target.value)}
+                placeholder="glassmorphism, premium, shadcn"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Thumbnail image (optional)</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={publishThumbnailInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => publishThumbnailInputRef.current?.click()}
+                  disabled={isUploadingThumbnail}
+                  className="h-9 px-3 text-xs"
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  {isUploadingThumbnail
+                    ? "Uploading..."
+                    : publishThumbnailUrl
+                      ? "Replace image"
+                      : "Upload image"}
+                </Button>
+                {publishThumbnailUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPublishThumbnailUrl("")}
+                    className="h-9 px-3 text-xs text-muted-foreground"
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {publishThumbnailUrl && (
+                <div className="overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+                  <Image
+                    src={publishThumbnailUrl}
+                    alt="Thumbnail preview"
+                    width={960}
+                    height={540}
+                    className="h-auto w-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPublishOpen(false)}
+              disabled={isPublishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePublish}
+              disabled={isPublishing || isUploadingThumbnail}
+            >
+              {isPublishing ? "Publishing..." : "Publish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

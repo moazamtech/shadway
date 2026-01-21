@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 import {
   BadgeCheck,
@@ -21,9 +21,9 @@ import {
   Layers,
   Code,
   Eye,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -46,66 +46,56 @@ import {
   SidebarMenuItem,
   SidebarMenuBadge,
   SidebarRail,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 
 const data = {
   user: {
-    name: 'Admin',
-    email: 'admin@shadway.com',
-    avatar: '/avatars/shadcn.jpg',
+    name: "Admin",
+    email: "admin@shadway.com",
+    avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
     {
-      title: 'Dashboard',
-      url: '/admin/dashboard',
+      title: "Dashboard",
+      url: "/admin/dashboard",
       icon: Home,
     },
     {
-      title: 'Websites',
-      url: '/admin/websites',
+      title: "Websites",
+      url: "/admin/websites",
       icon: Globe,
     },
     {
-      title: 'Templates',
-      url: '/admin/templates',
+      title: "Templates",
+      url: "/admin/templates",
       icon: Code,
     },
     {
-      title: 'Submissions',
-      url: '/admin/submissions',
+      title: "Submissions",
+      url: "/admin/submissions",
       icon: FileText,
       badge: true,
     },
     {
-      title: 'Analytics',
-      url: '/admin/analytics',
-      icon: BarChart3,
-    },
-    {
-      title: 'Categories',
-      url: '/admin/categories',
-      icon: Layers,
-    },
-    {
-      title: 'Components Admin',
-      url: '/admin/components',
+      title: "Components Admin",
+      url: "/admin/components",
       icon: Code,
     },
     {
-      title: 'View Library',
-      url: '/docs',
-      icon: Eye,
+      title: "Vibe Components",
+      url: "/admin/vibe-components",
+      icon: Layers,
     },
     {
-      title: 'Users',
-      url: '/admin/users',
-      icon: Users,
+      title: "View Library",
+      url: "/docs",
+      icon: Eye,
     },
   ],
   navSecondary: [
     {
-      title: 'Settings',
-      url: '/admin/settings',
+      title: "Settings",
+      url: "/admin/settings",
       icon: Settings,
     },
   ],
@@ -119,7 +109,10 @@ interface AppSidebarProps {
   };
 }
 
-export function AppSidebar({ user, ...props }: AppSidebarProps & React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  user,
+  ...props
+}: AppSidebarProps & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const [pendingSubmissions, setPendingSubmissions] = useState(0);
 
@@ -129,19 +122,21 @@ export function AppSidebar({ user, ...props }: AppSidebarProps & React.Component
 
   const fetchPendingSubmissions = async () => {
     try {
-      const response = await fetch('/api/submissions');
+      const response = await fetch("/api/submissions");
       if (response.ok) {
         const submissions = await response.json();
-        const pending = submissions.filter((s: any) => s.status === 'pending').length;
+        const pending = submissions.filter(
+          (s: any) => s.status === "pending",
+        ).length;
         setPendingSubmissions(pending);
       }
     } catch (error) {
-      console.error('Error fetching pending submissions:', error);
+      console.error("Error fetching pending submissions:", error);
     }
   };
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/admin/login' });
+    signOut({ callbackUrl: "/admin/login" });
   };
 
   return (
@@ -221,18 +216,25 @@ export function AppSidebar({ user, ...props }: AppSidebarProps & React.Component
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user?.image || data.user.avatar} alt={user?.name || data.user.name} />
+                    <AvatarImage
+                      src={user?.image || data.user.avatar}
+                      alt={user?.name || data.user.name}
+                    />
                     <AvatarFallback className="rounded-lg">
                       {(user?.name || data.user.name)
-                        ?.split(' ')
+                        ?.split(" ")
                         .map((n) => n[0])
-                        .join('')
-                        .toUpperCase() || 'AD'}
+                        .join("")
+                        .toUpperCase() || "AD"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{user?.name || data.user.name}</span>
-                    <span className="truncate text-xs">{user?.email || data.user.email}</span>
+                    <span className="truncate font-semibold">
+                      {user?.name || data.user.name}
+                    </span>
+                    <span className="truncate text-xs">
+                      {user?.email || data.user.email}
+                    </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
@@ -246,18 +248,25 @@ export function AppSidebar({ user, ...props }: AppSidebarProps & React.Component
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={user?.image || data.user.avatar} alt={user?.name || data.user.name} />
+                      <AvatarImage
+                        src={user?.image || data.user.avatar}
+                        alt={user?.name || data.user.name}
+                      />
                       <AvatarFallback className="rounded-lg">
                         {(user?.name || data.user.name)
-                          ?.split(' ')
+                          ?.split(" ")
                           .map((n) => n[0])
-                          .join('')
-                          .toUpperCase() || 'AD'}
+                          .join("")
+                          .toUpperCase() || "AD"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{user?.name || data.user.name}</span>
-                      <span className="truncate text-xs">{user?.email || data.user.email}</span>
+                      <span className="truncate font-semibold">
+                        {user?.name || data.user.name}
+                      </span>
+                      <span className="truncate text-xs">
+                        {user?.email || data.user.email}
+                      </span>
                     </div>
                   </div>
                 </DropdownMenuLabel>

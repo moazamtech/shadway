@@ -9,7 +9,7 @@ export interface Website {
   featured?: boolean;
   sequence?: number;
   sponsor?: {
-    tier: 'banner' | 'premium' | 'basic';
+    tier: "banner" | "premium" | "basic";
     active: boolean;
     expiresAt?: Date;
   };
@@ -22,7 +22,7 @@ export interface User {
   email: string;
   password: string;
   name: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -47,7 +47,7 @@ export interface Submission {
   description: string;
   category: string;
   githubUrl?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -91,4 +91,29 @@ export interface ComponentRegistry {
   }[];
   dependencies: string[];
   registryDependencies: string[];
+}
+
+export interface VibecodeComponent {
+  _id?: string;
+  title: string;
+  description: string;
+  slug: string;
+  prompt?: string;
+  category?: string;
+  tags?: string[];
+  thumbnailUrl?: string;
+  code?: string;
+  files?: Record<string, string>;
+  entryFile?: string;
+  language?: string;
+  status: "draft" | "published";
+  viewCount?: number;
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
+  publishedAt?: Date;
 }
