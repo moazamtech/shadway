@@ -12,12 +12,10 @@ import { githubLight, amethyst } from "@codesandbox/sandpack-themes";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SANDPACK_SHADCN_FILES } from "@/lib/sandpack-files";
 import {
-  ColorSchemeConfig,
-  defaultColorSchemeConfig,
-  generateThemeCSS,
-} from "@/lib/color-scheme";
+  SANDPACK_BASE_FILES,
+  SANDPACK_SHADCN_FILES,
+} from "@/lib/sandpack-files";
 
 type SandpackPreviewProps = {
   code?: string;
@@ -26,7 +24,6 @@ type SandpackPreviewProps = {
   className?: string;
   showConsole?: boolean;
   title?: string;
-  colorScheme?: ColorSchemeConfig;
   isDarkTheme?: boolean;
   onPreviewUrlChange?: (url: string) => void;
   onConsoleLogs?: (
@@ -60,7 +57,7 @@ const SandpackPreviewUrlSync = ({
         lastUrlRef.current = nextUrl;
         onUrlChange(nextUrl);
       })
-      .catch(() => { });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -503,13 +500,14 @@ export function SandpackRuntimePreview({
   entryFile,
   className,
   title,
-  colorScheme = defaultColorSchemeConfig,
   isDarkTheme = true,
   onPreviewUrlChange,
   onConsoleLogs,
 }: SandpackPreviewProps) {
   // Use controlled state for Sandpack theme
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const previewRef = React.useRef<HTMLDivElement | null>(null);
+  const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const baseDependencies = useMemo(
     () => ({
       react: "latest",
@@ -517,6 +515,10 @@ export function SandpackRuntimePreview({
       clsx: "latest",
       "class-variance-authority": "latest",
       "tailwind-merge": "latest",
+      tailwindcss: "^4.0.0",
+      "@tailwindcss/vite": "^4.0.0",
+      vite: "^5.4.0",
+      "@vitejs/plugin-react": "^4.3.0",
       "@radix-ui/react-slot": "latest",
       "@radix-ui/react-separator": "latest",
       "@radix-ui/react-avatar": "latest",
@@ -533,7 +535,7 @@ export function SandpackRuntimePreview({
       zod: "latest",
       "lucide-react": "latest",
       "framer-motion": "latest",
-      "motion": "latest",
+      motion: "latest",
     }),
     [],
   );
@@ -557,6 +559,7 @@ export function SandpackRuntimePreview({
         // Skip entries with null, undefined, or empty keys
         if (k === null || k === undefined || k === "" || typeof k !== "string")
           continue;
+        if (k.toLowerCase().endsWith(".css")) continue;
         // Skip entries with empty or non-string values
         if (!v || typeof v !== "string" || !v.trim()) continue;
 
@@ -642,8 +645,21 @@ export default function App(){
       if (!generatedFiles || Object.keys(generatedFiles).length === 0) {
         appTsx = createAppFileFromCode(code || "");
       } else {
-        // Inject standard Shadcn components so they are available for import
-        generatedFiles = { ...generatedFiles, ...SANDPACK_SHADCN_FILES };
+        // Inject base + Shadcn components so they are available for import
+        const protectedPaths = new Set([
+          ...Object.keys(SANDPACK_BASE_FILES),
+          ...Object.keys(SANDPACK_SHADCN_FILES),
+        ]);
+        generatedFiles = Object.fromEntries(
+          Object.entries(generatedFiles).filter(
+            ([path]) => !protectedPaths.has(path),
+          ),
+        );
+        generatedFiles = {
+          ...SANDPACK_BASE_FILES,
+          ...SANDPACK_SHADCN_FILES,
+          ...generatedFiles,
+        };
 
         const transformed: Record<string, string> = {};
         for (const [path, src] of Object.entries(generatedFiles)) {
@@ -660,8 +676,8 @@ export default function App(){
         );
         let entry: string | undefined =
           entryFile &&
-            typeof entryFile === "string" &&
-            generatedFiles[entryFile]
+          typeof entryFile === "string" &&
+          generatedFiles[entryFile]
             ? entryFile
             : undefined;
         if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
@@ -683,21 +699,46 @@ export default function App(){
       appTsx = createAppFileFromCode(code || "");
     }
 
-    // Generate the Tailwind v4 theme CSS from the color scheme
-    const themeCSS = generateThemeCSS(colorScheme, isDarkTheme);
+    const indexCss = SANDPACK_BASE_FILES["/index.css"];
+    const indexCssInjected = indexCss
+      ? `const styleEl = document.createElement("style");
+styleEl.setAttribute("type", "text/tailwindcss");
+styleEl.textContent = ${JSON.stringify(indexCss)};
+document.head.appendChild(styleEl);`
+      : "";
 
     const indexTsx = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
-// Tailwind v4 theme CSS (generated from color scheme)
-const tailwindTheme = ${JSON.stringify(themeCSS)};
+${indexCssInjected}
 
-// Create and inject the Tailwind theme style element
-const styleEl = document.createElement("style");
-styleEl.setAttribute("type", "text/tailwindcss");
-styleEl.textContent = tailwindTheme;
-document.head.appendChild(styleEl);
+const setTheme = (dark: boolean) => {
+  document.documentElement.classList.toggle("dark", !!dark);
+};
+
+window.addEventListener("message", (event) => {
+  const data = (event && (event as MessageEvent).data) || {};
+  if (data && data.type === "SP_THEME") {
+    setTheme(!!data.dark);
+  }
+});
+
+const refreshTailwind = () => {
+  const tw = (window as any).tailwind;
+  if (tw && typeof tw.refresh === "function") {
+    tw.refresh();
+    return true;
+  }
+  return false;
+};
+
+if (!refreshTailwind()) {
+  const retry = setInterval(() => {
+    if (refreshTailwind()) clearInterval(retry);
+  }, 200);
+  setTimeout(() => clearInterval(retry), 2000);
+}
 
 const root = createRoot(document.getElementById("root")!);
 root.render(<App />);`;
@@ -709,35 +750,11 @@ root.render(<App />);`;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Preview</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
   </body>
 </html>`;
-
-    const indexCss = `/* Base styles */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-`;
 
     const tsconfig = JSON.stringify({
       compilerOptions: {
@@ -756,26 +773,65 @@ body {
       },
     });
 
+    const baseFilesForReturn = Object.fromEntries(
+      Object.entries({
+        ...SANDPACK_BASE_FILES,
+        ...SANDPACK_SHADCN_FILES,
+      })
+        .filter(([path]) => path !== "/index.css")
+        .map(([path, src]) => [path, { code: src }]),
+    );
+
     return {
       "/App.tsx": { code: String(appTsx) },
       "/index.tsx": { code: String(indexTsx) },
-      "/index.css": { code: String(indexCss) },
+      "/index.css": { code: String(indexCss || "") },
       "/index.html": { code: String(indexHtml) },
       "/tsconfig.json": { code: String(tsconfig) },
+      ...baseFilesForReturn,
       ...(generatedFiles
         ? Object.fromEntries(
-          Object.entries(generatedFiles)
-            .filter(
-              ([path, src]) =>
-                path && typeof path === "string" && typeof src === "string",
-            )
-            .map(([path, src]) => [path, { code: src }]),
-        )
+            Object.entries(generatedFiles)
+              .filter(
+                ([path, src]) =>
+                  path && typeof path === "string" && typeof src === "string",
+              )
+              .map(([path, src]) => [path, { code: src }]),
+          )
         : {}),
     } as const;
-  }, [code, files, entryFile, isDarkTheme, colorScheme]);
+  }, [code, files, entryFile, isDarkTheme]);
 
   const FullscreenToggle = null;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const applyTheme = () => {
+      if (cancelled) return;
+      const iframe =
+        iframeRef.current ||
+        (previewRef.current?.querySelector(
+          "iframe",
+        ) as HTMLIFrameElement | null);
+      if (!iframe) {
+        setTimeout(applyTheme, 200);
+        return;
+      }
+      iframeRef.current = iframe;
+      const doc = iframe.contentDocument;
+      if (doc?.documentElement) {
+        doc.documentElement.classList.toggle("dark", isDarkTheme);
+      }
+      iframe.contentWindow?.postMessage(
+        { type: "SP_THEME", dark: isDarkTheme },
+        "*",
+      );
+    };
+    applyTheme();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDarkTheme, sandpackFiles]);
 
   if (isFullscreen) {
     return (
@@ -788,7 +844,6 @@ body {
             activeFile: "/App.tsx",
             externalResources: [
               "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
-              "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
             ],
           }}
           customSetup={{
@@ -802,17 +857,19 @@ body {
           <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
           <div className="relative h-screen flex flex-col">
             <SandpackLayout className="h-full w-full flex-1 min-h-0 border-0 rounded-none">
-              <SandpackPreview
-                showOpenInCodeSandbox={false}
-                showRefreshButton={true}
-                showRestartButton={true}
-                className="h-full w-full flex-1 min-h-0"
-                actionsChildren={
-                  <div className="flex items-center gap-1">
-                    {FullscreenToggle}
-                  </div>
-                }
-              />
+              <div ref={previewRef} className="relative h-full w-full">
+                <SandpackPreview
+                  showOpenInCodeSandbox={false}
+                  showRefreshButton={true}
+                  showRestartButton={true}
+                  className="h-full w-full flex-1 min-h-0"
+                  actionsChildren={
+                    <div className="flex items-center gap-1">
+                      {FullscreenToggle}
+                    </div>
+                  }
+                />
+              </div>
             </SandpackLayout>
           </div>
         </SandpackProvider>
@@ -830,7 +887,6 @@ body {
           activeFile: "/App.tsx",
           externalResources: [
             "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
-            "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
           ],
         }}
         customSetup={{
@@ -851,22 +907,24 @@ body {
             background: "transparent",
           }}
         >
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton={true}
-            showRestartButton={false}
-            style={{
-              position: "absolute",
-              inset: 0,
-              height: "100%",
-              width: "100%",
-            }}
-            actionsChildren={
-              <div className="flex items-center gap-1 pr-1">
-                {FullscreenToggle}
-              </div>
-            }
-          />
+          <div ref={previewRef} className="absolute inset-0">
+            <SandpackPreview
+              showOpenInCodeSandbox={false}
+              showRefreshButton={true}
+              showRestartButton={false}
+              style={{
+                position: "absolute",
+                inset: 0,
+                height: "100%",
+                width: "100%",
+              }}
+              actionsChildren={
+                <div className="flex items-center gap-1 pr-1">
+                  {FullscreenToggle}
+                </div>
+              }
+            />
+          </div>
         </SandpackLayout>
       </SandpackProvider>
     </div>

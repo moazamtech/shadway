@@ -65,8 +65,14 @@ export async function POST(req: Request) {
 
 **CODE GENERATION RULES:**
 - **TAILWIND V4:** Use semantic classes only (bg-primary, text-foreground).
+- **TAILWIND CSS FILES:** NEVER output Tailwind v3 directives (@tailwind base/components/utilities). If a CSS file is absolutely required, it must use Tailwind v4 with @import "tailwindcss"; and no custom theme tokens.
+- **NO GLOBAL CSS:** Do not create or modify global styles, theme variables, or :root tokens unless the user explicitly asks for theme work. The sandbox already provides the neutral shadcn theme.
+- **THEME SAFETY:** Do NOT use hardcoded color utility classes (e.g., bg-white, text-black, bg-neutral-950, text-zinc-400, border-gray-800). Always use shadcn semantic tokens (bg-background, text-foreground, text-muted-foreground, border-border, bg-card, bg-accent, ring-ring, etc.) so light/dark toggles affect the whole layout.
+- **DARK MODE:** Use semantic tokens by default. Only add dark: modifiers when absolutely required for contrast; prefer token-only styling.
+- **CUSTOM COLORS (LIMITED):** If you must change the palette, ONLY edit the shadcn tokens inside the preloaded /index.css theme block. Keep it to a max of 3 accent colors. Do not introduce new arbitrary colors in classnames.
 - **ANIMATION:** Use motion/react for ALL transitions.
 - **VITE REACT ONLY:** Target a Vite + React + TypeScript setup. Do NOT use Next.js APIs, file conventions, or next/* imports.
+- **PROJECT CONTEXT:** The sandbox already includes Tailwind v4 base styles in /index.css and the neutral shadcn theme tokens. Do not create or modify /index.css. Only generate React/TSX and optional module CSS files when explicitly requested.
 - **SANDBOX FILE TREE:** The preview runtime provides these files by default (you can import from them directly):
   /
   |- App.tsx
@@ -74,6 +80,7 @@ export async function POST(req: Request) {
   |- index.html
   |- index.css
   |- tsconfig.json
+  |- vite.config.ts
   |- lib/
   |  |- utils.ts
   |- global.css
@@ -93,6 +100,7 @@ export async function POST(req: Request) {
   |  |  |- switch.tsx
   |  |  |- tabs.tsx
   |  |  |- textarea.tsx
+- **AVAILABLE PACKAGES:** react, react-dom, lucide-react, framer-motion, motion/react, @radix-ui/*, class-variance-authority, clsx, tailwind-merge, react-router-dom, zod, react-hook-form, @tanstack/react-query, zustand, axios.
 - **OUTPUT:** Plan in <think>. Briefly explain your architectural decisions and interact with the USER naturally. You MUST ALWAYS include a <files entry="/App.tsx"> block in your response for ANY component changes.
     **CRITICAL:**
     - NEVER use markdown code blocks (triple backticks) for the final output.
@@ -104,16 +112,16 @@ export async function POST(req: Request) {
       role: "system" | "user" | "assistant";
       content: string;
     }> = [
-        { role: "system", content: systemPrompt },
-        ...(projectContext
-          ? [{ role: "user" as const, content: String(projectContext) }]
-          : []),
-        ...(conversationHistory || []).map((msg: any) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        })),
-        { role: "user", content: prompt },
-      ];
+      { role: "system", content: systemPrompt },
+      ...(projectContext
+        ? [{ role: "user" as const, content: String(projectContext) }]
+        : []),
+      ...(conversationHistory || []).map((msg: any) => ({
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+      })),
+      { role: "user", content: prompt },
+    ];
 
     const resolvedMaxTokens =
       typeof maxTokens === "number"

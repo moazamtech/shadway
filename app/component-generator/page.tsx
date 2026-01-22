@@ -44,6 +44,8 @@ import {
   Loader2,
   RefreshCw,
   UploadCloud,
+  Sun,
+  Moon,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -60,11 +62,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ColorSchemeConfig,
-  defaultColorSchemeConfig,
-} from "@/lib/color-scheme";
 import { StickToBottom } from "use-stick-to-bottom";
+import {
+  SANDPACK_BASE_FILES,
+  SANDPACK_SHADCN_FILES,
+} from "@/lib/sandpack-files";
 
 type GeneratorMessage = {
   id: string;
@@ -345,9 +347,6 @@ export default function ComponentGeneratorPage() {
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isResizingRef = useRef(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [colorScheme, setColorScheme] = useState<ColorSchemeConfig>(
-    defaultColorSchemeConfig,
-  );
   const [previewWidthPct, setPreviewWidthPct] = useState(() => {
     if (typeof window === "undefined") return 50;
     const saved = window.localStorage.getItem(
@@ -361,6 +360,7 @@ export default function ComponentGeneratorPage() {
     SMART_SUGGESTIONS.slice(0, 6),
   );
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
+  const [isPreviewDark, setIsPreviewDark] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -1681,28 +1681,32 @@ export default function ComponentGeneratorPage() {
                   </button>
                 </div>
 
-                {isGenerating && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20 animate-pulse ml-4">
-                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">
-                      Architect Generating...
-                    </span>
-                  </div>
-                )}
-
-                {viewMode === "preview" && (
-                  <div className="ml-2 border-l border-border pl-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPreviewReloadKey((prev) => prev + 1)}
-                      className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
-                    >
-                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                      Reload
-                    </Button>
-                  </div>
-                )}
+                <div className="ml-2 border-l border-border pl-2 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPreviewReloadKey((prev) => prev + 1)}
+                    className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+                  >
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    Reload
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      setIsPreviewDark((prev) => !prev);
+                    }}
+                    className="h-9 w-9 rounded-xl border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+                    title={isPreviewDark ? "Switch to light" : "Switch to dark"}
+                  >
+                    {isPreviewDark ? (
+                      <Sun className="h-4 w-4" />
+                    ) : (
+                      <Moon className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
 
                 {isAdmin && (
                   <div className="ml-2 border-l border-border pl-2">
@@ -1746,7 +1750,8 @@ export default function ComponentGeneratorPage() {
                 {/* Preview Panel */}
                 <div
                   className={cn(
-                    "absolute inset-0 flex flex-col min-h-0 bg-white dark:bg-zinc-950 transition-all duration-300",
+                    "absolute inset-0 flex flex-col min-h-0 transition-all duration-300",
+                    isPreviewDark ? "bg-zinc-950" : "bg-white",
                     viewMode === "preview"
                       ? "opacity-100 z-10 visible scale-100"
                       : "opacity-0 z-0 invisible scale-[0.98]",
@@ -1762,7 +1767,7 @@ export default function ComponentGeneratorPage() {
                     }}
                     entryFile={generatedComponent.entryFile}
                     className="flex-1 min-h-0 h-full"
-                    colorScheme={colorScheme}
+                    isDarkTheme={isPreviewDark}
                   />
                 </div>
 
@@ -1784,7 +1789,11 @@ export default function ComponentGeneratorPage() {
                   >
                     <div className="flex-1 overflow-y-auto min-h-0">
                       <FileTree
-                        files={generatedComponent.files || {}}
+                        files={{
+                          ...SANDPACK_BASE_FILES,
+                          ...SANDPACK_SHADCN_FILES,
+                          ...(generatedComponent.files || {}),
+                        }}
                         selectedFile={selectedFile}
                         onFileSelect={handleFileSelect}
                         generatingFile={currentlyGeneratingFile}
@@ -1801,7 +1810,11 @@ export default function ComponentGeneratorPage() {
                           value={selectedFile || ""}
                           onChange={(e) => handleFileSelect(e.target.value)}
                         >
-                          {Object.keys(generatedComponent.files).map((f) => (
+                          {Object.keys({
+                            ...SANDPACK_BASE_FILES,
+                            ...SANDPACK_SHADCN_FILES,
+                            ...(generatedComponent.files || {}),
+                          }).map((f) => (
                             <option key={f} value={f}>
                               {f}
                             </option>
@@ -1825,7 +1838,13 @@ export default function ComponentGeneratorPage() {
                           }
                           value={
                             editedFiles[selectedFile] ||
-                            generatedComponent.files?.[selectedFile] ||
+                            (
+                              {
+                                ...SANDPACK_BASE_FILES,
+                                ...SANDPACK_SHADCN_FILES,
+                                ...(generatedComponent.files || {}),
+                              } as Record<string, string>
+                            )[selectedFile] ||
                             ""
                           }
                           onChange={(value) =>
