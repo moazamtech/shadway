@@ -241,9 +241,15 @@ export function RegistryBlock({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full h-full"
+              className="w-full h-full relative"
             >
-              <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+              {/* Static Background Layer */}
+               <div className="absolute inset-0 h-full w-full bg-slate-950/5 z-0">
+                  <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
+                       style={{ backgroundImage: `radial-gradient(circle, var(--foreground) 1.5px, transparent 1.5px)`, backgroundSize: '24px 24px' }} />
+               </div>
+
+              <ResizablePanelGroup direction="horizontal" className="h-full w-full relative z-10">
                 <ResizablePanel 
                   ref={panelRef}
                   defaultSize={viewport} 
@@ -279,12 +285,9 @@ export function RegistryBlock({
                 <ResizablePanel 
                   defaultSize={100 - viewport} 
                   minSize={0}
-                  className={cn(isResizing && "transition-all duration-500 ease-in-out")}
+                  className={cn("bg-transparent", isResizing && "transition-all duration-500 ease-in-out")}
                 >
-                  <div className="h-full w-full bg-slate-950/5 relative">
-                     <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
-                          style={{ backgroundImage: `radial-gradient(circle, var(--foreground) 1.5px, transparent 1.5px)`, backgroundSize: '24px 24px' }} />
-                  </div>
+                  {/* Transparent spacer to reveal static background */}
                 </ResizablePanel>
               </ResizablePanelGroup>
             </motion.div>
