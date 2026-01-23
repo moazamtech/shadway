@@ -1385,15 +1385,17 @@ export default function ComponentGeneratorPage() {
                           className={cn(
                             "w-full px-0 py-0 rounded-none",
                             message.role === "user"
-                              ? "items-end"
+                              ? "items-end ml-auto"
                               : "items-start",
                           )}
                         >
                           {message.role === "user" ? (
-                            <div className="group relative inline-block max-w-[90%] sm:max-w-2xl lg:max-w-3xl self-end">
-                              <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
-                              <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium">
-                                {message.content}
+                            <div className="flex w-full justify-end pr-6 md:pr-8 lg:pr-10">
+                              <div className="group relative flex max-w-[85%] sm:max-w-2xl lg:max-w-3xl">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
+                                <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium">
+                                  {message.content}
+                                </div>
                               </div>
                             </div>
                           ) : (
@@ -1546,8 +1548,8 @@ export default function ComponentGeneratorPage() {
           <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-30 mt-auto">
             <div className="mx-auto w-full max-w-3xl relative">
               <PromptInput onSubmit={handleSubmit} className="w-full">
-                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border bg-background/95 dark:bg-background/40 backdrop-blur-xl shadow-xl hover:shadow-primary/5 transition-all duration-700 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 group overflow-hidden">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-primary/10 via-transparent to-primary/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none z-0" />
+                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/70 bg-background/95 dark:bg-background/50 backdrop-blur-xl shadow-md transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 transition-opacity pointer-events-none z-0 focus-within:opacity-100" />
 
                   <PromptInputTextarea
                     placeholder={
@@ -1556,7 +1558,7 @@ export default function ComponentGeneratorPage() {
                         : "Refine your design..."
                     }
                     disabled={isGenerating}
-                    className="relative z-10 min-h-[40px] md:min-h-[44px] w-full p-3 md:p-3.5 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-tight overflow-y-auto no-scrollbar resize-none"
+                    className="relative z-10 min-h-[44px] md:min-h-[52px] max-h-[40vh] w-full p-3 md:p-4 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none text-pretty"
                   />
 
                   <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
@@ -1572,36 +1574,24 @@ export default function ComponentGeneratorPage() {
                       </Button>
 
                       <div className="h-3 w-[1px] bg-border/60 mx-0.5" />
-
-                      {isGenerating && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={handleStop}
-                          className="h-8 px-3 text-[9px] font-bold uppercase text-destructive border border-destructive/20 rounded-full hover:bg-destructive/5"
-                        >
-                          Stop
-                        </Button>
-                      )}
                     </PromptInputTools>
 
                     <div className="flex items-center gap-2">
                       <PromptInputSubmit
-                        disabled={isGenerating}
+                        disabled={false}
+                        onClick={isGenerating ? handleStop : undefined}
                         className={cn(
                           "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-300 flex items-center justify-center",
                           isGenerating
-                            ? "bg-muted text-muted-foreground cursor-not-allowed"
+                            ? "bg-muted text-muted-foreground"
                             : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
                         )}
                       >
-                        <Zap
-                          className={cn(
-                            "h-4 w-4",
-                            isGenerating &&
-                              "animate-pulse text-primary-foreground",
-                          )}
-                        />
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Zap className="h-4 w-4" />
+                        )}
                       </PromptInputSubmit>
                     </div>
                   </PromptInputFooter>
