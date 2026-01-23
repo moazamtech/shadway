@@ -3,70 +3,74 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative w-full py-16 md:py-32 overflow-hidden bg-background">
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-primary/20 rounded-full blur-[80px] md:blur-[120px] -z-10" />
-      
-      <div className="container px-4 sm:px-6 mx-auto text-center space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[12px] sm:text-sm font-medium text-primary"
-        >
-          <span className="flex h-2 w-2 rounded-full bg-primary mr-2" />
-          New Component Library Released
-        </motion.div>
+    <section className="relative w-full min-h-[600px] overflow-hidden bg-background">
+      {/* Amazing Animated Background */}
+      <div className="absolute inset-0 -z-10">
+        {/* Gradient Orbs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter leading-[1.1]"
-        >
-          Build Faster with <br className="hidden sm:block" />
-          <span className="text-primary italic">Premium Blocks</span>
-        </motion.h1>
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:48px_48px]" />
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-muted-foreground font-light leading-relaxed px-2 sm:px-0"
-        >
-          A curated collection of secondary-to-none UI components and blocks 
-          built with Tailwind CSS and Framer Motion. Shadcn compatible.
-        </motion.p>
+        {/* Radial Gradient Overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,var(--background)_100%)]" />
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
-        >
-          <Button size="lg" className="h-12 w-full sm:w-auto px-8 text-base">
-            Get Started Free
-          </Button>
-          <Button size="lg" variant="outline" className="h-12 w-full sm:w-auto px-8 text-base">
-            View Components
-          </Button>
-        </motion.div>
+      <div className="container px-4 sm:px-6 mx-auto pt-20 pb-16 md:pt-32 md:pb-24">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 backdrop-blur-sm px-4 py-1.5 text-sm font-medium text-foreground/80"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Premium Component Library
+          </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mt-12 md:mt-16 relative mx-auto max-w-5xl rounded-2xl border border-border bg-card/50 p-1 sm:p-2 shadow-2xl overflow-hidden"
-        >
-           <div className="aspect-[16/10] sm:aspect-video rounded-xl bg-muted animate-pulse flex items-center justify-center">
-              <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-4 text-center">
-                Dashboard Preview Placeholder
-              </span>
-           </div>
-        </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]"
+          >
+            Build Beautiful
+            <br />
+            <span className="bg-gradient-to-r from-foreground to-foreground/40 bg-clip-text text-transparent">
+              Interfaces Faster
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="max-w-2xl mx-auto text-lg text-muted-foreground leading-relaxed"
+          >
+            A curated collection of production-ready components built with modern web technologies.
+            Copy, paste, and ship faster.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4"
+          >
+            <Button size="lg" className="h-11 px-8 rounded-full group">
+              Get Started
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button size="lg" variant="outline" className="h-11 px-8 rounded-full border-border/40 hover:bg-muted/50">
+              Browse Components
+            </Button>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
