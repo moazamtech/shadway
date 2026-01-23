@@ -52,6 +52,7 @@ export function RegistryBlock({
   const [activeView, setActiveView] = useState<"preview" | "code">("preview");
   const [viewport, setViewport] = useState<number>(100);
   const [isCopied, setIsCopied] = useState(false);
+  const [isInstallCopied, setIsInstallCopied] = useState(false);
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const panelRef = React.useRef<ImperativePanelHandle>(null);
@@ -76,6 +77,17 @@ export function RegistryBlock({
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy!", err);
+    }
+  };
+
+  const copyInstallCommand = async () => {
+    if (!installCommand) return;
+    try {
+      await navigator.clipboard.writeText(installCommand);
+      setIsInstallCopied(true);
+      setTimeout(() => setIsInstallCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy command!", err);
     }
   };
 
@@ -175,31 +187,47 @@ export function RegistryBlock({
         </div>
 
         {/* View Switchers */}
-        <div className="flex items-center gap-1 p-1.5 bg-muted/20 rounded-xl border border-dashed border-border z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveView("preview")}
-            className={cn(
-              "h-8 gap-2 px-4 text-[11px] uppercase tracking-widest font-black",
-              activeView === "preview" && "bg-background shadow-md border border-dashed border-border text-primary"
-            )}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Preview
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveView("code")}
-            className={cn(
-              "h-8 gap-2 px-4 text-[11px] uppercase tracking-widest font-black",
-              activeView === "code" && "bg-background shadow-md border border-dashed border-border text-primary"
-            )}
-          >
-            <Code2 className="w-3.5 h-3.5" />
-            Code
-          </Button>
+        <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-lg border border-dashed border-border z-10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveView("preview")}
+              className={cn(
+                "h-7 gap-2 px-3 text-[11px] uppercase tracking-widest font-bold relative z-10 transition-colors duration-200 rounded-md",
+                activeView === "preview" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Preview
+              {activeView === "preview" && (
+                <motion.div
+                  layoutId={`view-tab-${index}`}
+                  className="absolute inset-0 rounded-md bg-background shadow-sm border border-border/50 -z-10"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveView("code")}
+              className={cn(
+                "h-7 gap-2 px-3 text-[11px] uppercase tracking-widest font-bold relative z-10 transition-colors duration-200 rounded-md",
+                activeView === "code" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              Code
+              {activeView === "code" && (
+                <motion.div
+                  layoutId={`view-tab-${index}`}
+                  className="absolute inset-0 rounded-md bg-background shadow-sm border border-border/50 -z-10"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+            </Button>
           
           <div className="h-4 w-px bg-border/40 mx-2" />
           
@@ -207,6 +235,8 @@ export function RegistryBlock({
             {[Smartphone, Tablet, Monitor].map((Icon, i) => {
               const sizes = [35, 60, 100];
               const labels = ["Mobile", "Tablet", "Desktop"];
+              const isActive = viewport === sizes[i] && activeView === "preview";
+              
               return (
                 <Button
                   key={labels[i]}
@@ -214,12 +244,20 @@ export function RegistryBlock({
                   size="icon"
                   onClick={() => handleViewportResize(sizes[i])}
                   className={cn(
-                    "h-8 w-8",
-                    viewport === sizes[i] && activeView === "preview" && "bg-background border border-dashed border-border text-primary"
+                    "h-7 w-7 relative z-10 transition-colors rounded-md",
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   )}
                   title={labels[i]}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
+                  {isActive && (
+                    <motion.div
+                      layoutId={`device-tab-${index}`}
+                      className="absolute inset-0 rounded-md bg-background shadow-sm border border-border/50 -z-10"
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
                 </Button>
               );
             })}
@@ -366,15 +404,45 @@ export function RegistryBlock({
       {/* Footer / Install Command */}
       <div className="py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         {installCommand ? (
-          <div className="flex items-center gap-3 group/cmd cursor-pointer" onClick={() => navigator.clipboard.writeText(installCommand)}>
-             <div className="h-8 px-4 bg-primary/5 border border-dashed border-primary/30 rounded-lg flex items-center gap-3 transition-all group-hover/cmd:bg-primary/10 group-hover/cmd:border-primary/50">
-               <Terminal className="w-3.5 h-3.5 text-primary" />
-               <span className="font-mono text-[11px] font-black text-primary tracking-tight">{installCommand}</span>
-               <Copy className="w-3 h-3 text-primary/30 group-hover/cmd:text-primary transition-colors" />
+          <div 
+            className="flex items-center gap-3 cursor-pointer group/cmd" 
+            onClick={copyInstallCommand}
+          >
+             <div className={cn(
+               "relative h-9 px-4 bg-muted/30 hover:bg-muted/50 border border-dashed border-border rounded-lg flex items-center gap-3 transition-all select-none overflow-hidden",
+               isInstallCopied && "bg-primary/10 border-primary/30"
+             )}>
+                <AnimatePresence mode="wait">
+                  {isInstallCopied ? (
+                    <motion.div
+                      key="copied"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.05 }}
+                      className="flex items-center gap-2 text-primary"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span className="font-mono text-[11px] font-bold tracking-tight">COPIED</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="command"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.05 }}
+                      className="flex items-center gap-2"
+                    >
+                      <Terminal className="w-3.5 h-3.5 text-muted-foreground group-hover/cmd:text-primary transition-colors" />
+                      <span className="font-mono text-[11px] font-medium text-muted-foreground group-hover/cmd:text-foreground transition-colors">
+                        npx shadway add {name}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
              </div>
           </div>
         ) : <div />}
-        
+
         <div className="flex items-center gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30">
            <a 
              href={docsUrl || `/docs/${category || "ui"}#${name}`} 
