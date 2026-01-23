@@ -58,7 +58,7 @@ export default function CategoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <div className="w-full border-b border-dashed">
+        <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] border-b border-dashed">
           <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
             <div className="mb-8 w-32 h-9 bg-muted animate-pulse rounded-md" />
             <div className="space-y-4">
@@ -87,7 +87,7 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Dynamic Header */}
-      <div className="w-full border-b border-dashed">
+      <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] border-b border-dashed">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
            <Button 
              variant="ghost" 
