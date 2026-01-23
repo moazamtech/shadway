@@ -121,7 +121,7 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 md:py-16">
+      <div className="max-w-7xl mx-auto pt-6">
         {error && (
           <Alert variant="destructive" className="mb-12">
             <AlertCircle className="h-4 w-4" />
