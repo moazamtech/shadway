@@ -87,7 +87,12 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Dynamic Header */}
-      <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] border-b border-dashed">
+      <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw]">
+        <div className="absolute bottom-0 w-full flex flex-col">
+          <div className="w-full border-b border-dashed border-border" />
+          <div className="w-full h-4 bg-[image:repeating-linear-gradient(45deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] opacity-20" />
+          <div className="w-full border-b border-dashed border-border" />
+        </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
            <Button 
              variant="ghost" 
