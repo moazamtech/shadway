@@ -70,120 +70,129 @@ export default function VibecodePage() {
   }, [items, query, activeCategory]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-
-      <section className="relative pt-28 pb-16 px-6 lg:px-12">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-6xl mx-auto relative">
-          <div className="flex flex-col gap-6">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              <Sparkles className="h-4 w-4" />
-              Vibecode Gallery
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
-                Published AI components, ready to remix.
-              </h1>
-              <p className="text-muted-foreground text-base md:text-lg max-w-2xl">
-                Explore the latest components generated in Shadway. Preview each
-                build, copy the code, and speed up your next interface.
-              </p>
-            </div>
-            <div className="flex flex-col md:flex-row gap-4 md:items-center">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by title, tag, or category"
-                className="max-w-md"
-              />
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <Button
-                    key={category}
-                    size="sm"
-                    variant={
-                      category === activeCategory ? "default" : "outline"
-                    }
-                    onClick={() => setActiveCategory(category)}
-                    className="rounded-full px-4"
-                  >
-                    {category}
-                  </Button>
-                ))}
+      <div className="relative mx-auto w-full max-w-7xl overflow-hidden">
+        <div className="absolute inset-y-0 left-0 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 left-2 w-[2px] bg-border/40" />
+        <div className="absolute inset-y-0 right-0 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 right-2 w-[2px] bg-border/40" />
+        <section className="relative pt-28 pb-16 px-6 lg:px-12">
+          <div className="max-w-7xl mx-auto relative">
+            <div className="flex flex-col gap-6">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                <Sparkles className="h-4 w-4" />
+                Vibecode Gallery
+              </div>
+              <div className="space-y-4">
+                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
+                  Published AI components, ready to remix.
+                </h1>
+                <p className="text-muted-foreground text-base md:text-lg max-w-2xl">
+                  Explore the latest components generated in Shadway. Preview
+                  each build, copy the code, and speed up your next interface.
+                </p>
+              </div>
+              <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by title, tag, or category"
+                  className="max-w-md"
+                />
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => (
+                    <Button
+                      key={category}
+                      size="sm"
+                      variant={
+                        category === activeCategory ? "default" : "outline"
+                      }
+                      onClick={() => setActiveCategory(category)}
+                      className="rounded-full px-4"
+                    >
+                      {category}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="px-6 lg:px-12 pb-20">
-        <div className="max-w-6xl mx-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Loading vibecode components...
-            </div>
-          ) : error ? (
-            <div className="text-center text-muted-foreground py-16">
-              {error}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center text-muted-foreground py-16">
-              No published components yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filtered.map((item) => (
-                <div
-                  key={item._id || item.slug}
-                  className="group rounded-sm overflow-hidden"
-                >
-                  <div className="relative aspect-[16/9] w-full bg-muted/20">
-                    <Image
-                      src={item.thumbnailUrl || "/placeholder-image.jpg"}
-                      alt={item.title}
-                      width={1980}
-                      height={1080}
-                      className="h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                      <Button size="sm" asChild>
-                        <Link href={`/vibecode/${item.slug}`}>
-                          View Details
-                        </Link>
-                      </Button>
+        <section className="px-6 lg:px-12 pb-20">
+          <div className="max-w-6xl mx-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Loading vibecode components...
+              </div>
+            ) : error ? (
+              <div className="text-center text-muted-foreground py-16">
+                {error}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center text-muted-foreground py-16">
+                No published components yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filtered.map((item) => (
+                  <div
+                    key={item._id || item.slug}
+                    className="group rounded-sm overflow-hidden"
+                  >
+                    <div className="relative aspect-[16/9] w-full bg-muted/20">
+                      <Image
+                        src={item.thumbnailUrl || "/placeholder-image.jpg"}
+                        alt={item.title}
+                        width={1980}
+                        height={1080}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <Button size="sm" asChild>
+                          <Link href={`/vibecode/${item.slug}`}>
+                            View Details
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <Image
+                        src="/vibecoder.png"
+                        alt="Vibecoder"
+                        width={36}
+                        height={36}
+                        className="h-9 w-9 rounded-full object-cover"
+                      />
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {getShortTitle(item.title)}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {item.description}
+                        </p>
+                      </div>
+                      <span className="mt-auto text-xs font-semibold text-muted-foreground">
+                        Free
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <Image
-                      src="/vibecoder.png"
-                      alt="Vibecoder"
-                      width={36}
-                      height={36}
-                      className="h-9 w-9 rounded-full object-cover"
-                    />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {getShortTitle(item.title)}
-                      </p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
-                        {item.description}
-                      </p>
-                    </div>
-                    <span className="mt-auto text-xs font-semibold text-muted-foreground">
-                      Free
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+        <div className="flex flex-col">
+          <div className="w-full border-b border-dashed border-border" />
+          <div className="w-full h-4 bg-[image:repeating-linear-gradient(45deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] opacity-20" />
+          <div className="w-full border-b border-dashed border-border" />
         </div>
-      </section>
-      <div className="items-center justify-start mx-auto  max-w-[1300px] overflow-x-hidden">
-        <TextHoverEffect text="SHADWAY" />
+        <div className="items-center justify-start mx-auto max-w-[1300px] overflow-x-hidden">
+          <TextHoverEffect text="SHADWAY" />
+        </div>
       </div>
     </div>
   );
