@@ -58,8 +58,8 @@ export default function CategoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <div className="w-full border-b bg-muted/30">
-          <div className="max-w-7xl mx-auto px-4 py-12 md:px-8">
+        <div className="w-full border-b border-dashed">
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
             <div className="mb-8 w-32 h-9 bg-muted animate-pulse rounded-md" />
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -73,7 +73,7 @@ export default function CategoryPage() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 py-12 md:px-8 space-y-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-24">
           {[1, 2, 3].map((i) => (
             <RegistryBlockSkeleton key={i} />
           ))}
@@ -87,8 +87,8 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Dynamic Header */}
-      <div className="w-full border-b bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 py-12 md:px-8">
+      <div className="w-full border-b border-dashed">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
            <Button 
              variant="ghost" 
              size="sm" 
@@ -116,7 +116,7 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-12 md:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 md:py-16">
         {error && (
           <Alert variant="destructive" className="mb-12">
             <AlertCircle className="h-4 w-4" />
