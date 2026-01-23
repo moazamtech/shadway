@@ -154,7 +154,7 @@ export function RegistryBlock({
   return (
     <div className="group relative flex flex-col space-y-0 transition-all duration-300">
       {/* Header: Large Numbering + Bold Title */}
-      <div className="relative py-8 px-4 sm:px-8 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
+      <div className="relative py-2 px-4 sm:px-8 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
         {/* Massive Ghost Numbering */}
         <span className="text-8xl font-black text-foreground/[0.09] absolute left-4 -top-8 tracking-tighter select-none pointer-events-none hidden md:block leading-none">
           {String(index + 1).padStart(2, "0")}
@@ -257,7 +257,7 @@ export function RegistryBlock({
                      <iframe 
                        ref={iframeRef}
                        src={`/preview/${name}`}
-                       className="w-full h-full border-0 rounded-xl bg-background shadow-sm overflow-hidden"
+                       className="w-full h-full border-0 bg-background shadow-sm overflow-hidden"
                        title={`${name} preview`}
                        loading="lazy"
                        onLoad={(e) => {
@@ -270,7 +270,12 @@ export function RegistryBlock({
                      />
                   </div>
                 </ResizablePanel>
-                <ResizableHandle withHandle className="bg-border/40 hover:bg-primary/50 transition-colors w-1.5" />
+                <ResizableHandle 
+                  withHandle 
+                  className="w-2 bg-muted/40 hover:bg-muted/80 transition-all border-l border-dashed border-border/50 group/handle" 
+                >
+                  <div className="absolute inset-y-0 left-1/2 w-[2px] bg-border transition-all group-hover/handle:bg-primary group-hover/handle:w-1 -translate-x-1/2" />
+                </ResizableHandle>
                 <ResizablePanel 
                   defaultSize={100 - viewport} 
                   minSize={0}
