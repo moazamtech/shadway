@@ -152,11 +152,11 @@ export function RegistryBlock({
   }, [resolvedTheme]);
 
   return (
-    <div className="group relative flex flex-col space-y-0 py-16 transition-all duration-300">
+    <div className="group relative flex flex-col space-y-0 transition-all duration-300">
       {/* Header: Large Numbering + Bold Title */}
-      <div className="relative py-8 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
+      <div className="relative py-8 px-4 sm:px-8 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
         {/* Massive Ghost Numbering */}
-        <span className="text-8xl font-black text-foreground/[0.09] absolute -left-4 -top-8 tracking-tighter select-none pointer-events-none hidden md:block leading-none">
+        <span className="text-8xl font-black text-foreground/[0.09] absolute left-4 -top-8 tracking-tighter select-none pointer-events-none hidden md:block leading-none">
           {String(index + 1).padStart(2, "0")}
         </span>
 
@@ -229,7 +229,7 @@ export function RegistryBlock({
 
       {/* Main Content Area */}
       <div 
-        className="relative border-l border-r border-dashed border-border overflow-hidden bg-background"
+        className="relative border-dashed border-border overflow-hidden bg-background"
         style={{ height: 600 }}
       >
         <BorderBeam borderWidth={1.5} duration={10} delay={index * 2} className="from-transparent via-blue-500/40 to-transparent" />
@@ -356,7 +356,7 @@ export function RegistryBlock({
       </div>
 
       {/* Footer / Install Command */}
-      <div className="border-b border-dashed border-border py-4 px-1 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         {installCommand ? (
           <div className="flex items-center gap-3 group/cmd cursor-pointer" onClick={() => navigator.clipboard.writeText(installCommand)}>
              <div className="h-8 px-4 bg-primary/5 border border-dashed border-primary/30 rounded-lg flex items-center gap-3 transition-all group-hover/cmd:bg-primary/10 group-hover/cmd:border-primary/50">
@@ -384,6 +384,15 @@ export function RegistryBlock({
            >
              Github <ArrowUpRight className="w-3 h-3" />
            </a>
+        </div>
+      </div>
+
+      {/* Double Line Separator */}
+      <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw]">
+        <div className="w-full flex flex-col">
+          <div className="w-full border-b border-dashed border-border" />
+          <div className="w-full h-4 bg-[image:repeating-linear-gradient(45deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] opacity-20" />
+          <div className="w-full border-b border-dashed border-border" />
         </div>
       </div>
     </div>
