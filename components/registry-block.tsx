@@ -3,22 +3,23 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Editor from "@monaco-editor/react";
-import { 
-  Monitor, 
-  Tablet, 
-  Smartphone, 
-  Code2, 
-  Eye, 
-  Copy, 
-  Check, 
+import {
+  Monitor,
+  Tablet,
+  Smartphone,
+  Code2,
+  Eye,
+  Copy,
+  Check,
   Terminal,
-  ArrowUpRight
+  ArrowUpRight,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  ResizableHandle, 
-  ResizablePanel, 
-  ResizablePanelGroup 
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
 } from "@/components/ui/resizable";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
@@ -38,11 +39,11 @@ interface RegistryBlockProps {
   docsUrl?: string;
 }
 
-export function RegistryBlock({ 
-  name, 
-  title, 
-  description, 
-  index, 
+export function RegistryBlock({
+  name,
+  title,
+  description,
+  index,
   code,
   category,
   installCommand,
@@ -187,7 +188,8 @@ export function RegistryBlock({
         </div>
 
         {/* View Switchers */}
-        <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-lg border border-dashed border-border z-10">
+        <div className="flex items-center z-10">
+          <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-lg border border-dashed border-border">
             <Button
               variant="ghost"
               size="sm"
@@ -228,50 +230,51 @@ export function RegistryBlock({
                 />
               )}
             </Button>
-          
-          <div className="h-4 w-px bg-border/40 mx-2" />
-          
-          <div className="flex items-center gap-1">
-            {[Smartphone, Tablet, Monitor].map((Icon, i) => {
-              const sizes = [35, 60, 100];
-              const labels = ["Mobile", "Tablet", "Desktop"];
-              const isActive = viewport === sizes[i] && activeView === "preview";
-              
-              return (
-                <Button
-                  key={labels[i]}
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleViewportResize(sizes[i])}
-                  className={cn(
-                    "h-7 w-7 relative z-10 transition-colors rounded-md",
-                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title={labels[i]}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {isActive && (
-                    <motion.div
-                      layoutId={`device-tab-${index}`}
-                      className="absolute inset-0 rounded-md bg-background shadow-sm border border-border/50 -z-10"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                </Button>
-              );
-            })}
+
+            <div className="h-4 w-px bg-border/40 mx-1" />
+
+            <div className="flex items-center gap-1">
+              {[Smartphone, Tablet, Monitor].map((Icon, i) => {
+                const sizes = [35, 60, 100];
+                const labels = ["Mobile", "Tablet", "Desktop"];
+                const isActive = viewport === sizes[i] && activeView === "preview";
+
+                return (
+                  <Button
+                    key={labels[i]}
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleViewportResize(sizes[i])}
+                    className={cn(
+                      "h-7 w-7 relative z-10 transition-colors rounded-md",
+                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title={labels[i]}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {isActive && (
+                      <motion.div
+                        layoutId={`device-tab-${index}`}
+                        className="absolute inset-0 rounded-md bg-background shadow-sm border border-border/50 -z-10"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div 
+      <div
         className="relative border-dashed border-border overflow-hidden bg-background"
         style={{ height: 600 }}
       >
         <BorderBeam borderWidth={1.5} duration={10} delay={index * 2} className="from-transparent via-blue-500/40 to-transparent" />
-        
+
         <AnimatePresence mode="wait">
           {activeView === "preview" ? (
             <motion.div
@@ -282,15 +285,15 @@ export function RegistryBlock({
               className="w-full h-full relative"
             >
               {/* Static Background Layer */}
-               <div className="absolute inset-0 h-full w-full bg-slate-950/5 z-0">
-                  <div className="absolute inset-0 opacity-[0.05] pointer-events-none" 
-                       style={{ backgroundImage: `radial-gradient(circle, var(--foreground) 1.5px, transparent 1.5px)`, backgroundSize: '24px 24px' }} />
-               </div>
+              <div className="absolute inset-0 h-full w-full bg-slate-950/5 z-0">
+                <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
+                  style={{ backgroundImage: `radial-gradient(circle, var(--foreground) 1.5px, transparent 1.5px)`, backgroundSize: '24px 24px' }} />
+              </div>
 
               <ResizablePanelGroup direction="horizontal" className="h-full w-full relative z-10">
-                <ResizablePanel 
+                <ResizablePanel
                   ref={panelRef}
-                  defaultSize={viewport} 
+                  defaultSize={viewport}
                   minSize={30}
                   className={cn(
                     "relative flex items-center justify-center bg-muted/5",
@@ -298,30 +301,44 @@ export function RegistryBlock({
                   )}
                 >
                   <div className="w-full h-full relative">
-                     <iframe 
-                       ref={iframeRef}
-                       src={`/preview/${name}`}
-                       className="w-full h-full border-0 bg-background shadow-sm overflow-hidden"
-                       title={`${name} preview`}
-                       loading="lazy"
-                       onLoad={(e) => {
-                         // Optional: could stop a loading spinner here
-                         const iframe = e.currentTarget;
-                         if (iframe.contentWindow) {
-                            iframe.contentWindow.postMessage({ type: "UPDATE_THEME", theme: resolvedTheme }, "*");
-                         }
-                       }}
-                     />
+                    <iframe
+                      ref={iframeRef}
+                      src={`/preview/${name}`}
+                      className="w-full h-full border-0 bg-background shadow-sm overflow-hidden"
+                      title={`${name} preview`}
+                      loading="eager"
+                      onLoad={(e) => {
+                        // Optional: could stop a loading spinner here
+                        const iframe = e.currentTarget;
+                        if (iframe.contentWindow) {
+                          iframe.contentWindow.postMessage({ type: "UPDATE_THEME", theme: resolvedTheme }, "*");
+                        }
+                      }}
+                    />
                   </div>
+                  {/* Reload Button Overlay */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (iframeRef.current) {
+                        iframeRef.current.src = iframeRef.current.src;
+                      }
+                    }}
+                    className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-dashed border-border hover:bg-background hover:border-primary/50 transition-all shadow-lg z-50 pointer-events-auto"
+                    title="Reload Preview"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
                 </ResizablePanel>
-                <ResizableHandle 
-                  withHandle 
-                  className="w-2 bg-muted/40 hover:bg-muted/80 transition-all border-l border-dashed border-border/50 group/handle" 
+                <ResizableHandle
+                  withHandle
+                  className="w-2 bg-muted/40 hover:bg-muted/80 transition-all border-l border-dashed border-border/50 group/handle"
                 >
                   <div className="absolute inset-y-0 left-1/2 w-[2px] bg-border transition-all group-hover/handle:bg-primary group-hover/handle:w-1 -translate-x-1/2" />
                 </ResizableHandle>
-                <ResizablePanel 
-                  defaultSize={100 - viewport} 
+                <ResizablePanel
+                  defaultSize={100 - viewport}
                   minSize={0}
                   className={cn("bg-transparent", isResizing && "transition-all duration-500 ease-in-out")}
                 >
@@ -343,23 +360,23 @@ export function RegistryBlock({
                   <div className="p-2 border border-dashed rounded flex items-center gap-3 transition-colors duration-300 border-black/20 bg-black/5 dark:border-white/20 dark:bg-white/5">
                     <Terminal className="w-4 h-4 text-black/40 dark:text-white/40" />
                     <span className="text-[10px] font-mono uppercase tracking-[0.3em] font-black text-black/40 dark:text-white/40">
-                       {name}.tsx
+                      {name}.tsx
                     </span>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-9 text-[11px] font-black border border-dashed rounded-lg gap-2 px-5 transition-all text-black/40 hover:text-black hover:bg-black/5 border-black/10 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5 dark:border-white/10"
                     onClick={copyToClipboard}
                   >
                     {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                     {isCopied ? "COPIED" : "COPY SOURCE"}
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-9 text-[11px] font-black text-white px-5 bg-primary/20 border border-dashed border-primary/40 rounded-lg gap-2 hover:bg-primary/40 transition-all shadow-[0_0_20px_rgba(59,130,246,0.1)]"
                     onClick={openInV0}
                   >
@@ -394,7 +411,7 @@ export function RegistryBlock({
                   }}
                 />
               </div>
-              
+
               <BorderBeam borderWidth={1.5} duration={8} className="from-transparent via-white/15 to-transparent" />
             </motion.div>
           )}
@@ -404,62 +421,62 @@ export function RegistryBlock({
       {/* Footer / Install Command */}
       <div className="py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         {installCommand ? (
-          <div 
-            className="flex items-center gap-3 cursor-pointer group/cmd" 
+          <div
+            className="flex items-center gap-3 cursor-pointer group/cmd"
             onClick={copyInstallCommand}
           >
-             <div className={cn(
-               "relative h-9 px-4 bg-muted/30 hover:bg-muted/50 border border-dashed border-border rounded-lg flex items-center gap-3 transition-all select-none overflow-hidden",
-               isInstallCopied && "bg-primary/10 border-primary/30"
-             )}>
-                <AnimatePresence mode="wait">
-                  {isInstallCopied ? (
-                    <motion.div
-                      key="copied"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 1.05 }}
-                      className="flex items-center gap-2 text-primary"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span className="font-mono text-[11px] font-bold tracking-tight">COPIED</span>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="command"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 1.05 }}
-                      className="flex items-center gap-2"
-                    >
-                      <Terminal className="w-3.5 h-3.5 text-muted-foreground group-hover/cmd:text-primary transition-colors" />
-                      <span className="font-mono text-[11px] font-medium text-muted-foreground group-hover/cmd:text-foreground transition-colors">
-                        npx shadway add {name}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-             </div>
+            <div className={cn(
+              "relative h-9 px-4 bg-muted/30 hover:bg-muted/50 border border-dashed border-border rounded-lg flex items-center gap-3 transition-all select-none overflow-hidden",
+              isInstallCopied && "bg-primary/10 border-primary/30"
+            )}>
+              <AnimatePresence mode="wait">
+                {isInstallCopied ? (
+                  <motion.div
+                    key="copied"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    className="flex items-center gap-2 text-primary"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span className="font-mono text-[11px] font-bold tracking-tight">COPIED</span>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="command"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Terminal className="w-3.5 h-3.5 text-muted-foreground group-hover/cmd:text-primary transition-colors" />
+                    <span className="font-mono text-[11px] font-medium text-muted-foreground group-hover/cmd:text-foreground transition-colors">
+                      npx shadway add {name}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         ) : <div />}
 
         <div className="flex items-center gap-8 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30">
-           <a 
-             href={docsUrl || `/docs/${category || "ui"}#${name}`} 
-             target="_blank" 
-             rel="noopener noreferrer" 
-             className="hover:text-primary transition-colors flex items-center gap-1.5"
-           >
-             Docs <ArrowUpRight className="w-3 h-3" />
-           </a>
-           <a 
-             href={githubUrl || `https://github.com/moazamtech/shadway/blob/main/registry/${category || "ui"}/${name}.tsx`} 
-             target="_blank" 
-             rel="noopener noreferrer" 
-             className="hover:text-primary transition-colors flex items-center gap-1.5"
-           >
-             Github <ArrowUpRight className="w-3 h-3" />
-           </a>
+          <a
+            href={docsUrl || `/docs/${category || "ui"}#${name}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-primary transition-colors flex items-center gap-1.5"
+          >
+            Docs <ArrowUpRight className="w-3 h-3" />
+          </a>
+          <a
+            href={githubUrl || `https://github.com/moazamtech/shadway/blob/main/registry/${category || "ui"}/${name}.tsx`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-primary transition-colors flex items-center gap-1.5"
+          >
+            Github <ArrowUpRight className="w-3 h-3" />
+          </a>
         </div>
       </div>
 

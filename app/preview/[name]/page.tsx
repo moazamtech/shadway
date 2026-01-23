@@ -32,8 +32,8 @@ export default function PreviewPage({ params }: { params: Promise<{ name: string
   }, [setTheme]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background">
-      <div className="w-full flex items-center justify-center">
+    <div className="h-full w-full bg-background flex justify-center">
+      <div className="scale-75 transform-gpu origin-top">
         <ComponentPreview name={name} />
       </div>
     </div>
