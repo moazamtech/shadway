@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { 
+import {
   ArrowLeft,
   Loader2,
   AlertCircle
@@ -27,9 +27,9 @@ export default function CategoryPage() {
       try {
         const response = await fetch("/registry");
         if (!response.ok) throw new Error("Failed to fetch registry");
-        
+
         const data = await response.json();
-        
+
         // Filter by category
         const categoryItems = data.items.filter(
           (item: any) => (item.category || "ui").toLowerCase() === (category as string).toLowerCase()
@@ -58,8 +58,13 @@ export default function CategoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] border-b border-dashed">
-          <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+        <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw]">
+          <div className="absolute bottom-0 w-full flex flex-col">
+            <div className="w-full border-b border-dashed border-border" />
+            <div className="w-full h-4 bg-[image:repeating-linear-gradient(45deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] opacity-20" />
+            <div className="w-full border-b border-dashed border-border" />
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
             <div className="mb-8 w-32 h-9 bg-muted animate-pulse rounded-md" />
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -94,34 +99,34 @@ export default function CategoryPage() {
           <div className="w-full border-b border-dashed border-border" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-10">
-           <Button 
-             variant="ghost" 
-             size="sm" 
-             className="mb-8 gap-2 -ml-2 text-muted-foreground hover:text-foreground"
-             onClick={() => router.push("/docs")}
-           >
-             <ArrowLeft className="w-4 h-4" />
-             Back to Library
-           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-8 gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+            onClick={() => router.push("/docs")}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Library
+          </Button>
 
-           <div className="space-y-4">
-             <div className="flex items-center gap-3">
-               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter uppercase">
-                 {categoryName}<span className="text-primary">.</span>
-               </h1>
-               <div className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-full uppercase tracking-widest border border-primary/20">
-                 {components.length} {components.length === 1 ? 'Component' : 'Components'}
-               </div>
-             </div>
-             <p className="text-lg md:text-xl text-muted-foreground font-light max-w-2xl">
-               A collection of professionally designed {categoryName.toLowerCase()} blocks, 
-               optimized for your next production application.
-             </p>
-           </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter uppercase">
+                {categoryName}<span className="text-primary">.</span>
+              </h1>
+              <div className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-full uppercase tracking-widest border border-primary/20">
+                {components.length} {components.length === 1 ? 'Component' : 'Components'}
+              </div>
+            </div>
+            <p className="text-lg md:text-xl text-muted-foreground font-light max-w-2xl">
+              A collection of professionally designed {categoryName.toLowerCase()} blocks,
+              optimized for your next production application.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto pt-8">
+      <div className="max-w-7xl mx-auto pt-8 px-4 sm:px-8">
         {error && (
           <Alert variant="destructive" className="mb-12">
             <AlertCircle className="h-4 w-4" />
@@ -131,9 +136,9 @@ export default function CategoryPage() {
         )}
 
         {components.length === 0 && !error && (
-            <div className="text-center py-20 border-2 border-dashed rounded-3xl">
-                <p className="text-muted-foreground">No components found in the "{categoryName}" category yet.</p>
-            </div>
+          <div className="text-center py-20 border-2 border-dashed rounded-3xl">
+            <p className="text-muted-foreground">No components found in the "{categoryName}" category yet.</p>
+          </div>
         )}
 
         <div className="space-y-24 divide-y divide-border/40">
