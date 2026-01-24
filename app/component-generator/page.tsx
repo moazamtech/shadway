@@ -269,59 +269,59 @@ function CodeBlock({
 
 // Smart AI-powered suggestions for component blocks
 type Suggestion = {
-  emoji: string;
+  icon?: string;
   title: string;
   prompt: string;
 };
 
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
-    emoji: "✨",
-    title: "Premium Landing Page",
+    icon: "landing",
+    title: "Minimal Landing",
     prompt:
-      "Create an AWWWARDS-level landing page with a multi-layered hero section using SVG masking, grain textures, and matte lighting. Include sophisticated motion/react transitions and high visual density.",
+      "Build a minimal SaaS landing page: hero with 2 CTAs, logo strip, 3-feature grid, pricing cards, FAQ accordion, and a clean footer. Use subtle borders and soft shadows.",
   },
   {
-    emoji: "🧭",
-    title: "Architectural Header",
+    icon: "nav",
+    title: "Navbar Header",
     prompt:
-      "Build a legendary navigation header with glassmorphism, dynamic blur effects, and sophisticated mobile orchestration. Use technical motifs and geometric separators.",
+      "Create a responsive navbar with product dropdown, search, login button, and mobile sheet menu. Add sticky behavior and an active route indicator.",
   },
   {
-    emoji: "💰",
-    title: "Experimental Pricing",
+    icon: "pricing",
+    title: "Pricing Section",
     prompt:
-      "Create an professional pricing section with pricings and yearly and monthly button.",
+      "Design a pricing section with 3 plans, monthly/yearly toggle, included features list, and a highlighted popular plan. Keep typography crisp and spacing generous.",
   },
   {
-    emoji: "🎯",
-    title: "Technical Feature Grid",
+    icon: "component",
+    title: "Feature Grid",
     prompt:
-      "Create a data-rich feature grid with staggered entrance animations. Focus on technical density and geometric motifs.",
+      "Make a 6-card feature grid with icons, short titles, and 1-line descriptions. Add hover states and a simple filter tab row above it.",
   },
   {
-    emoji: "💬",
-    title: "Cinematic Testimonials",
+    icon: "testimonials",
+    title: "Testimonials",
     prompt:
-      "Build a cinematic testimonial section with glassmorphism cards, animated SVG grain textures, and sophisticated motion/react transitions.",
+      "Build a testimonials section with 3 cards, star ratings, avatar + role, and a subtle background pattern. Add a compact carousel on mobile.",
   },
   {
-    emoji: "📩",
-    title: "Matte Contact Design",
+    icon: "contact",
+    title: "Contact Form",
     prompt:
-      "Design a premium contact section with matte lighting effects, custom SVG background patterns, and sophisticated input field micro-animations.",
+      "Create a contact section with a short intro, name/email/message inputs, a submit button, and a side panel with office info and social links.",
   },
   {
-    emoji: "👣",
-    title: "Geometric Footer",
+    icon: "layout",
+    title: "Footer",
     prompt:
-      "Architect a multi-column footer with heavy technical density, custom SVG motifs, and high-end typography using geometric separators.",
+      "Design a multi-column footer with product/company/resources links, newsletter input, and legal row. Add a small brand mark and light divider lines.",
   },
   {
-    emoji: "📊",
-    title: "Data-Rich Stats",
+    icon: "stats",
+    title: "Stats Strip",
     prompt:
-      "Create a premium stats section with animated SVG counters, matte lighting, and geometric motifs using clip-path for visual impact.",
+      "Add a stats strip with 4 metrics, tiny captions, and a faint grid background. Include a simple count-up animation when scrolled into view.",
   },
 ];
 

@@ -1,11 +1,46 @@
 import { cn } from "@/lib/utils";
-import { RefreshCcw, ArrowRight } from "lucide-react";
+import type React from "react";
+import {
+  BarChart3,
+  Component as ComponentIcon,
+  CreditCard,
+  LayoutTemplate,
+  Mail,
+  MessageSquareQuote,
+  Navigation,
+  PanelsTopLeft,
+  RefreshCcw,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 export type Suggestion = {
-  emoji: string;
+  icon?: string;
   title: string;
   prompt: string;
 };
+
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  sparkles: Sparkles,
+  layout: LayoutTemplate,
+  landing: PanelsTopLeft,
+  component: ComponentIcon,
+  pricing: CreditCard,
+  auth: ShieldCheck,
+  stats: BarChart3,
+  testimonials: MessageSquareQuote,
+  nav: Navigation,
+  contact: Mail,
+};
+
+function SuggestionIcon({ name }: { name?: string }) {
+  const Icon = (name && ICONS[name]) || Sparkles;
+  return (
+    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-muted/40 text-foreground">
+      <Icon className="h-4 w-4" />
+    </span>
+  );
+}
 
 export function SuggestionsGrid({
   suggestions,
@@ -21,56 +56,50 @@ export function SuggestionsGrid({
   className?: string;
 }) {
   return (
-    <div className={cn("mt-2 space-y-3 w-full max-w-4xl mx-auto px-4", className)}>
-      <div className="flex items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
-            Design Templates
-          </h3>
-        </div>
+    <div className={cn("mt-4 w-full max-w-4xl mx-auto px-4", className)}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold text-muted-foreground">
+          Try a prompt
+        </h3>
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
           className={cn(
-            "text-[9px] font-black uppercase tracking-widest flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/40 bg-muted/10 hover:bg-primary/5 text-muted-foreground/60 hover:text-primary transition-all duration-300 hover:border-primary/20",
-            isRefreshing && "opacity-50 cursor-not-allowed"
+            "inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-border transition-colors",
+            isRefreshing && "opacity-50 cursor-not-allowed",
           )}
           type="button"
+          aria-label="Refresh suggestions"
         >
-          <RefreshCcw className={cn(
-            "h-2.5 w-2.5",
-            isRefreshing && "animate-spin"
-          )} />
-          {isRefreshing ? "Syncing..." : "Refresh"}
+          <RefreshCcw
+            className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
+          />
+          {isRefreshing ? "Refreshing" : "Refresh"}
         </button>
       </div>
 
-      <div className={cn(
-        "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full",
-        isRefreshing && "opacity-40 pointer-events-none"
-      )}>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
+          isRefreshing && "opacity-50 pointer-events-none",
+        )}
+      >
         {suggestions.map((suggestion, index) => (
           <button
-            key={index}
+            key={`${suggestion.title}-${index}`}
             onClick={() => onPick(suggestion.prompt)}
-            className="group flex flex-col items-start p-4 rounded-2xl border border-border/40 bg-muted/5 hover:bg-muted/10 hover:border-primary/30 text-left transition-all duration-300 relative overflow-hidden active:scale-[0.98]"
+            className="group rounded-xl border border-border/60 bg-background p-4 text-left transition-colors hover:bg-muted/40 active:scale-[0.99]"
             type="button"
           >
-            {/* Hover Glow Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <div className="flex items-center gap-2.5 mb-2.5 relative z-10">
-              <div className="h-7 w-7 rounded-lg bg-background flex items-center justify-center border border-border/40 group-hover:border-primary/30 transition-colors shadow-sm">
-                <span className="text-sm grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-110">{suggestion.emoji}</span>
-              </div>
-              <h4 className="text-[11px] font-black uppercase tracking-tight text-foreground/80 group-hover:text-primary transition-colors">
+            <div className="mb-2 flex items-center gap-2">
+              <SuggestionIcon name={suggestion.icon} />
+              <div className="text-sm font-semibold leading-tight">
                 {suggestion.title}
-              </h4>
+              </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/50 line-clamp-2 leading-relaxed font-medium lowercase relative z-10 transition-colors group-hover:text-muted-foreground/70">
+            <div className="text-xs leading-relaxed text-muted-foreground line-clamp-3">
               {suggestion.prompt}
-            </p>
+            </div>
           </button>
         ))}
       </div>
