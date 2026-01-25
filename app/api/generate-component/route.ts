@@ -1,30 +1,37 @@
-import OpenAI from "openai";
+import { streamText } from "ai";
+import { connectToDatabase } from "@/lib/mongodb";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer":
-      process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
-    "X-Title": "Shadway Component Generator",
-  },
-});
+const MODEL_CONFIG_ID = "ai_generate_component_model";
+const SYSTEM_PROMPT_CONFIG_ID = "ai_generate_component_system_prompt";
 
-export async function POST(req: Request) {
+function normalizeModelId(input: string) {
+  const trimmed = input.trim();
+  // Some legacy values might include OpenRouter suffixes like ":free".
+  const noSuffix = trimmed.replace(/:free$/i, "");
+  // The gateway provider does not expose "deepseek/deepseek-v3.2" (v3 spec).
+  if (noSuffix === "deepseek/deepseek-v3.2")
+    return "deepseek/deepseek-v3.2-exp";
+  return noSuffix;
+}
+
+async function getActiveModelId() {
+  const fromEnv = process.env.AI_GENERATE_COMPONENT_MODEL;
   try {
-    const { prompt, conversationHistory, projectContext, maxTokens } =
-      await req.json();
+    const { db } = await connectToDatabase();
+    const config = db.collection<{ _id: string; value: string }>("config");
+    const doc = await config.findOne({ _id: MODEL_CONFIG_ID });
+    const value = doc?.value || fromEnv || "openai/gpt-5";
+    return normalizeModelId(value);
+  } catch {
+    return normalizeModelId(fromEnv || "openai/gpt-5");
+  }
+}
 
-    if (!prompt) {
-      return new Response(JSON.stringify({ error: "Prompt is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+// Keep the sandbox file tree static in the prompt to reduce variability.
 
-    const systemPrompt = `You are Shadway - a legendary Design Engineer. You vibeCraft sleek landing pages and web apps that flex with vibcoder.
+const DEFAULT_SYSTEM_PROMPT = `You are Shadway - a legendary Design Engineer. You vibeCraft sleek landing pages and web apps that flex with vibcoder.
 
 **COMMUNICATION STYLE (MANDATORY):**
 - Talk in a "brainrot but smart" meme-savvy tone: playful, punchy, internet-native, but still precise.
@@ -50,6 +57,7 @@ export async function POST(req: Request) {
 - Body text line-height: 1.4-1.6.
 - Never use decorative fonts for body text.
 - Never use fonts smaller than 14px for body text.
+- GOOGLE FONTS (when the user asks for a specific font): In this Sandpack, import fonts via /index.html using <link rel="preconnect"> + a Google Fonts stylesheet link. Then set CSS vars in /index.css (e.g. --font-sans / --font-clash) and use Tailwind classes like font-sans. Do NOT mention npm installs.
 
 **LAYOUT & RESPONSIVE DESIGN:**
 - Mobile-first layout, enhance at md/lg.
@@ -84,7 +92,9 @@ export async function POST(req: Request) {
 **CODE GENERATION RULES:**
 - ANIMATION: Use motion/react for ALL transitions.
 - VITE REACT ONLY: Target Vite + React + TypeScript. No Next.js APIs or next/* imports.
-- PROJECT CONTEXT: The sandbox already includes Tailwind v4 base styles in /index.css and the neutral shadcn theme tokens. Do not create or modify /index.css unless explicitly asked to adjust the palette.
+- PROJECT CONTEXT: You are generating code for our Sandpack template. It runs Vite + React + TS, Tailwind v4 is already wired. Do not tell the user to install deps.
+- ALIAS: \`@\` resolves to the project root (e.g. \`@/components/ui/button\`).
+- STYLING: Prefer shadcn semantic tokens (bg-background, text-foreground, border-border, etc). Avoid hard-coded colors.
 - OUTPUT FORMAT: Never use markdown code blocks (no triple backticks). Never include code outside <file path="..."> tags. Do not include shadcn component source files or sandbox boilerplate files unless explicitly requested.
 - CSS OUTPUT: Never output Tailwind v3 directives or a custom index.css. Only provide CSS if the user explicitly requests it, and then use Tailwind v4 @import "tailwindcss".
 - SANDBOX FILE TREE (preloaded):
@@ -116,10 +126,39 @@ export async function POST(req: Request) {
   </files>
   Keep it minimal; no markdown fences.`;
 
-    const messages: Array<{
-      role: "system" | "user" | "assistant";
-      content: string;
-    }> = [
+async function getActiveSystemPrompt() {
+  try {
+    const { db } = await connectToDatabase();
+    const config = db.collection<{ _id: string; value: string }>("config");
+    const doc = await config.findOne({ _id: SYSTEM_PROMPT_CONFIG_ID });
+    const value = typeof doc?.value === "string" ? doc.value : "";
+    return value.trim() ? value : DEFAULT_SYSTEM_PROMPT;
+  } catch {
+    return DEFAULT_SYSTEM_PROMPT;
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    if (!process.env.AI_GATEWAY_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Missing AI_GATEWAY_API_KEY" }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const { prompt, conversationHistory, projectContext } = await req.json();
+
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: "Prompt is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const systemPrompt = await getActiveSystemPrompt();
+
+    const messages = [
       { role: "system", content: systemPrompt },
       ...(projectContext
         ? [{ role: "user" as const, content: String(projectContext) }]
@@ -131,38 +170,16 @@ export async function POST(req: Request) {
       { role: "user", content: prompt },
     ];
 
-    const stream = await client.chat.completions.create({
-      model: "xiaomi/mimo-v2-flash:free",
+    const modelId = await getActiveModelId();
+    const result = streamText({
+      // When using the Vercel AI Gateway, use gateway model ids directly (e.g. "openai/gpt-5").
+      model: modelId,
       messages,
-      stream: true,
-    } as Parameters<typeof client.chat.completions.create>[0]);
-
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream as any) {
-            const content = chunk.choices[0]?.delta?.content;
-            if (content) {
-              controller.enqueue(encoder.encode(content));
-            }
-          }
-          controller.close();
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          controller.enqueue(
-            encoder.encode(JSON.stringify({ error: errorMessage })),
-          );
-          controller.close();
-        }
-      },
+      temperature: 0.9,
     });
 
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
+    return result.toTextStreamResponse({
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error: any) {
     console.error("API Error:", error);

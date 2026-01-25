@@ -98,6 +98,11 @@ const data = {
       url: "/admin/settings",
       icon: Settings,
     },
+    {
+      title: "AI Model",
+      url: "/admin/ai-models",
+      icon: Sparkles,
+    },
   ],
 };
 
