@@ -326,13 +326,37 @@ export type OpenInv0Props = ComponentProps<typeof DropdownMenuItem>;
 
 export const OpenInv0 = (props: OpenInv0Props) => {
   const { query } = useOpenInContext();
+
+  const handleOpenV0 = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "https://v0.app/api/open";
+    form.target = "_blank";
+
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "code";
+    input.value = query;
+    form.appendChild(input);
+
+    const descriptionInput = document.createElement("input");
+    descriptionInput.type = "hidden";
+    descriptionInput.name = "description";
+    descriptionInput.value = "Customize this component in v0";
+    form.appendChild(descriptionInput);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  };
+
   return (
     <DropdownMenuItem asChild {...props}>
       <a
-        className="flex items-center gap-2"
-        href={providers.v0.createUrl(query)}
+        className="flex items-center gap-2 cursor-pointer"
+        onClick={handleOpenV0}
         rel="noopener"
-        target="_blank"
       >
         <span className="shrink-0">{providers.v0.icon}</span>
         <span className="flex-1">{providers.v0.title}</span>

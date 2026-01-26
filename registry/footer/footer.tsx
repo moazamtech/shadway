@@ -15,7 +15,7 @@ export function Footer() {
           <div className="space-y-4">
             <h3 className="text-xl font-bold tracking-tight">SHADWAY<span className="text-primary">.</span></h3>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[240px]">
-              Premium UI components and blocks for modern web applications. 
+              Premium UI components and blocks for modern web applications.
               Built with React, Tailwind, and Love.
             </p>
             <div className="flex items-center gap-4">
@@ -69,3 +69,5 @@ export function Footer() {
     </footer>
   );
 }
+
+export default Footer;

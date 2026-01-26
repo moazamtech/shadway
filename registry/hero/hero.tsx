@@ -9,7 +9,7 @@ export function Hero() {
     <section className="relative w-full py-16 md:py-32 overflow-hidden bg-background">
       {/* Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-primary/20 rounded-full blur-[80px] md:blur-[120px] -z-10" />
-      
+
       <div className="container px-4 sm:px-6 mx-auto text-center space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -37,7 +37,7 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-muted-foreground font-light leading-relaxed px-2 sm:px-0"
         >
-          A curated collection of secondary-to-none UI components and blocks 
+          A curated collection of secondary-to-none UI components and blocks
           built with Tailwind CSS and Framer Motion. Shadcn compatible.
         </motion.p>
 
@@ -61,13 +61,15 @@ export function Hero() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="mt-12 md:mt-16 relative mx-auto max-w-5xl rounded-2xl border border-border bg-card/50 p-1 sm:p-2 shadow-2xl overflow-hidden"
         >
-           <div className="aspect-[16/10] sm:aspect-video rounded-xl bg-muted animate-pulse flex items-center justify-center">
-              <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-4 text-center">
-                Dashboard Preview Placeholder
-              </span>
-           </div>
+          <div className="aspect-[16/10] sm:aspect-video rounded-xl bg-muted animate-pulse flex items-center justify-center">
+            <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-4 text-center">
+              Dashboard Preview Placeholder
+            </span>
+          </div>
         </motion.div>
       </div>
     </section>
   );
 }
+
+export default Hero;

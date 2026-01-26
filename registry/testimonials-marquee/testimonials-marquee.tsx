@@ -99,10 +99,12 @@ export function TestimonialsMarquee() {
           </motion.div>
         </div>
       </div>
-      
+
       {/* Fade Edges */}
       <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
       <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
     </section>
   );
 }
+
+export default TestimonialsMarquee;
