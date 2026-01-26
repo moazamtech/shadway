@@ -4,6 +4,7 @@ import React from "react";
 import { ComponentPreview } from "@/components/component-preview";
 import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 export default function PreviewPage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = React.use(params);
@@ -31,9 +32,18 @@ export default function PreviewPage({ params }: { params: Promise<{ name: string
     return () => window.removeEventListener("message", handleMessage);
   }, [setTheme]);
 
+  const [isIframe, setIsIframe] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsIframe(window.self !== window.top);
+  }, []);
+
   return (
     <div className="h-full w-full bg-background flex justify-center">
-      <div className="scale-75 transform-gpu origin-top">
+      <div className={cn(
+        "transform-gpu origin-top",
+        isIframe && "scale-75"
+      )}>
         <ComponentPreview name={name} />
       </div>
     </div>

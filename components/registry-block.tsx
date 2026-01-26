@@ -13,7 +13,8 @@ import {
   Check,
   Terminal,
   ArrowUpRight,
-  RotateCcw
+  RotateCcw,
+  Maximize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,8 +94,10 @@ export function RegistryBlock({
   };
 
   const openInV0 = () => {
-    const v0Url = `https://v0.dev/chat?q=${encodeURIComponent(code)}`;
-    window.open(v0Url, "_blank", "noopener,noreferrer");
+    window.open(
+      `https://v0.dev/chat/api/open?url=https://shadway.online/r/${name}.json`,
+      "_blank"
+    );
   };
 
   const monacoRef = React.useRef<any>(null);
@@ -263,6 +266,18 @@ export function RegistryBlock({
                   </Button>
                 );
               })}
+
+              <div className="h-4 w-px bg-border/40 mx-1" />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.open(`/preview/${name}`, "_blank")}
+                className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+                title="Open in New Window"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
         </div>

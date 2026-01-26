@@ -8,28 +8,28 @@ import { Button } from "@/components/ui/button";
 export function CtaParticles() {
   return (
     <section className="py-24 px-4 relative overflow-hidden flex items-center justify-center min-h-[500px] rounded-3xl my-8 mx-4 md:mx-8 border border-border/50 bg-foreground/5 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-background to-background">
-      
+
       {/* Dynamic Background Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
-            initial={{ 
-              opacity: 0, 
+            initial={{
+              opacity: 0,
               scale: 0,
-              x: Math.random() * 1000 - 500, 
-              y: Math.random() * 1000 - 500 
+              x: Math.random() * 1000 - 500,
+              y: Math.random() * 1000 - 500
             }}
-            animate={{ 
-              opacity: [0, 0.5, 0], 
+            animate={{
+              opacity: [0, 0.5, 0],
               scale: [0, 1.5, 0],
               x: Math.random() * 1000 - 500,
               y: Math.random() * 1000 - 500
             }}
-            transition={{ 
-              duration: Math.random() * 3 + 2, 
-              repeat: Infinity, 
-              delay: Math.random() * 2 
+            transition={{
+              duration: Math.random() * 3 + 2,
+              repeat: Infinity,
+              delay: Math.random() * 2
             }}
             className="absolute top-1/2 left-1/2 w-1 h-1 bg-primary rounded-full blur-[1px]"
           />
@@ -53,7 +53,7 @@ export function CtaParticles() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-4xl md:text-6xl font-black tracking-tighter"
         >
-          Build better products <br/>
+          Build better products <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">faster than ever.</span>
         </motion.h2>
 
@@ -87,3 +87,5 @@ export function CtaParticles() {
     </section>
   );
 }
+
+export default CtaParticles;

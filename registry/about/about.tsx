@@ -29,8 +29,8 @@ export function About() {
                 Crafting interfaces that <span className="text-primary italic">matter.</span>
               </h2>
               <p className="text-base sm:text-lg text-muted-foreground font-light leading-relaxed">
-                At Shadway, we believe that every pixel has a purpose. 
-                Our team of designers and engineers work tirelessly to bring 
+                At Shadway, we believe that every pixel has a purpose.
+                Our team of designers and engineers work tirelessly to bring
                 you the highest quality React components for your next big idea.
               </p>
             </div>
@@ -51,16 +51,16 @@ export function About() {
           </div>
 
           <div className="w-full lg:w-1/2 relative mt-12 lg:mt-0">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               className="relative aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl bg-muted border overflow-hidden shadow-2xl"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
               <div className="absolute inset-0 flex items-center justify-center">
-                 <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-6 text-center">
-                   Company Image Placeholder
-                 </span>
+                <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-6 text-center">
+                  Company Image Placeholder
+                </span>
               </div>
             </motion.div>
 
@@ -84,3 +84,5 @@ export function About() {
     </section>
   );
 }
+
+export default About;

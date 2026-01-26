@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  Cpu, 
-  Globe, 
-  Zap, 
-  ShieldCheck, 
-  Rocket, 
-  BarChart3 
+import {
+  Cpu,
+  Globe,
+  Zap,
+  ShieldCheck,
+  Rocket,
+  BarChart3
 } from "lucide-react";
 
 const features = [
@@ -90,13 +90,13 @@ export function FeaturesBento() {
             >
               {/* Background Gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${feature.gradient}`} />
-              
+
               {/* Content */}
               <div className="relative z-10 flex flex-col h-full justify-between gap-8">
                 <div className="p-3 w-fit rounded-2xl bg-background/50 border border-border/50 backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
                   <feature.icon className="w-6 h-6 text-foreground" />
                 </div>
-                
+
                 <div className="space-y-2">
                   <h3 className="text-2xl font-bold tracking-tight">{feature.title}</h3>
                   <p className="text-muted-foreground leading-relaxed">
@@ -114,3 +114,5 @@ export function FeaturesBento() {
     </section>
   );
 }
+
+export default FeaturesBento;
