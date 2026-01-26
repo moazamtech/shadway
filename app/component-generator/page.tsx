@@ -579,6 +579,165 @@ export default function ComponentGeneratorPage() {
     toast.success("File saved successfully!");
   }, [selectedFile, hasUnsavedChanges, editedFiles]);
 
+  // File operation handlers
+  const handleFileAdd = useCallback((path: string, isFolder: boolean) => {
+    if (isFolder) {
+      // For folders, we don't create actual entries, just a placeholder file inside
+      const placeholderPath = `${path}/.gitkeep`;
+      setGeneratedComponent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          files: {
+            ...prev.files,
+            [placeholderPath]: "",
+          },
+        };
+      });
+      toast.success(`Folder created: ${path}`);
+    } else {
+      setGeneratedComponent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          files: {
+            ...prev.files,
+            [path]: "// New file\n",
+          },
+        };
+      });
+      setSelectedFile(path);
+      toast.success(`File created: ${path}`);
+    }
+  }, []);
+
+  const handleFileRename = useCallback(
+    (oldPath: string, newPath: string) => {
+      setGeneratedComponent((prev) => {
+        if (!prev || !prev.files) return prev;
+
+        const { [oldPath]: content, ...restFiles } = prev.files;
+        if (content === undefined) return prev;
+
+        // Update selected file if it was the renamed file
+        if (selectedFile === oldPath) {
+          setSelectedFile(newPath);
+        }
+
+        // Update edited files if the renamed file was edited
+        if (editedFiles[oldPath]) {
+          setEditedFiles((prevEdited) => {
+            const { [oldPath]: editedContent, ...restEdited } = prevEdited;
+            return { ...restEdited, [newPath]: editedContent };
+          });
+        }
+
+        return {
+          ...prev,
+          files: {
+            ...restFiles,
+            [newPath]: content,
+          },
+        };
+      });
+      toast.success(`Renamed: ${oldPath} → ${newPath}`);
+    },
+    [selectedFile, editedFiles],
+  );
+
+  const handleFileDelete = useCallback(
+    (path: string) => {
+      setGeneratedComponent((prev) => {
+        if (!prev || !prev.files) return prev;
+
+        const { [path]: _, ...restFiles } = prev.files;
+
+        // Clear selected file if it was deleted
+        if (selectedFile === path) {
+          setSelectedFile(null);
+        }
+
+        // Remove from edited files
+        setEditedFiles((prevEdited) => {
+          const { [path]: __, ...restEdited } = prevEdited;
+          return restEdited;
+        });
+
+        return {
+          ...prev,
+          files: restFiles,
+        };
+      });
+      toast.success(`Deleted: ${path}`);
+    },
+    [selectedFile],
+  );
+
+  const [copiedFileContent, setCopiedFileContent] = useState<string | null>(
+    null,
+  );
+
+  const handleFileCopy = useCallback(
+    (path: string) => {
+      const allFiles = {
+        ...SANDPACK_BASE_FILES,
+        ...SANDPACK_SHADCN_FILES,
+        ...(generatedComponent?.files || {}),
+      };
+
+      const content = allFiles[path];
+      if (content !== undefined) {
+        setCopiedFileContent(content);
+        toast.success(`Copied: ${path}`);
+      }
+    },
+    [generatedComponent],
+  );
+
+  const handleFilePaste = useCallback(
+    (targetPath: string) => {
+      if (copiedFileContent === null) {
+        toast.error("No file copied");
+        return;
+      }
+
+      // Generate a new filename by appending "copy" or incrementing
+      const fileName = targetPath.split("/").pop() || "file";
+      const baseName = fileName.replace(/\.[^.]+$/, "");
+      const ext = fileName.includes(".")
+        ? fileName.substring(fileName.lastIndexOf("."))
+        : "";
+
+      let newPath = `${targetPath}/${baseName}_copy${ext}`;
+      let counter = 1;
+
+      const allFiles = {
+        ...SANDPACK_BASE_FILES,
+        ...SANDPACK_SHADCN_FILES,
+        ...(generatedComponent?.files || {}),
+      };
+
+      while (allFiles[newPath]) {
+        newPath = `${targetPath}/${baseName}_copy${counter}${ext}`;
+        counter++;
+      }
+
+      setGeneratedComponent((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          files: {
+            ...prev.files,
+            [newPath]: copiedFileContent,
+          },
+        };
+      });
+
+      toast.success(`Pasted to: ${newPath}`);
+    },
+    [copiedFileContent, generatedComponent],
+  );
+
   const getLastUserPrompt = useCallback(() => {
     const lastUser = [...messages].reverse().find((msg) => msg.role === "user");
     return lastUser?.content?.trim() || "";
@@ -1671,29 +1830,29 @@ export default function ComponentGeneratorPage() {
                   </button>
                 </div>
 
-                <div className="ml-2 border-l border-border pl-2 flex items-center gap-2">
+                <div className="ml-2 border-l border-border/40 pl-3 flex items-center gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => setPreviewReloadKey((prev) => prev + 1)}
-                    className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+                    className="h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-[0.15em] hover:bg-primary/10 text-muted-foreground/80 hover:text-primary transition-all hover:shadow-sm"
                   >
-                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    <RefreshCw className="mr-1.5 h-3 w-3" />
                     Reload
                   </Button>
                   <Button
                     size="icon"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => {
                       setIsPreviewDark((prev) => !prev);
                     }}
-                    className="h-9 w-9 rounded-xl border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+                    className="h-8 w-8 rounded-lg hover:bg-primary/10 text-muted-foreground/80 hover:text-primary transition-all hover:shadow-sm"
                     title={isPreviewDark ? "Switch to light" : "Switch to dark"}
                   >
                     {isPreviewDark ? (
-                      <Sun className="h-4 w-4" />
+                      <Sun className="h-3.5 w-3.5" />
                     ) : (
-                      <Moon className="h-4 w-4" />
+                      <Moon className="h-3.5 w-3.5" />
                     )}
                   </Button>
                 </div>
@@ -1787,6 +1946,11 @@ export default function ComponentGeneratorPage() {
                         selectedFile={selectedFile}
                         onFileSelect={handleFileSelect}
                         generatingFile={currentlyGeneratingFile}
+                        onFileAdd={handleFileAdd}
+                        onFileRename={handleFileRename}
+                        onFileDelete={handleFileDelete}
+                        onFileCopy={handleFileCopy}
+                        onFilePaste={handleFilePaste}
                       />
                     </div>
                   </div>
