@@ -527,6 +527,8 @@ export function SandpackRuntimePreview({
       "@radix-ui/react-tabs": "latest",
       "@radix-ui/react-checkbox": "latest",
       "@radix-ui/react-slider": "latest",
+      "@radix-ui/react-dialog": "latest",
+      "@radix-ui/react-select": "latest",
       "react-router-dom": "latest",
       axios: "latest",
       zustand: "latest",
@@ -559,7 +561,6 @@ export function SandpackRuntimePreview({
         // Skip entries with null, undefined, or empty keys
         if (k === null || k === undefined || k === "" || typeof k !== "string")
           continue;
-        if (k.toLowerCase().endsWith(".css")) continue;
         // Skip entries with empty or non-string values
         if (!v || typeof v !== "string" || !v.trim()) continue;
 
@@ -646,19 +647,18 @@ export default function App(){
         appTsx = createAppFileFromCode(code || "");
       } else {
         // Inject base + Shadcn components so they are available for import
-        const protectedPaths = new Set([
-          ...Object.keys(SANDPACK_BASE_FILES),
-          ...Object.keys(SANDPACK_SHADCN_FILES),
-        ]);
-        generatedFiles = Object.fromEntries(
+        // But allow generated files to override base files (especially index.css with custom fonts)
+        const shadcnPaths = new Set(Object.keys(SANDPACK_SHADCN_FILES));
+        const nonShadcnGeneratedFiles = Object.fromEntries(
           Object.entries(generatedFiles).filter(
-            ([path]) => !protectedPaths.has(path),
+            ([path]) => !shadcnPaths.has(path),
           ),
         );
+
         generatedFiles = {
           ...SANDPACK_BASE_FILES,
           ...SANDPACK_SHADCN_FILES,
-          ...generatedFiles,
+          ...nonShadcnGeneratedFiles, // Generated files override base files
         };
 
         const transformed: Record<string, string> = {};
@@ -699,18 +699,87 @@ export default function App(){
       appTsx = createAppFileFromCode(code || "");
     }
 
-    const indexCss = SANDPACK_BASE_FILES["/index.css"];
-    const indexCssInjected = indexCss
+    // Extract Google Fonts - check generated files first, then fallback to base
+    const extractGoogleFonts = (
+      css: string,
+    ): { fontLinks: string[]; cleanedCss: string } => {
+      const fontLinks: string[] = [];
+      const importMatches = css.match(
+        /@import\s+url\(['"]https:\/\/fonts\.googleapis\.com[^'"]+['"]\);?/g,
+      );
+      if (importMatches) {
+        importMatches.forEach((match) => {
+          const urlMatch = match.match(/url\(['"]([^'"]+)['"]\)/);
+          if (urlMatch && urlMatch[1]) {
+            fontLinks.push(urlMatch[1]);
+          }
+        });
+      }
+
+      // Remove @import statements for Google Fonts from CSS
+      const cleanedCss = css.replace(
+        /@import\s+url\(['"]https:\/\/fonts\.googleapis\.com[^'"]+['"]\);?\s*/g,
+        "",
+      );
+
+      return { fontLinks, cleanedCss };
+    };
+
+    // Check generated files for index.css first, then fallback to base
+    let finalIndexCss =
+      generatedFiles?.["/index.css"] || SANDPACK_BASE_FILES["/index.css"];
+
+    const { fontLinks: googleFontLinks, cleanedCss } = finalIndexCss
+      ? extractGoogleFonts(finalIndexCss)
+      : { fontLinks: [], cleanedCss: finalIndexCss };
+
+    // Use the cleaned CSS without @import statements
+    finalIndexCss = cleanedCss;
+
+    const indexCssInjected = finalIndexCss
       ? `const styleEl = document.createElement("style");
 styleEl.setAttribute("type", "text/tailwindcss");
-styleEl.textContent = ${JSON.stringify(indexCss)};
+styleEl.textContent = ${JSON.stringify(finalIndexCss)};
 document.head.appendChild(styleEl);`
       : "";
+
+    // Create font link injection code
+    const fontLinkInjection =
+      googleFontLinks.length > 0
+        ? googleFontLinks
+            .map(
+              (url) => `
+const fontLink${googleFontLinks.indexOf(url)} = document.createElement("link");
+fontLink${googleFontLinks.indexOf(url)}.rel = "stylesheet";
+fontLink${googleFontLinks.indexOf(url)}.href = "${url}";
+document.head.appendChild(fontLink${googleFontLinks.indexOf(url)});
+`,
+            )
+            .join("\n")
+        : "";
+
+    const preconnectInjection =
+      googleFontLinks.length > 0
+        ? `
+const preconnect = document.createElement("link");
+preconnect.rel = "preconnect";
+preconnect.href = "https://fonts.googleapis.com";
+document.head.appendChild(preconnect);
+
+const preconnectCrossorigin = document.createElement("link");
+preconnectCrossorigin.rel = "preconnect";
+preconnectCrossorigin.href = "https://fonts.gstatic.com";
+preconnectCrossorigin.crossOrigin = "anonymous";
+document.head.appendChild(preconnectCrossorigin);
+`
+        : "";
 
     const indexTsx = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
+${preconnectInjection}
+${fontLinkInjection}
 ${indexCssInjected}
 
 const setTheme = (dark: boolean) => {
@@ -783,23 +852,29 @@ root.render(<App />);`;
     );
 
     return {
-      "/App.tsx": { code: String(appTsx) },
-      "/index.tsx": { code: String(indexTsx) },
-      "/index.css": { code: String(indexCss || "") },
-      "/index.html": { code: String(indexHtml) },
-      "/tsconfig.json": { code: String(tsconfig) },
-      ...baseFilesForReturn,
-      ...(generatedFiles
-        ? Object.fromEntries(
-            Object.entries(generatedFiles)
-              .filter(
-                ([path, src]) =>
-                  path && typeof path === "string" && typeof src === "string",
-              )
-              .map(([path, src]) => [path, { code: src }]),
-          )
-        : {}),
-    } as const;
+      files: {
+        "/App.tsx": { code: String(appTsx) },
+        "/index.tsx": { code: String(indexTsx) },
+        "/index.css": { code: String(finalIndexCss || "") },
+        "/index.html": { code: String(indexHtml) },
+        "/tsconfig.json": { code: String(tsconfig) },
+        ...baseFilesForReturn,
+        ...(generatedFiles
+          ? Object.fromEntries(
+              Object.entries(generatedFiles)
+                .filter(
+                  ([path, src]) =>
+                    path &&
+                    typeof path === "string" &&
+                    typeof src === "string" &&
+                    path !== "/index.css",
+                )
+                .map(([path, src]) => [path, { code: src }]),
+            )
+          : {}),
+      },
+      externalResources: googleFontLinks,
+    };
   }, [code, files, entryFile, isDarkTheme]);
 
   const FullscreenToggle = null;
@@ -838,12 +913,13 @@ root.render(<App />);`;
       <div className="fixed inset-0 z-50 bg-background">
         <SandpackProvider
           template="react-ts"
-          files={sandpackFiles}
+          files={sandpackFiles.files}
           options={{
             visibleFiles: ["/App.tsx"],
             activeFile: "/App.tsx",
             externalResources: [
               "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
+              ...sandpackFiles.externalResources,
             ],
           }}
           customSetup={{
@@ -881,12 +957,13 @@ root.render(<App />);`;
     <div className={cn("absolute inset-0", className)}>
       <SandpackProvider
         template="react-ts"
-        files={sandpackFiles}
+        files={sandpackFiles.files}
         options={{
           visibleFiles: ["/App.tsx"],
           activeFile: "/App.tsx",
           externalResources: [
             "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
+            ...sandpackFiles.externalResources,
           ],
         }}
         customSetup={{
