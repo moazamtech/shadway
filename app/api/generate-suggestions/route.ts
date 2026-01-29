@@ -51,7 +51,7 @@ Return JSON ONLY in this shape:
 { "suggestions": [ ... ] }`;
 
     const response = await client.chat.completions.create({
-      model: "xiaomi/mimo-v2-flash:free",
+      model: "arcee-ai/trinity-mini:free",
       messages: [
         { role: "system", content: systemPrompt },
         {

@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     ];
 
     const completion = await client.chat.completions.create({
-      model: "xiaomi/mimo-v2-flash:free",
+      model: "arcee-ai/trinity-mini:free",
       messages,
       temperature: 0.4,
     });
