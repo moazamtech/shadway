@@ -277,39 +277,39 @@ type Suggestion = {
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
     icon: "landing",
-    title: "Minimal Landing",
+    title: "Electric Bikes",
     prompt:
-      "Build a minimal SaaS landing page: hero with 2 CTAs, logo strip, 3-feature grid, pricing cards, FAQ accordion, and a clean footer. Use subtle borders and soft shadows.",
+      "Design an electric bike subscription landing page with bold hero, pricing tiers, city map strip, testimonials, and a clean footer.",
   },
   {
-    icon: "nav",
-    title: "Navbar Header",
+    icon: "landing",
+    title: "AI Legal",
     prompt:
-      "Create a responsive navbar with product dropdown, search, login button, and mobile sheet menu. Add sticky behavior and an active route indicator.",
+      "Create an AI legal assistant landing page with compliance badges, step-by-step workflow, case study cards, and a calm, professional layout.",
   },
   {
-    icon: "pricing",
-    title: "Pricing Section",
+    icon: "landing",
+    title: "Remote Yoga",
     prompt:
-      "Design a pricing section with 3 plans, monthly/yearly toggle, included features list, and a highlighted popular plan. Keep typography crisp and spacing generous.",
+      "Build a remote yoga studio landing page with class schedule cards, instructor avatars, testimonials, and a warm, airy aesthetic.",
   },
   {
     icon: "component",
     title: "Feature Grid",
     prompt:
-      "Make a 6-card feature grid with icons, short titles, and 1-line descriptions. Add hover states and a simple filter tab row above it.",
+      "Make a 6-card feature grid with icons, short titles, 1-line descriptions, and a compact filter tab row above it.",
   },
   {
     icon: "testimonials",
     title: "Testimonials",
     prompt:
-      "Build a testimonials section with 3 cards, star ratings, avatar + role, and a subtle background pattern. Add a compact carousel on mobile.",
+      "Build a testimonials section with 3 cards, star ratings, avatar + role, and subtle card hover states. Add a compact carousel on mobile.",
   },
   {
-    icon: "contact",
-    title: "Contact Form",
+    icon: "pricing",
+    title: "Pricing Toggle",
     prompt:
-      "Create a contact section with a short intro, name/email/message inputs, a submit button, and a side panel with office info and social links.",
+      "Design a pricing section with monthly/yearly toggle, three plans, included features list, and a highlighted popular plan.",
   },
   {
     icon: "layout",
@@ -974,7 +974,12 @@ export default function ComponentGeneratorPage() {
 
         const buildProjectContext = () => {
           const baseFiles = generatedComponent?.files
-            ? { ...generatedComponent.files, ...editedFiles }
+            ? {
+                ...SANDPACK_BASE_FILES,
+                ...SANDPACK_SHADCN_FILES,
+                ...generatedComponent.files,
+                ...editedFiles,
+              }
             : null;
           if (!baseFiles) return null;
 

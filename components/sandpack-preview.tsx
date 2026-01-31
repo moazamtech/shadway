@@ -699,11 +699,19 @@ export default function App(){
       appTsx = createAppFileFromCode(code || "");
     }
 
-    // Extract Google Fonts - check generated files first, then fallback to base
-    const extractGoogleFonts = (
+    const TW_ANIMATE_CSS_URL =
+      "https://cdn.jsdelivr.net/npm/tw-animate-css@1.4.0/dist/tw-animate.css";
+
+    // Extract Google Fonts and tw-animate imports - check generated files first, then fallback to base
+    const extractCssImports = (
       css: string,
-    ): { fontLinks: string[]; cleanedCss: string } => {
+    ): {
+      fontLinks: string[];
+      cleanedCss: string;
+      extraResources: string[];
+    } => {
       const fontLinks: string[] = [];
+      const extraResources: string[] = [];
       const importMatches = css.match(
         /@import\s+url\(['"]https:\/\/fonts\.googleapis\.com[^'"]+['"]\);?/g,
       );
@@ -716,22 +724,33 @@ export default function App(){
         });
       }
 
-      // Remove @import statements for Google Fonts from CSS
-      const cleanedCss = css.replace(
+      const hasTwAnimate = /@import\s+["']tw-animate-css["']\s*;?/g.test(css);
+      if (hasTwAnimate) extraResources.push(TW_ANIMATE_CSS_URL);
+
+      // Remove @import statements for Google Fonts and tw-animate from CSS
+      let cleanedCss = css.replace(
         /@import\s+url\(['"]https:\/\/fonts\.googleapis\.com[^'"]+['"]\);?\s*/g,
         "",
       );
+      cleanedCss = cleanedCss.replace(
+        /@import\s+["']tw-animate-css["']\s*;?\s*/g,
+        "",
+      );
 
-      return { fontLinks, cleanedCss };
+      return { fontLinks, cleanedCss, extraResources };
     };
 
     // Check generated files for index.css first, then fallback to base
     let finalIndexCss =
       generatedFiles?.["/index.css"] || SANDPACK_BASE_FILES["/index.css"];
 
-    const { fontLinks: googleFontLinks, cleanedCss } = finalIndexCss
-      ? extractGoogleFonts(finalIndexCss)
-      : { fontLinks: [], cleanedCss: finalIndexCss };
+    const {
+      fontLinks: googleFontLinks,
+      cleanedCss,
+      extraResources,
+    } = finalIndexCss
+      ? extractCssImports(finalIndexCss)
+      : { fontLinks: [], cleanedCss: finalIndexCss, extraResources: [] };
 
     // Use the cleaned CSS without @import statements
     finalIndexCss = cleanedCss;
@@ -873,7 +892,7 @@ root.render(<App />);`;
             )
           : {}),
       },
-      externalResources: googleFontLinks,
+      externalResources: [...googleFontLinks, ...extraResources],
     };
   }, [code, files, entryFile, isDarkTheme]);
 
