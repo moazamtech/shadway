@@ -1588,65 +1588,64 @@ export default function ComponentGeneratorPage() {
                               {/* Compact Artifact Capsule Card */}
                               {message.files &&
                                 Object.keys(message.files).length > 0 && (
-                                  <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-gradient-to-br from-background via-background to-muted/10 shadow-xl max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
-                                    {/* Ambient Glow */}
-                                    <div className="absolute -top-12 -right-12 h-32 w-32 bg-primary/5 blur-3xl pointer-events-none" />
+                                  <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background/80 shadow-lg max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
-                                    <div className="p-6 md:p-8 space-y-6">
-                                      {/* Scaled-down Header */}
-                                      <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-500/10">
-                                          <CheckIcon className="h-5 w-5" />
+                                    <div className="p-4 md:p-5 space-y-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                                          <CheckIcon className="h-4 w-4" />
                                         </div>
                                         <div className="min-w-0">
-                                          <h3 className="text-sm font-black uppercase tracking-tight leading-none text-foreground/80">
-                                            Architectural{" "}
-                                            <span className="text-primary">
-                                              Deploy
-                                            </span>
+                                          <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-foreground/80">
+                                            Deploy Ready
                                           </h3>
-                                          <p className="text-[9px] text-muted-foreground/40 font-bold tracking-widest uppercase mt-1">
+                                          <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-widest mt-0.5">
                                             {Object.keys(message.files).length}{" "}
-                                            Files Synchronized
+                                            files synced
                                           </p>
+                                        </div>
+                                        <div className="ml-auto flex items-center gap-1.5">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
+                                          <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-wider">
+                                            Ready
+                                          </span>
                                         </div>
                                       </div>
 
-                                      {/* Small Capsule File Grid */}
-                                      <div className="flex flex-wrap gap-2">
+                                      <div className="flex flex-wrap gap-1.5">
                                         {Object.keys(message.files)
-                                          .slice(0, 5)
+                                          .slice(0, 4)
                                           .map((path) => (
                                             <div
                                               key={path}
-                                              className="group/file inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-muted/30 border border-border/40 hover:border-primary/30 transition-all duration-300"
+                                              className="inline-flex items-center gap-2 pl-1 pr-2 py-1 rounded-full bg-muted/20 border border-border/40 hover:border-primary/30 transition-all duration-300"
                                             >
-                                              <div className="h-6 w-6 rounded-full bg-background flex items-center justify-center border border-border/20 group-hover/file:bg-primary/5 group-hover/file:border-primary/20 transition-all">
+                                              <div className="h-5 w-5 rounded-full bg-background flex items-center justify-center border border-border/20">
                                                 <FileIconComponent
                                                   path={path}
                                                   className="h-3 w-3"
                                                 />
                                               </div>
-                                              <span className="text-[10px] font-bold text-muted-foreground/80 group-hover/file:text-foreground truncate max-w-[80px]">
+                                              <span className="text-[10px] font-semibold text-muted-foreground/80 truncate max-w-[72px]">
                                                 {path.split("/").pop()}
                                               </span>
                                             </div>
                                           ))}
                                         {Object.keys(message.files).length >
-                                          5 && (
-                                          <div className="inline-flex items-center px-3 py-1 rounded-full bg-muted/20 border border-transparent text-[9px] font-bold text-muted-foreground/40">
+                                          4 && (
+                                          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
                                             +
                                             {Object.keys(message.files).length -
-                                              5}
+                                              4}
                                           </div>
                                         )}
                                       </div>
 
-                                      {/* Responsive Multi-Action Buttons */}
-                                      <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                                      <div className="flex flex-col sm:flex-row gap-2">
                                         <Button
                                           size="sm"
-                                          className="h-11 sm:flex-1 bg-primary text-primary-foreground font-black uppercase tracking-tight text-[11px] rounded-xl shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-95 group/btn"
+                                          className="h-10 sm:flex-1 bg-primary text-primary-foreground font-semibold text-[11px] rounded-lg shadow-sm transition-all hover:shadow-md hover:shadow-primary/15"
                                           onClick={() => {
                                             setGeneratedComponent({
                                               code: message.code,
@@ -1660,8 +1659,8 @@ export default function ComponentGeneratorPage() {
                                             setViewMode("preview");
                                           }}
                                         >
-                                          <Zap className="h-3.5 w-3.5 mr-2 group-hover/btn:animate-pulse" />
-                                          Launch Preview
+                                          <Zap className="h-3.5 w-3.5 mr-2" />
+                                          Preview
                                         </Button>
                                         <Button
                                           size="sm"
@@ -1678,10 +1677,10 @@ export default function ComponentGeneratorPage() {
                                             setIsFullscreen(false);
                                             setViewMode("code");
                                           }}
-                                          className="h-11 sm:flex-1 border-border/60 bg-transparent hover:bg-muted/30 text-foreground/80 font-black uppercase tracking-tight text-[11px] rounded-xl transition-all"
+                                          className="h-10 sm:flex-1 border-border/60 bg-transparent hover:bg-muted/30 text-foreground/80 font-semibold text-[11px] rounded-lg transition-all"
                                         >
                                           <Code2Icon className="h-3.5 w-3.5 mr-2" />
-                                          Inspect Code
+                                          Code
                                         </Button>
                                       </div>
                                     </div>
