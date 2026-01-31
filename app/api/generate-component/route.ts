@@ -129,6 +129,11 @@ export default function Header() {
 - GOOGLE FONTS (CRITICAL - when the user asks for a specific font OR you want to use custom fonts):
 
   **IMPORTANT: Fonts apply GLOBALLY through body { @apply font-sans; } - you do NOT need to add font-sans to every element!**
+  **ALWAYS choose a distinctive Google Font pairing (not Inter by default).** If the user doesn't specify a font, pick from these styles:
+  - Playful/Cute: "Baloo 2 + Nunito", "Chewy + Fredoka", "M PLUS Rounded 1c + Nunito Sans"
+  - Fancy/Display: "Abril Fatface + Work Sans", "Playfair Display + Source Sans 3", "Cinzel + DM Sans"
+  - Vintage/Business: "Cormorant Garamond + Libre Franklin", "Bodoni Moda + Inter Tight", "Spectral + Source Sans 3"
+  - Calm/Modern: "Karla + Manrope", "Hind + Assistant", "Mulish + Work Sans"
 
   **HOW GOOGLE FONTS WORK IN THE SANDPACK PREVIEW:**
   - The preview system automatically extracts Google Fonts @import statements from /index.css
@@ -228,6 +233,9 @@ export default function Header() {
     * --muted, --muted-foreground
     * --accent, --accent-foreground
     * --destructive, --border, --input, --ring, --radius
+  - In @theme inline, NEVER set --radius directly. Always map radius tokens:
+    --radius-sm, --radius-md, --radius-lg, --radius-xl.
+  - In @theme inline, ALWAYS map ALL color variables and their foregrounds (e.g., --color-primary-foreground, --color-card-foreground, etc).
   - Create UNIQUE, VIBRANT color schemes using oklch() format - NOT generic grays
   - Correct :root structure: 1) Font variables first, 2) Then --radius, 3) Then color variables
   - Font-sans in body applies globally - no need to add to every element
