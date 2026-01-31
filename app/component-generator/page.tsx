@@ -1710,54 +1710,60 @@ export default function ComponentGeneratorPage() {
           {/* Fixed Input Area - Centered and Elevated */}
           <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-30 mt-auto">
             <div className="mx-auto w-full max-w-3xl relative">
-              <PromptInput onSubmit={handleSubmit} className="w-full">
-                <PromptInputBody className="relative flex flex-col w-full rounded-2xl border border-border/70 bg-background/95 dark:bg-background/50 backdrop-blur-xl shadow-md transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 transition-opacity pointer-events-none z-0 focus-within:opacity-100" />
+              <PromptInput
+                onSubmit={handleSubmit}
+                className="w-full [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent [&_[data-slot=input-group]]:shadow-none [&_[data-slot=input-group]]:rounded-none [&_[data-slot=input-group]]:ring-0 [&_[data-slot=input-group]]:outline-none [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:outline-none"
+              >
+                <PromptInputBody>
+                  <div className="relative w-full rounded-[24px] border border-border/60 bg-background/85 shadow-[0_16px_50px_-32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-primary/40 hover:shadow-[0_18px_60px_-32px_rgba(0,0,0,0.6)] focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(140px_80px_at_12%_20%,hsl(var(--primary)/0.10),transparent_60%),radial-gradient(140px_80px_at_88%_80%,hsl(var(--primary)/0.08),transparent_55%)] opacity-0 transition-opacity pointer-events-none z-0 focus-within:opacity-100" />
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
-                  <PromptInputTextarea
-                    placeholder={
-                      messages.length === 0
-                        ? "What are we building today?"
-                        : "Refine your design..."
-                    }
-                    disabled={isGenerating}
-                    className="relative z-10 min-h-[44px] md:min-h-[52px] max-h-[40vh] w-full p-3 md:p-4 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none text-pretty"
-                  />
+                    <PromptInputTextarea
+                      placeholder={
+                        messages.length === 0
+                          ? "What are we building today?"
+                          : "Refine your design..."
+                      }
+                      disabled={isGenerating}
+                      className="relative z-10 h-12 md:h-14 max-h-14 min-h-12 w-full px-3 md:px-4 pt-3 md:pt-3.5 pb-2 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none text-pretty [field-sizing:fixed]"
+                    />
 
-                  <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-4 pt-0 border-0 bg-transparent flex items-center justify-between">
-                    <PromptInputTools className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-muted-foreground/50 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-full transition-all hover:bg-muted/50"
-                        type="button"
-                        onClick={() => toast.info("Attachments coming soon!")}
-                      >
-                        <PaperclipIcon className="h-4 w-4" />
-                      </Button>
+                    <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-3.5 pt-0 border-0 bg-transparent flex items-center justify-between">
+                      <PromptInputTools className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground/60 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-lg transition-all hover:bg-muted/60"
+                          type="button"
+                          onClick={() => toast.info("Attachments coming soon!")}
+                        >
+                          <PaperclipIcon className="h-4 w-4" />
+                        </Button>
 
-                      <div className="h-3 w-[1px] bg-border/60 mx-0.5" />
-                    </PromptInputTools>
+                        <div className="h-3 w-[1px] bg-border/50 mx-0.5" />
+                      </PromptInputTools>
 
-                    <div className="flex items-center gap-2">
-                      <PromptInputSubmit
-                        disabled={false}
-                        onClick={isGenerating ? handleStop : undefined}
-                        className={cn(
-                          "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-300 flex items-center justify-center",
-                          isGenerating
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
-                        )}
-                      >
-                        {isGenerating ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Zap className="h-4 w-4" />
-                        )}
-                      </PromptInputSubmit>
-                    </div>
-                  </PromptInputFooter>
+                      <div className="flex items-center gap-2">
+                        <PromptInputSubmit
+                          disabled={false}
+                          onClick={isGenerating ? handleStop : undefined}
+                          className={cn(
+                            "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-300 flex items-center justify-center",
+                            isGenerating
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
+                          )}
+                        >
+                          {isGenerating ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Zap className="h-4 w-4" />
+                          )}
+                        </PromptInputSubmit>
+                      </div>
+                    </PromptInputFooter>
+                  </div>
                 </PromptInputBody>
               </PromptInput>
             </div>
