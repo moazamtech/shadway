@@ -131,23 +131,36 @@ export default function Header() {
 
   1. Add @import statement at the TOP of /index.css BEFORE @import "tailwindcss":
      Example: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-  2. Define CSS custom properties in :root within /index.css:
+  2. Immediately after @import "tailwindcss"; add: @import "tw-animate-css";
+  3. Define CSS custom properties in :root within /index.css:
      Example: --font-poppins: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  3. Update the @theme inline block to map the CSS var to Tailwind:
+  4. Update the @theme inline block to map the CSS var to Tailwind:
      Example: --font-sans: var(--font-poppins);
-  4. MUST include @layer base with body applying font-sans:
+  5. MUST include @layer base with body applying font-sans:
      @layer base { body { @apply bg-background text-foreground font-sans antialiased; } }
-  5. The font now applies to ALL text globally - no need to add className="font-sans" to components
-  6. The preview automatically extracts @import statements and injects <link> tags into HTML head with preconnect for performance
-  7. NEVER mention npm install or next/font - this is a browser-based Sandpack environment.
-  8. Common font variable names: --font-sans, --font-serif, --font-mono, --font-clash, --font-display
+  6. The font now applies to ALL text globally - no need to add className="font-sans" to components
+  7. The preview automatically extracts @import statements and injects <link> tags into HTML head with preconnect for performance
+  8. NEVER mention npm install or next/font - this is a browser-based Sandpack environment.
+  9. Common font variable names: --font-sans, --font-serif, --font-mono, --font-clash, --font-display
 
   FULL EXAMPLE for /index.css (2 fonts - Orbitron for headings, Space Grotesk for body):
   \`\`\`css
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
   @import "tailwindcss";
+  @import "tw-animate-css";
 
   @custom-variant dark (&:is(.dark *));
+
+  @theme inline {
+    /* CRITICAL: Only use --font-sans, --font-serif, --font-mono (Tailwind recognizes ONLY these 3) */
+    --font-serif: var(--font-orbitron);
+    --font-sans: var(--font-space-grotesk);
+
+    /* Map all color variables */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    /* ...all other color mappings (NO PLACEHOLDERS) */
+  }
 
   :root {
     /* Font variables MUST come FIRST before color variables */
@@ -159,17 +172,6 @@ export default function Header() {
     --background: oklch(0.08 0.02 260);
     --foreground: oklch(0.98 0.01 260);
     /* ...all other color vars (MUST INCLUDE ALL, NO PLACEHOLDERS) */
-  }
-
-  @theme inline {
-    /* CRITICAL: Only use --font-sans, --font-serif, --font-mono (Tailwind recognizes ONLY these 3) */
-    --font-serif: var(--font-orbitron);
-    --font-sans: var(--font-space-grotesk);
-
-    /* Map all color variables */
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    /* ...all other color mappings (NO PLACEHOLDERS) */
   }
 
   .dark {
@@ -203,10 +205,10 @@ export default function Header() {
   - **NEVER use placeholder comments like "/* ...all color vars */" or "/* ...dark mode overrides */"**
   - **ALWAYS output the COMPLETE /index.css file with ALL color variables**
   - **CRITICAL FILE STRUCTURE ORDER:**
-    1. @import statements (Google Fonts first, then tailwindcss)
+    1. @import statements (Google Fonts first, then tailwindcss, then tw-animate-css)
     2. @custom-variant dark
-    3. :root { font variables first, then color variables }
-    4. @theme inline { map Tailwind vars to :root vars }
+    3. @theme inline { map Tailwind vars to :root vars }
+    4. :root { font variables first, then color variables }
     5. .dark { color overrides }
     6. @layer base { body font application }
   - **CRITICAL: Font variables MUST be the FIRST variables in :root section (before --radius, before --background, before everything)**
