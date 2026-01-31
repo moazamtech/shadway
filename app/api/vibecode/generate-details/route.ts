@@ -74,9 +74,9 @@ export async function POST(req: Request) {
     ];
 
     const completion = await client.chat.completions.create({
-      model: "arcee-ai/trinity-mini:free",
+      model: "allenai/molmo-2-8b:free",
       messages,
-      temperature: 0.4,
+      temperature: 0.7,
     });
 
     const content = completion.choices[0]?.message?.content?.trim() || "";

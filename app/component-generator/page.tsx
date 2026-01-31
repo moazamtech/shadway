@@ -277,39 +277,39 @@ type Suggestion = {
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
     icon: "landing",
-    title: "Electric Bikes",
+    title: "SaaS Landing",
     prompt:
-      "Design an electric bike subscription landing page with bold hero, pricing tiers, city map strip, testimonials, and a clean footer.",
+      "SaaS landing page with hero + 2 CTAs, logo strip, 3-feature grid, pricing toggle, FAQ, and footer. Clean spacing, responsive, light/dark.",
   },
   {
     icon: "landing",
-    title: "AI Legal",
+    title: "Memecoin Launch",
     prompt:
-      "Create an AI legal assistant landing page with compliance badges, step-by-step workflow, case study cards, and a calm, professional layout.",
+      "Crypto memecoin landing with bold hero, tokenomics cards, roadmap timeline, community stats, and audit badge. Neon accents, fully responsive, light/dark.",
   },
   {
     icon: "landing",
-    title: "Remote Yoga",
+    title: "IT Marketing",
     prompt:
-      "Build a remote yoga studio landing page with class schedule cards, instructor avatars, testimonials, and a warm, airy aesthetic.",
+      "Tech/IT services marketing landing with services grid, case studies, client logos, KPI strip, and contact CTA. Sleek corporate, responsive, light/dark.",
   },
   {
-    icon: "component",
-    title: "Feature Grid",
+    icon: "layout",
+    title: "Hero Split",
     prompt:
-      "Make a 6-card feature grid with icons, short titles, 1-line descriptions, and a compact filter tab row above it.",
+      "Hero section with split layout, bold headline, subtext, 2 CTAs, and a product preview card. Fully responsive, light/dark.",
   },
   {
-    icon: "testimonials",
-    title: "Testimonials",
+    icon: "layout",
+    title: "Hero with Proof",
     prompt:
-      "Build a testimonials section with 3 cards, star ratings, avatar + role, and subtle card hover states. Add a compact carousel on mobile.",
+      "Hero section with logo strip + social proof stats, minimal form or CTA, and a soft gradient backdrop. Fully responsive, light/dark.",
   },
   {
-    icon: "pricing",
-    title: "Pricing Toggle",
+    icon: "layout",
+    title: "Hero Centered",
     prompt:
-      "Design a pricing section with monthly/yearly toggle, three plans, included features list, and a highlighted popular plan.",
+      "Centered hero section with headline, 2 CTAs, short value props, and a small testimonial pill. Fully responsive, light/dark.",
   },
   {
     icon: "layout",
@@ -1331,6 +1331,8 @@ export default function ComponentGeneratorPage() {
             };
           });
           setIsPanelOpen(true);
+          setViewMode("preview");
+          setPreviewReloadKey((prev) => prev + 1);
         } else {
           // If no artifacts found, still update with what we have (content/reasoning)
           // but don't force a retry. The enhanced prompt should handle this.
