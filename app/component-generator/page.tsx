@@ -1814,15 +1814,15 @@ export default function ComponentGeneratorPage() {
               }
             >
               {/* Panel Header */}
-              <div className="flex-none h-14 flex items-center bg-muted/40 border-b border-border/60 select-none backdrop-blur-xl px-4 justify-between">
-                <div className="flex items-center gap-1 bg-background/50 p-1 rounded-xl border border-border/80 shadow-inner">
+              <div className="flex-none h-14 flex items-center bg-background/70 border-b border-border/60 select-none backdrop-blur-xl px-4 justify-between">
+                <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/20 p-1">
                   <button
                     onClick={() => setViewMode("preview")}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300",
+                      "flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] rounded-md transition-all duration-200",
                       viewMode === "preview"
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background",
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
                     )}
                   >
                     <EyeIcon className="h-4 w-4" />
@@ -1831,10 +1831,10 @@ export default function ComponentGeneratorPage() {
                   <button
                     onClick={() => setViewMode("code")}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-300",
+                      "flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] rounded-md transition-all duration-200",
                       viewMode === "code"
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105"
-                        : "text-muted-foreground hover:text-foreground hover:bg-background",
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
                     )}
                   >
                     <Code2Icon className="h-4 w-4" />
@@ -1842,12 +1842,12 @@ export default function ComponentGeneratorPage() {
                   </button>
                 </div>
 
-                <div className="ml-2 border-l border-border/40 pl-3 flex items-center gap-2">
+                <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-1.5 py-1">
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setPreviewReloadKey((prev) => prev + 1)}
-                    className="h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-[0.15em] hover:bg-primary/10 text-muted-foreground/80 hover:text-primary transition-all hover:shadow-sm"
+                    className="h-8 px-3 rounded-md text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-all"
                   >
                     <RefreshCw className="mr-1.5 h-3 w-3" />
                     Reload
@@ -1858,7 +1858,7 @@ export default function ComponentGeneratorPage() {
                     onClick={() => {
                       setIsPreviewDark((prev) => !prev);
                     }}
-                    className="h-8 w-8 rounded-lg hover:bg-primary/10 text-muted-foreground/80 hover:text-primary transition-all hover:shadow-sm"
+                    className="h-8 w-8 rounded-md hover:bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-all"
                     title={isPreviewDark ? "Switch to light" : "Switch to dark"}
                   >
                     {isPreviewDark ? (

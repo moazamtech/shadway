@@ -3,7 +3,13 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Code2Icon, Maximize2Icon, Minimize2Icon, XIcon, Zap } from "lucide-react";
+import {
+  Code2Icon,
+  Maximize2Icon,
+  Minimize2Icon,
+  XIcon,
+  Zap,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,16 +31,11 @@ export function GeneratorHeader({
   className?: string;
 }) {
   return (
-    <header
-      className={cn(
-        "z-50 top-0 w-full",
-        className,
-      )}
-    >
-      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto uppercase">
-        <div className="flex items-center gap-4">
+    <header className={cn("z-50 top-0 w-full", className)}>
+      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto">
+        <div className="flex items-center gap-3">
           <Link href="/">
-            <div className="relative flex h-10 w-10 overflow-hidden p-1 transition-transform hover:scale-105">
+            <div className="relative flex h-9 w-9 overflow-hidden rounded-lg border border-border/60 bg-background/80 p-1 transition-transform hover:scale-105">
               <Image
                 src="/logo.png"
                 alt="Shadway Logo"
@@ -45,43 +46,45 @@ export function GeneratorHeader({
             </div>
           </Link>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black font-serif tracking-tight text-foreground sm:text-2xl">
-              SHADWAY
-            </h1>
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                Architect V2 Professional
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight text-foreground">
+                SHADWAY
+              </h1>
+              <span className="hidden sm:inline-flex h-5 items-center rounded-md border border-border/60 bg-muted/20 px-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
+                v2
+              </span>
             </div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+              Architect
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1.5 px-3 py-1 border-r border-border/40 mr-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-border/60 bg-muted/20">
             <Button
               variant="outline"
               size="sm"
               onClick={onReset}
-              className="h-8 w-8 md:h-9 md:w-auto md:px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border-border/60 border-dashed hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all"
+              className="h-9 w-9 md:w-auto md:px-3 rounded-lg text-[10px] font-semibold uppercase tracking-[0.2em] border-border/60 hover:border-primary/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all"
             >
-              <Zap className="h-3.5 w-3.5 md:mr-2 fill-primary/10" />
+              <Zap className="h-3.5 w-3.5 md:mr-2" />
               <span className="hidden md:inline">New Chat</span>
             </Button>
             <ThemeToggle />
           </div>
 
           {hasGenerated && (
-            <div className="flex items-center gap-2 pl-3">
+            <div className="flex items-center">
               <Button
                 variant={isPanelOpen ? "default" : "outline"}
                 size="sm"
                 onClick={onTogglePanel}
                 className={cn(
-                  "h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300",
+                  "h-9 w-9 md:w-auto md:px-4 rounded-lg text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-200",
                   isPanelOpen
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30"
-                    : "border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-primary"
+                    ? "bg-primary text-primary-foreground"
+                    : "border-border/60 hover:border-primary/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground",
                 )}
               >
                 {isPanelOpen ? (
