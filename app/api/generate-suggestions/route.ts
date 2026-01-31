@@ -19,71 +19,71 @@ type Suggestion = {
 };
 
 const LANDING_CONCEPTS = [
-  "no-code nonprofit fundraiser",
-  "electric bike subscription",
-  "remote yoga studio",
-  "biotech research platform",
-  "indie music label",
-  "sustainable packaging startup",
-  "city travel pass",
-  "AI legal assistant",
-  "real estate micro-living",
-  "artisan coffee roaster",
-  "cybersecurity audit firm",
-  "edtech language tutor",
+  "SaaS product landing",
+  "crypto memecoin launch",
+  "marketing landing for tech/IT company",
+  "fintech budgeting platform",
+  "healthcare operations dashboard",
+  "climate-tech analytics platform",
+  "logistics & fleet management",
+  "AI customer support platform",
+  "creator monetization suite",
+  "remote team collaboration suite",
+  "B2B cybersecurity compliance",
+  "edtech cohort learning platform",
 ];
 
 const COMPONENT_CONCEPTS = [
-  "pricing comparison",
-  "testimonial carousel",
-  "stats + KPI strip",
-  "feature grid",
-  "auth onboarding",
-  "newsletter signup",
-  "FAQ accordion",
-  "app header/nav",
-  "footer sitemap",
-  "contact form",
-  "roadmap timeline",
-  "case study block",
+  "hero split layout",
+  "hero centered headline",
+  "hero with social proof",
+  "hero with product preview",
+  "hero with lead form",
+  "hero + stats strip",
+  "hero with video modal",
+  "hero with feature pills",
+  "hero with comparison mini-cards",
+  "hero with timeline teaser",
+  "hero with testimonial pill",
+  "hero with trust badges",
 ];
 
 const FALLBACK_SUGGESTIONS: Suggestion[] = [
   {
     icon: "landing",
-    title: "Electric Bike",
+    title: "SaaS Landing",
     prompt:
-      "Design an electric bike subscription landing page with bold hero, pricing tiers, city map strip, and a clean, minimal footer.",
+      "SaaS landing page with hero + 2 CTAs, logo strip, feature grid, pricing toggle, FAQ, and footer. Sleek spacing, fully responsive, light/dark.",
   },
   {
     icon: "landing",
-    title: "AI Legal",
+    title: "Memecoin Launch",
     prompt:
-      "Create an AI legal assistant landing page with trust badges, compliance highlights, a step-by-step workflow, and a calm, professional look.",
+      "Crypto memecoin landing with bold hero, tokenomics cards, roadmap timeline, community stats, and audit badge. Neon accents, responsive, light/dark.",
   },
   {
     icon: "landing",
-    title: "Remote Yoga",
+    title: "IT Marketing",
     prompt:
-      "Build a remote yoga studio landing page with class schedule cards, instructor avatars, testimonials, and a warm, airy aesthetic.",
+      "Tech/IT services marketing landing with services grid, client logos, KPI strip, case studies, and strong CTA. Clean corporate, responsive, light/dark.",
   },
   {
-    icon: "pricing",
-    title: "Pricing Table",
+    icon: "layout",
+    title: "Hero Split",
     prompt:
-      "Make a pricing comparison section with monthly/yearly toggle, three plans, feature checklist, and a highlighted recommended plan.",
+      "Hero section with split layout, bold headline, subtext, 2 CTAs, and a product preview card. Fully responsive, light/dark.",
   },
   {
-    icon: "testimonials",
-    title: "Testimonial Grid",
+    icon: "layout",
+    title: "Hero Proof",
     prompt:
-      "Create a testimonials grid with star ratings, avatar + role, short quotes, and subtle card hover states.",
+      "Hero section with logo strip + social proof stats, minimal form or CTA, and a soft gradient backdrop. Fully responsive, light/dark.",
   },
   {
-    icon: "nav",
-    title: "Sticky Navbar",
+    icon: "layout",
+    title: "Hero Centered",
     prompt:
-      "Design a sticky navbar with product dropdown, search input, login button, and a responsive mobile sheet menu.",
+      "Centered hero section with headline, 2 CTAs, short value props, and a small testimonial pill. Fully responsive, light/dark.",
   },
 ];
 
@@ -112,25 +112,27 @@ export async function POST(req: Request) {
     const systemPrompt = `You are a UI/UX assistant for a design-to-code platform.
 Generate 6 suggestions TOTAL, mixing:
 - 3 Landing pages (full pages)
-- 3 Components (single sections/blocks)
+- 3 Blocks (single sections/blocks)
 
 Each suggestion must be an object with:
 - icon: a lucide icon key (one of: "landing","component","layout","nav","pricing","auth","stats","testimonials","contact","sparkles")
 - title: a short title (2-4 words)
-- prompt: a simple, buildable prompt (15-30 words) describing layout + visual style + key elements
+- prompt: a simple, buildable prompt (18-35 words) describing layout + visual style + key elements + responsiveness
 
 Hard constraints:
 - Keep prompts simple and implementable.
 - Make ideas distinct from each other (different industries, layouts, or visual languages).
 - Avoid repeating the same themes across requests.
 - The 3 landing page ideas MUST use different industries/concepts from each other.
-- The 3 component ideas MUST be different section types.
+- The 3 block ideas MUST be different hero patterns.
+- Every suggestion must mention "fully responsive" and "light/dark mode".
+- For landing pages, include concrete sections (hero, features, pricing, social proof, FAQ, footer, etc).
 
 Return JSON ONLY in this shape:
 { "suggestions": [ ... ] }`;
 
     const response = await client.chat.completions.create({
-      model: "arcee-ai/trinity-mini:free",
+      model: "allenai/molmo-2-8b:free",
       messages: [
         { role: "system", content: systemPrompt },
         {

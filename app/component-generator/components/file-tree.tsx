@@ -187,6 +187,9 @@ export function FileTree({
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Dialog states
   const [renameDialog, setRenameDialog] = useState<{
@@ -210,6 +213,12 @@ export function FileTree({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -278,10 +287,42 @@ export function FileTree({
   };
 
   const tree = useMemo(() => buildTree(files), [files]);
+  const normalizedGeneratingFile = useMemo(() => {
+    if (!generatingFile) return null;
+    return generatingFile.startsWith("/")
+      ? generatingFile
+      : `/${generatingFile}`;
+  }, [generatingFile]);
+
+  const searchMatches = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return null;
+    const matches = new Set<string>();
+    const addAncestors = (path: string) => {
+      const parts = path.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current += `/${part}`;
+        matches.add(current);
+      }
+    };
+    for (const [rawPath, content] of Object.entries(files || {})) {
+      const normalized = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+      const haystack = `${normalized} ${String(content || "")}`.toLowerCase();
+      if (haystack.includes(query)) {
+        matches.add(normalized);
+        addAncestors(normalized);
+      }
+    }
+    return matches;
+  }, [files, searchQuery]);
 
   const renderNode = (node: TreeNode, depth: number) => {
     if (node.type === "folder") {
-      const isOpen = expandedFolders.has(node.path);
+      if (searchMatches && !searchMatches.has(node.path)) {
+        return null;
+      }
+      const isOpen = searchMatches ? true : expandedFolders.has(node.path);
       const hasChildren = node.children && node.children.length > 0;
 
       return (
@@ -321,8 +362,11 @@ export function FileTree({
       );
     }
 
+    if (searchMatches && !searchMatches.has(node.path)) {
+      return null;
+    }
     const isSelected = selectedFile === node.path;
-    const isGenerating = generatingFile === node.path;
+    const isGenerating = normalizedGeneratingFile === node.path;
 
     return (
       <button
@@ -400,11 +444,29 @@ export function FileTree({
                 : "hover:bg-[#e8e8e8] text-[#616161]",
             )}
             title="Search"
+            onClick={() => setSearchOpen((prev) => !prev)}
           >
             <Search className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {searchOpen && (
+        <div className={cn("px-3 py-2 border-b", borderColor)}>
+          <Input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search files or symbols..."
+            className={cn(
+              "h-8 text-xs bg-transparent",
+              isDark
+                ? "border-[#2d2d30] text-[#cccccc] placeholder:text-[#6b6b6b]"
+                : "border-[#e5e5e5] text-[#2b2b2b] placeholder:text-[#9b9b9b]",
+            )}
+          />
+        </div>
+      )}
 
       {/* Tree */}
       <div
