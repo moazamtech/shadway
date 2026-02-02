@@ -132,7 +132,7 @@ Return JSON ONLY in this shape:
 { "suggestions": [ ... ] }`;
 
     const response = await client.chat.completions.create({
-      model: "allenai/molmo-2-8b:free",
+      model: "stepfun/step-3.5-flash:free",
       messages: [
         { role: "system", content: systemPrompt },
         {

@@ -369,7 +369,94 @@ Forest Mystique:
   <files>
   <file path="/App.tsx">...code...</file>
   </files>
-  Keep it minimal; no markdown fences.`;
+  Keep it minimal; no markdown fences.
+
+**CRITICAL FILE GENERATION ORDER (MANDATORY):**
+YOU MUST GENERATE FILES IN THIS EXACT ORDER:
+1. FIRST: Generate /index.css (with complete styles, fonts, colors)
+2. THEN: Generate any additional component files (e.g., /components/Header.tsx, /components/Footer.tsx)
+3. LAST: Generate /App.tsx (the main component that imports everything)
+
+**CRITICAL IMPORT RULE:**
+- In /App.tsx, ONLY import components that you have ACTUALLY generated in the <files> block
+- NEVER import components that you did not create
+- If you mention a component in /App.tsx imports, that component MUST exist in the <files> block
+- Example: If you import "import Header from '@/components/Header'", you MUST have generated <file path="/components/Header.tsx">
+
+**ANTI-HALLUCINATION RULES:**
+1. Before writing /App.tsx, mentally list ALL component files you generated
+2. ONLY import those components in /App.tsx - nothing else
+3. If you want to use a component, generate its file FIRST, then import it in /App.tsx
+4. NEVER assume base components exist - check if you generated them
+5. When in doubt, write the component inline in /App.tsx instead of importing
+
+**CORRECT EXAMPLE:**
+<files>
+<file path="/index.css">
+/* CSS code */
+</file>
+<file path="/components/Header.tsx">
+export default function Header() {
+  return <header>...</header>;
+}
+</file>
+<file path="/App.tsx">
+import Header from "@/components/Header"; // ✅ GOOD - Header.tsx was generated above
+
+export default function App() {
+  return (
+    <div>
+      <Header />
+    </div>
+  );
+}
+</file>
+</files>
+
+**WRONG EXAMPLE (DO NOT DO THIS):**
+<files>
+<file path="/index.css">
+/* CSS code */
+</file>
+<file path="/App.tsx">
+import Header from "@/components/Header"; // ❌ BAD - Header.tsx was NOT generated
+import Hero from "@/components/Hero"; // ❌ BAD - Hero.tsx was NOT generated
+
+export default function App() {
+  return (
+    <div>
+      <Header />
+      <Hero />
+    </div>
+  );
+}
+</file>
+</files>
+
+**SOLUTION FOR SIMPLE REQUESTS:**
+If the user asks for something simple (like "create a hero section"), write it ALL inline in /App.tsx:
+<files>
+<file path="/App.tsx">
+import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/container";
+
+export default function App() {
+  return (
+    <Container>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-6xl font-bold">Hero Section</h1>
+          <Button>Get Started</Button>
+        </div>
+      </div>
+    </Container>
+  );
+}
+</file>
+</files>
+
+NEVER output files in wrong order. ALWAYS: CSS first, components middle, App.tsx last.
+NEVER import components you didn't generate.`;
 
 async function getActiveSystemPrompt() {
   try {
@@ -392,13 +479,48 @@ export async function POST(req: Request) {
       );
     }
 
-    const { prompt, conversationHistory, projectContext } = await req.json();
+    const body = await req.json();
+    const { prompt, conversationHistory, projectContext } = body;
 
-    if (!prompt) {
-      return new Response(JSON.stringify({ error: "Prompt is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    // Input validation
+    if (!prompt || typeof prompt !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Prompt is required and must be a string" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (prompt.length > 10000) {
+      return new Response(
+        JSON.stringify({ error: "Prompt is too long (max 10000 characters)" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (conversationHistory && !Array.isArray(conversationHistory)) {
+      return new Response(
+        JSON.stringify({ error: "conversationHistory must be an array" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (projectContext && typeof projectContext !== "string") {
+      return new Response(
+        JSON.stringify({ error: "projectContext must be a string" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     const systemPrompt = await getActiveSystemPrompt();
@@ -416,16 +538,40 @@ export async function POST(req: Request) {
     ];
 
     const modelId = await getActiveModelId();
-    const result = streamText({
-      // When using the Vercel AI Gateway, use gateway model ids directly (e.g. "openai/gpt-5").
-      model: modelId,
-      messages,
-      temperature: 0.9,
-    });
 
-    return result.toTextStreamResponse({
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    // Create abort controller for timeout
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 600000); // 10 minute timeout
+
+    try {
+      const result = streamText({
+        // When using the Vercel AI Gateway, use gateway model ids directly (e.g. "openai/gpt-5").
+        model: modelId,
+        messages,
+        temperature: 0.9,
+        abortSignal: abortController.signal,
+      });
+
+      const response = result.toTextStreamResponse({
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+
+      // Clear timeout when response starts streaming
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        return new Response(
+          JSON.stringify({ error: "Request timeout after 10 minutes" }),
+          {
+            status: 408,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      throw error;
+    }
   } catch (error: any) {
     console.error("API Error:", error);
     const status = error.status || 500;

@@ -374,6 +374,9 @@ export default function ComponentGeneratorPage() {
   const [publishThumbnailUrl, setPublishThumbnailUrl] = useState("");
   const publishThumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const isAdmin = session?.user?.role === "admin";
+  const lastRequestTimeRef = useRef<number>(0);
+  const requestCountRef = useRef<number>(0);
+  const cleanupTimersRef = useRef<NodeJS.Timeout[]>([]);
 
   // Rotate suggestions for variety
   // AI-powered suggestions refresh
@@ -457,13 +460,8 @@ export default function ComponentGeneratorPage() {
         const normalized = path.startsWith("/") ? path : `/${path}`;
 
         const contentStart = (m.index ?? 0) + m[0].length;
-        const nextTagStart =
-          idx + 1 < matches.length
-            ? (matches[idx + 1].index ?? block.length)
-            : block.length;
-        let sliceEnd = nextTagStart;
 
-        // Look for either </file> or </entry>
+        // Look for either </file> or </entry> closing tag
         const closeFileIdx = block.indexOf("</file>", contentStart);
         const closeEntryIdx = block.indexOf("</entry>", contentStart);
 
@@ -473,11 +471,31 @@ export default function ComponentGeneratorPage() {
           (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)
         ) {
           closeIdx = closeFileIdx;
-        } else {
+        } else if (closeEntryIdx !== -1) {
           closeIdx = closeEntryIdx;
         }
 
-        if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
+        let sliceEnd;
+        if (closeIdx !== -1) {
+          // Found a proper closing tag - use it
+          sliceEnd = closeIdx;
+        } else {
+          // No closing tag found - look for next opening tag or </files> or end of block
+          const nextTagStart =
+            idx + 1 < matches.length
+              ? (matches[idx + 1].index ?? block.length)
+              : block.length;
+
+          const filesCloseIdx = block.indexOf("</files>", contentStart);
+
+          if (filesCloseIdx !== -1 && filesCloseIdx < nextTagStart) {
+            // </files> comes before next tag - use everything up to </files>
+            sliceEnd = filesCloseIdx;
+          } else {
+            // Use next tag or end of block
+            sliceEnd = nextTagStart;
+          }
+        }
 
         const content = block.slice(contentStart, sliceEnd).trim();
         if (content) files[normalized] = content;
@@ -946,6 +964,25 @@ export default function ComponentGeneratorPage() {
     async ({ text }: { text?: string }) => {
       if (!text?.trim() || isGenerating) return;
 
+      // Rate limiting: max 10 requests per minute
+      const now = Date.now();
+      if (now - lastRequestTimeRef.current < 60000) {
+        requestCountRef.current += 1;
+        if (requestCountRef.current > 10) {
+          toast.error("Too many requests. Please wait a moment.");
+          return;
+        }
+      } else {
+        requestCountRef.current = 1;
+        lastRequestTimeRef.current = now;
+      }
+
+      // Input validation
+      if (text.length > 10000) {
+        toast.error("Prompt is too long (max 10000 characters)");
+        return;
+      }
+
       const userMessage: GeneratorMessage = {
         id: Date.now().toString(),
         role: "user",
@@ -1077,6 +1114,7 @@ export default function ComponentGeneratorPage() {
           let buffer = "";
           let updateTimer: NodeJS.Timeout | null = null;
           let streamMode: "unknown" | "structured" | "plain" = "unknown";
+          let lastDetectedFile: string | null = null;
 
           const updateMessages = () => {
             const {
@@ -1266,16 +1304,32 @@ export default function ComponentGeneratorPage() {
                 );
               }
 
-              // Check for file path in current chunk
+              // Track which file is currently being generated
+              // Look for opening tags first
               const filePathMatch = chunk.match(
-                /<file\s+path=["']([^"']+)["']/,
+                /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["']/,
               );
               if (filePathMatch) {
                 const filePath = filePathMatch[1];
                 const normalized = filePath.startsWith("/")
                   ? filePath
                   : `/${filePath}`;
+                lastDetectedFile = normalized;
                 setCurrentlyGeneratingFile(normalized);
+                console.log("🔨 Generating file:", normalized);
+              }
+
+              // Check if the last detected file has been closed
+              if (lastDetectedFile && /<\/(?:file|entry)>/.test(chunk)) {
+                // Clear after a brief delay to ensure the loader is visible
+                const fileToCheck = lastDetectedFile;
+                console.log("✅ Completed file:", fileToCheck);
+                setTimeout(() => {
+                  setCurrentlyGeneratingFile((current) =>
+                    current === fileToCheck ? null : current,
+                  );
+                }, 150);
+                lastDetectedFile = null;
               }
 
               if (updateTimer) clearTimeout(updateTimer);
@@ -1454,6 +1508,19 @@ export default function ComponentGeneratorPage() {
     update();
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Abort any ongoing requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      // Clear all pending timers
+      cleanupTimersRef.current.forEach((timer) => clearTimeout(timer));
+      cleanupTimersRef.current = [];
+    };
   }, []);
 
   const isMobile = !isDesktop;
