@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     ];
 
     const completion = await client.chat.completions.create({
-      model: "allenai/molmo-2-8b:free",
+      model: "stepfun/step-3.5-flash:free",
       messages,
       temperature: 0.7,
     });
