@@ -626,7 +626,7 @@ export async function POST(req: Request) {
 
     // Create abort controller for timeout
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 600000); // 10 minute timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 932374384000000000); // 10 minute timeout
 
     try {
       const result = streamText({
