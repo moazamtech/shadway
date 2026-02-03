@@ -7,7 +7,7 @@ import { VibecodeComponent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Search } from "lucide-react";
 import { TextHoverEffect } from "@/components/site-components/text-hover-effect";
 import Image from "next/image";
 
@@ -93,27 +93,38 @@ export default function VibecodePage() {
                   each build, copy the code, and speed up your next interface.
                 </p>
               </div>
-              <div className="flex flex-col md:flex-row gap-4 md:items-center">
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by title, tag, or category"
-                  className="max-w-md"
-                />
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <Button
-                      key={category}
-                      size="sm"
-                      variant={
-                        category === activeCategory ? "default" : "outline"
-                      }
-                      onClick={() => setActiveCategory(category)}
-                      className="rounded-full px-4"
-                    >
-                      {category}
-                    </Button>
-                  ))}
+              <div className="flex flex-col gap-6">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative flex items-center bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-xl px-4 py-3 transition-colors duration-200">
+                    <Search className="h-5 w-5 text-muted-foreground mr-3" />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search components by title, tag, or category..."
+                      className="flex-1 bg-transparent border-none outline-none text-base placeholder:text-muted-foreground/70"
+                    />
+                  </div>
+                </div>
+
+                <div className="w-full overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0">
+                  <div className="flex gap-2 min-w-max">
+                    {categories.map((category) => (
+                      <button
+                        key={category}
+                        onClick={() => setActiveCategory(category)}
+                        className={`
+                          px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border
+                          ${category === activeCategory
+                            ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+                            : "bg-background/50 text-muted-foreground border-border/50 hover:border-primary/50 hover:text-foreground hover:bg-muted/50"
+                          }
+                        `}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
