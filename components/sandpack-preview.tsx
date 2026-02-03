@@ -512,6 +512,8 @@ export function SandpackRuntimePreview({
     () => ({
       react: "latest",
       "react-dom": "latest",
+      "react-is": "latest",
+      "prop-types": "latest",
       clsx: "latest",
       "class-variance-authority": "latest",
       "tailwind-merge": "latest",
@@ -538,6 +540,8 @@ export function SandpackRuntimePreview({
       "lucide-react": "latest",
       "framer-motion": "latest",
       motion: "latest",
+      recharts: "latest",
+      d3: "latest",
     }),
     [],
   );

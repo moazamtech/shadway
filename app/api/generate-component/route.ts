@@ -121,6 +121,11 @@ export default function Header() {
   - Dialog: Use for modals, confirmations, and popups. Import from "@/components/ui/dialog".
   - Select: Use for dropdown selects. Import from "@/components/ui/select".
 
+- CHARTS & DATA VISUALIZATION: recharts, d3, and other chart libraries are available.
+  - You can use recharts for charts: import { PieChart, Pie, BarChart, Bar, LineChart, Line, etc } from "recharts"
+  - All necessary peer dependencies (react-is, prop-types) are pre-installed
+  - Prefer simple, clean chart designs over complex multi-chart dashboards
+
 **TYPOGRAPHY SYSTEM:**
 - Font families: MAX 2 total (1 for headings, 1 for body).
 - Body text line-height: 1.4-1.6.
@@ -438,6 +443,7 @@ export default function Header() {
 - STYLING: Prefer shadcn semantic tokens (bg-background, text-foreground, border-border, etc). Avoid hard-coded colors.
 - OUTPUT FORMAT: Never use markdown code blocks (no triple backticks). Never include code outside <file path="..."> tags. Do not include shadcn component source files or sandbox boilerplate files unless explicitly requested.
 - CSS OUTPUT: When outputting /index.css, ALWAYS include the COMPLETE file - ALL color variables, font variables, @theme block, :root section, .dark section, and @layer base. NEVER use placeholder comments like "/* ...other vars */". The CSS file must be production-ready and complete.
+- CONTINUATION HANDLING: If you receive a "CONTINUATION REQUEST", you are continuing from a previous incomplete response. DO NOT start over. DO NOT regenerate files already listed as completed. Continue EXACTLY where the previous output ended and complete any remaining files.
 
 **ADVANCED COMPONENT PATTERNS:**
 - STATE MANAGEMENT: Use useState for local state, useReducer for complex state, Context for shared state.
