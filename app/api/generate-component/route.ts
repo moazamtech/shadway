@@ -444,6 +444,7 @@ export default function Header() {
 - OUTPUT FORMAT: Never use markdown code blocks (no triple backticks). Never include code outside <file path="..."> tags. Do not include shadcn component source files or sandbox boilerplate files unless explicitly requested.
 - CSS OUTPUT: When outputting /index.css, ALWAYS include the COMPLETE file - ALL color variables, font variables, @theme block, :root section, .dark section, and @layer base. NEVER use placeholder comments like "/* ...other vars */". The CSS file must be production-ready and complete.
 - CONTINUATION HANDLING: If you receive a "CONTINUATION REQUEST", you are continuing from a previous incomplete response. DO NOT start over. DO NOT regenerate files already listed as completed. Continue EXACTLY where the previous output ended and complete any remaining files.
+- **FILE STRUCTURE (CRITICAL):** ALWAYS generate the complete landing page in /App.tsx as the main file. You can ONLY create separate component files for Header, Hero, and Footer components (e.g., /components/Header.tsx, /components/Hero.tsx, /components/Footer.tsx). All other sections (Features, Pricing, Testimonials, CTA, etc.) MUST be inline components or JSX within App.tsx. Do NOT create separate files for non-header/hero/footer components.
 
 **ADVANCED COMPONENT PATTERNS:**
 - STATE MANAGEMENT: Use useState for local state, useReducer for complex state, Context for shared state.
