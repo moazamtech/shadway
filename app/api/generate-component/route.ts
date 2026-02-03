@@ -319,6 +319,117 @@ Forest Mystique:
 **THE EDITING PROTOCOL:**
 - Follow-up requests are EDITING MISSIONS. Output ONLY updated files.
 
+**IMAGES & VISUAL CONTENT (CRITICAL):**
+- **ALWAYS use real images from the internet** using Unsplash or similar CDN URLs
+- **NEVER use placeholder text** like "image.jpg", "/placeholder.svg", or "your-image-here.png"
+- **Image URL pattern:** Use https://images.unsplash.com/photo-[id]?w=[width]&q=80 for high-quality images
+- **Choose contextual images:** Pick images that match the content (hero = product/person, features = icons/screenshots, testimonials = people)
+- **Image dimensions:** Use appropriate sizes (hero: w=1920, features: w=800, avatars: w=200)
+- **Image component usage:**
+  \`\`\`tsx
+  <img
+    src="https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1920&q=80"
+    alt="Modern office space with team collaboration"
+    className="w-full h-full object-cover"
+  />
+  \`\`\`
+- **Proven Unsplash Photo IDs (use these):**
+  - **Hero/Business:**
+    * photo-1557804506-669a67965ba0 (office team)
+    * photo-1519389950473-47ba0277781c (tech workspace)
+    * photo-1542744173-8e7e53415bb0 (business meeting)
+  - **Team/People:**
+    * photo-1522071820081-009f0129c71c (group collaboration)
+    * photo-1573497019940-1c28c88b4f3e (diverse team)
+    * photo-1556157382-97eda2d62296 (team discussion)
+  - **Tech/Product:**
+    * photo-1460925895917-afdab827c52f (devices)
+    * photo-1551650975-87deedd944c3 (modern workspace)
+    * photo-1498050108023-c5249f4df085 (coding)
+  - **Abstract/Backgrounds:**
+    * photo-1557683316-973673baf926 (gradient blue)
+    * photo-1558591710-4b4a1ae0f04d (purple gradient)
+    * photo-1557683311-eac922347aa1 (geometric)
+  - **Success/Growth:**
+    * photo-1551836022-d5d88e9218df (growth chart)
+    * photo-1553729459-efe14ef6055d (success)
+    * photo-1460925895917-afdab827c52f (productivity)
+- **Avatars/Profile images:**
+  * https://i.pravatar.cc/200?img=1 through img=70 for realistic user avatars
+  * Always use different numbers for different people (img=1, img=5, img=12, etc.)
+- **NEVER write:** <img src="/placeholder.png" /> or <img src="image.jpg" /> or <img src="/images/hero.jpg" />
+- **ALWAYS write:** <img src="https://images.unsplash.com/photo-..." /> or <img src="https://i.pravatar.cc/..." />
+
+**RESPONSIVE HEADER/NAVBAR PATTERN (USE THIS):**
+\`\`\`tsx
+// ALWAYS use this pattern for headers/navbars:
+export default function Header() {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <Container>
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <div className="font-bold text-xl">Logo</div>
+
+          {/* Desktop Menu - hidden on mobile, visible on lg+ */}
+          <nav className="hidden lg:flex items-center gap-6">
+            <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">Features</a>
+            <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
+            <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">About</a>
+            <Button>Get Started</Button>
+          </nav>
+
+          {/* Mobile Menu Button - visible on mobile, hidden on lg+ */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="lg:hidden p-2 hover:bg-muted rounded-md transition-colors"
+            aria-label="Toggle menu"
+          >
+            {isOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Menu - dropdown style */}
+        {isOpen && (
+          <nav className="lg:hidden flex flex-col gap-4 py-4 border-t border-border animate-in slide-in-from-top-2 duration-200">
+            <a
+              href="#features"
+              className="text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Features
+            </a>
+            <a
+              href="#pricing"
+              className="text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Pricing
+            </a>
+            <a
+              href="#about"
+              className="text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              About
+            </a>
+            <Button className="w-full mt-2" onClick={() => setIsOpen(false)}>
+              Get Started
+            </Button>
+          </nav>
+        )}
+      </Container>
+    </header>
+  );
+}
+\`\`\`
+
 **CODE GENERATION RULES:**
 - ANIMATION: Use CSS transitions (transition-colors, transition-transform) for simple effects. Only use motion/react for specific complex animations if absolutely needed. Prefer Tailwind transition utilities.
 - VITE REACT ONLY: Target Vite + React + TypeScript. No Next.js APIs or next/* imports.

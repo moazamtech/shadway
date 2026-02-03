@@ -1698,7 +1698,7 @@ export default function ComponentGeneratorPage() {
                         <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
                           <Loader2 className="h-4 w-4 text-primary animate-spin" />
                           <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
-                            Architecting...
+                            Yapping...
                           </span>
                         </div>
                       )}
