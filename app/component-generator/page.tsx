@@ -905,8 +905,8 @@ export default function ComponentGeneratorPage() {
           files: generatedComponent.files,
           entryFile:
             generatedComponent.files &&
-            generatedComponent.entryFile &&
-            generatedComponent.files[generatedComponent.entryFile]
+              generatedComponent.entryFile &&
+              generatedComponent.files[generatedComponent.entryFile]
               ? generatedComponent.entryFile
               : undefined,
           language: generatedComponent.language || "tsx",
@@ -1012,11 +1012,11 @@ export default function ComponentGeneratorPage() {
         const buildProjectContext = () => {
           const baseFiles = generatedComponent?.files
             ? {
-                ...SANDPACK_BASE_FILES,
-                ...SANDPACK_SHADCN_FILES,
-                ...generatedComponent.files,
-                ...editedFiles,
-              }
+              ...SANDPACK_BASE_FILES,
+              ...SANDPACK_SHADCN_FILES,
+              ...generatedComponent.files,
+              ...editedFiles,
+            }
             : null;
           if (!baseFiles) return null;
 
@@ -1131,14 +1131,14 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                      ...msg,
-                      content: displayContent?.trim() || "",
-                      reasoning: displayReasoning,
-                      reasoning_details: finalReasoningDetails,
-                      code,
-                      files,
-                      entryFile,
-                    }
+                    ...msg,
+                    content: displayContent?.trim() || "",
+                    reasoning: displayReasoning,
+                    reasoning_details: finalReasoningDetails,
+                    code,
+                    files,
+                    entryFile,
+                  }
                   : msg,
               ),
             );
@@ -1345,13 +1345,15 @@ export default function ComponentGeneratorPage() {
         if (abortControllerRef.current?.signal.aborted) return;
 
         const needsContinuation = (content: string) => {
+          // If no <files> tag, we don't need to continue for files
           if (!/<files\b/i.test(content)) return false;
-          if (!/<\/files>/i.test(content)) return true;
-          const openFiles = (
-            content.match(/<file\s+path=["'][^"']+["'][^>]*>/gi) || []
-          ).length;
-          const closeFiles = (content.match(/<\/file>/gi) || []).length;
-          return openFiles > closeFiles;
+
+          // If we have a closing </files> tag, we assume the block is complete.
+          // We do not check for open/close file counts because the AI might include
+          // pseudo-tags in the explanation text after the block, which causes false positives.
+          if (/<\/files>/i.test(content)) return false;
+
+          return true;
         };
 
         const maxContinuationAttempts = 2;
@@ -1405,9 +1407,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                    ...msg,
-                    content: "Sorry, I encountered an error. Please try again.",
-                  }
+                  ...msg,
+                  content: "Sorry, I encountered an error. Please try again.",
+                }
                 : msg,
             ),
           );
@@ -1703,12 +1705,12 @@ export default function ComponentGeneratorPage() {
                                           ))}
                                         {Object.keys(message.files).length >
                                           4 && (
-                                          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
-                                            +
-                                            {Object.keys(message.files).length -
-                                              4}
-                                          </div>
-                                        )}
+                                            <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
+                                              +
+                                              {Object.keys(message.files).length -
+                                                4}
+                                            </div>
+                                          )}
                                       </div>
 
                                       <div className="flex flex-col sm:flex-row gap-2">
@@ -1874,9 +1876,9 @@ export default function ComponentGeneratorPage() {
               style={
                 isDesktop && !isFullscreen
                   ? {
-                      width: `${previewWidthPct}%`,
-                      height: "calc(100% - 1.5rem)",
-                    }
+                    width: `${previewWidthPct}%`,
+                    height: "calc(100% - 1.5rem)",
+                  }
                   : undefined
               }
             >
