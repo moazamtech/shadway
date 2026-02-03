@@ -374,9 +374,6 @@ export default function ComponentGeneratorPage() {
   const [publishThumbnailUrl, setPublishThumbnailUrl] = useState("");
   const publishThumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const isAdmin = session?.user?.role === "admin";
-  const lastRequestTimeRef = useRef<number>(0);
-  const requestCountRef = useRef<number>(0);
-  const cleanupTimersRef = useRef<NodeJS.Timeout[]>([]);
 
   // Rotate suggestions for variety
   // AI-powered suggestions refresh
@@ -460,8 +457,13 @@ export default function ComponentGeneratorPage() {
         const normalized = path.startsWith("/") ? path : `/${path}`;
 
         const contentStart = (m.index ?? 0) + m[0].length;
+        const nextTagStart =
+          idx + 1 < matches.length
+            ? (matches[idx + 1].index ?? block.length)
+            : block.length;
+        let sliceEnd = nextTagStart;
 
-        // Look for either </file> or </entry> closing tag
+        // Look for either </file> or </entry>
         const closeFileIdx = block.indexOf("</file>", contentStart);
         const closeEntryIdx = block.indexOf("</entry>", contentStart);
 
@@ -471,31 +473,11 @@ export default function ComponentGeneratorPage() {
           (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)
         ) {
           closeIdx = closeFileIdx;
-        } else if (closeEntryIdx !== -1) {
+        } else {
           closeIdx = closeEntryIdx;
         }
 
-        let sliceEnd;
-        if (closeIdx !== -1) {
-          // Found a proper closing tag - use it
-          sliceEnd = closeIdx;
-        } else {
-          // No closing tag found - look for next opening tag or </files> or end of block
-          const nextTagStart =
-            idx + 1 < matches.length
-              ? (matches[idx + 1].index ?? block.length)
-              : block.length;
-
-          const filesCloseIdx = block.indexOf("</files>", contentStart);
-
-          if (filesCloseIdx !== -1 && filesCloseIdx < nextTagStart) {
-            // </files> comes before next tag - use everything up to </files>
-            sliceEnd = filesCloseIdx;
-          } else {
-            // Use next tag or end of block
-            sliceEnd = nextTagStart;
-          }
-        }
+        if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
 
         const content = block.slice(contentStart, sliceEnd).trim();
         if (content) files[normalized] = content;
@@ -905,8 +887,8 @@ export default function ComponentGeneratorPage() {
           files: generatedComponent.files,
           entryFile:
             generatedComponent.files &&
-              generatedComponent.entryFile &&
-              generatedComponent.files[generatedComponent.entryFile]
+            generatedComponent.entryFile &&
+            generatedComponent.files[generatedComponent.entryFile]
               ? generatedComponent.entryFile
               : undefined,
           language: generatedComponent.language || "tsx",
@@ -964,25 +946,6 @@ export default function ComponentGeneratorPage() {
     async ({ text }: { text?: string }) => {
       if (!text?.trim() || isGenerating) return;
 
-      // Rate limiting: max 10 requests per minute
-      const now = Date.now();
-      if (now - lastRequestTimeRef.current < 60000) {
-        requestCountRef.current += 1;
-        if (requestCountRef.current > 10) {
-          toast.error("Too many requests. Please wait a moment.");
-          return;
-        }
-      } else {
-        requestCountRef.current = 1;
-        lastRequestTimeRef.current = now;
-      }
-
-      // Input validation
-      if (text.length > 10000) {
-        toast.error("Prompt is too long (max 10000 characters)");
-        return;
-      }
-
       const userMessage: GeneratorMessage = {
         id: Date.now().toString(),
         role: "user",
@@ -1012,11 +975,11 @@ export default function ComponentGeneratorPage() {
         const buildProjectContext = () => {
           const baseFiles = generatedComponent?.files
             ? {
-              ...SANDPACK_BASE_FILES,
-              ...SANDPACK_SHADCN_FILES,
-              ...generatedComponent.files,
-              ...editedFiles,
-            }
+                ...SANDPACK_BASE_FILES,
+                ...SANDPACK_SHADCN_FILES,
+                ...generatedComponent.files,
+                ...editedFiles,
+              }
             : null;
           if (!baseFiles) return null;
 
@@ -1114,7 +1077,6 @@ export default function ComponentGeneratorPage() {
           let buffer = "";
           let updateTimer: NodeJS.Timeout | null = null;
           let streamMode: "unknown" | "structured" | "plain" = "unknown";
-          let lastDetectedFile: string | null = null;
 
           const updateMessages = () => {
             const {
@@ -1131,14 +1093,14 @@ export default function ComponentGeneratorPage() {
               prev.map((msg) =>
                 msg.id === assistantMessage.id
                   ? {
-                    ...msg,
-                    content: displayContent?.trim() || "",
-                    reasoning: displayReasoning,
-                    reasoning_details: finalReasoningDetails,
-                    code,
-                    files,
-                    entryFile,
-                  }
+                      ...msg,
+                      content: displayContent?.trim() || "",
+                      reasoning: displayReasoning,
+                      reasoning_details: finalReasoningDetails,
+                      code,
+                      files,
+                      entryFile,
+                    }
                   : msg,
               ),
             );
@@ -1304,32 +1266,16 @@ export default function ComponentGeneratorPage() {
                 );
               }
 
-              // Track which file is currently being generated
-              // Look for opening tags first
+              // Check for file path in current chunk
               const filePathMatch = chunk.match(
-                /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["']/,
+                /<file\s+path=["']([^"']+)["']/,
               );
               if (filePathMatch) {
                 const filePath = filePathMatch[1];
                 const normalized = filePath.startsWith("/")
                   ? filePath
                   : `/${filePath}`;
-                lastDetectedFile = normalized;
                 setCurrentlyGeneratingFile(normalized);
-                console.log("🔨 Generating file:", normalized);
-              }
-
-              // Check if the last detected file has been closed
-              if (lastDetectedFile && /<\/(?:file|entry)>/.test(chunk)) {
-                // Clear after a brief delay to ensure the loader is visible
-                const fileToCheck = lastDetectedFile;
-                console.log("✅ Completed file:", fileToCheck);
-                setTimeout(() => {
-                  setCurrentlyGeneratingFile((current) =>
-                    current === fileToCheck ? null : current,
-                  );
-                }, 150);
-                lastDetectedFile = null;
               }
 
               if (updateTimer) clearTimeout(updateTimer);
@@ -1345,15 +1291,13 @@ export default function ComponentGeneratorPage() {
         if (abortControllerRef.current?.signal.aborted) return;
 
         const needsContinuation = (content: string) => {
-          // If no <files> tag, we don't need to continue for files
           if (!/<files\b/i.test(content)) return false;
-
-          // If we have a closing </files> tag, we assume the block is complete.
-          // We do not check for open/close file counts because the AI might include
-          // pseudo-tags in the explanation text after the block, which causes false positives.
-          if (/<\/files>/i.test(content)) return false;
-
-          return true;
+          if (!/<\/files>/i.test(content)) return true;
+          const openFiles = (
+            content.match(/<file\s+path=["'][^"']+["'][^>]*>/gi) || []
+          ).length;
+          const closeFiles = (content.match(/<\/file>/gi) || []).length;
+          return openFiles > closeFiles;
         };
 
         const maxContinuationAttempts = 2;
@@ -1407,9 +1351,9 @@ export default function ComponentGeneratorPage() {
             prev.map((msg) =>
               msg.id === assistantMessage.id
                 ? {
-                  ...msg,
-                  content: "Sorry, I encountered an error. Please try again.",
-                }
+                    ...msg,
+                    content: "Sorry, I encountered an error. Please try again.",
+                  }
                 : msg,
             ),
           );
@@ -1510,19 +1454,6 @@ export default function ComponentGeneratorPage() {
     update();
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Abort any ongoing requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      // Clear all pending timers
-      cleanupTimersRef.current.forEach((timer) => clearTimeout(timer));
-      cleanupTimersRef.current = [];
-    };
   }, []);
 
   const isMobile = !isDesktop;
@@ -1705,12 +1636,12 @@ export default function ComponentGeneratorPage() {
                                           ))}
                                         {Object.keys(message.files).length >
                                           4 && (
-                                            <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
-                                              +
-                                              {Object.keys(message.files).length -
-                                                4}
-                                            </div>
-                                          )}
+                                          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
+                                            +
+                                            {Object.keys(message.files).length -
+                                              4}
+                                          </div>
+                                        )}
                                       </div>
 
                                       <div className="flex flex-col sm:flex-row gap-2">
@@ -1876,9 +1807,9 @@ export default function ComponentGeneratorPage() {
               style={
                 isDesktop && !isFullscreen
                   ? {
-                    width: `${previewWidthPct}%`,
-                    height: "calc(100% - 1.5rem)",
-                  }
+                      width: `${previewWidthPct}%`,
+                      height: "calc(100% - 1.5rem)",
+                    }
                   : undefined
               }
             >
