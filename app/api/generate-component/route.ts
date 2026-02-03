@@ -22,10 +22,10 @@ async function getActiveModelId() {
     const { db } = await connectToDatabase();
     const config = db.collection<{ _id: string; value: string }>("config");
     const doc = await config.findOne({ _id: MODEL_CONFIG_ID });
-    const value = doc?.value || fromEnv || "openai/gpt-5";
+    const value = doc?.value || fromEnv || "openai/gpt-4o"; // Default to high-perf model
     return normalizeModelId(value);
   } catch {
-    return normalizeModelId(fromEnv || "openai/gpt-5");
+    return normalizeModelId(fromEnv || "openai/gpt-4o");
   }
 }
 
@@ -565,7 +565,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { prompt, conversationHistory, projectContext } = body;
+    const {
+      prompt,
+      conversationHistory,
+      projectContext,
+      reasoningEnabled = false,
+    } = body;
 
     // Input validation
     if (!prompt || typeof prompt !== "string") {
@@ -608,7 +613,27 @@ export async function POST(req: Request) {
       );
     }
 
-    const systemPrompt = await getActiveSystemPrompt();
+    let systemPrompt = await getActiveSystemPrompt();
+
+    // Inject Reasoning Protocol if enabled
+    if (reasoningEnabled) {
+      systemPrompt += `\n\n**REASONING PROTOCOL (MANDATORY):**
+- BEFORE writing any code or response, you must perform a deep architectural analysis in a <think> tag.
+- In the <think> block:
+  1. Analyze the user's request and the current project state.
+  2. Plan the file structure, component hierarchy, and data flow.
+  3. Identify necessary shadcn/ui components and icons.
+  4. "Mental Sandbox": Simulate the code execution to catch potential errors (e.g. missing imports, hook rules).
+  5. Refine the design choices (colors, spacing, layout) to meet the "Design Philosophy".
+- Output format:
+  <think>
+  ...detailed analysis...
+  </think>
+  Brief explanation...
+  <files>
+  ...
+  </files>`;
+    }
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -626,7 +651,7 @@ export async function POST(req: Request) {
 
     // Create abort controller for timeout
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 932374384000000000); // 10 minute timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 1800000); // 30 minute timeout (1,800,000ms)
 
     try {
       const result = streamText({
@@ -648,7 +673,7 @@ export async function POST(req: Request) {
       clearTimeout(timeoutId);
       if (error.name === "AbortError") {
         return new Response(
-          JSON.stringify({ error: "Request timeout after 10 minutes" }),
+          JSON.stringify({ error: "Request timeout after 30 minutes" }),
           {
             status: 408,
             headers: { "Content-Type": "application/json" },
