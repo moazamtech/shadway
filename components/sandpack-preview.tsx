@@ -57,7 +57,7 @@ const SandpackPreviewUrlSync = ({
         lastUrlRef.current = nextUrl;
         onUrlChange(nextUrl);
       })
-      .catch(() => { });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -505,6 +505,7 @@ export function SandpackRuntimePreview({
   onConsoleLogs,
 }: SandpackPreviewProps) {
   // Use controlled state for Sandpack theme
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const previewRef = React.useRef<HTMLDivElement | null>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const baseDependencies = useMemo(
@@ -675,8 +676,8 @@ export default function App(){
         );
         let entry: string | undefined =
           entryFile &&
-            typeof entryFile === "string" &&
-            generatedFiles[entryFile]
+          typeof entryFile === "string" &&
+          generatedFiles[entryFile]
             ? entryFile
             : undefined;
         if (!entry && generatedFiles["/entry.tsx"]) entry = "/entry.tsx";
@@ -748,8 +749,8 @@ export default function App(){
       cleanedCss,
       extraResources,
     } = finalIndexCss
-        ? extractCssImports(finalIndexCss)
-        : { fontLinks: [], cleanedCss: finalIndexCss, extraResources: [] };
+      ? extractCssImports(finalIndexCss)
+      : { fontLinks: [], cleanedCss: finalIndexCss, extraResources: [] };
 
     // Use the cleaned CSS without @import statements
     finalIndexCss = cleanedCss;
@@ -765,15 +766,15 @@ document.head.appendChild(styleEl);`
     const fontLinkInjection =
       googleFontLinks.length > 0
         ? googleFontLinks
-          .map(
-            (url) => `
+            .map(
+              (url) => `
 const fontLink${googleFontLinks.indexOf(url)} = document.createElement("link");
 fontLink${googleFontLinks.indexOf(url)}.rel = "stylesheet";
 fontLink${googleFontLinks.indexOf(url)}.href = "${url}";
 document.head.appendChild(fontLink${googleFontLinks.indexOf(url)});
 `,
-          )
-          .join("\n")
+            )
+            .join("\n")
         : "";
 
     const preconnectInjection =
@@ -879,21 +880,23 @@ root.render(<App />);`;
         ...baseFilesForReturn,
         ...(generatedFiles
           ? Object.fromEntries(
-            Object.entries(generatedFiles)
-              .filter(
-                ([path, src]) =>
-                  path &&
-                  typeof path === "string" &&
-                  typeof src === "string" &&
-                  path !== "/index.css",
-              )
-              .map(([path, src]) => [path, { code: src }]),
-          )
+              Object.entries(generatedFiles)
+                .filter(
+                  ([path, src]) =>
+                    path &&
+                    typeof path === "string" &&
+                    typeof src === "string" &&
+                    path !== "/index.css",
+                )
+                .map(([path, src]) => [path, { code: src }]),
+            )
           : {}),
       },
       externalResources: [...googleFontLinks, ...extraResources],
     };
   }, [code, files, entryFile, isDarkTheme]);
+
+  const FullscreenToggle = null;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -924,6 +927,51 @@ root.render(<App />);`;
     };
   }, [isDarkTheme, sandpackFiles]);
 
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background">
+        <SandpackProvider
+          template="react-ts"
+          files={sandpackFiles.files}
+          options={{
+            visibleFiles: ["/App.tsx"],
+            activeFile: "/App.tsx",
+            externalResources: [
+              "https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4",
+              ...sandpackFiles.externalResources,
+            ],
+          }}
+          customSetup={{
+            dependencies: {
+              ...baseDependencies,
+              ...extractedDependencies,
+            },
+          }}
+          theme={isDarkTheme ? amethyst : githubLight}
+        >
+          <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
+          <div className="relative h-screen flex flex-col">
+            <SandpackLayout className="h-full w-full flex-1 min-h-0 border-0 rounded-none">
+              <div ref={previewRef} className="relative h-full w-full">
+                <SandpackPreview
+                  showOpenInCodeSandbox={false}
+                  showRefreshButton={true}
+                  showRestartButton={true}
+                  className="h-full w-full flex-1 min-h-0"
+                  actionsChildren={
+                    <div className="flex items-center gap-1">
+                      {FullscreenToggle}
+                    </div>
+                  }
+                />
+              </div>
+            </SandpackLayout>
+          </div>
+        </SandpackProvider>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("absolute inset-0", className)}>
       <SandpackProvider
@@ -946,7 +994,6 @@ root.render(<App />);`;
         theme={isDarkTheme ? amethyst : githubLight}
       >
         <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
-        <SandpackConsoleBridge onLogs={onConsoleLogs} />
         <SandpackLayout
           style={{
             position: "absolute",
@@ -967,6 +1014,11 @@ root.render(<App />);`;
                 height: "100%",
                 width: "100%",
               }}
+              actionsChildren={
+                <div className="flex items-center gap-1 pr-1">
+                  {FullscreenToggle}
+                </div>
+              }
             />
           </div>
         </SandpackLayout>
