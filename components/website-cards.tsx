@@ -1,87 +1,96 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { motion, Variants } from "framer-motion"
-import { Search, Globe, ExternalLink, ImageIcon, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import Image from "next/image"
-import { Website } from "@/lib/types"
-import { addRefParameter } from "@/lib/utils/url"
-import { SponsorBanner } from "./sponsor-banner"
-import { SponsorCard } from "./sponsor-card"
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { motion, Variants } from "framer-motion";
+import { Search, Globe, ExternalLink, ImageIcon, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import Image from "next/image";
+import { Website } from "@/lib/types";
+import { addRefParameter } from "@/lib/utils/url";
+import { SponsorBanner } from "./sponsor-banner";
+import { SponsorCard } from "./sponsor-card";
 
 interface WebsiteCardsProps {
-  websites: Website[]
-  loading?: boolean
+  websites: Website[];
+  loading?: boolean;
 }
 
 export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const initialSearch = searchParams.get("search") || ""
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const initialSearch = searchParams.get("search") || "";
 
-  const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Update URL when search query changes
   useEffect(() => {
     const timer = setTimeout(() => {
+      const currentPath = pathname || "/";
       if (searchQuery.trim()) {
-        router.push(`?search=${encodeURIComponent(searchQuery)}`, { scroll: false })
+        router.push(
+          `${currentPath}?search=${encodeURIComponent(searchQuery)}`,
+          { scroll: false },
+        );
       } else {
-        router.push("/", { scroll: false })
+        router.push(currentPath, { scroll: false });
       }
-    }, 300) // Debounce by 300ms to avoid too many URL updates
+    }, 300); // Debounce by 300ms to avoid too many URL updates
 
-    return () => clearTimeout(timer)
-  }, [searchQuery, router])
+    return () => clearTimeout(timer);
+  }, [searchQuery, router, pathname]);
 
   const handleImageError = (imageUrl: string) => {
-    setFailedImages(prev => new Set(prev).add(imageUrl))
-  }
-
+    setFailedImages((prev) => new Set(prev).add(imageUrl));
+  };
 
   const { bannerSponsor, sponsorWebsites, regularWebsites } = useMemo(() => {
     // Separate sponsors from regular websites
-    const bannerSponsor = websites.find(w => w.sponsor?.tier === 'banner' && w.sponsor?.active)
-    const sponsors = websites.filter(w =>
-      w.sponsor?.active &&
-      (w.sponsor?.tier === 'premium' || w.sponsor?.tier === 'basic') &&
-      w._id !== bannerSponsor?._id
-    )
-    const regular = websites.filter(w =>
-      !w.sponsor?.active &&
-      w._id !== bannerSponsor?._id
-    )
+    const bannerSponsor = websites.find(
+      (w) => w.sponsor?.tier === "banner" && w.sponsor?.active,
+    );
+    const sponsors = websites.filter(
+      (w) =>
+        w.sponsor?.active &&
+        (w.sponsor?.tier === "premium" || w.sponsor?.tier === "basic") &&
+        w._id !== bannerSponsor?._id,
+    );
+    const regular = websites.filter(
+      (w) => !w.sponsor?.active && w._id !== bannerSponsor?._id,
+    );
 
     // Apply search filter if there's a query
     if (!searchQuery.trim()) {
       return {
         bannerSponsor,
         sponsorWebsites: sponsors,
-        regularWebsites: regular
-      }
+        regularWebsites: regular,
+      };
     }
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase();
     const searchFilter = (website: Website) =>
       website.name.toLowerCase().includes(query) ||
       website.description.toLowerCase().includes(query) ||
-      website.category.toLowerCase().includes(query)
+      website.category.toLowerCase().includes(query);
 
     return {
-      bannerSponsor: bannerSponsor && searchFilter(bannerSponsor) ? bannerSponsor : undefined,
+      bannerSponsor:
+        bannerSponsor && searchFilter(bannerSponsor)
+          ? bannerSponsor
+          : undefined,
       sponsorWebsites: sponsors.filter(searchFilter),
-      regularWebsites: regular.filter(searchFilter)
-    }
-  }, [websites, searchQuery])
+      regularWebsites: regular.filter(searchFilter),
+    };
+  }, [websites, searchQuery]);
 
   const allFilteredWebsites = [
     ...(bannerSponsor ? [bannerSponsor] : []),
     ...sponsorWebsites,
-    ...regularWebsites
-  ]
+    ...regularWebsites,
+  ];
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -92,7 +101,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
         staggerChildren: 0.05,
       },
     },
-  }
+  };
 
   const cardVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
@@ -104,7 +113,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
         ease: [0.25, 0.4, 0.25, 1],
       },
     },
-  }
+  };
 
   return (
     <div className="w-full min-h-screen relative bg-background overflow-x-hidden">
@@ -112,8 +121,19 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
       <div className="absolute inset-0 opacity-20">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern id="background-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3" />
+            <pattern
+              id="background-grid"
+              width="40"
+              height="40"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M 40 0 L 0 0 0 40"
+                fill="none"
+                stroke="hsl(var(--border))"
+                strokeWidth="0.5"
+                opacity="0.3"
+              />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#background-grid)" />
@@ -165,15 +185,25 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
               className="pt-24 sm:pt-28 md:pt-32 lg:pt-32 pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-12 w-full"
             >
               <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 relative">
-
                 <motion.div
                   variants={cardVariants}
                   className="w-full max-w-[700px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 relative"
                 >
                   <span className="relative">
                     Shadcn UI Websites Collection
-                    <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="200" height="8" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M0,4 Q50,2 100,4 T200,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
+                    <svg
+                      className="absolute -bottom-2 left-1/2 transform -translate-x-1/2"
+                      width="200"
+                      height="8"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M0,4 Q50,2 100,4 T200,4"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="1"
+                        fill="none"
+                        opacity="0.3"
+                      />
                     </svg>
                   </span>
                 </motion.div>
@@ -181,7 +211,10 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                   variants={cardVariants}
                   className="w-full max-w-[650px] text-center flex justify-center flex-col text-muted-foreground sm:text-lg md:text-xl leading-[1.4] sm:leading-[1.45] md:leading-[1.5] font-sans px-2 sm:px-4 md:px-0 lg:text-lg font-medium text-sm"
                 >
-                  Your ultimate collection of Shadcn UI websites and components. Discover beautiful, accessible, and customizable interfaces from open-source libraries to premium collections — all in one place to help you build stunning UIs faster.
+                  Your ultimate collection of Shadcn UI websites and components.
+                  Discover beautiful, accessible, and customizable interfaces
+                  from open-source libraries to premium collections — all in one
+                  place to help you build stunning UIs faster.
                 </motion.div>
               </div>
 
@@ -225,15 +258,23 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
               {sponsorWebsites.length > 0 && (
                 <motion.div variants={containerVariants} className="mb-12">
                   <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold text-foreground mb-2">Featured Sponsors</h2>
-                    <p className="text-muted-foreground">Premium websites from our valued partners</p>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">
+                      Featured Sponsors
+                    </h2>
+                    <p className="text-muted-foreground">
+                      Premium websites from our valued partners
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sponsorWebsites.map((website, index) => (
                       <SponsorCard
                         key={website._id || index}
                         website={website}
-                        tier={website.sponsor?.tier === 'premium' ? 'premium' : 'basic'}
+                        tier={
+                          website.sponsor?.tier === "premium"
+                            ? "premium"
+                            : "basic"
+                        }
                         index={index}
                       />
                     ))}
@@ -255,256 +296,430 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
                     className="mb-8"
                   >
                     <div className="text-center mb-8">
-                      <h2 className="text-2xl font-bold text-foreground mb-2">All Websites</h2>
-                      <p className="text-muted-foreground">Discover amazing Shadcn UI Registries</p>
+                      <h2 className="text-2xl font-bold text-foreground mb-2">
+                        All Websites
+                      </h2>
+                      <p className="text-muted-foreground">
+                        Discover amazing Shadcn UI Registries
+                      </p>
                     </div>
                   </motion.div>
                 </>
               )}
 
-              <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {loading ? (
-                  // Skeleton loading cards
-                  Array.from({ length: 9 }).map((_, index) => (
-                    <div key={index} className="group cursor-pointer">
-                      <div className="relative h-[340px] w-full">
-                        {/* Main SVG Border with geometric elements */}
-                        <svg
-                          className="absolute inset-0 w-full h-full"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 100 100"
-                          preserveAspectRatio="none"
-                        >
-                          {/* Main border rectangle - full edge to edge */}
-                          <rect
-                            x="0"
-                            y="0"
-                            width="100"
-                            height="100"
-                            rx="3"
-                            stroke="hsl(var(--border))"
-                            strokeWidth="0.5"
-                            strokeDasharray="2 2"
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loading
+                  ? // Skeleton loading cards
+                    Array.from({ length: 9 }).map((_, index) => (
+                      <div key={index} className="group cursor-pointer">
+                        <div className="relative h-[340px] w-full">
+                          {/* Main SVG Border with geometric elements */}
+                          <svg
+                            className="absolute inset-0 w-full h-full"
+                            xmlns="http://www.w3.org/2000/svg"
                             fill="none"
-                            className="opacity-60"
-                          />
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                          >
+                            {/* Main border rectangle - full edge to edge */}
+                            <rect
+                              x="0"
+                              y="0"
+                              width="100"
+                              height="100"
+                              rx="3"
+                              stroke="hsl(var(--border))"
+                              strokeWidth="0.5"
+                              strokeDasharray="2 2"
+                              fill="none"
+                              className="opacity-60"
+                            />
 
-                          {/* Corner geometric elements */}
-                          <g className="opacity-40">
-                            {/* Top-left corner */}
-                            <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                            {/* Corner geometric elements */}
+                            <g className="opacity-40">
+                              {/* Top-left corner */}
+                              <line
+                                x1="0"
+                                y1="8"
+                                x2="8"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="8"
+                                y1="0"
+                                x2="8"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
 
-                            {/* Top-right corner */}
-                            <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                              {/* Top-right corner */}
+                              <line
+                                x1="92"
+                                y1="0"
+                                x2="92"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="92"
+                                y1="8"
+                                x2="100"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
 
-                            {/* Bottom-left corner */}
-                            <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                              {/* Bottom-left corner */}
+                              <line
+                                x1="0"
+                                y1="92"
+                                x2="8"
+                                y2="92"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="8"
+                                y1="92"
+                                x2="8"
+                                y2="100"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
 
-                            {/* Bottom-right corner */}
-                            <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          </g>
+                              {/* Bottom-right corner */}
+                              <line
+                                x1="92"
+                                y1="92"
+                                x2="100"
+                                y2="92"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="92"
+                                y1="92"
+                                x2="92"
+                                y2="100"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                            </g>
 
-                          {/* Grid pattern overlay */}
-                          <defs>
-                            <pattern id={`grid-skeleton-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
-                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20" />
-                            </pattern>
-                          </defs>
-                          <rect width="100" height="100" fill={`url(#grid-skeleton-${index})`} className="opacity-30" />
-                        </svg>
+                            {/* Grid pattern overlay */}
+                            <defs>
+                              <pattern
+                                id={`grid-skeleton-${index}`}
+                                width="10"
+                                height="10"
+                                patternUnits="userSpaceOnUse"
+                              >
+                                <path
+                                  d="M 10 0 L 0 0 0 10"
+                                  fill="none"
+                                  stroke="hsl(var(--border))"
+                                  strokeWidth="0.2"
+                                  className="opacity-20"
+                                />
+                              </pattern>
+                            </defs>
+                            <rect
+                              width="100"
+                              height="100"
+                              fill={`url(#grid-skeleton-${index})`}
+                              className="opacity-30"
+                            />
+                          </svg>
 
-                        {/* Card Content */}
-                        <div className="relative h-full w-full p-1">
-                          <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden transition-all dark:bg-muted/50 duration-300 flex flex-col animate-pulse">
-                            {/* Image placeholder */}
-                            <div className="relative h-44 bg-muted/70"></div>
+                          {/* Card Content */}
+                          <div className="relative h-full w-full p-1">
+                            <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden transition-all dark:bg-muted/50 duration-300 flex flex-col animate-pulse">
+                              {/* Image placeholder */}
+                              <div className="relative h-44 bg-muted/70"></div>
 
-                            {/* Content placeholder */}
-                            <div className="flex-1 p-4 flex flex-col">
-                              <div className="flex items-start gap-2 mb-3">
-                                <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0 mt-1"></div>
-                                <div className="flex-1">
-                                  <div className="h-5 bg-muted rounded mb-2 w-3/4"></div>
+                              {/* Content placeholder */}
+                              <div className="flex-1 p-4 flex flex-col">
+                                <div className="flex items-start gap-2 mb-3">
+                                  <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0 mt-1"></div>
+                                  <div className="flex-1">
+                                    <div className="h-5 bg-muted rounded mb-2 w-3/4"></div>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="space-y-2 mb-4 flex-1">
-                                <div className="h-3 bg-muted rounded w-full"></div>
-                                <div className="h-3 bg-muted rounded w-2/3"></div>
-                              </div>
-                              <div className="mt-auto">
-                                <div className="h-8 bg-muted rounded"></div>
+                                <div className="space-y-2 mb-4 flex-1">
+                                  <div className="h-3 bg-muted rounded w-full"></div>
+                                  <div className="h-3 bg-muted rounded w-2/3"></div>
+                                </div>
+                                <div className="mt-auto">
+                                  <div className="h-8 bg-muted rounded"></div>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  regularWebsites.map((website, index) => (
-                    <motion.div
-                      key={website._id || index}
-                      initial="hidden"
-                      whileInView="visible"
-                      viewport={{ once: true, amount: 0.2 }}
-                      variants={cardVariants}
-                      className={`group cursor-pointer ${(website.featured || index === 0) ? "hover:-translate-y-1.5 transition-transform duration-300" : ""}`}
-                      style={{ willChange: 'transform, opacity' }}
-                    >
-                      {/* Enhanced SVG border container with geometric patterns */}
-                      <div className="relative h-[340px] w-full">
-                        {/* Featured badge */}
-                        {(website.featured || index === 0) && (
-                          <div className="absolute top-3 left-3 z-10">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-primary via-primary/80 to-primary/60 text-primary-foreground shadow-sm shadow-primary/40">
-                              Featured
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Main SVG Border with geometric elements */}
-                        <svg
-                          className="absolute inset-0 w-full h-full"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 100 100"
-                          preserveAspectRatio="none"
-                        >
-                          {/* Main border rectangle - full edge to edge */}
-                          <rect
-                            x="0"
-                            y="0"
-                            width="100"
-                            height="100"
-                            rx="3"
-                            stroke={(website.featured || index === 0) ? `url(#featured-gradient-${index})` : "hsl(var(--border))"}
-                            strokeWidth={(website.featured || index === 0) ? 0.9 : 0.5}
-                            strokeDasharray={(website.featured || index === 0) ? "4 2" : "2 2"}
-                            fill="none"
-                            className="opacity-60"
-                          />
-
-                          {/* Corner geometric elements */}
-                          <g className="opacity-40">
-                            {/* Top-left corner */}
-                            <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-
-                            {/* Top-right corner */}
-                            <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-
-                            {/* Bottom-left corner */}
-                            <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
-
-                            {/* Bottom-right corner */}
-                            <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                            <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                          </g>
-
-                          {/* Grid pattern overlay */}
-                          <defs>
-                            {(website.featured || index === 0) && (
-                              <linearGradient id={`featured-gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="rgb(59,130,246)" />
-                                <stop offset="50%" stopColor="rgb(139,92,246)" />
-                                <stop offset="100%" stopColor="rgb(56,189,248)" />
-                              </linearGradient>
-                            )}
-                            <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
-                              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20" />
-                            </pattern>
-                          </defs>
-                          <rect width="100" height="100" fill={`url(#grid-${index})`} className="opacity-30" />
-                        </svg>
-
-                        {/* Card Content */}
-                        <div className="relative h-full w-full p-1">
-                          <div className={`h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col ${(website.featured || index === 0)
-                            ? "border border-primary/40 shadow-[0_0_30px_rgba(59,130,246,0.35)] bg-gradient-to-br from-primary/10 via-primary/5 to-background/80 dark:from-primary/25 dark:via-primary/15 dark:to-background/40"
-                            : ""
-                            }`}>
-                            {/* Image Section - OG Image proportions (16:9) */}
-                            <div className="relative h-44 bg-muted/50 overflow-hidden">
-                              {failedImages.has(website.image) ? (
-                                <div className="w-full h-full flex items-center justify-center bg-muted/70">
-                                  <div className="text-center text-muted-foreground">
-                                    <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-xs">Image unavailable</p>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="w-full h-full overflow-hidden">
-                                  <Image
-                                    src={website.image}
-                                    alt={`${website.name} preview`}
-                                    width={400}
-                                    height={225}
-                                    className="w-full h-full object-cover transition-colors duration-500 ease-out group-hover:scale-105"
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                    onError={() => handleImageError(website.image)}
-                                    style={{ aspectRatio: '16/9' }}
-                                    loading={index < 6 ? "eager" : "lazy"}
-                                    placeholder="blur"
-                                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
-                                    priority={index < 6}
-                                    unoptimized={true}
-                                  />
-                                </div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                    ))
+                  : regularWebsites.map((website, index) => (
+                      <motion.div
+                        key={website._id || index}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true, amount: 0.2 }}
+                        variants={cardVariants}
+                        className={`group cursor-pointer ${website.featured || index === 0 ? "hover:-translate-y-1.5 transition-transform duration-300" : ""}`}
+                        style={{ willChange: "transform, opacity" }}
+                      >
+                        {/* Enhanced SVG border container with geometric patterns */}
+                        <div className="relative h-[340px] w-full">
+                          {/* Featured badge */}
+                          {(website.featured || index === 0) && (
+                            <div className="absolute top-3 left-3 z-10">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.18em] bg-gradient-to-r from-primary via-primary/80 to-primary/60 text-primary-foreground shadow-sm shadow-primary/40">
+                                Featured
+                              </span>
                             </div>
+                          )}
 
-                            {/* Content Section */}
-                            <div className="flex-1 p-4 flex flex-col">
-                              <div className="flex items-start gap-2 mb-3">
-                                <Globe className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="font-semibold text-base leading-tight text-foreground">
-                                      {website.name}
-                                    </h3>
-                                    <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-black/20 dark:bg-white/20 rounded-md">
-                                      {website.category}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
+                          {/* Main SVG Border with geometric elements */}
+                          <svg
+                            className="absolute inset-0 w-full h-full"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                          >
+                            {/* Main border rectangle - full edge to edge */}
+                            <rect
+                              x="0"
+                              y="0"
+                              width="100"
+                              height="100"
+                              rx="3"
+                              stroke={
+                                website.featured || index === 0
+                                  ? `url(#featured-gradient-${index})`
+                                  : "hsl(var(--border))"
+                              }
+                              strokeWidth={
+                                website.featured || index === 0 ? 0.9 : 0.5
+                              }
+                              strokeDasharray={
+                                website.featured || index === 0 ? "4 2" : "2 2"
+                              }
+                              fill="none"
+                              className="opacity-60"
+                            />
 
-                              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4 flex-1">
-                                {website.description}
-                              </p>
+                            {/* Corner geometric elements */}
+                            <g className="opacity-40">
+                              {/* Top-left corner */}
+                              <line
+                                x1="0"
+                                y1="8"
+                                x2="8"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="8"
+                                y1="0"
+                                x2="8"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
 
-                              {/* Action Button */}
-                              <div className="mt-auto">
-                                <a
-                                  href={addRefParameter(website.url)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                  className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
+                              {/* Top-right corner */}
+                              <line
+                                x1="92"
+                                y1="0"
+                                x2="92"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="92"
+                                y1="8"
+                                x2="100"
+                                y2="8"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+
+                              {/* Bottom-left corner */}
+                              <line
+                                x1="0"
+                                y1="92"
+                                x2="8"
+                                y2="92"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="8"
+                                y1="92"
+                                x2="8"
+                                y2="100"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+
+                              {/* Bottom-right corner */}
+                              <line
+                                x1="92"
+                                y1="92"
+                                x2="100"
+                                y2="92"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                              <line
+                                x1="92"
+                                y1="92"
+                                x2="92"
+                                y2="100"
+                                stroke="hsl(var(--border))"
+                                strokeWidth="0.3"
+                              />
+                            </g>
+
+                            {/* Grid pattern overlay */}
+                            <defs>
+                              {(website.featured || index === 0) && (
+                                <linearGradient
+                                  id={`featured-gradient-${index}`}
+                                  x1="0%"
+                                  y1="0%"
+                                  x2="100%"
+                                  y2="100%"
                                 >
-                                  <span>Visit Site</span>
-                                  <ExternalLink className="w-3 h-3 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200" />
-                                </a>
+                                  <stop
+                                    offset="0%"
+                                    stopColor="rgb(59,130,246)"
+                                  />
+                                  <stop
+                                    offset="50%"
+                                    stopColor="rgb(139,92,246)"
+                                  />
+                                  <stop
+                                    offset="100%"
+                                    stopColor="rgb(56,189,248)"
+                                  />
+                                </linearGradient>
+                              )}
+                              <pattern
+                                id={`grid-${index}`}
+                                width="10"
+                                height="10"
+                                patternUnits="userSpaceOnUse"
+                              >
+                                <path
+                                  d="M 10 0 L 0 0 0 10"
+                                  fill="none"
+                                  stroke="hsl(var(--border))"
+                                  strokeWidth="0.2"
+                                  className="opacity-20"
+                                />
+                              </pattern>
+                            </defs>
+                            <rect
+                              width="100"
+                              height="100"
+                              fill={`url(#grid-${index})`}
+                              className="opacity-30"
+                            />
+                          </svg>
+
+                          {/* Card Content */}
+                          <div className="relative h-full w-full p-1">
+                            <div
+                              className={`h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col ${
+                                website.featured || index === 0
+                                  ? "border border-primary/40 shadow-[0_0_30px_rgba(59,130,246,0.35)] bg-gradient-to-br from-primary/10 via-primary/5 to-background/80 dark:from-primary/25 dark:via-primary/15 dark:to-background/40"
+                                  : ""
+                              }`}
+                            >
+                              {/* Image Section - OG Image proportions (16:9) */}
+                              <div className="relative h-44 bg-muted/50 overflow-hidden">
+                                {failedImages.has(website.image) ? (
+                                  <div className="w-full h-full flex items-center justify-center bg-muted/70">
+                                    <div className="text-center text-muted-foreground">
+                                      <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                      <p className="text-xs">
+                                        Image unavailable
+                                      </p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full overflow-hidden">
+                                    <Image
+                                      src={website.image}
+                                      alt={`${website.name} preview`}
+                                      width={400}
+                                      height={225}
+                                      className="w-full h-full object-cover transition-colors duration-500 ease-out group-hover:scale-105"
+                                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                      onError={() =>
+                                        handleImageError(website.image)
+                                      }
+                                      style={{ aspectRatio: "16/9" }}
+                                      loading={index < 6 ? "eager" : "lazy"}
+                                      placeholder="blur"
+                                      blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                      priority={index < 6}
+                                      unoptimized={true}
+                                    />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                              </div>
+
+                              {/* Content Section */}
+                              <div className="flex-1 p-4 flex flex-col">
+                                <div className="flex items-start gap-2 mb-3">
+                                  <Globe className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h3 className="font-semibold text-base leading-tight text-foreground">
+                                        {website.name}
+                                      </h3>
+                                      <span className="text-xs text-muted-foreground font-medium px-2 py-1 bg-black/20 dark:bg-white/20 rounded-md">
+                                        {website.category}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4 flex-1">
+                                  {website.description}
+                                </p>
+
+                                {/* Action Button */}
+                                <div className="mt-auto">
+                                  <a
+                                    href={addRefParameter(website.url)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                    }}
+                                    className="inline-flex items-center justify-center gap-2 w-full h-8 px-3 text-sm font-medium bg-background/80 hover:bg-primary hover:text-primary-foreground border border-border/50 rounded-md transition-all duration-200 group/btn"
+                                  >
+                                    <span>Visit Site</span>
+                                    <ExternalLink className="w-3 h-3 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-200" />
+                                  </a>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
+                      </motion.div>
+                    ))}
               </div>
 
               {/* No results message */}
@@ -528,6 +743,6 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
           </div>
         </div>
       </div>
-    </div >
-  )
+    </div>
+  );
 }
