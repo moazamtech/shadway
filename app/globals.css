@@ -165,6 +165,46 @@ body {
     -ms-overflow-style: none;
 }
 
+/* Styled scrollbar for chat panel */
+.conversation-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.28) transparent;
+}
+
+.conversation-scroll-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.conversation-scroll-container::-webkit-scrollbar-track {
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        hsl(var(--border) / 0.18),
+        transparent
+    );
+}
+
+.conversation-scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        to bottom,
+        hsl(var(--foreground) / 0.2),
+        hsl(var(--foreground) / 0.34)
+    );
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+}
+
+.conversation-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        to bottom,
+        hsl(var(--foreground) / 0.34),
+        hsl(var(--foreground) / 0.5)
+    );
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;

@@ -1,16 +1,8 @@
-import OpenAI from "openai";
+import { generateText } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
-    "X-Title": "Shadway Vibecode Details",
-  },
-});
 
 type GenerateDetailsBody = {
   prompt?: string;
@@ -32,6 +24,13 @@ function extractJson(content: string) {
 
 export async function POST(req: Request) {
   try {
+    if (!process.env.AI_GATEWAY_API_KEY) {
+      return NextResponse.json(
+        { error: "Missing AI_GATEWAY_API_KEY" },
+        { status: 500 },
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,27 +58,16 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    const messages: Array<{ role: "system" | "user"; content: string }> = [
-      {
-        role: "system",
-        content:
-          "You write concise, high-quality metadata for UI components. Return ONLY valid JSON with keys: title, description, category, tags. Title <= 60 chars. Description <= 160 chars. Category is a short label like Hero, Pricing, Footer, Dashboard, Form, Navigation, or Card. Tags is an array of 3-6 short lowercase tags.",
-      },
-      {
-        role: "user",
-        content:
-          context ||
-          "Generate metadata for a UI component. Return JSON only.",
-      },
-    ];
-
-    const completion = await client.chat.completions.create({
-      model: "allenai/molmo-2-8b:free",
-      messages,
+    const { text } = await generateText({
+      model: gateway("mistral/devstral-2"),
+      system:
+        "You write concise, high-quality metadata for UI components. Return ONLY valid JSON with keys: title, description, category, tags. Title <= 60 chars. Description <= 160 chars. Category is a short label like Hero, Pricing, Footer, Dashboard, Form, Navigation, or Card. Tags is an array of 3-6 short lowercase tags.",
+      prompt:
+        context || "Generate metadata for a UI component. Return JSON only.",
       temperature: 0.7,
     });
 
-    const content = completion.choices[0]?.message?.content?.trim() || "";
+    const content = text?.trim() || "";
     const parsed = extractJson(content);
     if (!parsed) {
       return NextResponse.json(

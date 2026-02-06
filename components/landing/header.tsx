@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Github, Menu, X } from "lucide-react";
@@ -17,10 +17,46 @@ const NAV_LINKS = [
 
 export function LandingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSticky, setIsSticky] = useState(false);
+
+  useEffect(() => {
+    const trigger = document.getElementById("hero-sticky-trigger");
+    if (!trigger) {
+      setIsSticky(false);
+      return;
+    }
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          setIsSticky(!entry.isIntersecting);
+        },
+        { root: null, threshold: 0, rootMargin: "-72px 0px 0px 0px" },
+      );
+
+      observer.observe(trigger);
+      return () => observer.disconnect();
+    }
+
+    const onScroll = () => {
+      const top = trigger.getBoundingClientRect().top;
+      setIsSticky(top <= 72);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="relative z-50">
-      <div className="flex h-16 items-center justify-between px-6 lg:px-12">
+    <header
+      className={`z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out ${
+        isSticky
+          ? "sticky top-0 border-b border-border bg-background/85 shadow-sm backdrop-blur"
+          : "relative"
+      }`}
+    >
+      <div className="flex h-16 items-center justify-between bg-background px-6 md:bg-transparent lg:px-12">
         <Link href="/" className="flex items-center gap-2.5">
           <Image src="/logo.png" width={22} height={22} alt="Shadway" />
           <span className="font-serif text-lg tracking-tight">Shadway</span>
@@ -72,7 +108,7 @@ export function LandingHeader() {
         </div>
       </div>
 
-      <div className="h-px bg-border" />
+      {!isSticky && <div className="h-px bg-border" />}
 
       <AnimatePresence>
         {mobileOpen && (

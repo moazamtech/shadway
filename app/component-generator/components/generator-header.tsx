@@ -31,75 +31,62 @@ export function GeneratorHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("z-50 top-0 w-full", className)}>
-      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-10 w-full mx-auto">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <div className="relative flex h-9 w-9 overflow-hidden rounded-lg border border-border/60 bg-background/80 p-1 transition-transform hover:scale-105">
-              <Image
-                src="/logo.png"
-                alt="Shadway Logo"
-                fill
-                className="object-contain p-1"
-                priority
-              />
-            </div>
-          </Link>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-foreground">
-                SHADWAY
-              </h1>
-              <span className="hidden sm:inline-flex h-5 items-center rounded-md border border-border/60 bg-muted/20 px-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
-                v2
-              </span>
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-              Architect
-            </p>
-          </div>
-        </div>
+    <header className={cn("z-50 top-0 w-full border-b border-border", className)}>
+      <div className="flex h-14 items-center justify-between px-4 md:px-6 lg:px-8 w-full mx-auto">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Image
+            src="/logo.png"
+            alt="Shadway"
+            width={22}
+            height={22}
+            priority
+          />
+          <span className="font-serif text-lg tracking-tight">Shadway</span>
+          <span className="hidden sm:inline-flex h-5 items-center border border-border bg-muted/20 px-2 text-[9px] font-mono font-semibold uppercase tracking-[0.15em] text-muted-foreground/60">
+            Architect
+          </span>
+        </Link>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-border/60 bg-muted/20">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReset}
-              className="h-9 w-9 md:w-auto md:px-3 rounded-lg text-[10px] font-semibold uppercase tracking-[0.2em] border-border/60 hover:border-primary/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-all"
-            >
-              <Zap className="h-3.5 w-3.5 md:mr-2" />
-              <span className="hidden md:inline">New Chat</span>
-            </Button>
-            <ThemeToggle />
-          </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            className="h-8 w-8 md:w-auto md:px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Zap className="h-3.5 w-3.5 md:mr-1.5" />
+            <span className="hidden md:inline">New</span>
+          </Button>
+          <div className="h-4 w-px bg-border" />
+          <ThemeToggle />
 
           {hasGenerated && (
-            <div className="flex items-center">
+            <>
+              <div className="h-4 w-px bg-border" />
               <Button
-                variant={isPanelOpen ? "default" : "outline"}
+                variant={isPanelOpen ? "default" : "ghost"}
                 size="sm"
                 onClick={onTogglePanel}
                 className={cn(
-                  "h-9 w-9 md:w-auto md:px-4 rounded-lg text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-200",
+                  "h-8 w-8 md:w-auto md:px-3 text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors",
                   isPanelOpen
-                    ? "bg-primary text-primary-foreground"
-                    : "border-border/60 hover:border-primary/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground",
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {isPanelOpen ? (
                   <>
-                    <XIcon className="mr-2 h-3.5 w-3.5" />
-                    <span className="hidden md:inline">Hide Panel</span>
+                    <XIcon className="h-3.5 w-3.5 md:mr-1.5" />
+                    <span className="hidden md:inline">Close</span>
                   </>
                 ) : (
                   <>
-                    <Code2Icon className="mr-2 h-3.5 w-3.5" />
-                    <span className="hidden md:inline">Live Preview</span>
+                    <Code2Icon className="h-3.5 w-3.5 md:mr-1.5" />
+                    <span className="hidden md:inline">Preview</span>
                   </>
                 )}
               </Button>
-            </div>
+            </>
           )}
         </div>
       </div>

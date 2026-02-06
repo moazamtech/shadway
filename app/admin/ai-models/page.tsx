@@ -16,7 +16,7 @@ type ModelInfo = {
 
 const PRESETS = [
   "openai/gpt-5",
-  "openai/gpt-5-mini",
+  "meituan/longcat-flash-chat",
   "openai/gpt-4o",
   "openai/gpt-4o-mini",
   "deepseek/deepseek-v3.1",

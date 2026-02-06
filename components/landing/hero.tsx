@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -104,9 +104,21 @@ const CATEGORY_LOOKUP = new Map(
 );
 
 const HEATMAP_ICONS = {
-  book: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h4"/></svg>'),
-  wand: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>'),
-  boxes: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>'),
+  book:
+    "data:image/svg+xml," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h4"/></svg>',
+    ),
+  wand:
+    "data:image/svg+xml," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>',
+    ),
+  boxes:
+    "data:image/svg+xml," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg>',
+    ),
 };
 
 /* ------------------------------------------------------------------ */
@@ -166,13 +178,29 @@ function HatchedSeparator() {
       <div className="w-full border-b border-dashed border-border" />
       {/* Rail junction nodes — 4-pointed stars */}
       <div className="absolute left-[9px] top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <svg width="14" height="14" viewBox="0 0 10 10" className="text-foreground/25">
-          <path d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z" fill="currentColor" />
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 10 10"
+          className="text-foreground/25"
+        >
+          <path
+            d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z"
+            fill="currentColor"
+          />
         </svg>
       </div>
       <div className="absolute right-[9px] top-1/2 translate-x-1/2 -translate-y-1/2">
-        <svg width="14" height="14" viewBox="0 0 10 10" className="text-foreground/25">
-          <path d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z" fill="currentColor" />
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 10 10"
+          className="text-foreground/25"
+        >
+          <path
+            d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z"
+            fill="currentColor"
+          />
         </svg>
       </div>
     </div>
@@ -181,6 +209,38 @@ function HatchedSeparator() {
 
 function DashedSeparator() {
   return <div className="w-full border-b border-dashed border-border" />;
+}
+
+function OutsideRailMotif({
+  className,
+  duration = 8,
+  delay = 0,
+  rotate = 6,
+  y = 10,
+  children,
+}: {
+  className: string;
+  duration?: number;
+  delay?: number;
+  rotate?: number;
+  y?: number;
+  children: ReactNode;
+}) {
+  return (
+    <motion.svg
+      aria-hidden="true"
+      viewBox="0 0 220 220"
+      className={className}
+      animate={{
+        y: [0, -y, 0],
+        rotate: [0, rotate, 0],
+        opacity: [0.25, 0.65, 0.25],
+      }}
+      transition={{ duration, delay, repeat: Infinity, ease: "easeInOut" }}
+    >
+      {children}
+    </motion.svg>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,6 +291,10 @@ function AnimatedHeading() {
 export function LandingHero() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const heroShaderColors = isDark
+    ? ["#2596be", "#0154a5", "#0241a7"]
+    : ["#0154a5", "#0154a5", "#0241a7"];
+  const heroShaderBack = isDark ? "#0a0a0a" : "#ffffff";
   const [mounted, setMounted] = useState(false);
 
   const [registryItems, setRegistryItems] = useState<RegistryItem[]>([]);
@@ -343,19 +407,15 @@ export function LandingHero() {
       {/* ============================================================ */}
       {/*  HERO                                                        */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-visible">
         {/* GrainGradient shader bg */}
         {mounted && (
           <div className="pointer-events-none absolute inset-0 opacity-[50%]">
             <GrainGradient
               width="100%"
               height="100%"
-              colors={
-                isDark
-                  ? ["#1a1a4a", "#c8c0e8", "#3a3080"]
-                  : ["#c8c0e8", "#1a1a4a", "#d8d0f0"]
-              }
-              colorBack={isDark ? "#0a0a0a" : "#ffffff"}
+              colors={heroShaderColors}
+              colorBack={heroShaderBack}
               softness={0.7}
               intensity={0.15}
               noise={0.5}
@@ -365,7 +425,78 @@ export function LandingHero() {
           </div>
         )}
 
-        <div className="relative px-6 pb-20 pt-20 sm:pb-28 sm:pt-28 lg:px-12 lg:pb-32 lg:pt-36">
+        {/* Outside-rail animated SVG accents */}
+        <motion.svg
+          aria-hidden="true"
+          viewBox="0 0 220 220"
+          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/30 lg:block"
+          animate={{
+            y: [0, -10, 0],
+            rotate: [0, 4, 0],
+            opacity: [0.35, 0.65, 0.35],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <circle
+            cx="110"
+            cy="110"
+            r="86"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="58"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="4 8"
+          />
+          <path
+            d="M110 24 L120 92 L188 110 L120 128 L110 196 L100 128 L32 110 L100 92 Z"
+            fill="currentColor"
+            opacity="0.28"
+          />
+        </motion.svg>
+        <motion.svg
+          aria-hidden="true"
+          viewBox="0 0 220 220"
+          className="pointer-events-none absolute -right-24 top-36 hidden h-40 w-40 text-primary/25 lg:block"
+          animate={{
+            y: [0, 12, 0],
+            rotate: [0, -5, 0],
+            opacity: [0.3, 0.55, 0.3],
+          }}
+          transition={{
+            duration: 9,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.6,
+          }}
+        >
+          <rect
+            x="35"
+            y="35"
+            width="150"
+            height="150"
+            rx="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M110 46 L174 110 L110 174 L46 110 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="5 10"
+          />
+          <circle cx="110" cy="110" r="16" fill="currentColor" opacity="0.28" />
+        </motion.svg>
+
+        <div className="relative px-6 pb-14 pt-14 sm:pb-16 sm:pt-16 lg:px-12 lg:pb-20 lg:pt-20">
           {/* Badge */}
           <motion.div
             className="mb-8 flex justify-center"
@@ -406,6 +537,12 @@ export function LandingHero() {
             AI&#8209;powered generation, and vibecoded community
             drops&nbsp;&mdash;&nbsp;all open&nbsp;source.
           </motion.p>
+
+          <div
+            id="hero-sticky-trigger"
+            className="mt-8 h-px w-full"
+            aria-hidden="true"
+          />
 
           {/* CTA */}
           <motion.div
@@ -558,24 +695,69 @@ export function LandingHero() {
       {/* ============================================================ */}
       {/*  REGISTRY CATEGORIES                                         */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden">
-        {/* Dithering shader background */}
+      <section className="relative overflow-visible">
         {mounted && (
-          <div className="pointer-events-none absolute inset-0 opacity-40">
+          <div className="pointer-events-none absolute inset-0 z-0 opacity-25">
             <Dithering
               width="100%"
               height="100%"
               colorBack="#00000000"
-              colorFront={isDark ? "#4040aa" : "#8888cc"}
-              shape="swirl"
-              type="8x8"
-              size={2}
-              speed={0.25}
+              colorFront={heroShaderColors[2]}
+              shape="warp"
+              type="4x4"
+              size={2.5}
+              speed={1}
             />
           </div>
         )}
 
-        <div className="relative px-6 py-16 sm:py-20 lg:px-12">
+        <OutsideRailMotif
+          className="pointer-events-none absolute -left-24 top-20 hidden h-40 w-40 text-primary/25 lg:block"
+          duration={9}
+          rotate={-7}
+          y={12}
+        >
+          <path
+            d="M35 110 Q110 30 185 110 Q110 190 35 110Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <circle cx="110" cy="110" r="22" fill="currentColor" opacity="0.28" />
+          <path
+            d="M110 44 L126 94 L176 110 L126 126 L110 176 L94 126 L44 110 L94 94 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="5 7"
+          />
+        </OutsideRailMotif>
+        <OutsideRailMotif
+          className="pointer-events-none absolute -right-24 bottom-12 hidden h-44 w-44 text-primary/20 lg:block"
+          duration={10}
+          delay={0.3}
+          rotate={5}
+          y={9}
+        >
+          <rect
+            x="42"
+            y="42"
+            width="136"
+            height="136"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M42 42 L178 178 M178 42 L42 178"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.5"
+          />
+          <circle cx="110" cy="110" r="10" fill="currentColor" opacity="0.3" />
+        </OutsideRailMotif>
+
+        <div className="relative z-10 px-6 py-16 sm:py-20 lg:px-12">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
@@ -586,7 +768,8 @@ export function LandingHero() {
                 <span className="text-primary">.</span>
               </h2>
               <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-                Browse curated blocks across {categories.length || "multiple"} categories. Install with a single command.
+                Browse curated blocks across {categories.length || "multiple"}{" "}
+                categories. Install with a single command.
               </p>
             </div>
             <Button variant="outline" size="sm" asChild>
@@ -600,16 +783,13 @@ export function LandingHero() {
           <motion.div
             className="grid gap-px border border-border/60 bg-border/60 sm:grid-cols-2 lg:grid-cols-3"
             variants={staggerContainer}
-            initial="hidden"
+            initial="show"
             whileInView="show"
             viewport={{ once: true, amount: 0.15 }}
           >
             {registryLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={`rs-${i}`}
-                  className="bg-card p-6"
-                >
+                <div key={`rs-${i}`} className="bg-card p-6">
                   <div className="mb-3 h-8 w-8 animate-pulse rounded-lg bg-muted" />
                   <div className="h-4 w-28 animate-pulse rounded bg-muted" />
                   <div className="mt-3 h-3 w-full animate-pulse rounded bg-muted" />
@@ -637,7 +817,9 @@ export function LandingHero() {
                           {cat.count} {cat.count === 1 ? "block" : "blocks"}
                         </span>
                       </div>
-                      <h3 className="font-serif text-base font-semibold">{cat.label}</h3>
+                      <h3 className="font-serif text-base font-semibold">
+                        {cat.label}
+                      </h3>
                       <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
                         {cat.description}
                       </p>
@@ -667,7 +849,8 @@ export function LandingHero() {
             <div className="mt-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-border" />
               <span className="font-mono text-[11px] text-muted-foreground">
-                {registryItems.length} total blocks across {categories.length} categories
+                {registryItems.length} total blocks across {categories.length}{" "}
+                categories
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -680,7 +863,59 @@ export function LandingHero() {
       {/* ============================================================ */}
       {/*  GENERATOR                                                   */}
       {/* ============================================================ */}
-      <section className="px-6 py-16 sm:py-20 lg:px-12">
+      <section className="relative overflow-visible px-6 py-16 sm:py-20 lg:px-12">
+        <OutsideRailMotif
+          className="pointer-events-none absolute -left-28 top-28 hidden h-48 w-48 text-primary/20 lg:block"
+          duration={11}
+          delay={0.2}
+          rotate={4}
+          y={14}
+        >
+          <circle
+            cx="110"
+            cy="110"
+            r="82"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeDasharray="3 8"
+          />
+          <path
+            d="M110 30 L158 110 L110 190 L62 110 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <path
+            d="M72 86 H148 M72 134 H148"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.55"
+          />
+        </OutsideRailMotif>
+        <OutsideRailMotif
+          className="pointer-events-none absolute -right-28 bottom-8 hidden h-40 w-40 text-primary/25 lg:block"
+          duration={8.5}
+          delay={0.5}
+          rotate={-6}
+          y={10}
+        >
+          <path
+            d="M110 28 L192 110 L110 192 L28 110 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="34"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle cx="110" cy="110" r="12" fill="currentColor" opacity="0.3" />
+        </OutsideRailMotif>
         {/* Section header */}
         <motion.div
           className="mb-10"
@@ -725,7 +960,9 @@ export function LandingHero() {
                     {String(idx + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <h3 className="font-serif text-base font-semibold">{step.title}</h3>
+                <h3 className="font-serif text-base font-semibold">
+                  {step.title}
+                </h3>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
                   {step.desc}
                 </p>
@@ -751,8 +988,9 @@ export function LandingHero() {
           >
             <Link
               href="/component-generator"
-              className="group flex h-full flex-col justify-between border border-border/60 bg-card p-6 transition-colors hover:bg-accent/50"
+              className="group relative flex h-full flex-col justify-between overflow-hidden border border-border/60 bg-card p-6 transition-colors hover:bg-accent/40"
             >
+              <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-80" />
               <div>
                 <div className="mb-3 flex h-10 w-10 items-center justify-center border border-border bg-background transition-colors group-hover:border-primary/30">
                   <WandSparkles className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
@@ -761,7 +999,8 @@ export function LandingHero() {
                   Start generating
                 </h3>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  Open the AI generator and build your first component in seconds.
+                  Open the AI generator and build your first component in
+                  seconds.
                 </p>
               </div>
               <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold transition-colors group-hover:text-foreground">
@@ -783,15 +1022,18 @@ export function LandingHero() {
                 <Link
                   key={item.title}
                   href={`/component-generator?prompt=${encodeURIComponent(item.prompt)}`}
-                  className="group flex flex-col bg-card p-5 transition-colors hover:bg-accent/50"
+                  className="group relative flex flex-col overflow-hidden bg-card p-5 transition-colors hover:bg-accent/40"
                 >
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="mb-2 flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
                     <span className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
                       Starter
                     </span>
                   </div>
-                  <p className="font-serif text-sm font-semibold">{item.title}</p>
+                  <p className="font-serif text-sm font-semibold">
+                    {item.title}
+                  </p>
                   <p className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
                     {item.prompt}
                   </p>
@@ -811,7 +1053,51 @@ export function LandingHero() {
       {/* ============================================================ */}
       {/*  VIBECODE GALLERY                                            */}
       {/* ============================================================ */}
-      <section className="px-6 py-16 sm:py-20 lg:px-12">
+      <section className="relative overflow-visible px-6 py-16 sm:py-20 lg:px-12">
+        <OutsideRailMotif
+          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/20 lg:block"
+          duration={9.5}
+          delay={0.15}
+          rotate={7}
+          y={8}
+        >
+          <rect
+            x="36"
+            y="36"
+            width="148"
+            height="148"
+            rx="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M110 52 V168 M52 110 H168"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle cx="110" cy="110" r="14" fill="currentColor" opacity="0.25" />
+        </OutsideRailMotif>
+        <OutsideRailMotif
+          className="pointer-events-none absolute -right-24 bottom-16 hidden h-40 w-40 text-primary/25 lg:block"
+          duration={12}
+          delay={0.4}
+          rotate={-4}
+          y={13}
+        >
+          <path
+            d="M110 24 L150 70 L196 110 L150 150 L110 196 L70 150 L24 110 L70 70 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <path
+            d="M66 66 L154 154 M154 66 L66 154"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.5"
+          />
+        </OutsideRailMotif>
         {/* Header */}
         <motion.div
           className="mb-8"
@@ -833,7 +1119,8 @@ export function LandingHero() {
                 <span className="text-primary">.</span>
               </h2>
               <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-                Discover vibecoded components built by the community. Fork, customize, and ship.
+                Discover vibecoded components built by the community. Fork,
+                customize, and ship.
               </p>
             </div>
             <Button variant="outline" size="sm" asChild>
@@ -942,18 +1229,14 @@ export function LandingHero() {
       {/* ============================================================ */}
       {/*  OPEN SOURCE CTA                                             */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-visible">
         {mounted && (
           <div className="pointer-events-none absolute inset-0 opacity-80">
             <StaticRadialGradient
               width="100%"
               height="100%"
-              colors={
-                isDark
-                  ? ["#1a1a6a", "#2a2080", "#4040aa"]
-                  : ["#a0b0ff", "#b8c8ff", "#dce4ff"]
-              }
-              colorBack={isDark ? "#0a0a0a" : "#ffffff"}
+              colors={heroShaderColors}
+              colorBack={heroShaderBack}
               radius={0.8}
               focalDistance={0.99}
               focalAngle={0}
@@ -967,6 +1250,63 @@ export function LandingHero() {
             />
           </div>
         )}
+
+        <OutsideRailMotif
+          className="pointer-events-none absolute -left-28 top-10 hidden h-52 w-52 text-primary/20 lg:block"
+          duration={13}
+          delay={0.25}
+          rotate={5}
+          y={15}
+        >
+          <circle
+            cx="110"
+            cy="110"
+            r="90"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="62"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="6 10"
+          />
+          <path
+            d="M110 20 L122 96 L200 110 L122 124 L110 200 L98 124 L20 110 L98 96 Z"
+            fill="currentColor"
+            opacity="0.18"
+          />
+        </OutsideRailMotif>
+        <OutsideRailMotif
+          className="pointer-events-none absolute -right-28 bottom-10 hidden h-44 w-44 text-primary/25 lg:block"
+          duration={10.5}
+          delay={0.55}
+          rotate={-8}
+          y={9}
+        >
+          <rect
+            x="32"
+            y="32"
+            width="156"
+            height="156"
+            rx="40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <path
+            d="M64 64 H156 V156 H64 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="4 6"
+          />
+          <circle cx="110" cy="110" r="11" fill="currentColor" opacity="0.28" />
+        </OutsideRailMotif>
 
         <div className="relative px-6 py-20 text-center sm:py-28 lg:px-12">
           <motion.div
