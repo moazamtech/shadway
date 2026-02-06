@@ -91,7 +91,7 @@ export function LandingHeader() {
           </Button>
           <ThemeToggle />
           <Button size="sm" className="rounded-full px-4" asChild>
-            <Link href="/component-generator">Start</Link>
+            <Link href="/docs">Docs</Link>
           </Button>
           <Button
             variant="ghost"
