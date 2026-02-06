@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server"
-import fs from "fs"
-import path from "path"
+import registryData from "@/registry/registry.json"
+
+export const dynamic = "force-static"
 
 export async function GET() {
-  const registryFile = path.join(process.cwd(), "registry", "registry.json")
-
-  if (!fs.existsSync(registryFile)) {
-    return NextResponse.json({ items: [] })
-  }
-
-  const json = JSON.parse(fs.readFileSync(registryFile, "utf8"))
-  return NextResponse.json(json)
+  return NextResponse.json(registryData, {
+    headers: {
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  })
 }
