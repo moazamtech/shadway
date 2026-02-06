@@ -124,40 +124,27 @@ function ThinkingProcess({
   if (!content) return null;
 
   return (
-    <div className="group/thinking mb-4 overflow-hidden rounded-2xl border border-border/40 bg-muted/5 transition-all duration-300">
+    <div className="group/thinking mb-4 overflow-hidden border border-border/60 bg-background transition-all duration-300">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors"
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-muted/20"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {!isFinished ? (
-            <div className="flex h-5 w-5 items-center justify-center">
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-            </div>
+            <Loader2 className="h-3.5 w-3.5 text-muted-foreground/60 animate-spin" />
           ) : (
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <CheckIcon className="h-3 w-3 text-emerald-500" />
-            </div>
+            <CheckIcon className="h-3.5 w-3.5 text-foreground/40" />
           )}
-          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/60 transition-colors group-hover/thinking:text-foreground">
-            {isFinished ? "Analysis Finalized" : "Architecting Masterpiece..."}
+          <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.15em] text-muted-foreground/50 transition-colors group-hover/thinking:text-foreground/70">
+            {isFinished ? "Analysis complete" : "Thinking..."}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {!isFinished && (
-            <div className="flex gap-1 pr-2">
-              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-0" />
-              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-150" />
-              <span className="h-0.5 w-0.5 rounded-full bg-primary/40 animate-bounce delay-300" />
-            </div>
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 text-muted-foreground/30 transition-all duration-300",
+            isOpen && "rotate-90",
           )}
-          <ChevronRight
-            className={cn(
-              "h-3.5 w-3.5 opacity-30 group-hover/thinking:opacity-80 transition-all duration-300",
-              isOpen && "rotate-90",
-            )}
-          />
-        </div>
+        />
       </button>
       <AnimatePresence>
         {isOpen && (
@@ -167,11 +154,11 @@ function ThinkingProcess({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            <div className="px-4 pb-4">
-              <div className="relative rounded-xl bg-background/40 p-3.5 text-xs leading-relaxed text-muted-foreground/60 font-mono shadow-inner border border-border/10 italic">
+            <div className="border-t border-border/40 px-4 py-3">
+              <div className="text-xs leading-relaxed text-muted-foreground/50 font-mono">
                 {content}
                 {!isFinished && (
-                  <span className="inline-block w-1 h-3 ml-1 bg-primary/30 animate-pulse align-middle" />
+                  <span className="inline-block w-1 h-3 ml-1 bg-foreground/20 animate-pulse align-middle" />
                 )}
               </div>
             </div>
@@ -208,59 +195,50 @@ function CodeBlock({
   };
 
   return (
-    <div className="relative group my-4 rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex h-16 items-center justify-between px-4 md:px-8 lg:px-12 w-full border-b bg-muted/30">
+    <div className="relative group my-4 border border-border/60 bg-background overflow-hidden">
+      <div className="flex h-10 items-center justify-between px-4 w-full border-b border-border/60 bg-muted/10">
         <div className="flex items-center gap-2">
-          <CodeIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+          <CodeIcon className="h-3 w-3 text-muted-foreground/50" />
+          <span className="text-[10px] font-mono font-semibold text-muted-foreground/50 uppercase tracking-[0.15em]">
             {language}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {onRun && (
             <button
               onClick={onRun}
               className={cn(
-                "flex items-center gap-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 border",
+                "flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] transition-colors border border-border/60",
                 isActive
-                  ? "bg-primary text-primary-foreground border-primary/30"
-                  : "text-foreground hover:text-primary bg-background hover:bg-accent",
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30",
               )}
             >
-              {isActive ? (
-                <>
-                  <Zap className="h-3 w-3" />
-                  Running
-                </>
-              ) : (
-                <>
-                  <Zap className="h-3 w-3" />
-                  Run
-                </>
-              )}
+              <Zap className="h-3 w-3" />
+              {isActive ? "Running" : "Run"}
             </button>
           )}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-foreground hover:text-primary bg-background hover:bg-accent rounded-md transition-all duration-200 border"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors border border-border/60 hover:bg-muted/30"
           >
             {copied ? (
               <>
-                <CheckIcon className="h-3 w-3 text-green-500" />
-                <span className="text-green-500">Copied!</span>
+                <CheckIcon className="h-3 w-3" />
+                Copied
               </>
             ) : (
               <>
                 <CopyIcon className="h-3 w-3" />
-                <span>Copy</span>
+                Copy
               </>
             )}
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto max-h-[500px] overflow-y-auto bg-muted/10 no-scrollbar">
+      <div className="overflow-x-auto max-h-[500px] overflow-y-auto no-scrollbar">
         <pre className="p-4 text-xs leading-relaxed font-mono">
-          <code className="text-foreground/90">{code}</code>
+          <code className="text-foreground/80">{code}</code>
         </pre>
       </div>
     </div>
@@ -1459,7 +1437,15 @@ export default function ComponentGeneratorPage() {
   const isMobile = !isDesktop;
 
   return (
-    <div className="flex h-screen w-full flex-col font-sans overflow-hidden">
+    <div className="flex h-screen w-full flex-col font-sans overflow-hidden bg-background text-foreground">
+      {/* Vertical Rails */}
+      <div className="pointer-events-none fixed inset-y-0 left-0 right-0 z-[60] mx-auto w-full max-w-[100vw]">
+        <div className="absolute inset-y-0 left-0 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 left-2 w-[2px] bg-border/40" />
+        <div className="absolute inset-y-0 right-0 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 right-2 w-[2px] bg-border/40" />
+      </div>
+
       {/* Header */}
       <GeneratorHeader
         hasGenerated={!!generatedComponent}
@@ -1474,17 +1460,17 @@ export default function ComponentGeneratorPage() {
       {/* Main Content - Responsive Split Layout */}
       <div
         ref={splitContainerRef}
-        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative bg-muted/5 dark:bg-muted/2"
+        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative"
       >
         {/* Chat Section */}
         <div
           className={cn(
-            "flex flex-col transition-all duration-300 ease-in-out bg-background relative z-0 min-h-0",
+            "flex flex-col transition-all duration-300 bg-background relative z-0 min-h-0",
             // Mobile: Always full width/height unless covered
             "flex-1 w-full lg:h-full",
             // Desktop: Resizable width handling
             isPanelOpen && !isFullscreen
-              ? "lg:flex-none lg:border-r border-border/40"
+              ? "lg:flex-none"
               : "lg:flex-1 lg:w-full",
           )}
           style={
@@ -1494,9 +1480,8 @@ export default function ComponentGeneratorPage() {
               : undefined
           }
         >
-          {/* Progressive Blur Overlays - Lightened and Slimmed */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-12 bg-gradient-to-b from-background via-background/40 to-transparent pointer-events-none z-10 backdrop-blur-[2px] [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-full max-w-3xl h-36 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-20 backdrop-blur-[12px] [mask-image:linear-gradient(to_top,black,transparent)]" />
+          {/* Bottom fade for input area */}
+          <div className="absolute bottom-12 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none z-20" />
 
           <Conversation className="flex-1 overflow-hidden min-h-0 relative">
             <ConversationContent
@@ -1504,27 +1489,25 @@ export default function ComponentGeneratorPage() {
                 "flex flex-col w-full max-w-3xl mx-auto",
                 messages.length === 0
                   ? "min-h-full justify-center py-12 md:py-24"
-                  : "p-3 sm:p-6 space-y-6 pb-32",
+                  : "p-3 sm:p-6 space-y-6 pb-40 md:pb-36",
               )}
             >
               {messages.length === 0 ? (
                 /* Premium Static Empty State */
                 <div className="flex flex-col items-center justify-center max-w-3xl mx-auto text-center px-4 flex-1 relative w-full">
-                  <div className="space-y-6 w-full">
-                    <h2 className="text-2xl md:text-4xl font-serif lg:text-5xl font-black tracking-tighter text-foreground uppercase leading-[0.9] scale-y-110">
-                      SHADWAY{" "}
-                      <span className="text-primary not-italic tracking-normal">
-                        ARCHITECT
+                  <div className="space-y-4 w-full">
+                    <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold tracking-tight text-foreground leading-[0.95]">
+                      Shadway{" "}
+                      <span className="text-[#0154a5]">
+                        Architect
                       </span>
                     </h2>
-                    <p className="max-w-xl mx-auto text-[11px] md:text-sm text-muted-foreground/40 font-medium leading-relaxed px-4">
-                      The next-gen AI engineering engine. Transform vision into
-                      production-ready React components with unprecedented
-                      speed.
+                    <p className="max-w-md mx-auto text-[11px] md:text-xs text-muted-foreground/40 font-mono leading-relaxed">
+                      Describe a component. Get production-ready code.
                     </p>
                   </div>
 
-                  <div className="w-full mt-4 md:mt-6">
+                  <div className="w-full mt-6">
                     <SuggestionsGrid
                       suggestions={activeSuggestions}
                       onPick={(p) => handleSubmit({ text: p })}
@@ -1556,12 +1539,9 @@ export default function ComponentGeneratorPage() {
                           )}
                         >
                           {message.role === "user" ? (
-                            <div className="flex w-full justify-end pr-6 md:pr-8 lg:pr-10">
-                              <div className="group relative flex max-w-[85%] sm:max-w-2xl lg:max-w-3xl">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-[24px] blur-md opacity-0 group-hover:opacity-100 transition duration-700" />
-                                <div className="relative rounded-[22px] bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-6 py-3.5 shadow-sm text-[14px] leading-relaxed font-medium">
-                                  {message.content}
-                                </div>
+                            <div className="flex w-full justify-end">
+                              <div className="max-w-[85%] sm:max-w-2xl lg:max-w-3xl border border-foreground/10 bg-foreground text-background dark:bg-zinc-100 dark:text-zinc-900 px-5 py-3 text-[13px] leading-relaxed font-medium">
+                                {message.content}
                               </div>
                             </div>
                           ) : (
@@ -1587,104 +1567,85 @@ export default function ComponentGeneratorPage() {
                                 </div>
                               )}
 
-                              {/* Compact Artifact Capsule Card */}
+                              {/* Artifact Card */}
                               {message.files &&
                                 Object.keys(message.files).length > 0 && (
-                                  <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background/80 shadow-lg max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-700">
-                                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-
-                                    <div className="p-4 md:p-5 space-y-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                                          <CheckIcon className="h-4 w-4" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <h3 className="text-xs font-extrabold uppercase tracking-[0.2em] text-foreground/80">
-                                            Deploy Ready
-                                          </h3>
-                                          <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-widest mt-0.5">
-                                            {Object.keys(message.files).length}{" "}
-                                            files synced
-                                          </p>
-                                        </div>
-                                        <div className="ml-auto flex items-center gap-1.5">
-                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
-                                          <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-wider">
-                                            Ready
-                                          </span>
-                                        </div>
+                                  <div className="overflow-hidden border border-border/60 bg-background max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+                                      <div className="flex items-center gap-2.5">
+                                        <CheckIcon className="h-3.5 w-3.5 text-foreground/40" />
+                                        <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.15em] text-foreground/60">
+                                          {Object.keys(message.files).length}{" "}
+                                          files
+                                        </span>
                                       </div>
+                                      <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-[0.1em]">
+                                        Ready
+                                      </span>
+                                    </div>
 
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {Object.keys(message.files)
-                                          .slice(0, 4)
-                                          .map((path) => (
-                                            <div
-                                              key={path}
-                                              className="inline-flex items-center gap-2 pl-1 pr-2 py-1 rounded-full bg-muted/20 border border-border/40 hover:border-primary/30 transition-all duration-300"
-                                            >
-                                              <div className="h-5 w-5 rounded-full bg-background flex items-center justify-center border border-border/20">
-                                                <FileIconComponent
-                                                  path={path}
-                                                  className="h-3 w-3"
-                                                />
-                                              </div>
-                                              <span className="text-[10px] font-semibold text-muted-foreground/80 truncate max-w-[72px]">
-                                                {path.split("/").pop()}
-                                              </span>
-                                            </div>
-                                          ))}
-                                        {Object.keys(message.files).length >
-                                          4 && (
-                                          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-muted/15 border border-transparent text-[10px] font-semibold text-muted-foreground/50">
-                                            +
-                                            {Object.keys(message.files).length -
-                                              4}
+                                    <div className="px-4 py-3 flex flex-wrap gap-1.5">
+                                      {Object.keys(message.files)
+                                        .slice(0, 4)
+                                        .map((path) => (
+                                          <div
+                                            key={path}
+                                            className="inline-flex items-center gap-1.5 px-2 py-1 border border-border/40 bg-muted/10 text-[10px] font-mono text-muted-foreground/60 truncate max-w-[120px]"
+                                          >
+                                            <FileIconComponent
+                                              path={path}
+                                              className="h-3 w-3"
+                                            />
+                                            {path.split("/").pop()}
                                           </div>
-                                        )}
-                                      </div>
+                                        ))}
+                                      {Object.keys(message.files).length >
+                                        4 && (
+                                        <span className="inline-flex items-center px-2 py-1 text-[10px] font-mono text-muted-foreground/40">
+                                          +
+                                          {Object.keys(message.files).length -
+                                            4}
+                                        </span>
+                                      )}
+                                    </div>
 
-                                      <div className="flex flex-col sm:flex-row gap-2">
-                                        <Button
-                                          size="sm"
-                                          className="h-10 sm:flex-1 bg-primary text-primary-foreground font-semibold text-[11px] rounded-lg shadow-sm transition-all hover:shadow-md hover:shadow-primary/15"
-                                          onClick={() => {
-                                            setGeneratedComponent({
-                                              code: message.code,
-                                              files: message.files,
-                                              entryFile: message.entryFile,
-                                              language: "tsx",
-                                              title: "Generated Component",
-                                            });
-                                            setIsPanelOpen(true);
-                                            setIsFullscreen(false);
-                                            setViewMode("preview");
-                                          }}
-                                        >
-                                          <Zap className="h-3.5 w-3.5 mr-2" />
-                                          Preview
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => {
-                                            setGeneratedComponent({
-                                              code: message.code,
-                                              files: message.files,
-                                              entryFile: message.entryFile,
-                                              language: "tsx",
-                                              title: "Generated Component",
-                                            });
-                                            setIsPanelOpen(true);
-                                            setIsFullscreen(false);
-                                            setViewMode("code");
-                                          }}
-                                          className="h-10 sm:flex-1 border-border/60 bg-transparent hover:bg-muted/30 text-foreground/80 font-semibold text-[11px] rounded-lg transition-all"
-                                        >
-                                          <Code2Icon className="h-3.5 w-3.5 mr-2" />
-                                          Code
-                                        </Button>
-                                      </div>
+                                    <div className="flex border-t border-border/40">
+                                      <button
+                                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-foreground/70 hover:bg-muted/20 transition-colors border-r border-border/40"
+                                        onClick={() => {
+                                          setGeneratedComponent({
+                                            code: message.code,
+                                            files: message.files,
+                                            entryFile: message.entryFile,
+                                            language: "tsx",
+                                            title: "Generated Component",
+                                          });
+                                          setIsPanelOpen(true);
+                                          setIsFullscreen(false);
+                                          setViewMode("preview");
+                                        }}
+                                      >
+                                        <EyeIcon className="h-3 w-3" />
+                                        Preview
+                                      </button>
+                                      <button
+                                        className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-foreground/70 hover:bg-muted/20 transition-colors"
+                                        onClick={() => {
+                                          setGeneratedComponent({
+                                            code: message.code,
+                                            files: message.files,
+                                            entryFile: message.entryFile,
+                                            language: "tsx",
+                                            title: "Generated Component",
+                                          });
+                                          setIsPanelOpen(true);
+                                          setIsFullscreen(false);
+                                          setViewMode("code");
+                                        }}
+                                      >
+                                        <Code2Icon className="h-3 w-3" />
+                                        Code
+                                      </button>
                                     </div>
                                   </div>
                                 )}
@@ -1695,10 +1656,10 @@ export default function ComponentGeneratorPage() {
                     ))}
                     {isGenerating &&
                       !messages[messages.length - 1]?.reasoning && (
-                        <div className="flex items-center gap-3 py-4 animate-in fade-in slide-in-from-left-1 duration-500 self-start ml-4">
-                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                          <span className="text-[11px] font-bold tracking-wider text-muted-foreground/50 uppercase">
-                            Yapping...
+                        <div className="flex items-center gap-2.5 py-4 animate-in fade-in duration-500 self-start ml-4">
+                          <Loader2 className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin" />
+                          <span className="text-[10px] font-mono font-semibold tracking-[0.15em] text-muted-foreground/40 uppercase">
+                            Generating...
                           </span>
                         </div>
                       )}
@@ -1709,61 +1670,54 @@ export default function ComponentGeneratorPage() {
             <ConversationScrollButton />
           </Conversation>
 
-          {/* Fixed Input Area - Centered and Elevated */}
-          <div className="relative px-6 pb-12 pt-0 shrink-0 bg-transparent z-30 mt-auto">
-            <div className="mx-auto w-full max-w-3xl relative">
+          {/* Fixed Input Area */}
+          <div className="relative mt-auto mb-2 md:mb-3 px-3 sm:px-6 md:px-10 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] shrink-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur supports-[backdrop-filter]:bg-background/75">
+            <div className="mx-auto w-full max-w-2xl relative">
               <PromptInput
                 onSubmit={handleSubmit}
                 className="w-full [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent [&_[data-slot=input-group]]:shadow-none [&_[data-slot=input-group]]:rounded-none [&_[data-slot=input-group]]:ring-0 [&_[data-slot=input-group]]:outline-none [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:outline-none"
               >
                 <PromptInputBody>
-                  <div className="relative w-full rounded-[24px] border border-border/60 bg-background/85 shadow-[0_16px_50px_-32px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-primary/40 hover:shadow-[0_18px_60px_-32px_rgba(0,0,0,0.6)] focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(140px_80px_at_12%_20%,hsl(var(--primary)/0.10),transparent_60%),radial-gradient(140px_80px_at_88%_80%,hsl(var(--primary)/0.08),transparent_55%)] opacity-0 transition-opacity pointer-events-none z-0 focus-within:opacity-100" />
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-
+                  <div className="relative w-full border border-border/60 bg-background transition-colors duration-200 focus-within:border-foreground/20 overflow-hidden">
                     <PromptInputTextarea
                       placeholder={
                         messages.length === 0
-                          ? "What are we building today?"
+                          ? "Describe a component..."
                           : "Refine your design..."
                       }
                       disabled={isGenerating}
-                      className="relative z-10 h-12 md:h-14 max-h-14 min-h-12 w-full px-3 md:px-4 pt-3 md:pt-3.5 pb-2 text-sm border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none text-pretty [field-sizing:fixed]"
+                      className="h-10 md:h-11 max-h-11 min-h-10 w-full px-3 pt-2.5 pb-1.5 text-[13px] border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/30 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none [field-sizing:fixed]"
                     />
 
-                    <PromptInputFooter className="relative z-10 px-3 md:px-4 pb-3 md:pb-3.5 pt-0 border-0 bg-transparent flex items-center justify-between">
-                      <PromptInputTools className="flex items-center gap-1.5">
+                    <PromptInputFooter className="px-2.5 pb-2 pt-0 border-0 bg-transparent flex items-center justify-between">
+                      <PromptInputTools className="flex items-center gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-muted-foreground/60 hover:text-foreground h-8 w-8 md:h-9 md:w-9 rounded-lg transition-all hover:bg-muted/60"
+                          className="text-muted-foreground/40 hover:text-foreground h-6 w-6 transition-colors"
                           type="button"
                           onClick={() => toast.info("Attachments coming soon!")}
                         >
-                          <PaperclipIcon className="h-4 w-4" />
+                          <PaperclipIcon className="h-3 w-3" />
                         </Button>
-
-                        <div className="h-3 w-[1px] bg-border/50 mx-0.5" />
                       </PromptInputTools>
 
-                      <div className="flex items-center gap-2">
-                        <PromptInputSubmit
-                          disabled={false}
-                          onClick={isGenerating ? handleStop : undefined}
-                          className={cn(
-                            "h-9 w-9 md:h-10 md:w-10 rounded-xl transition-all duration-300 flex items-center justify-center",
-                            isGenerating
-                              ? "bg-muted text-muted-foreground"
-                              : "bg-primary text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
-                          )}
-                        >
-                          {isGenerating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Zap className="h-4 w-4" />
-                          )}
-                        </PromptInputSubmit>
-                      </div>
+                      <PromptInputSubmit
+                        disabled={false}
+                        onClick={isGenerating ? handleStop : undefined}
+                        className={cn(
+                          "h-7 w-7 transition-colors flex items-center justify-center",
+                          isGenerating
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-foreground text-background hover:bg-foreground/80",
+                        )}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Zap className="h-3 w-3" />
+                        )}
+                      </PromptInputSubmit>
                     </PromptInputFooter>
                   </div>
                 </PromptInputBody>
@@ -1779,10 +1733,9 @@ export default function ComponentGeneratorPage() {
             aria-orientation="vertical"
             aria-label="Resize panels"
             onPointerDown={startResize}
-            className="hidden lg:flex w-2 group/splitter z-50 cursor-col-resize items-center justify-center px-1 transition-all"
+            className="hidden lg:flex w-1 group/splitter z-50 cursor-col-resize items-center justify-center transition-all hover:bg-foreground/5"
           >
-            <div className="h-[20%] w-[1px] bg-border group-hover/splitter:bg-primary/50 group-hover/splitter:w-[2px] rounded-full transition-all" />
-            <div className="absolute h-8 w-1.5 bg-border/20 group-hover/splitter:bg-primary/20 rounded-full backdrop-blur-sm border border-border/50 transition-all opacity-0 group-hover/splitter:opacity-100" />
+            <div className="h-full w-px bg-border group-hover/splitter:bg-foreground/20 transition-colors" />
           </div>
         )}
 
@@ -1790,67 +1743,60 @@ export default function ComponentGeneratorPage() {
         <AnimatePresence>
           {generatedComponent && isPanelOpen && (
             <motion.div
-              initial={
-                isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }
-              }
-              animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, x: 0 }}
-              exit={
-                isMobile ? { y: "100%" } : { opacity: 0, scale: 0.98, x: 20 }
-              }
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              initial={isMobile ? { y: "100%" } : { opacity: 0, x: 10 }}
+              animate={isMobile ? { y: 0 } : { opacity: 1, x: 0 }}
+              exit={isMobile ? { y: "100%" } : { opacity: 0, x: 10 }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className={cn(
-                "flex flex-col bg-background text-foreground transition-all duration-300 border border-border/60 shadow-2xl overflow-hidden backdrop-blur-xl",
+                "flex flex-col bg-background text-foreground overflow-hidden",
                 isMobile || isFullscreen
-                  ? "fixed inset-0 z-50 w-full h-full rounded-none"
-                  : "relative flex-none h-[calc(100%-1.5rem)] my-3 mr-3 rounded-2xl md:rounded-3xl z-40",
+                  ? "fixed inset-0 z-50 w-full h-full"
+                  : "relative flex-none h-full z-40 pr-3",
               )}
               style={
                 isDesktop && !isFullscreen
-                  ? {
-                      width: `${previewWidthPct}%`,
-                      height: "calc(100% - 1.5rem)",
-                    }
+                  ? { width: `${previewWidthPct}%` }
                   : undefined
               }
             >
               {/* Panel Header */}
-              <div className="flex-none h-14 flex items-center bg-background/70 border-b border-border/60 select-none backdrop-blur-xl px-4 justify-between">
-                <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/20 p-1">
+              <div className="flex-none h-12 flex items-center border-b border-border select-none px-3 justify-between gap-2">
+                <div className="flex items-center gap-px border border-border/60">
                   <button
                     onClick={() => setViewMode("preview")}
                     className={cn(
-                      "flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] rounded-md transition-all duration-200",
+                      "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono font-semibold uppercase tracking-[0.15em] transition-colors",
                       viewMode === "preview"
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
                     )}
                   >
-                    <EyeIcon className="h-4 w-4" />
+                    <EyeIcon className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Preview</span>
                   </button>
                   <button
                     onClick={() => setViewMode("code")}
                     className={cn(
-                      "flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] rounded-md transition-all duration-200",
+                      "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono font-semibold uppercase tracking-[0.15em] transition-colors",
                       viewMode === "code"
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
                     )}
                   >
-                    <Code2Icon className="h-4 w-4" />
+                    <Code2Icon className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Code</span>
                   </button>
                 </div>
 
-                <div className="ml-2 flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-1.5 py-1">
+                <div className="flex items-center gap-1">
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setPreviewReloadKey((prev) => prev + 1)}
-                    className="h-8 px-3 rounded-md text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-all"
+                    className="h-7 px-2 text-[10px] font-mono uppercase tracking-[0.1em] text-muted-foreground/60 hover:text-foreground transition-colors"
                   >
-                    <RefreshCw className="mr-1.5 h-3 w-3" />
-                    Reload
+                    <RefreshCw className="mr-1 h-3 w-3" />
+                    <span className="hidden sm:inline">Reload</span>
                   </Button>
                   <Button
                     size="icon"
@@ -1858,46 +1804,46 @@ export default function ComponentGeneratorPage() {
                     onClick={() => {
                       setIsPreviewDark((prev) => !prev);
                     }}
-                    className="h-8 w-8 rounded-md hover:bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-all"
+                    className="h-7 w-7 text-muted-foreground/60 hover:text-foreground transition-colors"
                     title={isPreviewDark ? "Switch to light" : "Switch to dark"}
                   >
                     {isPreviewDark ? (
-                      <Sun className="h-3.5 w-3.5" />
+                      <Sun className="h-3 w-3" />
                     ) : (
-                      <Moon className="h-3.5 w-3.5" />
+                      <Moon className="h-3 w-3" />
                     )}
                   </Button>
                 </div>
 
                 {isAdmin && (
-                  <div className="ml-2 border-l border-border pl-2">
+                  <div className="border-l border-border pl-2">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={openPublishDialog}
-                      className="h-9 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider border-primary/40 hover:border-primary/70 hover:bg-primary/10 text-primary transition-all"
+                      className="h-7 px-2 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 hover:text-foreground transition-colors"
                     >
-                      <SparklesIcon className="mr-2 h-3.5 w-3.5" />
+                      <SparklesIcon className="mr-1 h-3 w-3" />
                       Publish
                     </Button>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center ml-auto">
                   {!isMobile ? (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => setIsPanelOpen(false)}
-                      className="h-9 w-9 p-0 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all border border-transparent hover:border-destructive/20"
+                      className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-foreground transition-colors"
                     >
-                      <XIcon className="h-4 w-4" />
+                      <XIcon className="h-3.5 w-3.5" />
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       onClick={() => setIsPanelOpen(false)}
-                      className="h-9 truncate px-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20"
+                      className="h-8 truncate px-4 bg-foreground text-background hover:bg-foreground/80 text-[10px] font-mono uppercase tracking-[0.1em]"
                     >
                       Close
                     </Button>
@@ -1944,8 +1890,8 @@ export default function ComponentGeneratorPage() {
                   {/* Sidebar */}
                   <div
                     className={cn(
-                      "flex-none border-r border-border bg-muted/20 flex flex-col transition-all",
-                      isMobile ? "w-0 overflow-hidden hidden" : "w-60",
+                      "flex-none border-r border-border bg-background flex flex-col transition-all",
+                      isMobile ? "w-0 overflow-hidden hidden" : "w-56",
                     )}
                   >
                     <div className="flex-1 overflow-y-auto min-h-0">
@@ -1967,12 +1913,12 @@ export default function ComponentGeneratorPage() {
                     </div>
                   </div>
 
-                  <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-card">
+                  <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-background">
                     {/* Mobile File Dropdown */}
                     {isMobile && generatedComponent.files && (
-                      <div className="p-2 border-b border-border bg-muted/10 flex-none">
+                      <div className="p-2 border-b border-border flex-none">
                         <select
-                          className="w-full text-xs p-2 rounded border border-border bg-background text-foreground"
+                          className="w-full text-xs font-mono p-2 border border-border bg-background text-foreground"
                           value={selectedFile || ""}
                           onChange={(e) => handleFileSelect(e.target.value)}
                         >
@@ -2066,10 +2012,9 @@ export default function ComponentGeneratorPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
-            <p className="text-xs text-muted-foreground">
-              Generate a clean title, description, category, and tags from the
-              component.
+          <div className="flex flex-wrap items-center justify-between gap-2 border border-border/60 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground/60 font-mono">
+              Auto-generate details from component code.
             </p>
             <Button
               type="button"
@@ -2077,11 +2022,9 @@ export default function ComponentGeneratorPage() {
               size="sm"
               onClick={handleGeneratePublishDetails}
               disabled={isGeneratingPublishDetails}
-              className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider"
+              className="h-7 px-2.5 text-[10px] font-mono font-semibold uppercase tracking-[0.1em]"
             >
-              {isGeneratingPublishDetails
-                ? "Generating..."
-                : "Generate with AI"}
+              {isGeneratingPublishDetails ? "Generating..." : "Auto-fill"}
             </Button>
           </div>
 
@@ -2161,7 +2104,7 @@ export default function ComponentGeneratorPage() {
                 )}
               </div>
               {publishThumbnailUrl && (
-                <div className="overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+                <div className="overflow-hidden border border-border/60">
                   <Image
                     src={publishThumbnailUrl}
                     alt="Thumbnail preview"
@@ -2194,3 +2137,4 @@ export default function ComponentGeneratorPage() {
     </div>
   );
 }
+

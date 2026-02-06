@@ -1,16 +1,7 @@
-import OpenAI from "openai";
+import { generateText } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 
 export const runtime = "edge";
-
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer":
-      process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
-    "X-Title": "Shadway Suggestion Generator",
-  },
-});
 
 type Suggestion = {
   icon: string;
@@ -48,43 +39,15 @@ const COMPONENT_CONCEPTS = [
   "hero with trust badges",
 ];
 
-const FALLBACK_SUGGESTIONS: Suggestion[] = [
-  {
-    icon: "landing",
-    title: "SaaS Landing",
-    prompt:
-      "SaaS landing page with hero + 2 CTAs, logo strip, feature grid, pricing toggle, FAQ, and footer. Sleek spacing, fully responsive, light/dark.",
-  },
-  {
-    icon: "landing",
-    title: "Memecoin Launch",
-    prompt:
-      "Crypto memecoin landing with bold hero, tokenomics cards, roadmap timeline, community stats, and audit badge. Neon accents, responsive, light/dark.",
-  },
-  {
-    icon: "landing",
-    title: "IT Marketing",
-    prompt:
-      "Tech/IT services marketing landing with services grid, client logos, KPI strip, case studies, and strong CTA. Clean corporate, responsive, light/dark.",
-  },
-  {
-    icon: "layout",
-    title: "Hero Split",
-    prompt:
-      "Hero section with split layout, bold headline, subtext, 2 CTAs, and a product preview card. Fully responsive, light/dark.",
-  },
-  {
-    icon: "layout",
-    title: "Hero Proof",
-    prompt:
-      "Hero section with logo strip + social proof stats, minimal form or CTA, and a soft gradient backdrop. Fully responsive, light/dark.",
-  },
-  {
-    icon: "layout",
-    title: "Hero Centered",
-    prompt:
-      "Centered hero section with headline, 2 CTAs, short value props, and a small testimonial pill. Fully responsive, light/dark.",
-  },
+const STYLE_FLAVORS = [
+  "editorial minimal",
+  "neo brutal clean",
+  "glassmorphism soft",
+  "bold geometric",
+  "enterprise polished",
+  "modern contrast",
+  "premium monochrome",
+  "vibrant gradient",
 ];
 
 function pickUnique(source: string[], count: number) {
@@ -92,18 +55,108 @@ function pickUnique(source: string[], count: number) {
 }
 
 function normalizeSuggestions(list: Suggestion[]): Suggestion[] {
-  const clean = list
+  return list
     .filter((item) => item && item.title && item.prompt)
     .map((item) => ({
       icon: item.icon || "sparkles",
       title: String(item.title).trim().slice(0, 40),
       prompt: String(item.prompt).trim().replace(/\s+/g, " "),
     }));
-  return clean;
 }
 
-export async function POST(req: Request) {
+function uniqByContent(list: Suggestion[]) {
+  const seen = new Set<string>();
+  return list.filter((item) => {
+    const key = `${item.title.toLowerCase()}|${item.prompt.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function ensurePromptConstraints(prompt: string) {
+  let out = prompt.trim().replace(/\s+/g, " ");
+  if (!/fully responsive/i.test(out)) out += " Fully responsive.";
+  if (!/light\/dark mode/i.test(out)) out += " Supports light/dark mode.";
+  return out;
+}
+
+function buildDynamicFallback(
+  landingThemes: string[],
+  componentThemes: string[],
+): Suggestion[] {
+  const landing = landingThemes.map((theme, idx) => {
+    const style = STYLE_FLAVORS[idx % STYLE_FLAVORS.length];
+    const title = theme
+      .replace(/platform|suite|landing|for|&/gi, "")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 3)
+      .join(" ");
+    return {
+      icon: "landing",
+      title: title ? `${title} Page` : `Landing ${idx + 1}`,
+      prompt: ensurePromptConstraints(
+        `${theme} landing page with hero, feature grid, social proof, pricing, FAQ, and footer. ${style} visual language with clear CTA hierarchy.`,
+      ),
+    };
+  });
+
+  const blocks = componentThemes.map((theme, idx) => {
+    const style = STYLE_FLAVORS[(idx + 3) % STYLE_FLAVORS.length];
+    return {
+      icon: "layout",
+      title: `Hero ${idx + 1}`,
+      prompt: ensurePromptConstraints(
+        `${theme} with strong headline, supporting copy, primary and secondary CTAs, and trust elements. ${style} styling with practical spacing and reusable structure.`,
+      ),
+    };
+  });
+
+  return uniqByContent(normalizeSuggestions([...landing, ...blocks])).slice(
+    0,
+    6,
+  );
+}
+
+function parseSuggestionsContent(content: string): Suggestion[] {
   try {
+    let jsonContent = content;
+    const arrayMatch = content.match(/\[[\s\S]*\]/);
+    const objectMatch = content.match(/\{[\s\S]*\}/);
+
+    if (arrayMatch) {
+      jsonContent = arrayMatch[0];
+    } else if (objectMatch) {
+      jsonContent = objectMatch[0];
+    }
+
+    const parsed = JSON.parse(jsonContent);
+    if (Array.isArray(parsed)) return parsed as Suggestion[];
+    if (parsed && typeof parsed === "object") {
+      const firstArray = Object.values(parsed).find((val) =>
+        Array.isArray(val),
+      );
+      if (Array.isArray(firstArray)) return firstArray as Suggestion[];
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+export async function POST() {
+  try {
+    if (!process.env.AI_GATEWAY_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Missing AI_GATEWAY_API_KEY" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Per-request seed + theme buckets nudges the model away from repeating the same ideas.
     const seed = crypto.randomUUID();
     const landingThemes = pickUnique(LANDING_CONCEPTS, 3);
@@ -123,6 +176,7 @@ Hard constraints:
 - Keep prompts simple and implementable.
 - Make ideas distinct from each other (different industries, layouts, or visual languages).
 - Avoid repeating the same themes across requests.
+- NEVER reuse exact titles from common defaults such as "SaaS Landing", "Hero Split", "Hero Centered", "Hero Proof".
 - The 3 landing page ideas MUST use different industries/concepts from each other.
 - The 3 block ideas MUST be different hero patterns.
 - Every suggestion must mention "fully responsive" and "light/dark mode".
@@ -131,56 +185,70 @@ Hard constraints:
 Return JSON ONLY in this shape:
 { "suggestions": [ ... ] }`;
 
-    const response = await client.chat.completions.create({
-      model: "allenai/molmo-2-8b:free",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Seed: ${seed}
-Landing themes: ${landingThemes.join(", ")}
-Component themes: ${componentThemes.join(", ")}
+    const makeRequest = async (
+      seed: string,
+      requestLandingThemes: string[],
+      requestComponentThemes: string[],
+      existingTitles: string[] = [],
+    ) => {
+      try {
+        const { text } = await generateText({
+          model: gateway("mistral/devstral-2"),
+          system: systemPrompt,
+          prompt: `Seed: ${seed}
+Timestamp: ${new Date().toISOString()}
+Landing themes: ${requestLandingThemes.join(", ")}
+Component themes: ${requestComponentThemes.join(", ")}
+Avoid these titles: ${existingTitles.join(", ") || "none"}
 Generate 6 fresh, unique suggestions now.`,
-        },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 1.1,
-    });
-
-    const content = response.choices[0].message.content || "[]";
-    let suggestions = [];
-
-    try {
-      // Robust JSON extraction: look for [ ] or { } blocks
-      let jsonContent = content;
-      const arrayMatch = content.match(/\[[\s\S]*\]/);
-      const objectMatch = content.match(/\{[\s\S]*\}/);
-
-      if (arrayMatch) {
-        jsonContent = arrayMatch[0];
-      } else if (objectMatch) {
-        jsonContent = objectMatch[0];
+          temperature: 1.2,
+        });
+        return parseSuggestionsContent(text || "[]");
+      } catch (err: any) {
+        const statusCode = err?.statusCode ?? err?.status;
+        if (statusCode === 404) {
+          if (!longcatUnavailable) {
+            longcatUnavailable = true;
+            console.warn(
+              "generate-suggestions: meituan/longcat-flash-chat unavailable (404). Using dynamic fallback suggestions.",
+            );
+          }
+          return [];
+        }
+        console.error("generate-suggestions AI call failed:", err);
+        return [];
       }
+    };
 
-      const parsed = JSON.parse(jsonContent);
-      // Handle potential wrapper object like { "suggestions": [...] }
-      if (Array.isArray(parsed)) {
-        suggestions = parsed;
-      } else if (parsed && typeof parsed === "object") {
-        // Return the first array found in the object, or the object itself if no array
-        const firstArray = Object.values(parsed).find((val) =>
-          Array.isArray(val),
-        );
-        suggestions = firstArray || [parsed];
-      }
-    } catch (e) {
-      console.error("Failed to parse AI suggestions content:", content);
-      console.error("Parse Error:", e);
+    const firstPass = await makeRequest(seed, landingThemes, componentThemes);
+    let merged = uniqByContent(
+      normalizeSuggestions(firstPass).map((s) => ({
+        ...s,
+        prompt: ensurePromptConstraints(s.prompt),
+      })),
+    );
+
+    if (merged.length < 6 && !longcatUnavailable) {
+      const seed2 = crypto.randomUUID();
+      const secondPass = await makeRequest(
+        seed2,
+        pickUnique(LANDING_CONCEPTS, 3),
+        pickUnique(COMPONENT_CONCEPTS, 3),
+        merged.map((item) => item.title),
+      );
+      merged = uniqByContent(
+        [...merged, ...normalizeSuggestions(secondPass)].map((s) => ({
+          ...s,
+          prompt: ensurePromptConstraints(s.prompt),
+        })),
+      );
     }
 
-    const normalized = normalizeSuggestions(suggestions);
-    const finalSuggestions =
-      normalized.length === 6 ? normalized : FALLBACK_SUGGESTIONS;
+    const dynamicFallback = buildDynamicFallback(
+      pickUnique(LANDING_CONCEPTS, 3),
+      pickUnique(COMPONENT_CONCEPTS, 3),
+    );
+    const finalSuggestions = [...merged, ...dynamicFallback].slice(0, 6);
 
     return new Response(JSON.stringify(finalSuggestions), {
       status: 200,
@@ -197,3 +265,4 @@ Generate 6 fresh, unique suggestions now.`,
     );
   }
 }
+let longcatUnavailable = false;
