@@ -30,12 +30,12 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
     const timer = setTimeout(() => {
       const currentPath = pathname || "/";
       if (searchQuery.trim()) {
-        router.push(
+        router.replace(
           `${currentPath}?search=${encodeURIComponent(searchQuery)}`,
           { scroll: false },
         );
       } else {
-        router.push(currentPath, { scroll: false });
+        router.replace(currentPath, { scroll: false });
       }
     }, 300); // Debounce by 300ms to avoid too many URL updates
 
