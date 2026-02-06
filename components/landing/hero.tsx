@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import { Dithering, GodRays } from "@paper-design/shaders-react";
+import { GrainGradient, GodRays } from "@paper-design/shaders-react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -327,19 +327,23 @@ export function LandingHero() {
       {/*  HERO                                                        */}
       {/* ============================================================ */}
       <section className="relative overflow-hidden">
-        {/* Dithering shader bg */}
+        {/* GrainGradient shader bg */}
         {mounted && (
-          <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
-            <Dithering
+          <div className="pointer-events-none absolute inset-0 opacity-[50%]">
+            <GrainGradient
               width="100%"
               height="100%"
+              colors={
+                isDark
+                  ? ["#1a1a4a", "#c8c0e8", "#3a3080"]
+                  : ["#c8c0e8", "#1a1a4a", "#d8d0f0"]
+              }
               colorBack={isDark ? "#0a0a0a" : "#ffffff"}
-              colorFront={isDark ? "#18183a" : "#d4d4e8"}
-              shape="sphere"
-              type="4x4"
-              size={3}
-              speed={0.25}
-              scale={0.7}
+              softness={0.7}
+              intensity={0.15}
+              noise={0.5}
+              shape="wave"
+              speed={1}
             />
           </div>
         )}
@@ -814,7 +818,7 @@ export function LandingHero() {
       {/* ============================================================ */}
       <section className="relative overflow-hidden">
         {mounted && (
-          <div className="pointer-events-none absolute inset-0 opacity-20">
+          <div className="pointer-events-none absolute inset-0 opacity-80">
             <GodRays
               width="100%"
               height="100%"
@@ -897,6 +901,9 @@ export function LandingHero() {
       <div className="mx-auto max-w-[1300px] overflow-x-hidden">
         <TextHoverEffect text="SHADWAY" />
       </div>
+      
+      <HatchedSeparator />
+
     </div>
   );
 }
