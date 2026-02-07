@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  const baseUrl = 'https://shadway.online'
+  const baseUrl = "https://shadway.online";
 
   const sitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -17,12 +17,16 @@ export async function GET() {
     <loc>${baseUrl}/sitemap-categories.xml</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
   </sitemap>
-</sitemapindex>`
+  <sitemap>
+    <loc>${baseUrl}/sitemap-vibecode.xml</loc>
+    <lastmod>${new Date().toISOString()}</lastmod>
+  </sitemap>
+</sitemapindex>`;
 
   return new NextResponse(sitemapIndex, {
     headers: {
-      'Content-Type': 'application/xml',
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      "Content-Type": "application/xml",
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
     },
-  })
+  });
 }
