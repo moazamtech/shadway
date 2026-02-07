@@ -9,22 +9,21 @@ import Link from "next/link";
 
 export function Header() {
   return (
-    <div className="sticky top-0 z-50 border-border border-b border-dashed bg-background">
-      <div className="relative mx-auto flex max-w-(--breakpoint-xl) items-center justify-between border-border border-r border-l border-dashed px-4 sm:px-8 overflow-hidden">
-        <BorderBeam borderWidth={1} reverse initialOffset={40} className="from-transparent via-blue-500 to-transparent" />
-        <Link className="flex items-center space-x-2 py-5" href="/">
-          <Image src="/logo.png" alt="Shadway Logo" width={30} height={30} />
-          <h1 className="font-bold text-xl">Shadway</h1>
+    <header className="z-50 border-b border-border bg-background/85 backdrop-blur">
+      <div className="flex h-16 items-center justify-between px-6 lg:px-12">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Image src="/logo.png" width={22} height={22} alt="Shadway" />
+          <span className="font-serif text-lg tracking-tight">Shadway</span>
         </Link>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <a
             href="https://github.com/moazamtech/shadway"
             target="_blank"
             rel="noreferrer"
             aria-label="View GitHub repository"
             className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "h-10 w-10 rounded-xl bg-background/40 backdrop-blur-md border border-border/20 hover:bg-background/60 transition-all duration-200"
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "h-9 w-9 rounded-full",
             )}
           >
             <svg
@@ -44,17 +43,25 @@ export function Header() {
             rel="noreferrer"
             aria-label="View X profile"
             className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "h-10 w-10 rounded-xl bg-background/40 backdrop-blur-md border border-border/20 hover:bg-background/60 transition-all duration-200"
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "h-9 w-9 rounded-full",
             )}
           >
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" > <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /> </svg>
+            <svg
+              className="h-4 w-4"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              {" "}
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />{" "}
+            </svg>
           </a>
 
           <ThemeToggle />
-
         </div>
       </div>
-    </div>
+      <div className="h-px bg-border" />
+    </header>
   );
 }
