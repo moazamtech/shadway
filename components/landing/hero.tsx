@@ -9,7 +9,7 @@ import {
   GrainGradient,
   StaticRadialGradient,
   Dithering,
-  Heatmap,
+  GodRays,
 } from "@paper-design/shaders-react";
 import {
   ArrowRight,
@@ -97,6 +97,15 @@ function formatDate(v: Date | string | undefined) {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function resolveThumbnailSrc(url: string | undefined) {
+  if (!url) return "/placeholder-image.jpg";
+  const value = url.trim();
+  if (!value) return "/placeholder-image.jpg";
+  if (value.startsWith("/")) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return "/placeholder-image.jpg";
 }
 
 const CATEGORY_LOOKUP = new Map(
@@ -505,18 +514,53 @@ export function LandingHero() {
             animate="visible"
           >
             <div className="relative">
+              {/* Soft glow pulse */}
               <motion.div
-                className="absolute -inset-1.5 rounded-full border border-foreground/10"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
+                className="absolute -inset-3 rounded-full bg-primary/15 blur-xl"
+                animate={{
+                  opacity: [0.2, 0.5, 0.2],
+                  scale: [0.95, 1.05, 0.95],
+                }}
                 transition={{
-                  duration: 2.5,
+                  duration: 3,
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
               />
-              <div className="relative flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground backdrop-blur-sm">
-                <Star className="h-3 w-3" />
-                Open Source
+              {/* Animated gradient border */}
+              <motion.div
+                className="absolute -inset-[1px] rounded-full bg-gradient-to-r from-primary/60 via-primary/20 to-primary/60"
+                animate={{ backgroundPosition: ["0% 50%", "200% 50%"] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                style={{ backgroundSize: "200% 100%" }}
+              />
+              <div className="relative flex items-center gap-2.5 rounded-full border border-primary/10 bg-background/95 px-5 py-2 backdrop-blur-xl">
+                {/* Shimmer sweep */}
+                <span className="absolute inset-0 overflow-hidden rounded-full">
+                  <motion.span
+                    className="absolute inset-y-0 w-[30%] bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+                    animate={{ left: ["-30%", "130%"] }}
+                    transition={{
+                      duration: 2.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      repeatDelay: 1.5,
+                    }}
+                  />
+                </span>
+                <motion.span
+                  animate={{ rotate: [0, 360] }}
+                  transition={{
+                    duration: 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                >
+                  <Star className="h-3 w-3 text-primary" />
+                </motion.span>
+                <span className="text-xs font-semibold uppercase tracking-[0.25em] text-foreground/75">
+                  Open Source
+                </span>
               </div>
             </div>
           </motion.div>
@@ -528,7 +572,7 @@ export function LandingHero() {
 
           {/* Sub */}
           <motion.p
-            className="mx-auto mt-7 max-w-2xl text-center text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl"
+            className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-foreground/65 sm:text-lg md:text-xl"
             variants={fadeUp(1.0)}
             initial="hidden"
             animate="visible"
@@ -540,43 +584,66 @@ export function LandingHero() {
 
           <div
             id="hero-sticky-trigger"
-            className="mt-8 h-px w-full"
+            className="mt-4 h-px w-full"
             aria-hidden="true"
           />
 
           {/* CTA */}
           <motion.div
-            className="mt-10 flex flex-wrap items-center justify-center gap-4"
+            className="mt-6 flex flex-wrap items-center justify-center gap-3"
             variants={fadeUp(1.2)}
             initial="hidden"
             animate="visible"
           >
-            <Button size="lg" className="rounded-full px-8" asChild>
-              <Link href="/component-generator">
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="rounded-full px-8"
-              asChild
+            {/* Get Started — primary CTA */}
+            <Link
+              href="/component-generator"
+              className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-primary px-7 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/35"
             >
-              <Link
-                href="https://github.com/moazamtech/shadway"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Github className="mr-2 h-4 w-4" />
-                Star on GitHub
-              </Link>
-            </Button>
+              <span className="absolute inset-0 overflow-hidden rounded-full">
+                <motion.span
+                  className="absolute inset-y-0 w-[35%] bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                  animate={{ left: ["-35%", "135%"] }}
+                  transition={{
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    repeatDelay: 2,
+                  }}
+                />
+              </span>
+              <span className="relative tracking-wide">Get Started</span>
+              <ArrowRight className="relative h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+            </Link>
+
+            {/* Star on GitHub — secondary CTA */}
+            <Link
+              href="https://github.com/moazamtech/shadway"
+              target="_blank"
+              rel="noreferrer"
+              className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-border/50 bg-background/80 px-7 py-2.5 text-sm font-semibold backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:bg-background/95"
+            >
+              <span className="absolute inset-0 overflow-hidden rounded-full">
+                <motion.span
+                  className="absolute inset-y-0 w-[35%] bg-gradient-to-r from-transparent via-primary/[0.07] to-transparent"
+                  animate={{ left: ["-35%", "135%"] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    repeatDelay: 2.5,
+                    delay: 1,
+                  }}
+                />
+              </span>
+              <Github className="relative h-3.5 w-3.5" />
+              <span className="relative tracking-wide">Star on GitHub</span>
+            </Link>
           </motion.div>
 
           {/* Stats */}
           <motion.div
-            className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3"
+            className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
             variants={fadeUp(1.4)}
             initial="hidden"
             animate="visible"
@@ -598,8 +665,8 @@ export function LandingHero() {
               },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-foreground/30" />
-                <span className="font-mono text-xs text-muted-foreground">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                <span className="font-mono text-xs text-foreground/55">
                   {s.value} {s.label}
                 </span>
               </div>
@@ -705,7 +772,7 @@ export function LandingHero() {
               colorFront={heroShaderColors[2]}
               shape="warp"
               type="4x4"
-              size={2.5}
+              size={2.75}
               speed={1}
             />
           </div>
@@ -916,135 +983,128 @@ export function LandingHero() {
           />
           <circle cx="110" cy="110" r="12" fill="currentColor" opacity="0.3" />
         </OutsideRailMotif>
-        {/* Section header */}
+
         <motion.div
-          className="mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
+          className="mb-6"
         >
-          <div className="flex items-center gap-4">
-            <p className="whitespace-nowrap text-xs font-bold uppercase tracking-[0.2em] text-primary">
-              Component Generator
-            </p>
-            <div className="h-px flex-1 bg-border/60" />
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-6 backdrop-blur-sm md:p-8">
+            {mounted && (
+              <div className="pointer-events-none absolute inset-0">
+                <GodRays
+                  width="100%"
+                  height="100%"
+                  colors={heroShaderColors}
+                  colorBack={heroShaderBack}
+                  colorBloom="#00000000"
+                  bloom={0.6}
+                  intensity={0.6}
+                  density={0.03}
+                  spotty={0.77}
+                  midSize={0.1}
+                  midIntensity={0.6}
+                  speed={1}
+                  offsetX={-0.6}
+                />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-background/20 via-background/55 to-background/75" />
+            <div className="relative">
+              <div className="mb-3 flex items-center gap-4">
+                <p className="whitespace-nowrap text-xs font-bold uppercase tracking-[0.22em] text-primary">
+                  Component Generator
+                </p>
+                <div className="h-px flex-1 bg-border/60" />
+              </div>
+              <h2 className="font-serif text-2xl tracking-tight md:text-4xl">
+                Build interfaces like a futuristic workflow
+                <span className="text-primary">.</span>
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Prompt, preview, and publish in one sleek pipeline. A clean
+                generation surface designed to move from idea to deployable UI
+                in minutes.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button size="sm" className="rounded-full px-5" asChild>
+                  <Link href="/component-generator">
+                    Open Generator
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Monaco editor + live preview + AI prompts
+                </span>
+              </div>
+            </div>
           </div>
-          <h2 className="mt-3 font-serif text-2xl tracking-tight md:text-3xl lg:text-4xl">
-            Prompt to production in one flow
-            <span className="text-primary">.</span>
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Describe your UI in plain English, get production-ready code with
-            live preview, edit in Monaco, and publish to the community gallery.
-          </p>
         </motion.div>
 
-        {/* Pipeline steps — horizontal connected flow */}
-        <motion.div
-          className="grid gap-px border border-border/60 bg-border/60 sm:grid-cols-2 lg:grid-cols-4"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-        >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {GENERATOR_STEPS.map((step, idx) => (
-            <motion.div key={step.title} variants={staggerItem}>
-              <div className="group relative flex h-full flex-col bg-card p-6">
-                {/* Step number + icon */}
+            <motion.div
+              key={step.title}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.35, delay: idx * 0.05 }}
+              className="h-full"
+            >
+              <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_12px_35px_-22px_rgba(0,0,0,0.7)]">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                 <div className="mb-4 flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center border border-border bg-background transition-colors group-hover:border-primary/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background/80 transition-colors group-hover:border-primary/30">
                     <step.icon className="h-4.5 w-4.5 text-muted-foreground transition-colors group-hover:text-foreground" />
                   </div>
-                  <span className="font-mono text-[28px] font-bold leading-none text-border/80">
+                  <span className="font-mono text-2xl font-bold leading-none text-border/80">
                     {String(idx + 1).padStart(2, "0")}
                   </span>
                 </div>
                 <h3 className="font-serif text-base font-semibold">
                   {step.title}
                 </h3>
-                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
                   {step.desc}
                 </p>
-                {/* Connector arrow (hidden on last step) */}
-                {idx < GENERATOR_STEPS.length - 1 && (
-                  <div className="absolute -right-2.5 top-1/2 z-10 hidden -translate-y-1/2 lg:block">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/40" />
-                  </div>
-                )}
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Bottom row: CTA + Prompt starters */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.5fr]">
-          {/* CTA card */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            <Link
-              href="/component-generator"
-              className="group relative flex h-full flex-col justify-between overflow-hidden border border-border/60 bg-card p-6 transition-colors hover:bg-accent/40"
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {PROMPT_STARTERS.map((item, idx) => (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.35, delay: idx * 0.04 }}
             >
-              <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-80" />
-              <div>
-                <div className="mb-3 flex h-10 w-10 items-center justify-center border border-border bg-background transition-colors group-hover:border-primary/30">
-                  <WandSparkles className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                </div>
-                <h3 className="font-serif text-lg font-semibold">
-                  Start generating
-                </h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">
-                  Open the AI generator and build your first component in
-                  seconds.
-                </p>
-              </div>
-              <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold transition-colors group-hover:text-foreground">
-                Open generator
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* Prompt starters */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
-            <div className="grid h-full gap-px border border-border/60 bg-border/60 sm:grid-cols-3">
-              {PROMPT_STARTERS.map((item) => (
-                <Link
-                  key={item.title}
-                  href={`/component-generator?prompt=${encodeURIComponent(item.prompt)}`}
-                  className="group relative flex flex-col overflow-hidden bg-card p-5 transition-colors hover:bg-accent/40"
-                >
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  <div className="mb-2 flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                    <span className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                      Starter
-                    </span>
-                  </div>
-                  <p className="font-serif text-sm font-semibold">
-                    {item.title}
-                  </p>
-                  <p className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
-                    {item.prompt}
-                  </p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground transition-colors group-hover:text-foreground">
-                    Try it
-                    <ArrowUpRight className="h-3 w-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              <Link
+                href={`/component-generator?prompt=${encodeURIComponent(item.prompt)}`}
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 p-5 transition-all duration-300 hover:border-primary/35 hover:bg-accent/40"
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="mb-2 flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                    Prompt Starter
                   </span>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
+                </div>
+                <p className="font-serif text-sm font-semibold">{item.title}</p>
+                <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">
+                  {item.prompt}
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors group-hover:text-foreground">
+                  Use Prompt
+                  <ArrowUpRight className="h-3 w-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            </motion.div>
+          ))}
         </div>
       </section>
 
@@ -1133,66 +1193,66 @@ export function LandingHero() {
         </motion.div>
 
         {/* Grid */}
-        <motion.div
-          className="grid gap-px border border-border/60 bg-border/60 sm:grid-cols-2 lg:grid-cols-3"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-        >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vibecodeLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <div key={`vs-${i}`} className="bg-card">
-                <div className="aspect-[16/10] animate-pulse bg-muted" />
-                <div className="space-y-2 p-5">
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+              <div
+                key={`vs-${i}`}
+                className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm"
+              >
+                <div className="aspect-[16/10] animate-pulse bg-muted/70" />
+                <div className="space-y-2 p-4">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted/80" />
+                  <div className="h-3 w-full animate-pulse rounded bg-muted/70" />
                 </div>
               </div>
             ))
           ) : featuredVibecode.length > 0 ? (
-            featuredVibecode.map((item) => (
+            featuredVibecode.map((item, index) => (
               <motion.div
                 key={item._id || item.slug}
-                variants={staggerItem}
                 className="h-full"
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.35, delay: index * 0.04 }}
               >
                 <Link
                   href={`/vibecode/${item.slug}`}
-                  className="group flex h-full flex-col bg-card transition-colors hover:bg-accent/50"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_12px_40px_-20px_rgba(0,0,0,0.55)]"
                 >
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   {/* Thumbnail */}
-                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/70">
                     <Image
-                      src={item.thumbnailUrl || "/placeholder-image.jpg"}
+                      src={resolveThumbnailSrc(item.thumbnailUrl)}
                       alt={item.title}
                       fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
                     />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-background/10 to-transparent" />
                     {/* Date overlay */}
                     {formatDate(item.publishedAt) && (
-                      <span className="absolute right-3 top-3 border border-border/40 bg-background/80 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground backdrop-blur-sm">
+                      <span className="absolute right-3 top-3 rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-medium tabular-nums text-muted-foreground backdrop-blur-sm">
                         {formatDate(item.publishedAt)}
+                      </span>
+                    )}
+                    {item.category && (
+                      <span className="absolute left-3 top-3 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">
+                        {item.category}
                       </span>
                     )}
                   </div>
 
                   {/* Content */}
                   <div className="flex flex-1 flex-col p-5">
-                    <div className="mb-1.5 flex items-center gap-2">
-                      {item.category && (
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {item.category}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="line-clamp-1 font-serif text-sm font-semibold">
+                    <h3 className="line-clamp-1 font-serif text-base font-semibold tracking-tight">
                       {item.title}
                     </h3>
-                    <p className="mt-1.5 line-clamp-2 flex-1 text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-2 line-clamp-2 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {item.description}
                     </p>
-                    <div className="mt-4 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground transition-colors group-hover:text-foreground">
+                    <div className="mt-4 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors group-hover:text-foreground">
                       View component
                       <ArrowUpRight className="h-3 w-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                     </div>
@@ -1201,7 +1261,7 @@ export function LandingHero() {
               </motion.div>
             ))
           ) : (
-            <div className="bg-card p-6 sm:col-span-2 lg:col-span-3">
+            <div className="rounded-2xl border border-border/60 bg-card p-6 sm:col-span-2 lg:col-span-3">
               <p className="text-sm font-semibold">
                 No published components yet.
               </p>
@@ -1210,7 +1270,7 @@ export function LandingHero() {
               </p>
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Bottom stats */}
         {!vibecodeLoading && featuredVibecode.length > 0 && (
