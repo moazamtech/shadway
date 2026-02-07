@@ -27,26 +27,18 @@ export default function BlockLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <div className="flex flex-1 flex-col">
-        <div className="relative mx-auto w-full max-w-(--breakpoint-xl) flex-1 border-dashed border-r border-l">
-          <BorderBeam
-            borderWidth={1}
-            reverse
-            initialOffset={10}
-            className="from-transparent via-blue-500 to-transparent"
-          />
-          <BorderBeam
-            borderWidth={1}
-            className="from-transparent via-blue-500 to-transparent"
-          />
-          <div className="min-h-[calc(100%-2rem)] w-full pt-10 pb-20">
-            {children}
-          </div>
-        </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="relative mx-auto w-full max-w-7xl">
+        {/* Continuous vertical rails — header to footer */}
+        <div className="absolute inset-y-0 left-0 z-10 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 left-2 z-10 w-[2px] bg-border/40" />
+        <div className="absolute inset-y-0 right-0 z-10 w-[2px] bg-border/70" />
+        <div className="absolute inset-y-0 right-2 z-10 w-[2px] bg-border/40" />
+
+        <Header />
+        <main className="flex-1 min-h-[calc(100vh-4rem)]">{children}</main>
+        <DocsFooter />
       </div>
-      <DocsFooter />
     </div>
   );
 }

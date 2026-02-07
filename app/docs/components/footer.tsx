@@ -5,6 +5,9 @@ import { Highlighter } from "@/components/ui/highlighter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 
+import Link from "next/link";
+import { Github } from "lucide-react";
+
 export function DocsFooter() {
   return (
     <div className="border-border border-dashed border-t">
@@ -27,7 +30,11 @@ export function DocsFooter() {
                 height={20}
                 className="inline-block rounded-2xl"
               />{" "}
-              <Highlighter color="rgba(79, 139, 255, 0.32)" padding={3} action="highlight">
+              <Highlighter
+                color="rgba(79, 139, 255, 0.32)"
+                padding={3}
+                action="highlight"
+              >
                 <a
                   href="https://x.com/loxtmozzi"
                   target="_blank"
@@ -46,7 +53,11 @@ export function DocsFooter() {
                 height={20}
                 className="inline-block rounded-2xl"
               />{" "}
-              <Highlighter color="rgba(79, 139, 255, 0.32)" padding={3} action="highlight">
+              <Highlighter
+                color="rgba(79, 139, 255, 0.32)"
+                padding={3}
+                action="highlight"
+              >
                 <a
                   href="https://x.com/UmairXD_"
                   target="_blank"
@@ -58,7 +69,7 @@ export function DocsFooter() {
                 </a>
               </Highlighter>
               . The source code is available on{" "}
-              <Highlighter color="rgba(79, 139, 255, 0.32)" action="underline" >
+              <Highlighter color="rgba(79, 139, 255, 0.32)" action="underline">
                 <a
                   href="https://github.com/moazamtech/shadway"
                   target="_blank"
