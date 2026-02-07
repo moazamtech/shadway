@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { connectToDatabase } from "@/lib/mongodb";
 import { VibecodeComponent } from "@/lib/types";
 import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import VibecodePreviewClient, {
   SerializedVibecodeComponent,
 } from "./preview-client";
@@ -53,6 +54,15 @@ export default async function VibecodeDetailPage({ params }: PageProps) {
         <div className="absolute inset-y-0 right-2 w-[2px] bg-border/40" />
         <main className="pt-28 pb-20 px-6 lg:px-12">
           <div className="max-w-7xl mx-auto space-y-10">
+            <div>
+              <Link
+                href="/vibecode"
+                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Vibecode
+              </Link>
+            </div>
             <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-primary font-semibold">
                 Vibecode Component
