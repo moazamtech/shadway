@@ -243,7 +243,7 @@ function OutsideRailMotif({
       animate={{
         y: [0, -y, 0],
         rotate: [0, rotate, 0],
-        opacity: [0.25, 0.65, 0.25],
+        opacity: [0.5, 0.9, 0.5],
       }}
       transition={{ duration, delay, repeat: Infinity, ease: "easeInOut" }}
     >
@@ -435,75 +435,40 @@ export function LandingHero() {
         )}
 
         {/* Outside-rail animated SVG accents */}
-        <motion.svg
-          aria-hidden="true"
-          viewBox="0 0 220 220"
-          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/30 lg:block"
-          animate={{
-            y: [0, -10, 0],
-            rotate: [0, 4, 0],
-            opacity: [0.35, 0.65, 0.35],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        {/* Left — All-Seeing Eye (Eye of Providence) */}
+        <OutsideRailMotif
+          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/45 lg:block"
+          duration={8}
+          rotate={4}
+          y={10}
         >
-          <circle
-            cx="110"
-            cy="110"
-            r="86"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <circle
-            cx="110"
-            cy="110"
-            r="58"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="4 8"
-          />
-          <path
-            d="M110 24 L120 92 L188 110 L120 128 L110 196 L100 128 L32 110 L100 92 Z"
-            fill="currentColor"
-            opacity="0.28"
-          />
-        </motion.svg>
-        <motion.svg
-          aria-hidden="true"
-          viewBox="0 0 220 220"
-          className="pointer-events-none absolute -right-24 top-36 hidden h-40 w-40 text-primary/25 lg:block"
-          animate={{
-            y: [0, 12, 0],
-            rotate: [0, -5, 0],
-            opacity: [0.3, 0.55, 0.3],
-          }}
-          transition={{
-            duration: 9,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.6,
-          }}
+          <polygon points="110,25 200,190 20,190" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="42" y1="155" x2="178" y2="155" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+          <path d="M65 125 Q110 85 155 125 Q110 155 65 125 Z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="110" cy="125" r="14" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="110" cy="125" r="5" fill="currentColor" opacity="0.7" />
+          <line x1="110" y1="2" x2="110" y2="18" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+          <line x1="82" y1="8" x2="90" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
+          <line x1="138" y1="8" x2="130" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
+          <line x1="56" y1="20" x2="68" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+          <line x1="164" y1="20" x2="152" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+        </OutsideRailMotif>
+        {/* Right — Occult Compass Rose */}
+        <OutsideRailMotif
+          className="pointer-events-none absolute -right-24 top-96 hidden h-40 w-40 text-primary/40 lg:block"
+          duration={9}
+          delay={0.6}
+          rotate={-5}
+          y={12}
         >
-          <rect
-            x="35"
-            y="35"
-            width="150"
-            height="150"
-            rx="30"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <path
-            d="M110 46 L174 110 L110 174 L46 110 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="5 10"
-          />
-          <circle cx="110" cy="110" r="16" fill="currentColor" opacity="0.28" />
-        </motion.svg>
+          <circle cx="110" cy="110" r="78" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <circle cx="110" cy="110" r="50" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="4 6" opacity="0.5" />
+          <path d="M110 32 L118 95 L110 110 L102 95 Z" fill="currentColor" opacity="0.6" />
+          <path d="M110 188 L102 125 L110 110 L118 125 Z" fill="currentColor" opacity="0.4" />
+          <path d="M32 110 L95 102 L110 110 L95 118 Z" fill="currentColor" opacity="0.4" />
+          <path d="M188 110 L125 118 L110 110 L125 102 Z" fill="currentColor" opacity="0.4" />
+          <circle cx="110" cy="110" r="5" fill="currentColor" opacity="0.7" />
+        </OutsideRailMotif>
 
         <div className="relative px-6 pb-14 pt-14 sm:pb-16 sm:pt-16 lg:px-12 lg:pb-20 lg:pt-20">
           {/* Badge */}
@@ -778,50 +743,37 @@ export function LandingHero() {
           </div>
         )}
 
+        {/* Left — Alchemical Sun */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -left-24 top-20 hidden h-40 w-40 text-primary/25 lg:block"
+          className="pointer-events-none absolute -left-24 top-20 hidden h-40 w-40 text-primary/45 lg:block"
           duration={9}
           rotate={-7}
           y={12}
         >
-          <path
-            d="M35 110 Q110 30 185 110 Q110 190 35 110Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <circle cx="110" cy="110" r="22" fill="currentColor" opacity="0.28" />
-          <path
-            d="M110 44 L126 94 L176 110 L126 126 L110 176 L94 126 L44 110 L94 94 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="5 7"
-          />
+          <circle cx="110" cy="110" r="65" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="110" cy="110" r="28" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="110" cy="110" r="6" fill="currentColor" opacity="0.7" />
+          <line x1="110" y1="15" x2="110" y2="42" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="110" y1="178" x2="110" y2="205" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="15" y1="110" x2="42" y2="110" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="178" y1="110" x2="205" y2="110" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="43" y1="43" x2="63" y2="63" stroke="currentColor" strokeWidth="1" opacity="0.7" />
+          <line x1="177" y1="43" x2="157" y2="63" stroke="currentColor" strokeWidth="1" opacity="0.7" />
+          <line x1="43" y1="177" x2="63" y2="157" stroke="currentColor" strokeWidth="1" opacity="0.7" />
+          <line x1="177" y1="177" x2="157" y2="157" stroke="currentColor" strokeWidth="1" opacity="0.7" />
         </OutsideRailMotif>
+        {/* Right — Crescent Moon & Star */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -right-24 bottom-12 hidden h-44 w-44 text-primary/20 lg:block"
+          className="pointer-events-none absolute -right-24 bottom-12 hidden h-44 w-44 text-primary/40 lg:block"
           duration={10}
           delay={0.3}
           rotate={5}
           y={9}
         >
-          <rect
-            x="42"
-            y="42"
-            width="136"
-            height="136"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <path
-            d="M42 42 L178 178 M178 42 L42 178"
-            stroke="currentColor"
-            strokeWidth="1"
-            opacity="0.5"
-          />
-          <circle cx="110" cy="110" r="10" fill="currentColor" opacity="0.3" />
+          <path d="M130 35 A75 75 0 1 0 130 185 A55 55 0 1 1 130 35" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M170 80 L172 92 L184 95 L172 98 L170 110 L168 98 L156 95 L168 92 Z" fill="currentColor" opacity="0.6" />
+          <path d="M175 125 L176 131 L182 131 L177 135 L179 141 L175 137 L171 141 L173 135 L168 131 L174 131 Z" fill="currentColor" opacity="0.45" />
+          <circle cx="168" cy="155" r="2" fill="currentColor" opacity="0.4" />
         </OutsideRailMotif>
 
         <div className="relative z-10 px-6 py-16 sm:py-20 lg:px-12">
@@ -931,57 +883,32 @@ export function LandingHero() {
       {/*  GENERATOR                                                   */}
       {/* ============================================================ */}
       <section className="relative overflow-visible px-6 py-16 sm:py-20 lg:px-12">
+        {/* Left — Pentacle */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -left-28 top-28 hidden h-48 w-48 text-primary/20 lg:block"
+          className="pointer-events-none absolute -left-28 top-28 hidden h-48 w-48 text-primary/15 lg:block"
           duration={11}
           delay={0.2}
           rotate={4}
           y={14}
         >
-          <circle
-            cx="110"
-            cy="110"
-            r="82"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.1"
-            strokeDasharray="3 8"
-          />
-          <path
-            d="M110 30 L158 110 L110 190 L62 110 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.1"
-          />
-          <path
-            d="M72 86 H148 M72 134 H148"
-            stroke="currentColor"
-            strokeWidth="1"
-            opacity="0.55"
-          />
+          <circle cx="110" cy="110" r="80" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <polygon points="110,30 157,175 34,85 186,85 63,175" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
         </OutsideRailMotif>
+        {/* Right — Sigil Circle */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -right-28 bottom-8 hidden h-40 w-40 text-primary/25 lg:block"
+          className="pointer-events-none absolute -right-28 bottom-8 hidden h-40 w-40 text-primary/50 lg:block"
           duration={8.5}
           delay={0.5}
           rotate={-6}
           y={10}
         >
-          <path
-            d="M110 28 L192 110 L110 192 L28 110 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <circle
-            cx="110"
-            cy="110"
-            r="34"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <circle cx="110" cy="110" r="12" fill="currentColor" opacity="0.3" />
+          <circle cx="110" cy="110" r="75" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M110 35 L160 110 L110 185 L60 110 Z" fill="none" stroke="currentColor" strokeWidth="1" />
+          <line x1="110" y1="35" x2="110" y2="185" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
+          <line x1="35" y1="110" x2="185" y2="110" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
+          <circle cx="110" cy="110" r="20" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
         </OutsideRailMotif>
 
         <motion.div
@@ -1111,49 +1038,35 @@ export function LandingHero() {
       {/*  VIBECODE GALLERY                                            */}
       {/* ============================================================ */}
       <section className="relative overflow-visible px-6 py-16 sm:py-20 lg:px-12">
+        {/* Left — Triple Moon (Goddess Symbol) */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/20 lg:block"
+          className="pointer-events-none absolute -left-24 top-20 hidden h-44 w-44 text-primary/45 lg:block"
           duration={9.5}
           delay={0.15}
           rotate={7}
           y={8}
         >
-          <rect
-            x="36"
-            y="36"
-            width="148"
-            height="148"
-            rx="24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          />
-          <path
-            d="M110 52 V168 M52 110 H168"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <circle cx="110" cy="110" r="14" fill="currentColor" opacity="0.25" />
+          <circle cx="110" cy="110" r="30" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
+          <path d="M60 65 A45 45 0 1 0 60 155 A30 30 0 1 1 60 65" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M160 155 A45 45 0 1 0 160 65 A30 30 0 1 1 160 155" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <line x1="15" y1="110" x2="205" y2="110" stroke="currentColor" strokeWidth="0.7" opacity="0.35" strokeDasharray="3 5" />
         </OutsideRailMotif>
+        {/* Right — Seed of Life (Sacred Geometry) */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -right-24 bottom-16 hidden h-40 w-40 text-primary/25 lg:block"
+          className="pointer-events-none absolute -right-24 bottom-16 hidden h-40 w-40 text-primary/40 lg:block"
           duration={12}
           delay={0.4}
           rotate={-4}
           y={13}
         >
-          <path
-            d="M110 24 L150 70 L196 110 L150 150 L110 196 L70 150 L24 110 L70 70 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.1"
-          />
-          <path
-            d="M66 66 L154 154 M154 66 L66 154"
-            stroke="currentColor"
-            strokeWidth="1"
-            opacity="0.5"
-          />
+          <circle cx="110" cy="110" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="110" cy="80" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="136" cy="95" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="136" cy="125" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="110" cy="140" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="84" cy="125" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle cx="84" cy="95" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
         </OutsideRailMotif>
         {/* Header */}
         <motion.div
@@ -1310,61 +1223,34 @@ export function LandingHero() {
           </div>
         )}
 
+        {/* Left — Third Eye (Vertical Eye) */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -left-28 top-10 hidden h-52 w-52 text-primary/20 lg:block"
+          className="pointer-events-none absolute -left-28 top-10 hidden h-52 w-52 text-primary/45 lg:block"
           duration={13}
           delay={0.25}
           rotate={5}
           y={15}
         >
-          <circle
-            cx="110"
-            cy="110"
-            r="90"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.1"
-          />
-          <circle
-            cx="110"
-            cy="110"
-            r="62"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="6 10"
-          />
-          <path
-            d="M110 20 L122 96 L200 110 L122 124 L110 200 L98 124 L20 110 L98 96 Z"
-            fill="currentColor"
-            opacity="0.18"
-          />
+          <circle cx="110" cy="110" r="80" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 8" />
+          <path d="M110 35 Q160 110 110 185 Q60 110 110 35 Z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="110" cy="110" r="22" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <circle cx="110" cy="110" r="8" fill="currentColor" opacity="0.5" />
+          <circle cx="110" cy="110" r="3" fill="currentColor" opacity="0.85" />
         </OutsideRailMotif>
+        {/* Right — Ouroboros (Serpent Circle) */}
         <OutsideRailMotif
-          className="pointer-events-none absolute -right-28 bottom-10 hidden h-44 w-44 text-primary/25 lg:block"
+          className="pointer-events-none absolute -right-28 bottom-10 hidden h-44 w-44 text-primary/40 lg:block"
           duration={10.5}
           delay={0.55}
           rotate={-8}
           y={9}
         >
-          <rect
-            x="32"
-            y="32"
-            width="156"
-            height="156"
-            rx="40"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.1"
-          />
-          <path
-            d="M64 64 H156 V156 H64 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="4 6"
-          />
-          <circle cx="110" cy="110" r="11" fill="currentColor" opacity="0.28" />
+          <circle cx="110" cy="110" r="75" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="110" cy="110" r="68" fill="none" stroke="currentColor" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.5" />
+          <path d="M97 38 L110 22 L123 38" fill="currentColor" opacity="0.6" />
+          <polygon points="110,60 150,145 70,145" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+          <ellipse cx="110" cy="115" rx="18" ry="10" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <circle cx="110" cy="115" r="4" fill="currentColor" opacity="0.6" />
         </OutsideRailMotif>
 
         <div className="relative px-6 py-20 text-center sm:py-28 lg:px-12">
