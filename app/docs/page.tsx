@@ -157,28 +157,30 @@ export default function BlocksPage() {
 
 function Card({ category, index }: { category: any; index: number }) {
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 24 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50 } as any },
   };
 
   const [isHovered, setIsHovered] = React.useState(false);
 
-  const Preview = PREVIEWS[category.name] || 
-                  PREVIEWS[category.name.charAt(0).toUpperCase() + category.name.slice(1).toLowerCase()] || 
+  const Preview = PREVIEWS[category.name] ||
+                  PREVIEWS[category.name.charAt(0).toUpperCase() + category.name.slice(1).toLowerCase()] ||
                   PREVIEWS[category.name.toUpperCase()] ||
-                  AIPreview; 
+                  AIPreview;
 
   const CardContent = (
     <motion.div
       variants={itemVariants}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card transition-all duration-300 hover:border-primary/40 hover:shadow-sm cursor-pointer"
+      whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 24 } }}
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card cursor-pointer transition-[border-color,box-shadow] duration-300 ease-out hover:border-border hover:shadow-lg"
     >
-      <div className="h-44 w-full border-b border-border/40 relative bg-muted/5 group-hover:bg-muted/10 transition-colors">
+      {/* Preview area */}
+      <div className="h-44 w-full border-b border-border/40 relative bg-muted/5 transition-colors duration-300 group-hover:bg-muted/10">
         <Preview isHovered={isHovered} />
-        
-        <div className="absolute top-3 right-3 z-10 font-mono text-[10px] text-muted-foreground/60 bg-background/90 backdrop-blur px-2 py-1 rounded-md border border-border/40 shadow-sm">
+
+        <div className="absolute top-3 right-3 z-10 font-mono text-[10px] text-muted-foreground/60 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-md border border-border/40">
           {String(index + 1).padStart(2, "0")}
         </div>
       </div>
@@ -197,10 +199,10 @@ function Card({ category, index }: { category: any; index: number }) {
           <Badge variant="secondary" className="bg-muted text-[10px] font-medium text-muted-foreground/80 px-2 py-0.5 border border-border/50">
             {category.blocks} Components
           </Badge>
-          
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
             <span>Explore</span>
-            <ArrowUpRight className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <ArrowUpRight className="w-3 h-3 opacity-50 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </div>
         </div>
       </div>
