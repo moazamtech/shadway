@@ -2,10 +2,9 @@ import { Metadata } from "next";
 import { generateSEOMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generateSEOMetadata({
-  title:
-    "Shadway - AI Component Generator | Create Beautiful React Components",
+  title: "AI Component Generator | Generate Shadcn UI React Components",
   description:
-    "Generate production-ready React components with AI. Shadway creates beautiful, responsive components using Shadcn colors and modern design patterns. Just describe what you need and get instant, customizable code.",
+    "Generate production-ready React and Next.js UI with AI. Describe your idea and get editable Shadcn UI components, Tailwind styles, and code previews instantly.",
   keywords: [
     "vibecode",
     "ai component generator",
@@ -15,6 +14,10 @@ export const metadata: Metadata = generateSEOMetadata({
     "component builder",
     "tailwind css",
     "typescript",
+    "next.js component generator",
+    "shadcn ui generator",
+    "ui code assistant",
+    "react tailwind generator",
   ],
   url: "/component-generator",
 });

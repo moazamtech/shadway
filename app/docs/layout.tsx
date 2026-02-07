@@ -2,6 +2,24 @@ import "@/app/globals.css";
 import { BorderBeam } from "@/components/ui/borderbeam";
 import { Header } from "./components/header";
 import { DocsFooter } from "./components/footer";
+import { Metadata } from "next";
+import { generateSEOMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = generateSEOMetadata({
+  title: "UI Docs | Shadcn UI Blocks and Component Library",
+  description:
+    "Browse Shadway docs for categorized UI blocks, reusable components, previews, and install commands to ship faster with Shadcn UI.",
+  keywords: [
+    "shadcn docs",
+    "ui component docs",
+    "shadcn blocks",
+    "component library docs",
+    "react ui documentation",
+    "tailwind ui blocks",
+    "shadway docs",
+  ],
+  url: "/docs",
+});
 
 export default function BlockLayout({
   children,
@@ -13,8 +31,16 @@ export default function BlockLayout({
       <Header />
       <div className="flex flex-1 flex-col">
         <div className="relative mx-auto w-full max-w-(--breakpoint-xl) flex-1 border-dashed border-r border-l">
-          <BorderBeam borderWidth={1} reverse initialOffset={10} className="from-transparent via-blue-500 to-transparent"/>
-          <BorderBeam borderWidth={1} className="from-transparent via-blue-500 to-transparent"/>
+          <BorderBeam
+            borderWidth={1}
+            reverse
+            initialOffset={10}
+            className="from-transparent via-blue-500 to-transparent"
+          />
+          <BorderBeam
+            borderWidth={1}
+            className="from-transparent via-blue-500 to-transparent"
+          />
           <div className="min-h-[calc(100%-2rem)] w-full pt-10 pb-20">
             {children}
           </div>
