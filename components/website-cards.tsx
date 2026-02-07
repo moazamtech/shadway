@@ -141,26 +141,26 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
       </div>
 
       <div className="relative flex flex-col justify-start items-center w-full">
-        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
+        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-317.5 lg:w-340 relative flex flex-col justify-start items-start">
           {/* Enhanced Left vertical line with geometric elements */}
-          <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0">
+          <div className="w-px h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0">
             {/* Decorative elements along the line */}
-            <div className="absolute top-32 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
-            <div className="absolute top-64 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
-            <div className="absolute top-96 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-32 -left-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-64 -left-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-96 -left-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
           </div>
 
           {/* Enhanced Right vertical line with geometric elements */}
-          <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border z-0">
+          <div className="w-px h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-border z-0">
             {/* Decorative elements along the line */}
-            <div className="absolute top-40 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
-            <div className="absolute top-72 right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
-            <div className="absolute top-[400px] right-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-40 -right-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-72 -right-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
+            <div className="absolute top-100 -right-0.5 w-1 h-1 bg-primary rounded-full opacity-60"></div>
           </div>
 
           {/* Left decorative dashed border - outside of main lines */}
           <div
-            className="absolute dark:opacity-[0.15] opacity-[0.2] left-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
+            className="absolute dark:opacity-[0.15] opacity-[0.2] -left-15 top-0 w-15 h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
             style={{
               backgroundImage:
                 "repeating-linear-gradient(-45deg, transparent, transparent 2px, currentcolor 2px, currentcolor 3px, transparent 3px, transparent 6px)",
@@ -169,7 +169,7 @@ export function WebsiteCards({ websites, loading = false }: WebsiteCardsProps) {
 
           {/* Right decorative dashed border - outside of main lines */}
           <div
-            className="absolute dark:opacity-[0.15] opacity-[0.2] right-[-60px] top-0 w-[60px] h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
+            className="absolute dark:opacity-[0.15] opacity-[0.2] -right-15 top-0 w-15 h-full border border-dashed dark:border-[#eee] border-[#000]/70 hidden xl:block"
             style={{
               backgroundImage:
                 "repeating-linear-gradient(-45deg, transparent, transparent 2px, currentcolor 2px, currentcolor 3px, transparent 3px, transparent 6px)",
