@@ -30,28 +30,41 @@ const playfairDisplay = Playfair_Display({
 
 export const metadata: Metadata = {
   ...generateSEOMetadata({
-    title: "Shadway - Curated Shadcn UI Website Collection",
+    title: "Shadway | Shadcn UI Inspiration, Components, and Templates",
     description:
-      "Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.",
+      "Discover curated Shadcn UI websites, reusable components, docs, and AI-generated blocks to build modern React and Next.js interfaces faster.",
     keywords: [
-      "shadcn ui figma",
-      "Shadway",
-      "Shadway Shadcn",
-      "Shadcn shadway",
-      "Shadcn docs",
-      "Shadcn components",
-      "Shadcn latest",
+      "shadway",
+      "shadcn ui inspiration",
+      "shadcn ui examples",
+      "shadcn ui components",
+      "shadcn ui docs",
+      "shadcn ui component library",
+      "shadcn ui website templates",
+      "shadcn ui blocks",
+      "shadcn ui snippets",
+      "shadcn ui sections",
+      "shadcn ui registry",
       "shadcn/ui install",
-      "shadcn ui theme generator",
       "shadcn ui templates",
       "react component library",
-      "shadcn card component",
-      "shadcn install components",
-      "music player component in react js",
-      "react carousel component",
-      "react pure component",
-      "react dynamic component",
-      "shadcn figma",
+      "next.js ui components",
+      "nextjs component library",
+      "nextjs shadcn components",
+      "tailwind css components",
+      "tailwind ui components",
+      "tailwind react components",
+      "typescript react components",
+      "ai component generator",
+      "ai ui generator",
+      "ai code generation for react",
+      "vibecode components",
+      "component generator for nextjs",
+      "modern ui components",
+      "responsive ui components",
+      "production ready ui components",
+      "frontend design inspiration",
+      "website ui showcase",
     ],
   }),
   other: {
@@ -85,8 +98,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
-        <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+        <link
+          rel="icon"
+          href="/favicon-32x32.png"
+          type="image/png"
+          sizes="32x32"
+        />
+        <link
+          rel="icon"
+          href="/favicon-16x16.png"
+          type="image/png"
+          sizes="16x16"
+        />
         <link
           rel="alternate"
           type="application/rss+xml"
