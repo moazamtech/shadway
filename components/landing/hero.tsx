@@ -419,7 +419,7 @@ export function LandingHero() {
       <section className="relative overflow-visible">
         {/* GrainGradient shader bg */}
         {mounted && (
-          <div className="pointer-events-none absolute inset-0 opacity-[50%]">
+          <div className="pointer-events-none absolute inset-0 opacity-75">
             <GrainGradient
               width="100%"
               height="100%"
@@ -757,14 +757,14 @@ export function LandingHero() {
         </motion.div>
       </section>
 
-      <DashedSeparator />
+      <HatchedSeparator />
 
       {/* ============================================================ */}
       {/*  REGISTRY CATEGORIES                                         */}
       {/* ============================================================ */}
       <section className="relative overflow-visible">
         {mounted && (
-          <div className="pointer-events-none absolute inset-0 z-0 opacity-25">
+          <div className="pointer-events-none absolute inset-0 z-0 opacity-30">
             <Dithering
               width="100%"
               height="100%"
@@ -925,7 +925,7 @@ export function LandingHero() {
         </div>
       </section>
 
-      <DashedSeparator />
+      <HatchedSeparator />
 
       {/* ============================================================ */}
       {/*  GENERATOR                                                   */}
@@ -993,7 +993,7 @@ export function LandingHero() {
         >
           <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-6 backdrop-blur-sm md:p-8">
             {mounted && (
-              <div className="pointer-events-none absolute inset-0">
+              <div className="pointer-events-none absolute inset-0 opacity-70">
                 <GodRays
                   width="100%"
                   height="100%"
@@ -1035,9 +1035,6 @@ export function LandingHero() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-                <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Monaco editor + live preview + AI prompts
-                </span>
               </div>
             </div>
           </div>
@@ -1198,12 +1195,12 @@ export function LandingHero() {
             Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={`vs-${i}`}
-                className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm"
+                className="overflow-hidden rounded-xl border border-border/40 bg-card/60 backdrop-blur-sm"
               >
-                <div className="aspect-[16/10] animate-pulse bg-muted/70" />
-                <div className="space-y-2 p-4">
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted/80" />
-                  <div className="h-3 w-full animate-pulse rounded bg-muted/70" />
+                <div className="aspect-[2/1] animate-pulse bg-muted/50" />
+                <div className="space-y-2 p-3">
+                  <div className="h-3.5 w-2/3 animate-pulse rounded bg-muted/60" />
+                  <div className="h-3 w-full animate-pulse rounded bg-muted/50" />
                 </div>
               </div>
             ))
@@ -1219,43 +1216,45 @@ export function LandingHero() {
               >
                 <Link
                   href={`/vibecode/${item.slug}`}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/85 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_12px_40px_-20px_rgba(0,0,0,0.55)]"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border/40 bg-card/60 backdrop-blur-sm transition-colors duration-300 hover:border-primary/30 hover:bg-card/80"
                 >
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  {/* Top accent line */}
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
                   {/* Thumbnail */}
-                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/70">
+                  <div className="relative aspect-[2/1] w-full overflow-hidden bg-muted/40">
                     <Image
                       src={resolveThumbnailSrc(item.thumbnailUrl)}
                       alt={item.title}
                       fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+                      className="object-cover"
                     />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-background/10 to-transparent" />
-                    {/* Date overlay */}
-                    {formatDate(item.publishedAt) && (
-                      <span className="absolute right-3 top-3 rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[10px] font-medium tabular-nums text-muted-foreground backdrop-blur-sm">
-                        {formatDate(item.publishedAt)}
-                      </span>
-                    )}
-                    {item.category && (
-                      <span className="absolute left-3 top-3 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary">
-                        {item.category}
-                      </span>
-                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+                    {/* Overlays */}
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 pb-2.5">
+                      {item.category && (
+                        <span className="rounded border border-primary/20 bg-background/70 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-primary backdrop-blur-sm">
+                          {item.category}
+                        </span>
+                      )}
+                      {formatDate(item.publishedAt) && (
+                        <span className="font-mono text-[9px] tabular-nums text-foreground/50">
+                          {formatDate(item.publishedAt)}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Content */}
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="line-clamp-1 font-serif text-base font-semibold tracking-tight">
-                      {item.title}
-                    </h3>
-                    <p className="mt-2 line-clamp-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  <div className="flex flex-1 flex-col px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="line-clamp-1 text-sm font-semibold tracking-tight">
+                        {item.title}
+                      </h3>
+                      <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+                    </div>
+                    <p className="mt-1 line-clamp-1 text-xs leading-relaxed text-muted-foreground">
                       {item.description}
                     </p>
-                    <div className="mt-4 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors group-hover:text-foreground">
-                      View component
-                      <ArrowUpRight className="h-3 w-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                    </div>
                   </div>
                 </Link>
               </motion.div>
