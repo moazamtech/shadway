@@ -170,9 +170,11 @@ export default function VibecodePage() {
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {paginatedItems.map((item) => (
-                    <div
+                    <Link
                       key={item._id || item.slug}
-                      className="group rounded-sm overflow-hidden"
+                      href={`/vibecode/${item.slug}`}
+                      prefetch
+                      className="group block rounded-sm overflow-hidden"
                     >
                       <div className="relative aspect-[16/9] w-full bg-muted/20">
                         <Image
@@ -184,11 +186,7 @@ export default function VibecodePage() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                          <Button size="sm" asChild>
-                            <Link href={`/vibecode/${item.slug}`}>
-                              View Details
-                            </Link>
-                          </Button>
+                          <Button size="sm">View Details</Button>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 px-4 py-3">
@@ -211,7 +209,7 @@ export default function VibecodePage() {
                           Free
                         </span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
 
