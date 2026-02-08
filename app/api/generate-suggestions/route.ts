@@ -9,45 +9,36 @@ type Suggestion = {
   prompt: string;
 };
 
-const LANDING_CONCEPTS = [
-  "SaaS product landing",
-  "crypto memecoin launch",
-  "marketing landing for tech/IT company",
-  "fintech budgeting platform",
-  "healthcare operations dashboard",
-  "climate-tech analytics platform",
-  "logistics & fleet management",
-  "AI customer support platform",
-  "creator monetization suite",
-  "remote team collaboration suite",
-  "B2B cybersecurity compliance",
-  "edtech cohort learning platform",
-];
-
 const COMPONENT_CONCEPTS = [
-  "hero split layout",
-  "hero centered headline",
-  "hero with social proof",
-  "hero with product preview",
-  "hero with lead form",
-  "hero + stats strip",
-  "hero with video modal",
-  "hero with feature pills",
-  "hero with comparison mini-cards",
-  "hero with timeline teaser",
-  "hero with testimonial pill",
-  "hero with trust badges",
+  "magnetic command palette",
+  "kinetic onboarding stepper",
+  "neural loading state module",
+  "reactive pricing configurator",
+  "animated feedback panel",
+  "morphing settings control dock",
+  "signal-based notification stack",
+  "timeline scrubber with motion cues",
+  "gesture-driven media controller",
+  "data card with live transitions",
+  "interactive comparison slider",
+  "command center widget rail",
+  "animated auth interaction panel",
+  "floating contextual action dock",
+  "workflow status matrix",
+  "modal choreography system",
+  "input orchestration surface",
+  "dashboard micro-interaction bundle",
 ];
 
 const STYLE_FLAVORS = [
-  "editorial minimal",
-  "neo brutal clean",
-  "glassmorphism soft",
-  "bold geometric",
-  "enterprise polished",
-  "modern contrast",
-  "premium monochrome",
-  "vibrant gradient",
+  "futuristic minimal",
+  "clean cyber interface",
+  "high-contrast glass layer",
+  "precision geometric",
+  "sleek enterprise motion",
+  "modern kinetic ui",
+  "premium monochrome neon accent",
+  "technical blueprint aesthetic",
 ];
 
 function pickUnique(source: string[], count: number) {
@@ -76,47 +67,28 @@ function uniqByContent(list: Suggestion[]) {
 
 function ensurePromptConstraints(prompt: string) {
   let out = prompt.trim().replace(/\s+/g, " ");
+  out = out.replace(/\blanding page\b/gi, "component module");
+  out = out.replace(/\blanding\b/gi, "component");
   if (!/fully responsive/i.test(out)) out += " Fully responsive.";
   if (!/light\/dark mode/i.test(out)) out += " Supports light/dark mode.";
+  if (!/heavy animations/i.test(out))
+    out += " Heavy animations with polished micro-interactions.";
   return out;
 }
 
-function buildDynamicFallback(
-  landingThemes: string[],
-  componentThemes: string[],
-): Suggestion[] {
-  const landing = landingThemes.map((theme, idx) => {
-    const style = STYLE_FLAVORS[idx % STYLE_FLAVORS.length];
-    const title = theme
-      .replace(/platform|suite|landing|for|&/gi, "")
-      .trim()
-      .split(/\s+/)
-      .slice(0, 3)
-      .join(" ");
-    return {
-      icon: "landing",
-      title: title ? `${title} Page` : `Landing ${idx + 1}`,
-      prompt: ensurePromptConstraints(
-        `${theme} landing page with hero, feature grid, social proof, pricing, FAQ, and footer. ${style} visual language with clear CTA hierarchy.`,
-      ),
-    };
-  });
-
+function buildDynamicFallback(componentThemes: string[]): Suggestion[] {
   const blocks = componentThemes.map((theme, idx) => {
     const style = STYLE_FLAVORS[(idx + 3) % STYLE_FLAVORS.length];
     return {
       icon: "layout",
-      title: `Hero ${idx + 1}`,
+      title: `Concept ${idx + 1}`,
       prompt: ensurePromptConstraints(
-        `${theme} with strong headline, supporting copy, primary and secondary CTAs, and trust elements. ${style} styling with practical spacing and reusable structure.`,
+        `${theme} component concept with advanced motion choreography, layered transitions, and interactive states. ${style} styling with production-ready structure and clear interaction flow.`,
       ),
     };
   });
 
-  return uniqByContent(normalizeSuggestions([...landing, ...blocks])).slice(
-    0,
-    6,
-  );
+  return uniqByContent(normalizeSuggestions(blocks)).slice(0, 6);
 }
 
 function parseSuggestionsContent(content: string): Suggestion[] {
@@ -157,39 +129,37 @@ export async function POST() {
       );
     }
 
-    // Per-request seed + theme buckets nudges the model away from repeating the same ideas.
+    // Per-request seed + theme buckets nudge ideas away from repetition.
     const seed = crypto.randomUUID();
-    const landingThemes = pickUnique(LANDING_CONCEPTS, 3);
-    const componentThemes = pickUnique(COMPONENT_CONCEPTS, 3);
+    const componentThemes = pickUnique(COMPONENT_CONCEPTS, 6);
 
     const systemPrompt = `You are a UI/UX assistant for a design-to-code platform.
-Generate 6 suggestions TOTAL, mixing:
-- 3 Landing pages (full pages)
-- 3 Blocks (single sections/blocks)
+Generate exactly 6 unique suggestions.
+Only generate COMPONENT concepts, never full pages and never landing page ideas.
+Focus on heavy, premium animations and futuristic interaction patterns.
 
 Each suggestion must be an object with:
-- icon: a lucide icon key (one of: "landing","component","layout","nav","pricing","auth","stats","testimonials","contact","sparkles")
+- icon: a lucide icon key (one of: "component","layout","nav","pricing","auth","stats","testimonials","contact","sparkles")
 - title: a short title (2-4 words)
-- prompt: a simple, buildable prompt (18-35 words) describing layout + visual style + key elements + responsiveness
+- prompt: a buildable prompt (22-45 words) describing component behavior, heavy animation style, interaction states, and implementation constraints
 
 Hard constraints:
-- Keep prompts simple and implementable.
-- Make ideas distinct from each other (different industries, layouts, or visual languages).
-- Avoid repeating the same themes across requests.
-- NEVER reuse exact titles from common defaults such as "SaaS Landing", "Hero Split", "Hero Centered", "Hero Proof".
-- The 3 landing page ideas MUST use different industries/concepts from each other.
-- The 3 block ideas MUST be different hero patterns.
+- Do NOT mention landing pages, homepages, hero sections, pricing pages, or full-site structure.
+- Every suggestion must be a reusable component/module.
+- Heavy animations are mandatory: choreographed transitions, layered motion, and micro-interactions.
+- Make all 6 ideas structurally different from each other.
+- Avoid generic repeats; each result must feel like a new concept family.
 - Every suggestion must mention "fully responsive" and "light/dark mode".
-- For landing pages, include concrete sections (hero, features, pricing, social proof, FAQ, footer, etc).
+- Keep prompts practical for implementation in React + Tailwind + Framer Motion.
 
 Return JSON ONLY in this shape:
 { "suggestions": [ ... ] }`;
 
     const makeRequest = async (
       seed: string,
-      requestLandingThemes: string[],
       requestComponentThemes: string[],
       existingTitles: string[] = [],
+      existingFingerprints: string[] = [],
     ) => {
       try {
         const { text } = await generateText({
@@ -197,20 +167,24 @@ Return JSON ONLY in this shape:
           system: systemPrompt,
           prompt: `Seed: ${seed}
 Timestamp: ${new Date().toISOString()}
-Landing themes: ${requestLandingThemes.join(", ")}
 Component themes: ${requestComponentThemes.join(", ")}
 Avoid these titles: ${existingTitles.join(", ") || "none"}
+Avoid these concept fingerprints: ${existingFingerprints.join(" | ") || "none"}
 Generate 6 fresh, unique suggestions now.`,
           temperature: 1.2,
         });
         return parseSuggestionsContent(text || "[]");
-      } catch (err: any) {
-        const statusCode = err?.statusCode ?? err?.status;
+      } catch (err: unknown) {
+        const statusCode =
+          typeof err === "object" && err !== null
+            ? ((err as { statusCode?: number; status?: number }).statusCode ??
+              (err as { statusCode?: number; status?: number }).status)
+            : undefined;
         if (statusCode === 404) {
           if (!longcatUnavailable) {
             longcatUnavailable = true;
             console.warn(
-              "generate-suggestions: meituan/longcat-flash-chat unavailable (404). Using dynamic fallback suggestions.",
+              "generate-suggestions: primary model unavailable (404). Using dynamic fallback suggestions.",
             );
           }
           return [];
@@ -220,21 +194,26 @@ Generate 6 fresh, unique suggestions now.`,
       }
     };
 
-    const firstPass = await makeRequest(seed, landingThemes, componentThemes);
+    const firstPass = await makeRequest(seed, componentThemes);
     let merged = uniqByContent(
       normalizeSuggestions(firstPass).map((s) => ({
         ...s,
         prompt: ensurePromptConstraints(s.prompt),
       })),
     );
+    merged = merged.filter((s) => !/\blanding|homepage|hero\b/i.test(s.prompt));
+    merged = merged.filter((s) => !/\blanding|homepage|hero\b/i.test(s.title));
 
     if (merged.length < 6 && !longcatUnavailable) {
       const seed2 = crypto.randomUUID();
       const secondPass = await makeRequest(
         seed2,
-        pickUnique(LANDING_CONCEPTS, 3),
-        pickUnique(COMPONENT_CONCEPTS, 3),
+        pickUnique(COMPONENT_CONCEPTS, 6),
         merged.map((item) => item.title),
+        merged.map(
+          (item) =>
+            `${item.title.toLowerCase()}::${item.prompt.toLowerCase().slice(0, 80)}`,
+        ),
       );
       merged = uniqByContent(
         [...merged, ...normalizeSuggestions(secondPass)].map((s) => ({
@@ -242,13 +221,21 @@ Generate 6 fresh, unique suggestions now.`,
           prompt: ensurePromptConstraints(s.prompt),
         })),
       );
+      merged = merged.filter(
+        (s) => !/\blanding|homepage|hero\b/i.test(s.prompt),
+      );
+      merged = merged.filter(
+        (s) => !/\blanding|homepage|hero\b/i.test(s.title),
+      );
     }
 
     const dynamicFallback = buildDynamicFallback(
-      pickUnique(LANDING_CONCEPTS, 3),
-      pickUnique(COMPONENT_CONCEPTS, 3),
+      pickUnique(COMPONENT_CONCEPTS, 6),
     );
-    const finalSuggestions = [...merged, ...dynamicFallback].slice(0, 6);
+    const finalSuggestions = [...merged, ...dynamicFallback]
+      .filter((s) => !/\blanding|homepage|hero\b/i.test(s.prompt))
+      .filter((s) => !/\blanding|homepage|hero\b/i.test(s.title))
+      .slice(0, 6);
 
     return new Response(JSON.stringify(finalSuggestions), {
       status: 200,
