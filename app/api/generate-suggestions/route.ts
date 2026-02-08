@@ -163,7 +163,7 @@ Return JSON ONLY in this shape:
     ) => {
       try {
         const { text } = await generateText({
-          model: gateway("mistral/devstral-2"),
+          model: gateway("openai/gpt-oss-120b"),
           system: systemPrompt,
           prompt: `Seed: ${seed}
 Timestamp: ${new Date().toISOString()}
