@@ -21,7 +21,7 @@ We take the security of Shadway seriously. If you believe you have found a secur
 
 ### How to Report:
 
-**Please report security vulnerabilities by emailing: moazambutt@gmail.com**
+**Please report security vulnerabilities by emailing: moazamdevw@gmail.com**
 
 Include the following information:
 
