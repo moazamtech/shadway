@@ -69,10 +69,10 @@ function generateRandomCategory(): string {
   const categories = [
     "data visualization",
     "user input",
-    "navigation",
+    "Navbar",
     "feedback",
     "media",
-    "social",
+    "Hero Sections",
     "e-commerce",
     "productivity",
     "communication",
@@ -121,10 +121,10 @@ Your job is to invent 6 COMPLETELY ORIGINAL and UNIQUE component ideas every sin
 
 CRITICAL: You must NEVER repeat ideas. Every response must contain brand new, never-before-seen concepts.
 Think of entirely new interaction patterns, novel UI paradigms, and unexpected component behaviors.
-Be inventive — imagine components that don't exist yet.
+Be inventive — imagine components that don't exist yet unique on concept components and also fully response suggestion and color scheme and fully take it the component hero section.
 
 Each suggestion must be an object with:
-- icon: a lucide icon key (one of: "component","layout","nav","pricing","auth","stats","testimonials","contact","sparkles")
+- icon: a lucide icon key (one of or more unqiue from these : "component","layout","nav","pricing","auth","stats","testimonials","contact","sparkles")
 - title: a short creative title (2-4 words)
 - prompt: a detailed buildable prompt (22-45 words) describing the component behavior, animation style, interaction states, and implementation details
 
