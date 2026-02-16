@@ -7,65 +7,66 @@ export function RegistryBlockSkeleton() {
   return (
     <div className="group relative flex flex-col space-y-0 transition-all duration-300">
       {/* Header Skeleton */}
-      <div className="relative py-2 px-4 sm:px-8 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
-        {/* Massive Ghost Number Skeleton */}
-        <div className="absolute left-4 -top-8 w-32 h-20 bg-foreground/[0.04] rounded-lg hidden md:block" />
-
-        <div className="flex flex-col gap-3 relative z-10 px-1">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-9 w-12 rounded bg-primary/10 border border-dashed border-primary/20 md:hidden" />
-            <Skeleton className="h-10 w-64 md:h-12 md:w-96 rounded-lg" />
+      <div className="relative py-4 px-6 md:px-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex flex-col gap-4 relative z-10">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-px w-8 bg-primary/20" />
+            <Skeleton className="h-3 w-32 rounded-none opacity-40" />
           </div>
-          <div className="space-y-2 mt-1">
-            <Skeleton className="h-4 w-full max-w-xl rounded" />
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-64 md:h-16 md:w-96 rounded-none" />
+          </div>
+          <div className="pt-4 mt-4 border-t border-border/40">
+            <Skeleton className="h-4 w-full max-w-md rounded-none opacity-40" />
           </div>
         </div>
 
-        {/* View Switchers Skeleton */}
-        <div className="flex items-center z-10">
-          <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-lg border border-dashed border-border">
-            <Skeleton className="h-7 w-24 rounded-md" />
-            <Skeleton className="h-7 w-20 rounded-md" />
-            <div className="h-4 w-px bg-border/40 mx-1" />
-            <div className="flex items-center gap-1">
-              <Skeleton className="h-7 w-7 rounded-md" />
-              <Skeleton className="h-7 w-7 rounded-md" />
-              <Skeleton className="h-7 w-7 rounded-md" />
-            </div>
+        {/* Info Items Skeleton */}
+        <div className="flex items-center gap-6 pb-2">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-2 w-16 rounded-none opacity-30" />
+            <Skeleton className="h-4 w-24 rounded-none" />
+          </div>
+          <div className="w-px h-8 bg-border/40" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-2 w-16 rounded-none opacity-30" />
+            <Skeleton className="h-4 w-24 rounded-none" />
           </div>
         </div>
       </div>
 
-      {/* Main Content Area Skeleton */}
-      <div className="relative border-dashed border-border overflow-hidden bg-background h-[600px] flex items-center justify-center">
-        <div className="w-full h-full p-20 flex flex-col items-center justify-center space-y-6">
-           <Skeleton className="w-full max-w-4xl h-64 rounded-2xl opacity-50" />
-           <div className="flex gap-4">
-              <Skeleton className="h-10 w-32 rounded-lg" />
-              <Skeleton className="h-10 w-32 rounded-lg" />
-           </div>
+      {/* Main Preview Area Skeleton */}
+      <div className="relative border-y border-border/40 overflow-hidden bg-background h-[600px] flex items-center justify-center">
+        {/* Minimal Dot Grid Placeholder */}
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage: `radial-gradient(currentColor 1.5px, transparent 0)`,
+            backgroundSize: "32px 32px",
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <Skeleton className="w-64 h-64 rounded-none opacity-20" />
+          <div className="flex gap-3">
+            <Skeleton className="h-9 w-24 rounded-none opacity-40" />
+            <Skeleton className="h-9 w-24 rounded-none opacity-40" />
+          </div>
         </div>
-        
-        {/* Background Pattern Placeholder */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-             style={{ backgroundImage: `radial-gradient(circle, var(--foreground) 1.5px, transparent 1.5px)`, backgroundSize: '24px 24px' }} />
+
+        <div className="absolute top-4 right-4 flex gap-2">
+          <Skeleton className="h-8 w-8 rounded-none opacity-30" />
+          <Skeleton className="h-8 w-8 rounded-none opacity-30" />
+          <Skeleton className="h-8 w-8 rounded-none opacity-30" />
+        </div>
       </div>
 
-      {/* Footer Skeleton */}
-      <div className="py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <Skeleton className="h-9 w-48 rounded-lg" />
-        <div className="flex items-center gap-8">
-           <Skeleton className="h-4 w-12 rounded" />
-           <Skeleton className="h-4 w-12 rounded" />
-        </div>
-      </div>
-
-      {/* Double Line Separator Skeleton */}
-      <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw]">
-        <div className="w-full flex flex-col">
-          <div className="w-full border-b border-dashed border-border" />
-          <div className="w-full h-4 bg-[image:repeating-linear-gradient(45deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] opacity-20" />
-          <div className="w-full border-b border-dashed border-border" />
+      {/* Footer Actions Skeleton */}
+      <div className="py-6 px-6 md:px-12 flex items-center justify-between">
+        <Skeleton className="h-10 w-48 rounded-none opacity-40" />
+        <div className="flex gap-6">
+          <Skeleton className="h-3 w-16 rounded-none opacity-30" />
+          <Skeleton className="h-3 w-16 rounded-none opacity-30" />
         </div>
       </div>
     </div>

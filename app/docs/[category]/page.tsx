@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { LandingHeader } from "@/components/landing/header";
 import { ArrowLeft, Loader2, AlertCircle, Component } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -59,17 +60,48 @@ export default function CategoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 md:py-24 space-y-24">
-          <div className="space-y-6">
-            <Skeleton className="h-4 w-32 rounded-none" />
-            <Skeleton className="h-16 w-1/2 rounded-none" />
-            <Skeleton className="h-20 w-3/4 rounded-none" />
-          </div>
+      <div className="min-h-screen bg-background text-foreground relative">
+        <div className="relative mx-auto w-full max-w-7xl">
+          {/* Continuous vertical rails */}
+          <div className="absolute inset-y-0 left-0 z-100 w-[2px] bg-border/70" />
+          <div className="absolute inset-y-0 left-2 z-100 w-[2px] bg-border/40" />
+          <div className="absolute inset-y-0 right-0 z-100 w-[2px] bg-border/70" />
+          <div className="absolute inset-y-0 right-2 z-100 w-[2px] bg-border/40" />
 
-          {[1, 2].map((i) => (
-            <RegistryBlockSkeleton key={i} />
-          ))}
+          <LandingHeader />
+
+          <div className="max-w-7xl mx-auto px-2 py-4 md:py-6 relative">
+            <section className="mb-12 space-y-4 relative px-6 md:px-12">
+              <Skeleton className="h-8 w-32 rounded-none opacity-40 -ml-3" />
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Skeleton className="h-px w-8 bg-primary/40" />
+                  <Skeleton className="h-3 w-32 rounded-none opacity-40" />
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-64 md:h-20 md:w-96 rounded-none" />
+                  <Skeleton className="h-12 w-48 md:h-20 md:w-64 rounded-none opacity-40 ml-0 md:ml-12" />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 border-t border-border/40">
+                <div className="space-y-3 max-w-xl">
+                  <Skeleton className="h-4 w-full rounded-none" />
+                  <Skeleton className="h-4 w-5/6 rounded-none" />
+                </div>
+                <div className="flex items-center gap-6">
+                  <Skeleton className="h-10 w-24 rounded-none" />
+                  <Skeleton className="h-10 w-24 rounded-none" />
+                </div>
+              </div>
+            </section>
+
+            <div className="space-y-16">
+              {[1, 2].map((i) => (
+                <RegistryBlockSkeleton key={i} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

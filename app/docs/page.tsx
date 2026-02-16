@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { LandingHeader } from "@/components/landing/header";
 import { ArrowUpRight, Layout, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,24 +78,55 @@ export default function BlocksPage() {
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-background text-foreground px-4 py-12 md:px-8 md:py-16 relative">
-        <div className="absolute inset-y-0 left-0 z-0 w-px bg-border/40" />
-        <div className="absolute inset-y-0 right-0 z-0 w-px bg-border/40" />
+      <div className="min-h-screen bg-background text-foreground relative">
+        <div className="relative mx-auto w-full max-w-7xl">
+          {/* Continuous vertical rails */}
+          <div className="absolute inset-y-0 left-0 z-100 w-[2px] bg-border/70" />
+          <div className="absolute inset-y-0 left-2 z-100 w-[2px] bg-border/40" />
+          <div className="absolute inset-y-0 right-0 z-100 w-[2px] bg-border/70" />
+          <div className="absolute inset-y-0 right-2 z-100 w-[2px] bg-border/40" />
 
-        <section className="mb-20 text-center space-y-6 pt-10">
-          <Skeleton className="h-10 md:h-16 w-64 md:w-96 mx-auto rounded-none" />
-          <div className="space-y-3 mt-4">
-            <Skeleton className="h-5 w-full max-w-xl mx-auto rounded-none" />
-          </div>
-        </section>
+          <LandingHeader />
 
-        <section className="max-w-7xl mx-auto space-y-12 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0 border-t border-l border-border/40">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <CardSkeleton key={i} />
-            ))}
+          <div className="max-w-7xl mx-auto px-[10px] py-6 md:py-12 relative">
+            <section className="mb-12 space-y-8 relative px-6 md:px-12">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Skeleton className="h-px w-8 bg-primary/40" />
+                  <Skeleton className="h-3 w-32 rounded-none opacity-40" />
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-64 md:h-20 md:w-[600px] rounded-none" />
+                  <Skeleton className="h-12 w-48 md:h-20 md:w-96 rounded-none opacity-40 ml-0 md:ml-12" />
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 border-t border-border/40">
+                <div className="space-y-3 max-w-xl">
+                  <Skeleton className="h-4 w-full rounded-none" />
+                  <Skeleton className="h-4 w-5/6 rounded-none" />
+                </div>
+                <div className="flex items-center gap-6">
+                  <Skeleton className="h-10 w-24 rounded-none" />
+                  <Skeleton className="h-10 w-24 rounded-none" />
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-0">
+              <div className="flex items-center justify-between py-6 border-b border-border/40 px-6 md:px-12">
+                <Skeleton className="h-4 w-32 rounded-none" />
+                <Skeleton className="h-4 w-20 rounded-none" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-l border-border/40">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
+        </div>
       </div>
     );
   }
