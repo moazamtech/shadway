@@ -442,16 +442,81 @@ export function LandingHero() {
           rotate={4}
           y={10}
         >
-          <polygon points="110,25 200,190 20,190" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="42" y1="155" x2="178" y2="155" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-          <path d="M65 125 Q110 85 155 125 Q110 155 65 125 Z" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="110" cy="125" r="14" fill="none" stroke="currentColor" strokeWidth="1" />
+          <polygon
+            points="110,25 200,190 20,190"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <line
+            x1="42"
+            y1="155"
+            x2="178"
+            y2="155"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.6"
+          />
+          <path
+            d="M65 125 Q110 85 155 125 Q110 155 65 125 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <circle
+            cx="110"
+            cy="125"
+            r="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
           <circle cx="110" cy="125" r="5" fill="currentColor" opacity="0.7" />
-          <line x1="110" y1="2" x2="110" y2="18" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-          <line x1="82" y1="8" x2="90" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-          <line x1="138" y1="8" x2="130" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-          <line x1="56" y1="20" x2="68" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-          <line x1="164" y1="20" x2="152" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+          <line
+            x1="110"
+            y1="2"
+            x2="110"
+            y2="18"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.6"
+          />
+          <line
+            x1="82"
+            y1="8"
+            x2="90"
+            y2="22"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+          <line
+            x1="138"
+            y1="8"
+            x2="130"
+            y2="22"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+          <line
+            x1="56"
+            y1="20"
+            x2="68"
+            y2="30"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.4"
+          />
+          <line
+            x1="164"
+            y1="20"
+            x2="152"
+            y2="30"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.4"
+          />
         </OutsideRailMotif>
         {/* Right — Occult Compass Rose */}
         <OutsideRailMotif
@@ -461,12 +526,44 @@ export function LandingHero() {
           rotate={-5}
           y={12}
         >
-          <circle cx="110" cy="110" r="78" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <circle cx="110" cy="110" r="50" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="4 6" opacity="0.5" />
-          <path d="M110 32 L118 95 L110 110 L102 95 Z" fill="currentColor" opacity="0.6" />
-          <path d="M110 188 L102 125 L110 110 L118 125 Z" fill="currentColor" opacity="0.4" />
-          <path d="M32 110 L95 102 L110 110 L95 118 Z" fill="currentColor" opacity="0.4" />
-          <path d="M188 110 L125 118 L110 110 L125 102 Z" fill="currentColor" opacity="0.4" />
+          <circle
+            cx="110"
+            cy="110"
+            r="78"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="50"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            strokeDasharray="4 6"
+            opacity="0.5"
+          />
+          <path
+            d="M110 32 L118 95 L110 110 L102 95 Z"
+            fill="currentColor"
+            opacity="0.6"
+          />
+          <path
+            d="M110 188 L102 125 L110 110 L118 125 Z"
+            fill="currentColor"
+            opacity="0.4"
+          />
+          <path
+            d="M32 110 L95 102 L110 110 L95 118 Z"
+            fill="currentColor"
+            opacity="0.4"
+          />
+          <path
+            d="M188 110 L125 118 L110 110 L125 102 Z"
+            fill="currentColor"
+            opacity="0.4"
+          />
           <circle cx="110" cy="110" r="5" fill="currentColor" opacity="0.7" />
         </OutsideRailMotif>
 
@@ -750,17 +847,91 @@ export function LandingHero() {
           rotate={-7}
           y={12}
         >
-          <circle cx="110" cy="110" r="65" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="110" cy="110" r="28" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle
+            cx="110"
+            cy="110"
+            r="65"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="28"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
           <circle cx="110" cy="110" r="6" fill="currentColor" opacity="0.7" />
-          <line x1="110" y1="15" x2="110" y2="42" stroke="currentColor" strokeWidth="1.2" />
-          <line x1="110" y1="178" x2="110" y2="205" stroke="currentColor" strokeWidth="1.2" />
-          <line x1="15" y1="110" x2="42" y2="110" stroke="currentColor" strokeWidth="1.2" />
-          <line x1="178" y1="110" x2="205" y2="110" stroke="currentColor" strokeWidth="1.2" />
-          <line x1="43" y1="43" x2="63" y2="63" stroke="currentColor" strokeWidth="1" opacity="0.7" />
-          <line x1="177" y1="43" x2="157" y2="63" stroke="currentColor" strokeWidth="1" opacity="0.7" />
-          <line x1="43" y1="177" x2="63" y2="157" stroke="currentColor" strokeWidth="1" opacity="0.7" />
-          <line x1="177" y1="177" x2="157" y2="157" stroke="currentColor" strokeWidth="1" opacity="0.7" />
+          <line
+            x1="110"
+            y1="15"
+            x2="110"
+            y2="42"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <line
+            x1="110"
+            y1="178"
+            x2="110"
+            y2="205"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <line
+            x1="15"
+            y1="110"
+            x2="42"
+            y2="110"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <line
+            x1="178"
+            y1="110"
+            x2="205"
+            y2="110"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
+          <line
+            x1="43"
+            y1="43"
+            x2="63"
+            y2="63"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.7"
+          />
+          <line
+            x1="177"
+            y1="43"
+            x2="157"
+            y2="63"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.7"
+          />
+          <line
+            x1="43"
+            y1="177"
+            x2="63"
+            y2="157"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.7"
+          />
+          <line
+            x1="177"
+            y1="177"
+            x2="157"
+            y2="157"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.7"
+          />
         </OutsideRailMotif>
         {/* Right — Crescent Moon & Star */}
         <OutsideRailMotif
@@ -770,9 +941,22 @@ export function LandingHero() {
           rotate={5}
           y={9}
         >
-          <path d="M130 35 A75 75 0 1 0 130 185 A55 55 0 1 1 130 35" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M170 80 L172 92 L184 95 L172 98 L170 110 L168 98 L156 95 L168 92 Z" fill="currentColor" opacity="0.6" />
-          <path d="M175 125 L176 131 L182 131 L177 135 L179 141 L175 137 L171 141 L173 135 L168 131 L174 131 Z" fill="currentColor" opacity="0.45" />
+          <path
+            d="M130 35 A75 75 0 1 0 130 185 A55 55 0 1 1 130 35"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <path
+            d="M170 80 L172 92 L184 95 L172 98 L170 110 L168 98 L156 95 L168 92 Z"
+            fill="currentColor"
+            opacity="0.6"
+          />
+          <path
+            d="M175 125 L176 131 L182 131 L177 135 L179 141 L175 137 L171 141 L173 135 L168 131 L174 131 Z"
+            fill="currentColor"
+            opacity="0.45"
+          />
           <circle cx="168" cy="155" r="2" fill="currentColor" opacity="0.4" />
         </OutsideRailMotif>
 
@@ -891,8 +1075,20 @@ export function LandingHero() {
           rotate={4}
           y={14}
         >
-          <circle cx="110" cy="110" r="80" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <polygon points="110,30 157,175 34,85 186,85 63,175" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <circle
+            cx="110"
+            cy="110"
+            r="80"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <polygon
+            points="110,30 157,175 34,85 186,85 63,175"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
           <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
         </OutsideRailMotif>
         {/* Right — Sigil Circle */}
@@ -903,11 +1099,46 @@ export function LandingHero() {
           rotate={-6}
           y={10}
         >
-          <circle cx="110" cy="110" r="75" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M110 35 L160 110 L110 185 L60 110 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-          <line x1="110" y1="35" x2="110" y2="185" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-          <line x1="35" y1="110" x2="185" y2="110" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-          <circle cx="110" cy="110" r="20" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <circle
+            cx="110"
+            cy="110"
+            r="75"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <path
+            d="M110 35 L160 110 L110 185 L60 110 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <line
+            x1="110"
+            y1="35"
+            x2="110"
+            y2="185"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+          <line
+            x1="35"
+            y1="110"
+            x2="185"
+            y2="110"
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+          />
           <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
         </OutsideRailMotif>
 
@@ -1046,11 +1277,37 @@ export function LandingHero() {
           rotate={7}
           y={8}
         >
-          <circle cx="110" cy="110" r="30" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle
+            cx="110"
+            cy="110"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
           <circle cx="110" cy="110" r="4" fill="currentColor" opacity="0.7" />
-          <path d="M60 65 A45 45 0 1 0 60 155 A30 30 0 1 1 60 65" fill="none" stroke="currentColor" strokeWidth="1.1" />
-          <path d="M160 155 A45 45 0 1 0 160 65 A30 30 0 1 1 160 155" fill="none" stroke="currentColor" strokeWidth="1.1" />
-          <line x1="15" y1="110" x2="205" y2="110" stroke="currentColor" strokeWidth="0.7" opacity="0.35" strokeDasharray="3 5" />
+          <path
+            d="M60 65 A45 45 0 1 0 60 155 A30 30 0 1 1 60 65"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <path
+            d="M160 155 A45 45 0 1 0 160 65 A30 30 0 1 1 160 155"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
+          <line
+            x1="15"
+            y1="110"
+            x2="205"
+            y2="110"
+            stroke="currentColor"
+            strokeWidth="0.7"
+            opacity="0.35"
+            strokeDasharray="3 5"
+          />
         </OutsideRailMotif>
         {/* Right — Seed of Life (Sacred Geometry) */}
         <OutsideRailMotif
@@ -1060,13 +1317,62 @@ export function LandingHero() {
           rotate={-4}
           y={13}
         >
-          <circle cx="110" cy="110" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="110" cy="80" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="136" cy="95" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="136" cy="125" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="110" cy="140" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="84" cy="125" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="84" cy="95" r="30" fill="none" stroke="currentColor" strokeWidth="1" />
+          <circle
+            cx="110"
+            cy="110"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="110"
+            cy="80"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="136"
+            cy="95"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="136"
+            cy="125"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="110"
+            cy="140"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="84"
+            cy="125"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+          <circle
+            cx="84"
+            cy="95"
+            r="30"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
         </OutsideRailMotif>
         {/* Header */}
         <motion.div
@@ -1231,9 +1537,29 @@ export function LandingHero() {
           rotate={5}
           y={15}
         >
-          <circle cx="110" cy="110" r="80" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 8" />
-          <path d="M110 35 Q160 110 110 185 Q60 110 110 35 Z" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="110" cy="110" r="22" fill="none" stroke="currentColor" strokeWidth="1.1" />
+          <circle
+            cx="110"
+            cy="110"
+            r="80"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="4 8"
+          />
+          <path
+            d="M110 35 Q160 110 110 185 Q60 110 110 35 Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
           <circle cx="110" cy="110" r="8" fill="currentColor" opacity="0.5" />
           <circle cx="110" cy="110" r="3" fill="currentColor" opacity="0.85" />
         </OutsideRailMotif>
@@ -1245,11 +1571,41 @@ export function LandingHero() {
           rotate={-8}
           y={9}
         >
-          <circle cx="110" cy="110" r="75" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <circle cx="110" cy="110" r="68" fill="none" stroke="currentColor" strokeWidth="0.6" strokeDasharray="5 3" opacity="0.5" />
+          <circle
+            cx="110"
+            cy="110"
+            r="75"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          />
+          <circle
+            cx="110"
+            cy="110"
+            r="68"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.6"
+            strokeDasharray="5 3"
+            opacity="0.5"
+          />
           <path d="M97 38 L110 22 L123 38" fill="currentColor" opacity="0.6" />
-          <polygon points="110,60 150,145 70,145" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-          <ellipse cx="110" cy="115" rx="18" ry="10" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <polygon
+            points="110,60 150,145 70,145"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            opacity="0.6"
+          />
+          <ellipse
+            cx="110"
+            cy="115"
+            rx="18"
+            ry="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+          />
           <circle cx="110" cy="115" r="4" fill="currentColor" opacity="0.6" />
         </OutsideRailMotif>
 

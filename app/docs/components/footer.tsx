@@ -1,6 +1,5 @@
 "use client";
 
-import { BorderBeam } from "@/components/ui/borderbeam";
 import { Highlighter } from "@/components/ui/highlighter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
@@ -10,16 +9,9 @@ import { Github } from "lucide-react";
 
 export function DocsFooter() {
   return (
-    <div className="border-border border-dashed border-t">
-      <div className="relative mx-auto max-w-(--breakpoint-xl) px-4 sm:px-8 border-border border-dashed border-r border-l overflow-hidden">
-        <BorderBeam
-          borderWidth={1}
-          reverse
-          initialOffset={50}
-          className="from-transparent via-blue-500 to-transparent"
-        />
-
-        <footer className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-5">
+    <div className="border-border border-t">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-8 overflow-hidden">
+        <footer className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-8">
           <div>
             <div className="text-balance text-sm leading-loose text-primary">
               Built by{" "}

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_LINKS = [
-  { label: "Library", href: "/docs" },
   { label: "Generator", href: "/component-generator" },
   { label: "Vibecode", href: "/vibecode" },
   { label: "Directory", href: "/directory" },
@@ -21,12 +20,8 @@ export function LandingHeader() {
 
   useEffect(() => {
     const trigger = document.getElementById("hero-sticky-trigger");
-    if (!trigger) {
-      setIsSticky(false);
-      return;
-    }
 
-    if ("IntersectionObserver" in window) {
+    if (trigger && "IntersectionObserver" in window) {
       const observer = new IntersectionObserver(
         ([entry]) => {
           setIsSticky(!entry.isIntersecting);
@@ -39,8 +34,12 @@ export function LandingHeader() {
     }
 
     const onScroll = () => {
-      const top = trigger.getBoundingClientRect().top;
-      setIsSticky(top <= 72);
+      if (trigger) {
+        const top = trigger.getBoundingClientRect().top;
+        setIsSticky(top <= 72);
+      } else {
+        setIsSticky(window.scrollY > 20);
+      }
     };
 
     onScroll();
@@ -52,7 +51,7 @@ export function LandingHeader() {
     <>
       {/* Default header — visible at top of page */}
       <header
-        className={`relative z-50 transition-opacity duration-300 ${
+        className={`relative z-50 transition-opacity duration-75 ${
           isSticky ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >
@@ -91,7 +90,7 @@ export function LandingHeader() {
             </Button>
             <ThemeToggle />
             <Button size="sm" className="rounded-full px-4" asChild>
-              <Link href="/docs">Docs</Link>
+              <Link href="/docs">Blocks</Link>
             </Button>
             <Button
               variant="ghost"
@@ -151,24 +150,19 @@ export function LandingHeader() {
         {isSticky && (
           <motion.header
             className="fixed left-1/2 top-4 z-50 -translate-x-1/2"
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            initial={{ y: -20 }}
+            animate={{ y: 0 }}
+            exit={{ y: -20 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
           >
-            <div className="relative overflow-hidden rounded-full border border-border/40 bg-background/70 shadow-lg shadow-primary/5 backdrop-blur-xl">
+            <div className="relative transition-none overflow-hidden rounded-full border border-border/40 bg-background/70 shadow-lg shadow-primary/5 backdrop-blur-xl">
               {/* Top highlight */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-primary/30 to-transparent" />
 
               {/* Desktop floating nav */}
               <div className="hidden items-center gap-1 px-4 py-2 md:flex">
                 <Link href="/" className="mr-2 flex items-center">
-                  <Image
-                    src="/logo.png"
-                    width={20}
-                    height={20}
-                    alt="Shadway"
-                  />
+                  <Image src="/logo.png" width={20} height={20} alt="Shadway" />
                 </Link>
 
                 <nav className="flex items-center gap-0.5">
@@ -184,7 +178,12 @@ export function LandingHeader() {
                 </nav>
 
                 <div className="ml-2 flex items-center gap-1.5">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    asChild
+                  >
                     <Link
                       href="https://github.com/moazamtech/shadway"
                       target="_blank"
@@ -194,7 +193,11 @@ export function LandingHeader() {
                     </Link>
                   </Button>
                   <ThemeToggle />
-                  <Button size="sm" className="h-7 rounded-full px-3 text-xs" asChild>
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-full px-3 text-xs"
+                    asChild
+                  >
                     <Link href="/docs">Docs</Link>
                   </Button>
                 </div>
@@ -203,18 +206,17 @@ export function LandingHeader() {
               {/* Mobile floating nav */}
               <div className="flex items-center gap-2 px-4 py-2 md:hidden">
                 <Link href="/" className="flex items-center">
-                  <Image
-                    src="/logo.png"
-                    width={20}
-                    height={20}
-                    alt="Shadway"
-                  />
+                  <Image src="/logo.png" width={20} height={20} alt="Shadway" />
                 </Link>
 
                 <div className="ml-auto flex items-center gap-1.5">
                   <ThemeToggle />
-                  <Button size="sm" className="h-7 rounded-full px-3 text-xs" asChild>
-                    <Link href="/docs">Docs</Link>
+                  <Button
+                    size="sm"
+                    className="h-7 rounded-full px-3 text-xs"
+                    asChild
+                  >
+                    <Link href="/docs">Blocks</Link>
                   </Button>
                   <Button
                     variant="ghost"
