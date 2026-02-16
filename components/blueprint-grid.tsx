@@ -1,36 +1,27 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 
 export function BlueprintGrid() {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none bg-background">
-      {/* Sleek Minimal Technical Grid - Increased Visibility */}
+      {/* Clean Large-Dot Grid */}
       <div
         className="absolute inset-0 opacity-[0.12] dark:opacity-[0.18]"
         style={{
           backgroundImage: `
-            radial-gradient(currentColor 0.5px, transparent 0.5px)
+            radial-gradient(circle at 1.5px 1.5px, currentColor 1.5px, transparent 0)
           `,
-          backgroundSize: "16px 16px",
+          backgroundSize: "32px 32px",
         }}
       />
 
-      {/* Subtle Structural Lines - Increased Visibility */}
-      <div
-        className="absolute inset-0 opacity-[0.05] dark:opacity-[0.08]"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, currentColor 1px, transparent 1px),
-            linear-gradient(to bottom, currentColor 1px, transparent 1px)
-          `,
-          backgroundSize: "128px 128px",
-        }}
-      />
+      {/* Primary Light Accent */}
+      <div className="absolute inset-0 bg-linear-to-tr from-primary/2 via-transparent to-transparent" />
 
-      {/* Frame Accent */}
-      <div className="absolute inset-0 border border-foreground/5" />
+      {/* Edge Structural Lines */}
+      <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-foreground/10 to-transparent" />
+      <div className="absolute bottom-0 left-0 w-full h-px bg-linear-to-r from-transparent via-foreground/10 to-transparent" />
     </div>
   );
 }
