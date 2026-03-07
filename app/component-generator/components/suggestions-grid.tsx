@@ -52,10 +52,10 @@ export function SuggestionsGrid({
   className?: string;
 }) {
   return (
-    <div className={cn("mt-4 w-full max-w-4xl mx-auto px-4", className)}>
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className={cn("w-full max-w-[860px] mx-auto", className)}>
+      <div className="mb-4 flex items-center justify-between gap-3">
         <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.15em] text-muted-foreground/50">
-          Prompts
+          Fresh Prompts
         </span>
         <button
           onClick={onRefresh}
@@ -76,7 +76,7 @@ export function SuggestionsGrid({
 
       <div
         className={cn(
-          "grid grid-cols-1 gap-px bg-border/60 border border-border/60 sm:grid-cols-2 lg:grid-cols-3",
+          "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
           isRefreshing && "opacity-50 pointer-events-none",
         )}
       >
@@ -84,16 +84,19 @@ export function SuggestionsGrid({
           <button
             key={`${suggestion.title}-${index}`}
             onClick={() => onPick(suggestion.prompt)}
-            className="group bg-background p-4 text-left transition-colors hover:bg-muted/30 active:scale-[0.99]"
+            className="group relative overflow-hidden border border-border/60 bg-background/80 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/20 active:scale-[0.99]"
             type="button"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <SuggestionIcon name={suggestion.icon} />
-              <span className="text-xs font-semibold leading-tight text-foreground/80">
+            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-muted/30">
+                <SuggestionIcon name={suggestion.icon} />
+              </div>
+              <span className="text-xs font-semibold leading-tight text-foreground/90">
                 {suggestion.title}
               </span>
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground/50 line-clamp-2">
+            <p className="text-[11px] leading-relaxed text-muted-foreground/60 line-clamp-3">
               {suggestion.prompt}
             </p>
           </button>

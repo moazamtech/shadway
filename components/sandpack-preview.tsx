@@ -5,17 +5,29 @@ import {
   SandpackProvider,
   SandpackLayout,
   SandpackPreview,
+  useSandpack,
   useSandpackClient,
   useSandpackConsole,
 } from "@codesandbox/sandpack-react";
 import { githubLight, amethyst } from "@codesandbox/sandpack-themes";
 import { cn } from "@/lib/utils";
-import { Maximize2, Minimize2, Sun, Moon } from "lucide-react";
+import { AlertCircle, TerminalSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   SANDPACK_BASE_FILES,
   SANDPACK_SHADCN_FILES,
 } from "@/lib/sandpack-files";
+import {
+  BASE_SANDBOX_DEPENDENCIES,
+  extractPackageDependencies,
+} from "@/lib/sandpack-dependencies";
 
 type SandpackPreviewProps = {
   code?: string;
@@ -110,6 +122,26 @@ const SandpackConsoleBridge = ({
   return null;
 };
 
+const SandpackRuntimeBridge = ({
+  onStateChange,
+}: {
+  onStateChange?: (state: {
+    status: string;
+    errorMessage: string | null;
+  }) => void;
+}) => {
+  const { sandpack } = useSandpack();
+
+  React.useEffect(() => {
+    onStateChange?.({
+      status: sandpack.status,
+      errorMessage: sandpack.error?.message ?? null,
+    });
+  }, [onStateChange, sandpack.error, sandpack.status]);
+
+  return null;
+};
+
 function findPrimaryComponentName(src: string) {
   const patterns: Array<RegExp> = [
     /^\s*export\s+default\s+function\s+([A-Z][A-Za-z0-9_]*)\s*\(/m,
@@ -191,47 +223,104 @@ function dedupeNamedImports(src: string) {
   );
 }
 
-function extractPackageDependencies(
-  sources: Array<string | undefined | null>,
-  baseDeps: Record<string, string>,
-) {
-  const importRegex =
-    /import\s+(?:[^"']+from\s+)?["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\)/g;
-  const pkgNames = new Set<string>();
+function RuntimeDiagnostics({
+  logs,
+  isDarkTheme,
+  errorMessage,
+  status,
+}: {
+  logs: Array<{
+    level: "log" | "warn" | "error";
+    message: string;
+    timestamp: Date;
+  }>;
+  isDarkTheme: boolean;
+  errorMessage: string | null;
+  status: string;
+}) {
+  const visibleLogs = logs.slice(-40);
+  const hasContent = Boolean(errorMessage) || visibleLogs.length > 0;
 
-  const normalizePackageName = (specifier: string) => {
-    if (!specifier) return null;
-    if (specifier.startsWith(".") || specifier.startsWith("/")) return null;
-    if (specifier.startsWith("@/")) return null;
-
-    const cleaned = specifier.replace(/^node:/, "");
-    const parts = cleaned.split("/");
-    if (cleaned.startsWith("@")) {
-      if (parts.length >= 2) return `${parts[0]}/${parts[1]}`;
-      return cleaned;
-    }
-    return parts[0];
-  };
-
-  for (const src of sources) {
-    if (!src) continue;
-    let match: RegExpExecArray | null;
-    // Reset regex state since it's global
-    importRegex.lastIndex = 0;
-    while ((match = importRegex.exec(src)) !== null) {
-      const spec = match[1] || match[2];
-      const name = normalizePackageName(spec);
-      if (name) pkgNames.add(name);
-    }
-  }
-
-  const deps: Record<string, string> = {};
-  for (const name of pkgNames) {
-    if (baseDeps[name]) continue;
-    deps[name] = "latest";
-  }
-
-  return deps;
+  return (
+    <div
+      className={cn(
+        "h-full overflow-y-auto px-4 pb-6",
+        isDarkTheme ? "bg-background text-white" : "bg-background text-black",
+      )}
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <TerminalSquare className="h-4 w-4" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">
+          Console
+        </span>
+        <span
+          className={cn(
+            "rounded border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em]",
+            isDarkTheme
+              ? "border-white/10 text-white/60"
+              : "border-black/10 text-black/60",
+          )}
+        >
+          {status}
+        </span>
+      </div>
+      {!hasContent ? (
+        <div
+          className={cn(
+            "rounded border px-3 py-2 text-xs",
+            isDarkTheme
+              ? "border-white/10 text-white/60"
+              : "border-black/10 text-black/60",
+          )}
+        >
+          Waiting for runtime output.
+        </div>
+      ) : (
+        <div className="space-y-3 font-mono text-[11px] leading-relaxed">
+          {errorMessage ? (
+            <div
+              className={cn(
+                "rounded border px-3 py-2",
+                isDarkTheme
+                  ? "border-red-500/30 bg-red-500/10 text-red-200"
+                  : "border-red-200 bg-red-50 text-red-700",
+              )}
+            >
+              <div className="mb-1 flex items-center gap-2 uppercase opacity-70">
+                <AlertCircle className="h-3.5 w-3.5" />
+                error
+              </div>
+              <div className="break-all whitespace-pre-wrap">
+                {errorMessage}
+              </div>
+            </div>
+          ) : null}
+          {visibleLogs.map((log, index) => (
+            <div
+              key={`${log.timestamp.toISOString()}-${index}`}
+              className={cn(
+                "rounded border px-2 py-1.5",
+                log.level === "error"
+                  ? isDarkTheme
+                    ? "border-red-500/30 bg-red-500/10 text-red-200"
+                    : "border-red-200 bg-red-50 text-red-700"
+                  : log.level === "warn"
+                    ? isDarkTheme
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                      : "border-amber-200 bg-amber-50 text-amber-700"
+                    : isDarkTheme
+                      ? "border-white/10 bg-white/5 text-white/80"
+                      : "border-black/10 bg-black/[0.03] text-black/75",
+              )}
+            >
+              <span className="mr-2 uppercase opacity-70">{log.level}</span>
+              <span className="break-all">{log.message || "(empty log)"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function rewriteAliasImportsForFile(
@@ -499,6 +588,7 @@ export function SandpackRuntimePreview({
   files,
   entryFile,
   className,
+  showConsole = false,
   title,
   isDarkTheme = true,
   onPreviewUrlChange,
@@ -506,45 +596,24 @@ export function SandpackRuntimePreview({
 }: SandpackPreviewProps) {
   // Use controlled state for Sandpack theme
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [runtimeLogs, setRuntimeLogs] = useState<
+    Array<{
+      level: "log" | "warn" | "error";
+      message: string;
+      timestamp: Date;
+    }>
+  >([]);
+  const [runtimeState, setRuntimeState] = useState<{
+    status: string;
+    errorMessage: string | null;
+  }>({
+    status: "initial",
+    errorMessage: null,
+  });
   const previewRef = React.useRef<HTMLDivElement | null>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
-  const baseDependencies = useMemo(
-    () => ({
-      react: "latest",
-      "react-dom": "latest",
-      "react-is": "latest",
-      "prop-types": "latest",
-      clsx: "latest",
-      "class-variance-authority": "latest",
-      "tailwind-merge": "latest",
-      tailwindcss: "^4.0.0",
-      "@tailwindcss/vite": "^4.0.0",
-      vite: "^5.4.0",
-      "@vitejs/plugin-react": "^4.3.0",
-      "@radix-ui/react-slot": "latest",
-      "@radix-ui/react-separator": "latest",
-      "@radix-ui/react-avatar": "latest",
-      "@radix-ui/react-label": "latest",
-      "@radix-ui/react-switch": "latest",
-      "@radix-ui/react-tabs": "latest",
-      "@radix-ui/react-checkbox": "latest",
-      "@radix-ui/react-slider": "latest",
-      "@radix-ui/react-dialog": "latest",
-      "@radix-ui/react-select": "latest",
-      "react-router-dom": "latest",
-      axios: "latest",
-      zustand: "latest",
-      "@tanstack/react-query": "latest",
-      "react-hook-form": "latest",
-      zod: "latest",
-      "lucide-react": "latest",
-      "framer-motion": "latest",
-      motion: "latest",
-      recharts: "latest",
-      d3: "latest",
-    }),
-    [],
-  );
+  const baseDependencies = useMemo(() => BASE_SANDBOX_DEPENDENCIES, []);
 
   const extractedDependencies = useMemo(() => {
     const sources: Array<string | undefined | null> = [];
@@ -565,8 +634,7 @@ export function SandpackRuntimePreview({
         // Skip entries with null, undefined, or empty keys
         if (k === null || k === undefined || k === "" || typeof k !== "string")
           continue;
-        // Skip entries with empty or non-string values
-        if (!v || typeof v !== "string" || !v.trim()) continue;
+        if (typeof v !== "string") continue;
 
         const normalized = k.startsWith("/") ? k : `/${k}`;
         out[normalized] = v;
@@ -669,7 +737,7 @@ export default function App(){
         for (const [path, src] of Object.entries(generatedFiles)) {
           // Double-check path is valid
           if (!path || typeof path !== "string") continue;
-          if (!src || typeof src !== "string") continue;
+          if (typeof src !== "string") continue;
           transformed[path] = transformGeneratedFile(path, src);
         }
         generatedFiles = transformed;
@@ -756,8 +824,19 @@ export default function App(){
       ? extractCssImports(finalIndexCss)
       : { fontLinks: [], cleanedCss: finalIndexCss, extraResources: [] };
 
-    // Use the cleaned CSS without @import statements
-    finalIndexCss = cleanedCss;
+    // Use the cleaned CSS without @import statements and hide the root preview scrollbar.
+    finalIndexCss = `${cleanedCss || ""}
+
+html, body, #root {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  display: none;
+}`;
 
     const indexCssInjected = finalIndexCss
       ? `const styleEl = document.createElement("style");
@@ -901,6 +980,38 @@ root.render(<App />);`;
   }, [code, files, entryFile, isDarkTheme]);
 
   const FullscreenToggle = null;
+  const handleConsoleLogs = React.useCallback(
+    (
+      logs: Array<{
+        level: "log" | "warn" | "error";
+        message: string;
+        timestamp: Date;
+      }>,
+    ) => {
+      setRuntimeLogs(logs);
+      onConsoleLogs?.(logs);
+    },
+    [onConsoleLogs],
+  );
+
+  const consoleDrawer = showConsole ? (
+    <Drawer open={isConsoleOpen} onOpenChange={setIsConsoleOpen}>
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerHeader>
+          <DrawerTitle>Console</DrawerTitle>
+          <DrawerDescription>
+            Runtime logs, preview status, and compile errors.
+          </DrawerDescription>
+        </DrawerHeader>
+        <RuntimeDiagnostics
+          logs={runtimeLogs}
+          isDarkTheme={isDarkTheme}
+          errorMessage={runtimeState.errorMessage}
+          status={runtimeState.status}
+        />
+      </DrawerContent>
+    </Drawer>
+  ) : null;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -954,6 +1065,8 @@ root.render(<App />);`;
           theme={isDarkTheme ? amethyst : githubLight}
         >
           <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
+          <SandpackConsoleBridge onLogs={handleConsoleLogs} />
+          <SandpackRuntimeBridge onStateChange={setRuntimeState} />
           <div className="relative h-screen flex flex-col">
             <SandpackLayout className="h-full w-full flex-1 min-h-0 border-0 rounded-none">
               <div ref={previewRef} className="relative h-full w-full">
@@ -964,6 +1077,16 @@ root.render(<App />);`;
                   className="h-full w-full flex-1 min-h-0"
                   actionsChildren={
                     <div className="flex items-center gap-1">
+                      {showConsole ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsConsoleOpen(true)}
+                          className="h-7 px-2 text-[10px] font-mono uppercase tracking-[0.1em]"
+                        >
+                          Console
+                        </Button>
+                      ) : null}
                       {FullscreenToggle}
                     </div>
                   }
@@ -971,6 +1094,7 @@ root.render(<App />);`;
               </div>
             </SandpackLayout>
           </div>
+          {consoleDrawer}
         </SandpackProvider>
       </div>
     );
@@ -998,6 +1122,8 @@ root.render(<App />);`;
         theme={isDarkTheme ? amethyst : githubLight}
       >
         <SandpackPreviewUrlSync onUrlChange={onPreviewUrlChange} />
+        <SandpackConsoleBridge onLogs={handleConsoleLogs} />
+        <SandpackRuntimeBridge onStateChange={setRuntimeState} />
         <SandpackLayout
           style={{
             position: "absolute",
@@ -1020,12 +1146,23 @@ root.render(<App />);`;
               }}
               actionsChildren={
                 <div className="flex items-center gap-1 pr-1">
+                  {showConsole ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsConsoleOpen(true)}
+                      className="h-7 px-2 text-[10px] font-mono uppercase tracking-[0.1em]"
+                    >
+                      Console
+                    </Button>
+                  ) : null}
                   {FullscreenToggle}
                 </div>
               }
             />
           </div>
         </SandpackLayout>
+        {consoleDrawer}
       </SandpackProvider>
     </div>
   );

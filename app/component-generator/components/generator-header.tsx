@@ -31,7 +31,7 @@ export function GeneratorHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("z-50 top-0 w-full border-b border-border", className)}>
+    <header className={cn("z-50 top-0 ", className)}>
       <div className="flex h-14 items-center justify-between px-4 md:px-6 lg:px-8 w-full mx-auto">
         <Link href="/" className="flex items-center gap-2.5">
           <Image
