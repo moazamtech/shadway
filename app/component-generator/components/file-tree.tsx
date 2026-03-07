@@ -156,6 +156,7 @@ export function FileTree({
   onFileSelect,
   generatingFile,
   className,
+  isProtectedPath,
   onFileAdd,
   onFileRename,
   onFileDelete,
@@ -167,6 +168,7 @@ export function FileTree({
   onFileSelect: (path: string) => void;
   generatingFile?: string | null;
   className?: string;
+  isProtectedPath?: (path: string) => boolean;
   onFileAdd?: (path: string, isFolder: boolean) => void;
   onFileRename?: (oldPath: string, newPath: string) => void;
   onFileDelete?: (path: string) => void;
@@ -322,6 +324,7 @@ export function FileTree({
       if (searchMatches && !searchMatches.has(node.path)) {
         return null;
       }
+      const isProtected = isProtectedPath?.(node.path) ?? false;
       const isOpen = searchMatches ? true : expandedFolders.has(node.path);
       const hasChildren = node.children && node.children.length > 0;
 
@@ -352,6 +355,18 @@ export function FileTree({
               <Folder className="h-4 w-4 shrink-0 text-[#dcb67a]" />
             )}
             <span className="truncate font-normal">{node.name}</span>
+            {isProtected ? (
+              <span
+                className={cn(
+                  "ml-auto rounded border px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em]",
+                  isDark
+                    ? "border-[#3b3b3b] text-[#8c8c8c]"
+                    : "border-[#d9d9d9] text-[#8a8a8a]",
+                )}
+              >
+                core
+              </span>
+            ) : null}
           </button>
           {isOpen && hasChildren && (
             <div className="relative">
@@ -365,6 +380,7 @@ export function FileTree({
     if (searchMatches && !searchMatches.has(node.path)) {
       return null;
     }
+    const isProtected = isProtectedPath?.(node.path) ?? false;
     const isSelected = selectedFile === node.path;
     const isGenerating = normalizedGeneratingFile === node.path;
 
@@ -391,11 +407,21 @@ export function FileTree({
           {isGenerating ? <LoadingSpinner /> : getFileIcon(node.name)}
         </div>
         <span className="truncate font-normal">{node.name}</span>
+        {isProtected ? (
+          <span
+            className={cn(
+              "ml-auto rounded border px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em]",
+              isDark
+                ? "border-[#3b3b3b] text-[#8c8c8c]"
+                : "border-[#d9d9d9] text-[#8a8a8a]",
+            )}
+          >
+            core
+          </span>
+        ) : null}
       </button>
     );
   };
-
-  const fileCount = Object.keys(files || {}).length;
 
   const bgColor = isDark ? "bg-[#1e1e1e]" : "bg-[#f3f3f3]";
   const borderColor = isDark ? "border-[#2d2d30]" : "border-[#e5e5e5]";
@@ -500,7 +526,8 @@ export function FileTree({
             <div className="py-1">
               {contextMenu.isFolder &&
                 onFileAdd &&
-                contextMenu.path.startsWith("/components") && (
+                contextMenu.path.startsWith("/components") &&
+                !(isProtectedPath?.(contextMenu.path) ?? false) && (
                   <>
                     <button
                       className={cn(
@@ -540,28 +567,29 @@ export function FileTree({
                     />
                   </>
                 )}
-              {onFileRename && (
-                <button
-                  className={cn(
-                    "w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors",
-                    isDark
-                      ? "hover:bg-[#2a2d2e] text-[#cccccc]"
-                      : "hover:bg-[#e8e8e8] text-[#616161]",
-                  )}
-                  onClick={() => {
-                    setRenameDialog({
-                      open: true,
-                      path: contextMenu.path,
-                      currentName: contextMenu.path.split("/").pop() || "",
-                    });
-                    setNewFileName(contextMenu.path.split("/").pop() || "");
-                    setContextMenu(null);
-                  }}
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                  Rename
-                </button>
-              )}
+              {onFileRename &&
+                !(isProtectedPath?.(contextMenu.path) ?? false) && (
+                  <button
+                    className={cn(
+                      "w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors",
+                      isDark
+                        ? "hover:bg-[#2a2d2e] text-[#cccccc]"
+                        : "hover:bg-[#e8e8e8] text-[#616161]",
+                    )}
+                    onClick={() => {
+                      setRenameDialog({
+                        open: true,
+                        path: contextMenu.path,
+                        currentName: contextMenu.path.split("/").pop() || "",
+                      });
+                      setNewFileName(contextMenu.path.split("/").pop() || "");
+                      setContextMenu(null);
+                    }}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                    Rename
+                  </button>
+                )}
               {onFileCopy && (
                 <button
                   className={cn(
@@ -580,51 +608,55 @@ export function FileTree({
                   Copy
                 </button>
               )}
-              {copiedPath && onFilePaste && contextMenu.isFolder && (
-                <button
-                  className={cn(
-                    "w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors",
-                    isDark
-                      ? "hover:bg-[#2a2d2e] text-[#cccccc]"
-                      : "hover:bg-[#e8e8e8] text-[#616161]",
-                  )}
-                  onClick={() => {
-                    onFilePaste(contextMenu.path);
-                    setContextMenu(null);
-                  }}
-                >
-                  <Clipboard className="h-3.5 w-3.5" />
-                  Paste
-                </button>
-              )}
-              {onFileDelete && (
-                <>
-                  <div
-                    className={cn(
-                      "h-[1px] my-1",
-                      isDark ? "bg-[#454545]" : "bg-[#e5e5e5]",
-                    )}
-                  />
+              {copiedPath &&
+                onFilePaste &&
+                contextMenu.isFolder &&
+                !(isProtectedPath?.(contextMenu.path) ?? false) && (
                   <button
                     className={cn(
                       "w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors",
                       isDark
-                        ? "hover:bg-[#5a1d1d] text-[#f48771]"
-                        : "hover:bg-[#ffeaea] text-[#d32f2f]",
+                        ? "hover:bg-[#2a2d2e] text-[#cccccc]"
+                        : "hover:bg-[#e8e8e8] text-[#616161]",
                     )}
                     onClick={() => {
-                      setDeleteDialog({
-                        open: true,
-                        path: contextMenu.path,
-                      });
+                      onFilePaste(contextMenu.path);
                       setContextMenu(null);
                     }}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
+                    <Clipboard className="h-3.5 w-3.5" />
+                    Paste
                   </button>
-                </>
-              )}
+                )}
+              {onFileDelete &&
+                !(isProtectedPath?.(contextMenu.path) ?? false) && (
+                  <>
+                    <div
+                      className={cn(
+                        "h-[1px] my-1",
+                        isDark ? "bg-[#454545]" : "bg-[#e5e5e5]",
+                      )}
+                    />
+                    <button
+                      className={cn(
+                        "w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors",
+                        isDark
+                          ? "hover:bg-[#5a1d1d] text-[#f48771]"
+                          : "hover:bg-[#ffeaea] text-[#d32f2f]",
+                      )}
+                      onClick={() => {
+                        setDeleteDialog({
+                          open: true,
+                          path: contextMenu.path,
+                        });
+                        setContextMenu(null);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </>
+                )}
             </div>
           </div>,
           document.body,

@@ -47,7 +47,13 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Editor from "@monaco-editor/react";
@@ -67,16 +73,18 @@ import {
   SANDPACK_BASE_FILES,
   SANDPACK_SHADCN_FILES,
 } from "@/lib/sandpack-files";
+import { listAddedPackages } from "@/lib/sandpack-dependencies";
 
 type GeneratorMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   reasoning?: string;
-  reasoning_details?: any; // Native OR reasoning
+  reasoning_details?: unknown; // Native OR reasoning
   code?: string;
   files?: Record<string, string>;
   entryFile?: string;
+  dependencies?: string[];
   timestamp: Date;
 };
 
@@ -84,6 +92,7 @@ type GeneratedComponent = {
   code?: string;
   files?: Record<string, string>;
   entryFile?: string;
+  dependencies?: string[];
   language: string;
   title: string;
 };
@@ -254,54 +263,90 @@ type Suggestion = {
 
 const SMART_SUGGESTIONS: Suggestion[] = [
   {
-    icon: "landing",
-    title: "SaaS Landing",
+    icon: "sparkles",
+    title: "Pulse Ledger Hero",
     prompt:
-      "SaaS landing page with hero + 2 CTAs, logo strip, 3-feature grid, pricing toggle, FAQ, and footer. Clean spacing, responsive, light/dark.",
-  },
-  {
-    icon: "landing",
-    title: "Memecoin Launch",
-    prompt:
-      "Crypto memecoin landing with bold hero, tokenomics cards, roadmap timeline, community stats, and audit badge. Neon accents, fully responsive, light/dark.",
-  },
-  {
-    icon: "landing",
-    title: "IT Marketing",
-    prompt:
-      "Tech/IT services marketing landing with services grid, case studies, client logos, KPI strip, and contact CTA. Sleek corporate, responsive, light/dark.",
+      "Design a sleek fintech hero section for a modern payments platform with crisp typography, layered product preview, unique motion reveals, fully responsive layout, and light/dark mode.",
   },
   {
     icon: "layout",
-    title: "Hero Split",
+    title: "CareFlow Hero",
     prompt:
-      "Hero section with split layout, bold headline, subtext, 2 CTAs, and a product preview card. Fully responsive, light/dark.",
+      "Create a clean healthcare SaaS hero section with serene spacing, live care coordination visuals, subtle unique animations, fully responsive structure, and light/dark mode.",
+  },
+  {
+    icon: "component",
+    title: "Forge Stack Hero",
+    prompt:
+      "Build a sleek developer tools hero section with code-window layering, precise grid rhythm, unique hover motion, fully responsive behavior, and light/dark mode.",
   },
   {
     icon: "layout",
-    title: "Hero with Proof",
+    title: "Northstar Hero",
     prompt:
-      "Hero section with logo strip + social proof stats, minimal form or CTA, and a soft gradient backdrop. Fully responsive, light/dark.",
+      "Design a clean climate tech hero section with atmospheric gradients, product storytelling, unique scroll-based animation, fully responsive composition, and light/dark mode.",
+  },
+  {
+    icon: "sparkles",
+    title: "Signal Vault Hero",
+    prompt:
+      "Create a cybersecurity hero section with sharp contrast, trust-building visual layers, unique animated security signals, fully responsive layout, and light/dark mode.",
   },
   {
     icon: "layout",
-    title: "Hero Centered",
+    title: "Studio Arc Hero",
     prompt:
-      "Centered hero section with headline, 2 CTAs, short value props, and a small testimonial pill. Fully responsive, light/dark.",
-  },
-  {
-    icon: "layout",
-    title: "Footer",
-    prompt:
-      "Design a multi-column footer with product/company/resources links, newsletter input, and legal row. Add a small brand mark and light divider lines.",
+      "Build a creator platform hero section with editorial composition, premium typography, unique floating motion system, fully responsive design, and light/dark mode.",
   },
   {
     icon: "stats",
-    title: "Stats Strip",
+    title: "Beacon Ops Hero",
     prompt:
-      "Add a stats strip with 4 metrics, tiny captions, and a faint grid background. Include a simple count-up animation when scrolled into view.",
+      "Design a B2B analytics hero section with sleek charts, strong hierarchy, unique staggered entrance animations, fully responsive layout, and light/dark mode.",
+  },
+  {
+    icon: "nav",
+    title: "Atlas Ride Hero",
+    prompt:
+      "Create a mobility startup hero section with clean map-inspired framing, unique directional motion accents, fully responsive composition, and light/dark mode.",
   },
 ];
+
+const SUGGESTION_HISTORY_KEY = "component-generator:suggestion-history";
+
+function getStoredSuggestionHistory() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SUGGESTION_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeSuggestionHistory(suggestions: Suggestion[]) {
+  if (typeof window === "undefined") return;
+  const next = Array.from(
+    new Set([
+      ...getStoredSuggestionHistory(),
+      ...suggestions.map((item) => item.title.toLowerCase()),
+    ]),
+  ).slice(-60);
+  window.localStorage.setItem(SUGGESTION_HISTORY_KEY, JSON.stringify(next));
+}
+
+function pickFallbackSuggestions(excludeTitles: string[]) {
+  const exclude = new Set(excludeTitles.map((title) => title.toLowerCase()));
+  const pool = SMART_SUGGESTIONS.filter(
+    (item) => !exclude.has(item.title.toLowerCase()),
+  );
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const next = shuffled.slice(0, 6);
+  return next.length > 0 ? next : SMART_SUGGESTIONS.slice(0, 6);
+}
 
 export default function ComponentGeneratorPage() {
   const { resolvedTheme } = useTheme();
@@ -321,7 +366,6 @@ export default function ComponentGeneratorPage() {
   const [currentlyGeneratingFile, setCurrentlyGeneratingFile] = useState<
     string | null
   >(null);
-  const [reasoningEnabled, setReasoningEnabled] = useState(true);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isResizingRef = useRef(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -352,30 +396,93 @@ export default function ComponentGeneratorPage() {
   const [publishThumbnailUrl, setPublishThumbnailUrl] = useState("");
   const publishThumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const isAdmin = session?.user?.role === "admin";
+  const baseSandboxFiles = useMemo(
+    () => ({
+      ...SANDPACK_BASE_FILES,
+      ...SANDPACK_SHADCN_FILES,
+    }),
+    [],
+  );
+  const mergedUserFiles = useMemo(
+    () => ({
+      ...(generatedComponent?.files || {}),
+      ...editedFiles,
+    }),
+    [generatedComponent?.files, editedFiles],
+  );
+  const mergedProjectFiles = useMemo(
+    () => ({
+      ...baseSandboxFiles,
+      ...mergedUserFiles,
+    }),
+    [baseSandboxFiles, mergedUserFiles],
+  );
+  const protectedSandboxPaths = useMemo(() => {
+    const protectedPaths = new Set<string>();
+    const editablePaths = new Set(Object.keys(generatedComponent?.files || {}));
+
+    const addAncestors = (path: string) => {
+      const parts = path.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current += `/${part}`;
+        if (current !== "/components") {
+          protectedPaths.add(current);
+        }
+      }
+    };
+
+    Object.keys(baseSandboxFiles).forEach((path) => {
+      if (!editablePaths.has(path)) {
+        addAncestors(path);
+      }
+    });
+
+    return protectedPaths;
+  }, [baseSandboxFiles, generatedComponent?.files]);
+
+  const isProtectedSandboxPath = useCallback(
+    (path: string) => protectedSandboxPaths.has(path),
+    [protectedSandboxPaths],
+  );
 
   // Rotate suggestions for variety
   // AI-powered suggestions refresh
   const refreshSuggestions = useCallback(async () => {
     setIsRefreshingSuggestions(true);
+    const excludeTitles = Array.from(
+      new Set([
+        ...activeSuggestions.map((item) => item.title),
+        ...getStoredSuggestionHistory(),
+      ]),
+    );
     try {
-      const resp = await fetch("/api/generate-suggestions", { method: "POST" });
+      const resp = await fetch("/api/generate-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excludeTitles }),
+      });
       if (resp.ok) {
         const data = await resp.json();
         if (Array.isArray(data) && data.length > 0) {
-          setActiveSuggestions(data.slice(0, 6));
+          const next = data.slice(0, 6);
+          setActiveSuggestions(next);
+          storeSuggestionHistory(next);
           return;
         }
       }
       // Fallback to shuffle if API fails
-      const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
-      setActiveSuggestions(shuffled.slice(0, 6));
+      const fallback = pickFallbackSuggestions(excludeTitles);
+      setActiveSuggestions(fallback);
+      storeSuggestionHistory(fallback);
     } catch (e) {
-      const shuffled = [...SMART_SUGGESTIONS].sort(() => Math.random() - 0.5);
-      setActiveSuggestions(shuffled.slice(0, 6));
+      const fallback = pickFallbackSuggestions(excludeTitles);
+      setActiveSuggestions(fallback);
+      storeSuggestionHistory(fallback);
     } finally {
       setIsRefreshingSuggestions(false);
     }
-  }, []);
+  }, [activeSuggestions]);
 
   const parseThinkingAndContent = (
     text: string,
@@ -495,9 +602,12 @@ export default function ComponentGeneratorPage() {
     code?: string;
     files?: Record<string, string>;
     entryFile?: string;
+    dependencies?: string[];
     language: string;
   } => {
     const { code, files, entryFile } = parseThinkingAndContent(text);
+    const dependencySources = files ? Object.values(files) : [code];
+    const dependencies = listAddedPackages(dependencySources);
 
     if (files && Object.keys(files).length > 0) {
       const entry =
@@ -505,7 +615,13 @@ export default function ComponentGeneratorPage() {
         (files["/entry.tsx"] ? "/entry.tsx" : undefined) ||
         (files["/App.tsx"] ? "/App.tsx" : undefined) ||
         Object.keys(files)[0];
-      return { files, entryFile, language: "tsx", code: files[entry] };
+      return {
+        files,
+        entryFile,
+        language: "tsx",
+        code: files[entry],
+        dependencies,
+      };
     }
 
     if (code) {
@@ -519,10 +635,10 @@ export default function ComponentGeneratorPage() {
           sanitized = firstHalf.trim();
         }
       }
-      return { language: "tsx", code: sanitized };
+      return { language: "tsx", code: sanitized, dependencies };
     }
 
-    return { language: "tsx" };
+    return { language: "tsx", dependencies };
   };
 
   // File editing handlers
@@ -531,66 +647,92 @@ export default function ComponentGeneratorPage() {
     setViewMode("code");
   }, []);
 
-  const handleFileEdit = useCallback((path: string, content: string) => {
-    setEditedFiles((prev) => ({
-      ...prev,
-      [path]: content,
-    }));
-    setHasUnsavedChanges(true);
-  }, []);
+  const handleFileEdit = useCallback(
+    (path: string, content: string) => {
+      if (isProtectedSandboxPath(path)) {
+        return;
+      }
+      setEditedFiles((prev) => ({
+        ...prev,
+        [path]: content,
+      }));
+      setHasUnsavedChanges(true);
+    },
+    [isProtectedSandboxPath],
+  );
 
   const handleSaveFile = useCallback(() => {
     if (!selectedFile || !hasUnsavedChanges) return;
 
     setGeneratedComponent((prev) => {
       if (!prev) return prev;
+      const nextFiles = {
+        ...(prev.files || {}),
+        ...editedFiles,
+      };
+      const nextCode =
+        prev.entryFile && nextFiles[prev.entryFile]
+          ? nextFiles[prev.entryFile]
+          : prev.code;
       return {
         ...prev,
-        files: {
-          ...prev.files,
-          ...editedFiles,
-        },
+        files: nextFiles,
+        code: nextCode,
       };
     });
 
+    setEditedFiles({});
     setHasUnsavedChanges(false);
     toast.success("File saved successfully!");
   }, [selectedFile, hasUnsavedChanges, editedFiles]);
 
   // File operation handlers
-  const handleFileAdd = useCallback((path: string, isFolder: boolean) => {
-    if (isFolder) {
-      // For folders, we don't create actual entries, just a placeholder file inside
-      const placeholderPath = `${path}/.gitkeep`;
-      setGeneratedComponent((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          files: {
-            ...prev.files,
-            [placeholderPath]: "",
-          },
-        };
-      });
-      toast.success(`Folder created: ${path}`);
-    } else {
-      setGeneratedComponent((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          files: {
-            ...prev.files,
-            [path]: "// New file\n",
-          },
-        };
-      });
-      setSelectedFile(path);
-      toast.success(`File created: ${path}`);
-    }
-  }, []);
+  const handleFileAdd = useCallback(
+    (path: string, isFolder: boolean) => {
+      if (isProtectedSandboxPath(path)) {
+        toast.error("Core sandbox files are read-only.");
+        return;
+      }
+
+      if (isFolder) {
+        // For folders, we don't create actual entries, just a placeholder file inside
+        const placeholderPath = `${path}/.gitkeep`;
+        setGeneratedComponent((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            files: {
+              ...prev.files,
+              [placeholderPath]: "",
+            },
+          };
+        });
+        toast.success(`Folder created: ${path}`);
+      } else {
+        setGeneratedComponent((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            files: {
+              ...prev.files,
+              [path]: "// New file\n",
+            },
+          };
+        });
+        setSelectedFile(path);
+        toast.success(`File created: ${path}`);
+      }
+    },
+    [isProtectedSandboxPath],
+  );
 
   const handleFileRename = useCallback(
     (oldPath: string, newPath: string) => {
+      if (isProtectedSandboxPath(oldPath)) {
+        toast.error("Core sandbox files are read-only.");
+        return;
+      }
+
       setGeneratedComponent((prev) => {
         if (!prev || !prev.files) return prev;
 
@@ -620,11 +762,16 @@ export default function ComponentGeneratorPage() {
       });
       toast.success(`Renamed: ${oldPath} → ${newPath}`);
     },
-    [selectedFile, editedFiles],
+    [selectedFile, editedFiles, isProtectedSandboxPath],
   );
 
   const handleFileDelete = useCallback(
     (path: string) => {
+      if (isProtectedSandboxPath(path)) {
+        toast.error("Core sandbox files are read-only.");
+        return;
+      }
+
       setGeneratedComponent((prev) => {
         if (!prev || !prev.files) return prev;
 
@@ -648,7 +795,7 @@ export default function ComponentGeneratorPage() {
       });
       toast.success(`Deleted: ${path}`);
     },
-    [selectedFile],
+    [selectedFile, isProtectedSandboxPath],
   );
 
   const [copiedFileContent, setCopiedFileContent] = useState<string | null>(
@@ -676,6 +823,10 @@ export default function ComponentGeneratorPage() {
     (targetPath: string) => {
       if (copiedFileContent === null) {
         toast.error("No file copied");
+        return;
+      }
+      if (isProtectedSandboxPath(targetPath)) {
+        toast.error("Core sandbox folders are read-only.");
         return;
       }
 
@@ -713,7 +864,7 @@ export default function ComponentGeneratorPage() {
 
       toast.success(`Pasted to: ${newPath}`);
     },
-    [copiedFileContent, generatedComponent],
+    [copiedFileContent, generatedComponent, isProtectedSandboxPath],
   );
 
   const getLastUserPrompt = useCallback(() => {
@@ -739,7 +890,7 @@ export default function ComponentGeneratorPage() {
         : "AI-generated component built in Shadway.",
     );
     setIsPublishOpen(true);
-  }, [generatedComponent, getLastUserPrompt]);
+  }, [generatedComponent, getLastUserPrompt, mergedUserFiles]);
 
   const handleGeneratePublishDetails = useCallback(async () => {
     if (!generatedComponent) {
@@ -754,9 +905,17 @@ export default function ComponentGeneratorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: getLastUserPrompt(),
-          code: generatedComponent.code,
-          files: generatedComponent.files,
-          entryFile: generatedComponent.entryFile,
+          code:
+            generatedComponent.entryFile &&
+            mergedUserFiles[generatedComponent.entryFile]
+              ? mergedUserFiles[generatedComponent.entryFile]
+              : generatedComponent.code,
+          files: mergedUserFiles,
+          entryFile:
+            generatedComponent.entryFile &&
+            mergedUserFiles[generatedComponent.entryFile]
+              ? generatedComponent.entryFile
+              : undefined,
         }),
       });
 
@@ -787,7 +946,7 @@ export default function ComponentGeneratorPage() {
     } finally {
       setIsGeneratingPublishDetails(false);
     }
-  }, [generatedComponent, getLastUserPrompt]);
+  }, [generatedComponent, getLastUserPrompt, mergedUserFiles]);
 
   const handleThumbnailUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -845,9 +1004,20 @@ export default function ComponentGeneratorPage() {
       toast.error("Please wait for the thumbnail upload to finish.");
       return;
     }
+    if (hasUnsavedChanges) {
+      toast.info("Including unsaved editor changes in the published project.");
+    }
 
     setIsPublishing(true);
     try {
+      const filesForPublish =
+        Object.keys(mergedUserFiles).length > 0 ? mergedUserFiles : undefined;
+      const codeForPublish =
+        generatedComponent.entryFile &&
+        filesForPublish?.[generatedComponent.entryFile]
+          ? filesForPublish[generatedComponent.entryFile]
+          : generatedComponent.code;
+
       const response = await fetch("/api/vibecode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -861,12 +1031,12 @@ export default function ComponentGeneratorPage() {
             .filter(Boolean),
           thumbnailUrl: publishThumbnailUrl || undefined,
           prompt: getLastUserPrompt(),
-          code: generatedComponent.code,
-          files: generatedComponent.files,
+          code: codeForPublish,
+          files: filesForPublish,
           entryFile:
-            generatedComponent.files &&
+            filesForPublish &&
             generatedComponent.entryFile &&
-            generatedComponent.files[generatedComponent.entryFile]
+            filesForPublish[generatedComponent.entryFile]
               ? generatedComponent.entryFile
               : undefined,
           language: generatedComponent.language || "tsx",
@@ -900,7 +1070,9 @@ export default function ComponentGeneratorPage() {
     publishTags,
     publishThumbnailUrl,
     isUploadingThumbnail,
+    hasUnsavedChanges,
     getLastUserPrompt,
+    mergedUserFiles,
   ]);
 
   // Auto-select first file when code generated
@@ -1035,7 +1207,6 @@ export default function ComponentGeneratorPage() {
               prompt: promptToSend,
               conversationHistory,
               projectContext,
-              reasoningEnabled,
             }),
             signal: abortControllerRef.current.signal,
           });
@@ -1050,8 +1221,8 @@ export default function ComponentGeneratorPage() {
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let accumulatedContent = seedContent;
-          let accumulatedReasoning = "";
-          let finalReasoningDetails: any = null;
+          const accumulatedReasoning = "";
+          const finalReasoningDetails: unknown = null;
           let buffer = "";
           let updateTimer: NodeJS.Timeout | null = null;
           let streamMode: "unknown" | "structured" | "plain" = "unknown";
@@ -1064,6 +1235,9 @@ export default function ComponentGeneratorPage() {
               files,
               entryFile,
             } = parseThinkingAndContent(accumulatedContent);
+            const dependencies = listAddedPackages(
+              files ? Object.values(files) : [code],
+            );
 
             const displayReasoning = accumulatedReasoning || reasoning;
 
@@ -1078,6 +1252,7 @@ export default function ComponentGeneratorPage() {
                       code,
                       files,
                       entryFile,
+                      dependencies,
                     }
                   : msg,
               ),
@@ -1104,6 +1279,7 @@ export default function ComponentGeneratorPage() {
                     "",
                   files: mergedFiles,
                   entryFile: nextEntry || entryFile || prev?.entryFile,
+                  dependencies,
                   language: "tsx",
                   title: prev?.title || "Generated Component",
                 };
@@ -1292,10 +1468,10 @@ export default function ComponentGeneratorPage() {
           continuationAttempts += 1;
         }
 
-        let artifacts = raw ? extractArtifactsFromResponse(raw) : null;
+        const artifacts = raw ? extractArtifactsFromResponse(raw) : null;
 
         if (raw && artifacts && (artifacts.files || artifacts.code)) {
-          const { code, files, entryFile, language } = artifacts;
+          const { code, files, entryFile, language, dependencies } = artifacts;
           setGeneratedComponent((prev) => {
             const mergedFiles = files
               ? { ...(prev?.files || {}), ...files }
@@ -1304,6 +1480,7 @@ export default function ComponentGeneratorPage() {
               code: code || prev?.code,
               files: mergedFiles,
               entryFile: entryFile || prev?.entryFile,
+              dependencies,
               language,
               title: "Generated Component",
             };
@@ -1318,8 +1495,8 @@ export default function ComponentGeneratorPage() {
             toast.error("AI did not return any content. Please try again.");
           }
         }
-      } catch (error: any) {
-        if (error.name === "AbortError") {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === "AbortError") {
           toast.info("Generation stopped");
         } else {
           console.error("Error:", error);
@@ -1437,7 +1614,7 @@ export default function ComponentGeneratorPage() {
   const isMobile = !isDesktop;
 
   return (
-    <div className="flex h-screen w-full flex-col font-sans overflow-hidden bg-background text-foreground">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* Vertical Rails */}
       <div className="pointer-events-none fixed inset-y-0 left-0 right-0 z-[60] mx-auto w-full max-w-[100vw]">
         <div className="absolute inset-y-0 left-0 w-[2px] bg-border/70" />
@@ -1460,7 +1637,7 @@ export default function ComponentGeneratorPage() {
       {/* Main Content - Responsive Split Layout */}
       <div
         ref={splitContainerRef}
-        className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-hidden relative"
+        className="relative flex max-h-full flex-1 min-h-0 flex-col overflow-hidden no-scrollbar lg:flex-row"
       >
         {/* Chat Section */}
         <div
@@ -1481,39 +1658,39 @@ export default function ComponentGeneratorPage() {
           }
         >
           {/* Bottom fade for input area */}
-          <div className="absolute bottom-12 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none z-20" />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-24 bg-gradient-to-t from-background via-background/90 to-transparent" />
 
-          <Conversation className="flex-1 overflow-hidden min-h-0 relative">
+          <Conversation className="flex-1 overflow-hidden min-h-0 relative no-scrollbar">
             <ConversationContent
               className={cn(
                 "flex flex-col w-full max-w-3xl mx-auto",
                 messages.length === 0
-                  ? "min-h-full justify-center py-12 md:py-24"
+                  ? "min-h-0 flex-1 justify-center px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10"
                   : "p-3 sm:p-6 space-y-6 pb-40 md:pb-36",
               )}
             >
               {messages.length === 0 ? (
                 /* Premium Static Empty State */
-                <div className="flex flex-col items-center justify-center max-w-3xl mx-auto text-center px-4 flex-1 relative w-full">
-                  <div className="space-y-4 w-full">
-                    <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold tracking-tight text-foreground leading-[0.95]">
-                      Shadway{" "}
-                      <span className="text-[#0154a5]">
-                        Architect
-                      </span>
-                    </h2>
-                    <p className="max-w-md mx-auto text-[11px] md:text-xs text-muted-foreground/40 font-mono leading-relaxed">
-                      Describe a component. Get production-ready code.
-                    </p>
-                  </div>
+                <div className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-center text-center">
+                  <div className="flex w-full max-w-4xl flex-col items-center gap-6 md:gap-8">
+                    <div className="w-full space-y-3 md:space-y-4">
+                      <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold tracking-tight text-foreground leading-[0.95]">
+                        Shadway{" "}
+                        <span className="text-[#0154a5]">Architect</span>
+                      </h2>
+                      <p className="max-w-md mx-auto text-[11px] md:text-xs text-muted-foreground/40 font-mono leading-relaxed">
+                        Describe a component. Get production-ready code.
+                      </p>
+                    </div>
 
-                  <div className="w-full mt-6">
-                    <SuggestionsGrid
-                      suggestions={activeSuggestions}
-                      onPick={(p) => handleSubmit({ text: p })}
-                      onRefresh={refreshSuggestions}
-                      isRefreshing={isRefreshingSuggestions}
-                    />
+                    <div className="w-full">
+                      <SuggestionsGrid
+                        suggestions={activeSuggestions}
+                        onPick={(p) => handleSubmit({ text: p })}
+                        onRefresh={refreshSuggestions}
+                        isRefreshing={isRefreshingSuggestions}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1609,6 +1786,35 @@ export default function ComponentGeneratorPage() {
                                       )}
                                     </div>
 
+                                    {message.dependencies &&
+                                    message.dependencies.length > 0 ? (
+                                      <div className="border-t border-border/40 px-4 py-3">
+                                        <div className="mb-2 flex items-center gap-2">
+                                          <SparklesIcon className="h-3 w-3 text-foreground/35" />
+                                          <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground/55">
+                                            Added packages
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {message.dependencies
+                                            .slice(0, 5)
+                                            .map((dependency) => (
+                                              <span
+                                                key={dependency}
+                                                className="inline-flex items-center rounded-full border border-border/50 bg-muted/15 px-2.5 py-1 text-[10px] font-mono text-foreground/70"
+                                              >
+                                                npm:{dependency}
+                                              </span>
+                                            ))}
+                                          {message.dependencies.length > 5 ? (
+                                            <span className="inline-flex items-center px-1 text-[10px] font-mono text-muted-foreground/50">
+                                              +{message.dependencies.length - 5}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    ) : null}
+
                                     <div className="flex border-t border-border/40">
                                       <button
                                         className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-foreground/70 hover:bg-muted/20 transition-colors border-r border-border/40"
@@ -1617,6 +1823,7 @@ export default function ComponentGeneratorPage() {
                                             code: message.code,
                                             files: message.files,
                                             entryFile: message.entryFile,
+                                            dependencies: message.dependencies,
                                             language: "tsx",
                                             title: "Generated Component",
                                           });
@@ -1635,6 +1842,7 @@ export default function ComponentGeneratorPage() {
                                             code: message.code,
                                             files: message.files,
                                             entryFile: message.entryFile,
+                                            dependencies: message.dependencies,
                                             language: "tsx",
                                             title: "Generated Component",
                                           });
@@ -1671,34 +1879,59 @@ export default function ComponentGeneratorPage() {
           </Conversation>
 
           {/* Fixed Input Area */}
-          <div className="relative mt-auto mb-2 md:mb-3 px-3 sm:px-6 md:px-10 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-[max(1.25rem,env(safe-area-inset-bottom))] shrink-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur supports-[backdrop-filter]:bg-background/75">
-            <div className="mx-auto w-full max-w-2xl relative">
+          <div
+            className={cn(
+              "relative mt-auto shrink-0 z-30 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur supports-[backdrop-filter]:bg-background/75",
+              messages.length === 0
+                ? "mb-8 px-3 sm:mb-9 sm:px-6 md:mb-10 md:px-10 pt-2 pb-[max(1.2rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+                : "mb-5 px-3 sm:mb-6 sm:px-6 md:mb-7 md:px-10 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+            )}
+          >
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 bg-background/55 backdrop-blur-xl" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/80 to-transparent" />
+            <div className="mx-auto w-full max-w-2xl relative z-10">
               <PromptInput
                 onSubmit={handleSubmit}
                 className="w-full [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent [&_[data-slot=input-group]]:shadow-none [&_[data-slot=input-group]]:rounded-none [&_[data-slot=input-group]]:ring-0 [&_[data-slot=input-group]]:outline-none [&_[data-slot=input-group]]:focus-within:ring-0 [&_[data-slot=input-group]]:focus-within:outline-none"
               >
                 <PromptInputBody>
-                  <div className="relative w-full border border-border/60 bg-background transition-colors duration-200 focus-within:border-foreground/20 overflow-hidden">
+                  <div
+                    className={cn(
+                      "relative w-full overflow-hidden border border-border/60 bg-background/92 transition-colors duration-200 focus-within:border-foreground/20 rounded-none",
+                    )}
+                  >
                     <PromptInputTextarea
                       placeholder={
                         messages.length === 0
-                          ? "Describe a component..."
-                          : "Refine your design..."
+                          ? "Describe the product, vibe, layout, or package you want to use..."
+                          : "Refine the direction, swap packages, or patch the current build..."
                       }
                       disabled={isGenerating}
-                      className="h-10 md:h-11 max-h-11 min-h-10 w-full px-3 pt-2.5 pb-1.5 text-[13px] border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/30 font-medium leading-relaxed overflow-y-auto no-scrollbar resize-none [field-sizing:fixed]"
+                      className={cn(
+                        "w-full border-0 bg-transparent px-4 text-[13px] leading-relaxed font-medium text-foreground/92 placeholder:text-muted-foreground/38 focus-visible:ring-0 overflow-y-auto no-scrollbar resize-none sm:px-5 [field-sizing:fixed]",
+                        messages.length === 0
+                          ? "h-[58px] min-h-[58px] max-h-24 pt-3.5 pb-1.5"
+                          : "h-[60px] min-h-[60px] max-h-24 pt-3 pb-1.5 md:h-[64px]",
+                      )}
                     />
 
-                    <PromptInputFooter className="px-2.5 pb-2 pt-0 border-0 bg-transparent flex items-center justify-between">
-                      <PromptInputTools className="flex items-center gap-1">
+                    <PromptInputFooter
+                      className={cn(
+                        "flex items-center justify-between bg-transparent px-3 pt-0 sm:px-4",
+                        messages.length === 0
+                          ? "pb-3 pt-2.5 sm:pb-3.5"
+                          : "pb-2 pt-1.5 sm:pb-2.5",
+                      )}
+                    >
+                      <PromptInputTools className="flex items-center gap-1.5">
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-muted-foreground/40 hover:text-foreground h-6 w-6 transition-colors"
+                          className="h-8 w-8 rounded-none border border-transparent text-muted-foreground/50 transition-colors hover:border-border/70 hover:bg-muted/20 hover:text-foreground"
                           type="button"
                           onClick={() => toast.info("Attachments coming soon!")}
                         >
-                          <PaperclipIcon className="h-3 w-3" />
+                          <PaperclipIcon className="h-3.5 w-3.5" />
                         </Button>
                       </PromptInputTools>
 
@@ -1706,16 +1939,21 @@ export default function ComponentGeneratorPage() {
                         disabled={false}
                         onClick={isGenerating ? handleStop : undefined}
                         className={cn(
-                          "h-7 w-7 transition-colors flex items-center justify-center",
+                          "flex h-10 items-center justify-center gap-1.5 overflow-hidden rounded-[0.7rem] border-2 border-[#323232] text-[11px] font-semibold transition-all duration-200 ease-linear",
                           isGenerating
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-foreground text-background hover:bg-foreground/80",
+                            ? "min-w-10 px-0 border-b-2 border-[#01488f] bg-[#01488f] text-white shadow-[0px_1px_6px_0px_rgba(1,84,165,0.35)] translate-y-0"
+                            : "min-w-[104px] px-4 border-b-[5px] border-[#01488f] bg-[#0154a5] text-white shadow-[0px_1px_6px_0px_rgba(1,84,165,0.45)] -translate-y-[3px] hover:bg-[#01488f] hover:brightness-[1.02] active:translate-y-0 active:border-b-2",
                         )}
                       >
                         {isGenerating ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Zap className="h-3 w-3" />
+                          <>
+                            <Zap className="h-3.5 w-3.5 shrink-0" />
+                            <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.12em]">
+                              Generate
+                            </span>
+                          </>
                         )}
                       </PromptInputSubmit>
                     </PromptInputFooter>
@@ -1733,9 +1971,14 @@ export default function ComponentGeneratorPage() {
             aria-orientation="vertical"
             aria-label="Resize panels"
             onPointerDown={startResize}
-            className="hidden lg:flex w-1 group/splitter z-50 cursor-col-resize items-center justify-center transition-all hover:bg-foreground/5"
+            className="hidden lg:flex relative z-50 -mx-1 w-3 shrink-0 cursor-col-resize select-none items-stretch justify-center group/splitter"
           >
-            <div className="h-full w-px bg-border group-hover/splitter:bg-foreground/20 transition-colors" />
+            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/60 transition-colors duration-200 " />
+            <div className="relative flex h-full w-full items-center justify-center">
+              <div className="pointer-events-none flex h-12 w-1.5 items-center justify-center rounded-full transition-all duration-200 group-hover/splitter:h-16 ">
+                <div className="h-7 w-px bg-foreground/45 transition-all duration-200 group-hover/splitter:h-9" />
+              </div>
+            </div>
           </div>
         )}
 
@@ -1751,7 +1994,7 @@ export default function ComponentGeneratorPage() {
                 "flex flex-col bg-background text-foreground overflow-hidden",
                 isMobile || isFullscreen
                   ? "fixed inset-0 z-50 w-full h-full"
-                  : "relative flex-none h-full z-40 pr-3",
+                  : "relative flex-none h-full z-40 no-scrollbar",
               )}
               style={
                 isDesktop && !isFullscreen
@@ -1866,12 +2109,9 @@ export default function ComponentGeneratorPage() {
                 >
                   <SandpackRuntimePreview
                     key={`preview-${previewReloadKey}`}
-                    showConsole={false}
+                    showConsole
                     code={generatedComponent.code || ""}
-                    files={{
-                      ...(generatedComponent.files || {}),
-                      ...editedFiles,
-                    }}
+                    files={mergedUserFiles}
                     entryFile={generatedComponent.entryFile}
                     className="flex-1 min-h-0 h-full"
                     isDarkTheme={isPreviewDark}
@@ -1896,14 +2136,11 @@ export default function ComponentGeneratorPage() {
                   >
                     <div className="flex-1 overflow-y-auto min-h-0">
                       <FileTree
-                        files={{
-                          ...SANDPACK_BASE_FILES,
-                          ...SANDPACK_SHADCN_FILES,
-                          ...(generatedComponent.files || {}),
-                        }}
+                        files={mergedProjectFiles}
                         selectedFile={selectedFile}
                         onFileSelect={handleFileSelect}
                         generatingFile={currentlyGeneratingFile}
+                        isProtectedPath={isProtectedSandboxPath}
                         onFileAdd={handleFileAdd}
                         onFileRename={handleFileRename}
                         onFileDelete={handleFileDelete}
@@ -1922,11 +2159,7 @@ export default function ComponentGeneratorPage() {
                           value={selectedFile || ""}
                           onChange={(e) => handleFileSelect(e.target.value)}
                         >
-                          {Object.keys({
-                            ...SANDPACK_BASE_FILES,
-                            ...SANDPACK_SHADCN_FILES,
-                            ...(generatedComponent.files || {}),
-                          }).map((f) => (
+                          {Object.keys(mergedProjectFiles).map((f) => (
                             <option key={f} value={f}>
                               {f}
                             </option>
@@ -1948,23 +2181,14 @@ export default function ComponentGeneratorPage() {
                                 ? "json"
                                 : "typescript"
                           }
-                          value={
-                            editedFiles[selectedFile] ||
-                            (
-                              {
-                                ...SANDPACK_BASE_FILES,
-                                ...SANDPACK_SHADCN_FILES,
-                                ...(generatedComponent.files || {}),
-                              } as Record<string, string>
-                            )[selectedFile] ||
-                            ""
-                          }
+                          value={mergedProjectFiles[selectedFile] || ""}
                           onChange={(value) =>
                             selectedFile &&
                             handleFileEdit(selectedFile, value || "")
                           }
                           theme={isDark ? "vs-dark" : "light"}
                           options={{
+                            readOnly: isProtectedSandboxPath(selectedFile),
                             minimap: { enabled: !isMobile },
                             fontSize: isMobile ? 12 : 13,
                             fontFamily:
@@ -2137,4 +2361,3 @@ export default function ComponentGeneratorPage() {
     </div>
   );
 }
-
