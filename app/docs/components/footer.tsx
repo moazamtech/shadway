@@ -3,10 +3,6 @@
 import { Highlighter } from "@/components/ui/highlighter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
-
-import Link from "next/link";
-import { Github } from "lucide-react";
-
 export function DocsFooter() {
   return (
     <div className="border-border border-t">
@@ -37,7 +33,7 @@ export function DocsFooter() {
                   moazamtech
                 </a>
               </Highlighter>
-              {" & "}
+              {" , "}
               <Image
                 src="/umair_profile.jpg"
                 alt="UmairXD"
@@ -58,6 +54,29 @@ export function DocsFooter() {
                   data-umami-event="View UmairXD X Profile"
                 >
                   UmairXD
+                </a>
+              </Highlighter>
+              {" & "}
+              <Image
+                src="/wasif_profile.jpeg"
+                alt="Wasif Bin Nasir"
+                width={20}
+                height={20}
+                className="inline-block rounded-2xl"
+              />{" "}
+              <Highlighter
+                color="rgba(79, 139, 255, 0.32)"
+                padding={3}
+                action="highlight"
+              >
+                <a
+                  href="https://x.com/wasif_bin_nasir"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium"
+                  data-umami-event="View Wasif Bin Nasir X Profile"
+                >
+                  wasif_bin_nasir
                 </a>
               </Highlighter>
               . The source code is available on{" "}
