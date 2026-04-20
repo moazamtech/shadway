@@ -86,8 +86,6 @@ export default function BlocksPage() {
           <div className="absolute inset-y-0 right-0 z-100 w-[2px] bg-border/70" />
           <div className="absolute inset-y-0 right-2 z-100 w-[2px] bg-border/40" />
 
-          <LandingHeader />
-
           <div className="max-w-7xl mx-auto px-[10px] py-6 md:py-12 relative">
             <section className="mb-12 space-y-8 relative px-6 md:px-12">
               <div className="space-y-4">
