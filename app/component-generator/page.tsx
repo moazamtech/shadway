@@ -81,11 +81,12 @@ type GeneratorMessage = {
   role: "user" | "assistant";
   content: string;
   reasoning?: string;
-  reasoning_details?: unknown; // Native OR reasoning
+  reasoning_details?: unknown;
   code?: string;
   files?: Record<string, string>;
   entryFile?: string;
   dependencies?: string[];
+  skills?: string[];
   timestamp: Date;
 };
 
@@ -491,9 +492,20 @@ export default function ComponentGeneratorPage() {
     reasoning: string;
     content: string;
     code: string;
+    skills: string[];
     files?: Record<string, string>;
     entryFile?: string;
   } => {
+    // Extract skills from <skills> tags
+    const skillsRegex = /<skills>([\s\S]*?)<\/skills>/;
+    const skillsMatch = text.match(skillsRegex);
+    const skills = skillsMatch
+      ? skillsMatch[1]
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
     // Extract reasoning from <think> tags
     const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
     const thinkMatches = [...text.matchAll(thinkRegex)];
@@ -578,10 +590,44 @@ export default function ComponentGeneratorPage() {
       return { files: finalFiles, entryFile };
     };
 
-    const { files, entryFile } = extractFilesLoose(text);
+    const { files: xmlFiles, entryFile } = extractFilesLoose(text);
+
+    // Fallback: if AI used markdown fences instead of <files>, extract code from them
+    let files = xmlFiles;
+    if (!files || Object.keys(files).length === 0) {
+      const fenceRegex = /```(?:tsx?|jsx?)\s*\n([\s\S]*?)```/g;
+      const fenceMatches = [...text.matchAll(fenceRegex)];
+      if (fenceMatches.length > 0) {
+        const fallbackFiles: Record<string, string> = {};
+        let detectedEntry: string | undefined;
+        for (const match of fenceMatches) {
+          const codeContent = match[1].trim();
+          if (!codeContent || codeContent.length < 20) continue;
+          const isApp = /export\s+default\s+function\s+(App|Header|Hero|Footer|Page|Layout)/.test(codeContent);
+          const path = isApp ? "/App.tsx" : `/Component_${Object.keys(fallbackFiles).length}.tsx`;
+          fallbackFiles[path] = codeContent;
+          if (!detectedEntry && isApp) detectedEntry = path;
+        }
+        if (Object.keys(fallbackFiles).length > 0) {
+          files = fallbackFiles;
+          if (!entryFile) {
+            const ef = detectedEntry || fallbackFiles["/App.tsx"] ? "/App.tsx" : Object.keys(fallbackFiles)[0];
+            return {
+              reasoning,
+              content: content.trim(),
+              code: fallbackFiles[ef || Object.keys(fallbackFiles)[0]] || "",
+              skills,
+              files: fallbackFiles,
+              entryFile: ef,
+            };
+          }
+        }
+      }
+    }
 
     // Remove all XML-like tags and their internal content from the displayed chat text
-    let content = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    let content = text.replace(/<skills>[\s\S]*?<\/skills>/gi, "");
+    content = content.replace(/<think>[\s\S]*?<\/think>/gi, "");
     content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
     content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
     content = content.replace(
@@ -594,7 +640,7 @@ export default function ComponentGeneratorPage() {
 
     content = content.trim();
 
-    return { reasoning, content, code, files, entryFile };
+    return { reasoning, content, code, skills, files, entryFile };
   };
 
   const extractArtifactsFromResponse = (
@@ -1235,6 +1281,7 @@ export default function ComponentGeneratorPage() {
               code,
               files,
               entryFile,
+              skills: parsedSkills,
             } = parseThinkingAndContent(accumulatedContent);
             const dependencies = listAddedPackages(
               files ? Object.values(files) : [code],
@@ -1254,6 +1301,10 @@ export default function ComponentGeneratorPage() {
                       files,
                       entryFile,
                       dependencies,
+                      skills:
+                        parsedSkills.length > 0
+                          ? parsedSkills
+                          : msg.skills,
                     }
                   : msg,
               ),
@@ -1738,7 +1789,18 @@ export default function ComponentGeneratorPage() {
 
                               {/* AI Response Text - Premium Conversational Typography */}
                               {message.content && (
-                                <div className="max-w-3xl px-1">
+                                <div className="max-w-3xl px-1 space-y-3">
+                                  {message.skills && message.skills.length > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                      <SparklesIcon className="h-3 w-3 text-muted-foreground/30" />
+                                      <span className="text-[9px] font-mono text-muted-foreground/30 uppercase tracking-wider">Skills used:</span>
+                                      {message.skills.map((name) => (
+                                        <span key={name} className="inline-flex items-center rounded-full border border-border/40 bg-muted/15 px-2 py-0.5 text-[9px] font-mono text-muted-foreground/50">
+                                          {name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                   <AIResponse className="text-[15px] leading-[1.6] text-foreground/90 font-medium tracking-tight">
                                     {message.content}
                                   </AIResponse>

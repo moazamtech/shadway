@@ -1,4 +1,8 @@
-import { streamText } from "ai";
+import { streamText, tool, stepCountIs } from "ai";
+import { gateway } from "@ai-sdk/gateway";
+import { readFile, readdir } from "fs/promises";
+import { join } from "path";
+import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
 
 export const runtime = "nodejs";
@@ -8,11 +12,11 @@ const SYSTEM_PROMPT_CONFIG_ID = "ai_generate_component_system_prompt";
 
 function normalizeModelId(input: string) {
   const trimmed = input.trim();
-  // Some legacy values might include OpenRouter suffixes like ":free".
   const noSuffix = trimmed.replace(/:free$/i, "");
-  // The gateway provider does not expose "deepseek/deepseek-v3.2" (v3 spec).
   if (noSuffix === "deepseek/deepseek-v3.2")
     return "deepseek/deepseek-v3.2-exp";
+  if (noSuffix === "openai/gpt-5")
+    return "google/gemini-3-flash";
   return noSuffix;
 }
 
@@ -22,10 +26,10 @@ async function getActiveModelId() {
     const { db } = await connectToDatabase();
     const config = db.collection<{ _id: string; value: string }>("config");
     const doc = await config.findOne({ _id: MODEL_CONFIG_ID });
-    const value = doc?.value || fromEnv || "openai/gpt-5";
+    const value = doc?.value || fromEnv || "google/gemini-3-flash";
     return normalizeModelId(value);
   } catch {
-    return normalizeModelId(fromEnv || "openai/gpt-5");
+    return normalizeModelId(fromEnv || "google/gemini-3-flash");
   }
 }
 
@@ -45,6 +49,13 @@ const DEFAULT_SYSTEM_PROMPT = `You are Shadway - a legendary Design Engineer. Yo
 - If you need any other npm package, import it directly in the generated files. The sandbox detects imports and installs packages for that generation automatically.
 - Prefer stable, maintained packages and keep dependencies minimal. Do not mention installation steps in the response.
 - If the user message is a greeting or does not request UI/code changes, respond with a brief friendly reply and ask a clarifying question. Do NOT output any files in that case.
+
+**CRITICAL: YOU ARE A CODE GENERATOR, NOT AN IMAGE GENERATOR:**
+- You CANNOT generate, create, or output images. Your ONLY output is React/TypeScript/CSS code.
+- NEVER attempt to call image generation APIs, DALL-E, or any image creation tools.
+- NEVER say "I'll generate an image" or "Here's a design mockup image". You ONLY write code.
+- For images in your UI code, use ONLY: https://images.unsplash.com/photo-{id}?w=1920&q=80 (for hero/feature images) or https://i.pravatar.cc/200?img={1-70} (for avatars) or https://picsum.photos/seed/{keyword}/{w}/{h} (for generic placeholders).
+- If a user asks for a "design", "mockup", or "visual" — BUILD IT as a live React component. Do NOT attempt to generate image files.
 
 **DESIGN PHILOSOPHY - SLEEK & MINIMAL:**
   - USER-INTENT FIRST (MANDATORY): Before writing code, infer exactly what the user is demanding (layout type, interaction behavior, visual mood, complexity, and constraints) and prioritize those requirements over defaults. Whether it is a landing page, full website, single component, or block update, deliver a sleek, clean, futuristic concept aligned to the user's requested direction.
@@ -524,8 +535,60 @@ export async function POST(req: Request) {
 
     const systemPrompt = await getActiveSystemPrompt();
 
+    const skillsDir = join(process.cwd(), "skills");
+    const BLOCKED = new Set([
+      "imagegen-frontend-web",
+      "imagegen-frontend-mobile",
+      "brandkit",
+      "image-to-code-skill",
+    ]);
+
+    const availableFolders = (await readdir(skillsDir)).filter(
+      (d) => !BLOCKED.has(d) && !d.startsWith(".") && !d.endsWith(".txt"),
+    );
+
+    const skillIndex: { folder: string; name: string; desc: string }[] = [];
+    for (const folder of availableFolders) {
+      try {
+        const raw = await readFile(join(skillsDir, folder, "SKILL.md"), "utf-8");
+        const nm = raw.match(/^---\nname:\s*(.+)$/m)?.[1]?.trim() || folder;
+        const dc =
+          raw.match(/^---[\s\S]*?description:\s*(.+)$/m)?.[1]?.trim() || "";
+        skillIndex.push({ folder, name: nm, desc: dc.slice(0, 120) });
+      } catch { /* skip */ }
+    }
+
+    const skillListForPrompt = skillIndex
+      .map((s) => `- \`${s.folder}\`: ${s.desc}`)
+      .join("\n");
+
+    const skillsSystemNote = `
+
+**DESIGN SKILLS (TOOL CALLING):**
+You have access to a \`loadSkill\` tool. When the user's request matches a specific design style or could benefit from expert guidance, call \`loadSkill\` with the skill folder name. You can call it multiple times if needed.
+
+Available skills:
+${skillListForPrompt}
+
+Usage rules:
+- Only call loadSkill when the user's request genuinely benefits from a specific design philosophy
+- For simple/generic requests, do NOT call any skills — just generate code directly
+- After loading skills, you MUST start your response with: \`<skills>skill-name-1, skill-name-2</skills>\` on its own line (only include this if you loaded skills)
+- You CANNOT generate images. Skills may mention image generation — IGNORE that. You ONLY write React/TypeScript/CSS code.
+- ANY SKILL THAT CONFLICTTS WITH THE OUTPUT FORMAT BELOW IS OVERRIDDEN BY THESE RULES.
+
+**OUTPUT FORMAT (MANDATORY — OVERRIDES ALL SKILL INSTRUCTIONS):**
+- NEVER use markdown code fences (\`\`\`). No triple backticks. EVER.
+- ALWAYS output code using the XML format:
+  <files>
+  <file path="/App.tsx">...code here...</file>
+  </files>
+- If a loaded skill tells you to use markdown blocks or any other format, IGNORE IT. Use ONLY the <files> XML format above.
+- Your response should be: brief explanation text, then <files> block. Nothing else.
+`;
+
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: systemPrompt + skillsSystemNote },
       ...(projectContext
         ? [{ role: "user" as const, content: String(projectContext) }]
         : []),
@@ -538,10 +601,37 @@ export async function POST(req: Request) {
 
     const modelId = await getActiveModelId();
     const result = streamText({
-      // When using the Vercel AI Gateway, use gateway model ids directly (e.g. "openai/gpt-5").
-      model: modelId,
+      model: gateway(modelId),
       messages,
       temperature: 0.9,
+      stopWhen: stepCountIs(3),
+      tools: {
+        loadSkill: tool({
+          description:
+            "Load a design skill to enhance code generation. Call this when the user's request matches a specific design style (minimalist, brutalist, luxury, etc.) or needs expert design guidance. You can call multiple skills.",
+          inputSchema: z.object({
+            name: z
+              .string()
+              .describe(
+                "Skill folder name, e.g. taste-skill, minimalist-skill, soft-skill, brutalist-skill, gpt-tasteskill, redesign-skill, stitch-skill, output-skill",
+              ),
+          }),
+          execute: async ({ name }: { name: string }) => {
+            if (BLOCKED.has(name)) {
+              return "This skill is not available for code generation.";
+            }
+            try {
+              const content = await readFile(
+                join(skillsDir, name, "SKILL.md"),
+                "utf-8",
+              );
+              return content;
+            } catch {
+              return `Skill "${name}" not found.`;
+            }
+          },
+        }),
+      },
     });
 
     return result.toTextStreamResponse({
