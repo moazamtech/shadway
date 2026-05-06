@@ -43,7 +43,7 @@ export function GeneratorHeader({
           />
           <span className="font-serif text-lg tracking-tight">Shadway</span>
           <span className="hidden sm:inline-flex h-5 items-center border border-border bg-muted/20 px-2 text-[9px] font-mono font-semibold uppercase tracking-[0.15em] text-muted-foreground/60">
-            Architect
+            Agent
           </span>
         </Link>
 

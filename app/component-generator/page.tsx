@@ -47,6 +47,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { DotmSquare4 } from "@/components/ui/dotm-square-4";
 import React, {
   useCallback,
   useEffect,
@@ -1865,7 +1866,7 @@ export default function ComponentGeneratorPage() {
                     {isGenerating &&
                       !messages[messages.length - 1]?.reasoning && (
                         <div className="flex items-center gap-2.5 py-4 animate-in fade-in duration-500 self-start ml-4">
-                          <Loader2 className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin" />
+                          <DotmSquare4 size={18} dotSize={3} animated pattern="full" ariaLabel="Generating" />
                           <span className="text-[10px] font-mono font-semibold tracking-[0.15em] text-muted-foreground/40 uppercase">
                             Generating...
                           </span>
