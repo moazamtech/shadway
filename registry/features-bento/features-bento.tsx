@@ -1,112 +1,132 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  Cpu,
-  Globe,
-  Zap,
-  ShieldCheck,
-  Rocket,
-  BarChart3
-} from "lucide-react";
+import { ArrowRight, Globe, Zap, ShieldCheck, BarChart3, Cpu, Layers } from "lucide-react";
 
 const features = [
   {
+    number: "01",
     title: "Global Edge Network",
-    description: "Deploy your application to over 300+ edge locations worldwide for lightning fast latency.",
+    description: "Deploy to 300+ edge locations worldwide. Sub-50ms latency, guaranteed everywhere.",
     icon: Globe,
-    className: "md:col-span-2",
-    gradient: "from-blue-500/20 via-cyan-500/20 to-teal-500/20",
   },
   {
-    title: "Instant Scaling",
-    description: "Handle millions of requests with zero configuration.",
+    number: "02",
+    title: "Instant Auto-Scaling",
+    description: "Zero-config scaling from zero to millions of requests with no cold starts.",
     icon: Zap,
-    className: "md:col-span-1",
-    gradient: "from-purple-500/20 via-pink-500/20 to-red-500/20",
   },
   {
+    number: "03",
     title: "Enterprise Security",
-    description: "Bank-grade encryption and DDoS protection included.",
+    description: "Bank-grade encryption, DDoS protection, and SOC2 compliance built in by default.",
     icon: ShieldCheck,
-    className: "md:col-span-1",
-    gradient: "from-amber-500/20 via-orange-500/20 to-yellow-500/20",
   },
   {
+    number: "04",
     title: "Real-time Analytics",
-    description: "Track performance metrics and user behavior in real-time.",
+    description: "Track every metric that matters. Live dashboards, instant alerts, zero setup.",
     icon: BarChart3,
-    className: "md:col-span-2",
-    gradient: "from-emerald-500/20 via-green-500/20 to-lime-500/20",
+  },
+  {
+    number: "05",
+    title: "AI-Powered Insights",
+    description: "Intelligent anomaly detection and recommendations surface before you ask.",
+    icon: Cpu,
+  },
+  {
+    number: "06",
+    title: "Modular Architecture",
+    description: "Build with composable primitives. Swap any layer without rewrites.",
+    icon: Layers,
   },
 ];
 
 export function FeaturesBento() {
   return (
-    <section className="py-24 px-4 md:px-8 bg-background text-foreground overflow-hidden">
-      <div className="max-w-7xl mx-auto space-y-12">
+    <section className="py-16 sm:py-20 lg:py-24 px-6 lg:px-12 bg-background text-foreground">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary"
-          >
-            <Rocket className="mr-2 h-3.5 w-3.5" />
-            Powerful Features
-          </motion.div>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl md:text-5xl font-black tracking-tight"
-          >
-            Everything you need to <span className="text-primary">scale</span>.
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg text-muted-foreground"
-          >
-            Our platform provides the infrastructure and tools you need to build next-generation applications.
-          </motion.p>
-        </div>
-
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.map((feature, i) => (
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40">
+          <div className="space-y-4">
             <motion.div
-              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase text-primary/80"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              Core Features
+            </motion.div>
+            <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className={`group relative overflow-hidden rounded-3xl border border-border/50 bg-card p-8 hover:border-border transition-colors duration-500 ${feature.className}`}
+              transition={{ delay: 0.1 }}
+              className="text-5xl md:text-7xl font-medium tracking-tight leading-[0.9]"
             >
-              {/* Background Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${feature.gradient}`} />
+              Everything you need
+              <br />
+              <span className="text-muted-foreground/35 font-serif italic">to scale.</span>
+            </motion.h2>
+          </div>
 
-              {/* Content */}
-              <div className="relative z-10 flex flex-col h-full justify-between gap-8">
-                <div className="p-3 w-fit rounded-2xl bg-background/50 border border-border/50 backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
-                  <feature.icon className="w-6 h-6 text-foreground" />
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="max-w-sm text-muted-foreground/70 font-light leading-relaxed text-lg md:text-right"
+          >
+            Built for teams that move fast. Infrastructure that disappears into the background.
+          </motion.p>
+        </div>
+
+        {/* Features grid — border-based, no rounded corners */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-l border-border/40">
+          {features.map((feature, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05 }}
+              className="group relative border-r border-b border-border/40 p-8 md:p-10 hover:bg-muted/5 transition-colors duration-300 overflow-hidden"
+            >
+              {/* Background number — bottom-right so it doesn't overlap the icon row */}
+              <div className="absolute bottom-4 right-5 text-[72px] font-black text-foreground/[0.04] leading-none select-none font-mono group-hover:text-primary/[0.06] transition-colors">
+                {feature.number}
+              </div>
+
+              <div className="relative z-10 flex flex-col gap-8">
+                {/* Icon only — arrow moved to bottom accent */}
+                <div className="flex items-start">
+                  <div className="p-2.5 border border-border/50 group-hover:border-primary/30 group-hover:bg-primary/5 transition-all duration-300">
+                    <feature.icon className="w-5 h-5 text-foreground/60 group-hover:text-primary transition-colors" />
+                  </div>
                 </div>
 
+                {/* Text */}
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-bold tracking-tight">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-xl font-semibold tracking-tight">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground/70 leading-relaxed font-light">
                     {feature.description}
                   </p>
                 </div>
-              </div>
 
-              {/* Decorative Blur */}
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-colors duration-700" />
+                {/* Hover accent line + arrow */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border/20 overflow-hidden">
+                    <motion.div
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: "0%" }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="h-full bg-primary"
+                    />
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" />
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>

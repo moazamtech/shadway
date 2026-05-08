@@ -62,9 +62,41 @@ export function RegistryBlock({
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [previewHeight, setPreviewHeight] = useState(600);
+  const previewContainerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el) return;
+    const update = () => setContainerWidth(el.offsetWidth);
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const DESKTOP_WIDTH = 1440;
+  const isScaled = viewport === 100 && activeView === "preview" && containerWidth > 0;
+  const scale = isScaled ? containerWidth / DESKTOP_WIDTH : 1;
+  const scaledHeight = isScaled ? Math.round(previewHeight * scale) : previewHeight;
 
   React.useEffect(() => {
     setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        event.source === iframeRef.current?.contentWindow &&
+        event.data?.type === "PREVIEW_HEIGHT" &&
+        typeof event.data.height === "number"
+      ) {
+        setPreviewHeight(Math.max(400, event.data.height));
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
   const handleViewportResize = (size: number) => {
@@ -204,10 +236,7 @@ export function RegistryBlock({
               Block {String(index + 1).padStart(2, "0")}
             </span>
             <h3 className="text-4xl md:text-6xl font-medium tracking-tight leading-none">
-              {title || name}
-              <span className="text-muted-foreground/40 font-serif italic text-3xl md:text-5xl ml-1">
-                Archive.
-              </span>
+              {title || name.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
             </h3>
           </div>
           <p className="text-base text-muted-foreground/60 max-w-2xl leading-relaxed italic font-light">
@@ -321,8 +350,9 @@ export function RegistryBlock({
 
       {/* Main Content Area */}
       <div
-        className="relative border-y border-border/40 overflow-hidden bg-background mt-4"
-        style={{ height: 600 }}
+        ref={previewContainerRef}
+        className="relative border-y border-border/40 overflow-hidden bg-background mt-4 transition-[height] duration-300"
+        style={{ height: activeView === "code" ? 600 : scaledHeight }}
       >
         <AnimatePresence mode="wait">
           {activeView === "preview" ? (
@@ -364,24 +394,38 @@ export function RegistryBlock({
                       "transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)",
                   )}
                 >
-                  <div className="w-full h-full relative">
-                    <iframe
-                      ref={iframeRef}
-                      src={`/preview/${name}`}
-                      className="w-full h-full border-0 bg-background shadow-sm overflow-hidden"
-                      title={`${name} preview`}
-                      loading="eager"
-                      onLoad={(e) => {
-                        // Optional: could stop a loading spinner here
-                        const iframe = e.currentTarget;
-                        if (iframe.contentWindow) {
-                          iframe.contentWindow.postMessage(
-                            { type: "UPDATE_THEME", theme: resolvedTheme },
-                            "*",
-                          );
-                        }
-                      }}
-                    />
+                  <div className="w-full h-full relative overflow-hidden">
+                    <div
+                      style={isScaled ? {
+                        width: DESKTOP_WIDTH,
+                        height: previewHeight,
+                        transform: `scale(${scale})`,
+                        transformOrigin: "top left",
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                      } : { width: "100%", height: "100%" }}
+                    >
+                      <iframe
+                        ref={iframeRef}
+                        src={`/preview/${name}`}
+                        style={isScaled
+                          ? { width: DESKTOP_WIDTH, height: previewHeight, display: "block", border: "none" }
+                          : {}}
+                        className={isScaled ? "bg-background" : "w-full h-full border-0 bg-background shadow-sm overflow-hidden"}
+                        title={`${name} preview`}
+                        loading="lazy"
+                        onLoad={(e) => {
+                          const iframe = e.currentTarget;
+                          if (iframe.contentWindow) {
+                            iframe.contentWindow.postMessage(
+                              { type: "UPDATE_THEME", theme: resolvedTheme },
+                              "*",
+                            );
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                   {/* Reload Button Overlay */}
                   <Button
@@ -450,7 +494,7 @@ export function RegistryBlock({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="relative flex flex-col h-[600px] transition-colors duration-300 bg-white dark:bg-black"
+              className="relative flex flex-col h-full transition-colors duration-300 bg-white dark:bg-black"
             >
               <div className="flex items-center justify-between px-8 py-4 border-b border-border/20 bg-muted/5 transition-colors">
                 <div className="flex items-center gap-4">

@@ -79,12 +79,7 @@ export const CATEGORIES_CONFIG: CategoryConfig[] = [
         icon: Grid,
     },
     {
-        name: "Testimonials",
-        description: "Customer reviews and social proof.",
-        icon: Sparkles,
-    },
-    {
-        name: "Cta",
+        name: "CTA",
         description: "Conversion-focused call to action sections.",
         icon: Terminal,
     },

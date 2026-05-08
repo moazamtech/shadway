@@ -1,8 +1,8 @@
 {
     "name": "about",
     "type": "registry:block",
-    "title": "Professional About Section",
-    "description": "A sophisticated about section with a feature list, statistics overlay, and hero image area.",
+    "title": "About",
+    "description": "Full-viewport about section with stats row, feature pillars, and Shadway border-grid aesthetic.",
     "category": "about",
     "files": [
         {

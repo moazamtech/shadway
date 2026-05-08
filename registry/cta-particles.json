@@ -1,6 +1,8 @@
 {
     "name": "cta-particles",
     "type": "registry:block",
+    "title": "CTA",
+    "description": "Full-viewport call-to-action with animated particles, grid pattern, and sharp-corner buttons.",
     "dependencies": [
         "framer-motion",
         "lucide-react",

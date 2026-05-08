@@ -1,8 +1,8 @@
 {
     "name": "hero",
     "type": "registry:block",
-    "title": "Modern Hero Section",
-    "description": "A high-conversion hero section with primary/secondary actions and dashboard preview.",
+    "title": "Hero",
+    "description": "Full-viewport hero section with dot grid, radial glow, vertical rails, and stats row.",
     "category": "hero",
     "files": [
         {

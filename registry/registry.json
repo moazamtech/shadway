@@ -7,11 +7,6 @@
       "category": "features"
     },
     {
-      "name": "testimonials-marquee",
-      "type": "registry:block",
-      "category": "testimonials"
-    },
-    {
       "name": "cta-particles",
       "type": "registry:block",
       "category": "cta"
