@@ -1,7 +1,7 @@
 {
     "name": "contact",
     "type": "registry:block",
-    "title": "Contact",
+    "title": "Split Form",
     "description": "Full-viewport contact section with border-grid layout, contact info rows, and sharp-corner form.",
     "category": "contact",
     "files": [
