@@ -1,84 +1,145 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { CheckCircle2, Trophy, Users, Rocket } from "lucide-react";
+import { ArrowRight, Globe, Zap, ShieldCheck, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const stats = [
+  { value: "2024", label: "Founded" },
+  { value: "500+", label: "Clients" },
+  { value: "12", label: "Awards" },
+  { value: "99%", label: "Satisfaction" },
+];
+
+const pillars = [
+  { icon: Globe, title: "Global Reach", desc: "Serving teams across 40+ countries with localized, accessible components." },
+  { icon: Zap, title: "Performance First", desc: "Every block is optimized for Core Web Vitals and zero layout shift." },
+  { icon: ShieldCheck, title: "Accessibility", desc: "WCAG 2.1 AA compliant. Built with semantic HTML and ARIA from the ground up." },
+  { icon: Users, title: "Community Driven", desc: "Open source, community-maintained, and designed to evolve with modern needs." },
+];
 
 export function About() {
-  const stats = [
-    { label: "Founded", value: "2024", icon: Rocket },
-    { label: "Clients", value: "500+", icon: Users },
-    { label: "Awards", value: "12", icon: Trophy },
-  ];
-
-  const features = [
-    "Pixel perfect design implementation",
-    "Highly optimized for performance",
-    "Accessibility first approach (a11y)",
-    "Fully customizable via Tailwind CSS",
-  ];
-
   return (
-    <section className="w-full py-16 md:py-24 bg-background overflow-hidden text-left">
-      <div className="container px-4 sm:px-6 mx-auto">
-        <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-          <div className="w-full lg:w-1/2 space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-[1.2]">
-                Crafting interfaces that <span className="text-primary italic">matter.</span>
-              </h2>
-              <p className="text-base sm:text-lg text-muted-foreground font-light leading-relaxed">
-                At Shadway, we believe that every pixel has a purpose.
-                Our team of designers and engineers work tirelessly to bring
-                you the highest quality React components for your next big idea.
-              </p>
-            </div>
+    <section className="relative w-full bg-background text-foreground overflow-hidden">
+      {/* Dot grid */}
+      <div
+        className="absolute inset-0 opacity-[0.1] pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(circle, var(--foreground) 1px, transparent 1px)`,
+          backgroundSize: "32px 32px",
+        }}
+      />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {features.map((feature, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                  <span className="text-sm font-medium">{feature}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
-              <Button size="lg" className="w-full sm:w-auto px-8">Learn More</Button>
-              <Button size="lg" variant="ghost" className="w-full sm:w-auto">Meet the team</Button>
-            </div>
-          </div>
-
-          <div className="w-full lg:w-1/2 relative mt-12 lg:mt-0">
+      <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 py-16 sm:py-20 lg:py-24">
+        {/* Vertical rails — pinned to content edge, aligned with grid borders */}
+        <div className="absolute inset-y-0 left-6 lg:left-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
+        <div className="absolute inset-y-0 right-6 lg:right-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
+        {/* Top header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40">
+          <div className="space-y-4 max-w-2xl">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl bg-muted border overflow-hidden shadow-2xl"
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase text-primary/80"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-muted-foreground font-mono text-[10px] sm:text-sm opacity-20 italic p-6 text-center">
-                  Company Image Placeholder
-                </span>
-              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              Who We Are
             </motion.div>
 
-            {/* Stats Overlay - Fluid version */}
-            <div className="absolute -bottom-6 -left-4 sm:-bottom-10 sm:-left-10 flex flex-col gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border bg-card shadow-xl z-10 scale-90 sm:scale-100 origin-bottom-left max-w-[160px] sm:max-w-none">
-              {stats.map((stat, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[9px] sm:text-xs text-muted-foreground uppercase tracking-wider font-bold truncate">{stat.label}</p>
-                    <p className="text-xs sm:text-sm font-bold">{stat.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-5xl md:text-7xl font-medium tracking-tight leading-[0.9]"
+            >
+              Crafting interfaces
+              <br />
+              <span className="text-muted-foreground/35 font-serif italic">that matter.</span>
+            </motion.h2>
           </div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="max-w-sm text-muted-foreground/70 font-light leading-relaxed text-lg md:text-right"
+          >
+            We believe every pixel has a purpose. Our components are precision-crafted for teams that care about craft.
+          </motion.p>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-border/40">
+          {stats.map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="flex flex-col gap-1 px-8 py-10 border-r border-border/40 last:border-r-0 odd:border-r"
+            >
+              <span className="text-4xl md:text-5xl font-bold tracking-tight">{stat.value}</span>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/60 font-bold">{stat.label}</span>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Pillars grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-l border-border/40">
+          {pillars.map((pillar, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.06 }}
+              className="group relative border-r border-b border-border/40 p-8 md:p-10 hover:bg-muted/5 transition-colors duration-300"
+            >
+              <div className="flex flex-col gap-6">
+                <div className="p-2.5 w-fit border border-border/50 group-hover:border-primary/30 group-hover:bg-primary/5 transition-all duration-300">
+                  <pillar.icon className="w-5 h-5 text-foreground/60 group-hover:text-primary transition-colors" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold tracking-tight">{pillar.title}</h3>
+                  <p className="text-sm text-muted-foreground/70 leading-relaxed font-light">{pillar.desc}</p>
+                </div>
+                <div className="flex items-center gap-3 mt-auto">
+                  <div className="h-px flex-1 bg-border/20 overflow-hidden">
+                    <motion.div
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: "0%" }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                      className="h-full bg-primary"
+                    />
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" />
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="pt-16 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <Button
+            size="lg"
+            className="h-12 px-10 text-sm font-bold uppercase tracking-widest rounded-none"
+          >
+            Meet the Team
+            <ArrowRight className="ml-2 w-4 h-4" />
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-12 px-10 text-sm font-bold uppercase tracking-widest rounded-none border-border/40"
+          >
+            View Open Roles
+          </Button>
         </div>
       </div>
     </section>

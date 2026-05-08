@@ -1,6 +1,8 @@
 {
     "name": "features-bento",
     "type": "registry:block",
+    "title": "Features Grid",
+    "description": "A bordered numbered features grid with icon, title, description, and hover accent line.",
     "dependencies": [
         "framer-motion",
         "lucide-react"

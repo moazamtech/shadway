@@ -488,4 +488,5 @@ export const PREVIEWS: Record<string, React.ComponentType<PreviewProps>> = {
   "Features": FeaturesPreview,
   "Testimonials": TestimonialsPreview,
   "Cta": CtaPreview,
+  "CTA": CtaPreview,
 };

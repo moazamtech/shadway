@@ -1,47 +1,16 @@
 "use client";
 
 import React from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, Terminal, Package } from "lucide-react";
-import { Hero } from "@/components/blocks/hero";
-import { Contact } from "@/components/blocks/contact";
-import { Footer } from "@/components/blocks/footer";
-import { About } from "@/components/blocks/about";
-import { FeaturesBento } from "@/registry/features-bento/features-bento";
-import { TestimonialsMarquee } from "@/registry/testimonials-marquee/testimonials-marquee";
-import { CtaParticles } from "@/registry/cta-particles/cta-particles";
+import dynamic from "next/dynamic";
+import { Terminal, Package } from "lucide-react";
 
-// This is a registry of "Demo" components that will be shown in the preview tab.
-// Each key matches a component "name" in the registry.json
 const PREVIEW_REGISTRY: Record<string, React.ComponentType> = {
-  "alert": () => (
-    <div className="w-full max-w-xl mx-auto">
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Heads up!</AlertTitle>
-        <AlertDescription>
-          This is a native preview of the Alert component. It's incredibly fast.
-        </AlertDescription>
-      </Alert>
-    </div>
-  ),
-  "button": () => (
-    <div className="flex flex-wrap items-center justify-center gap-4 py-8">
-      <Button>Primary</Button>
-      <Button variant="secondary">Secondary</Button>
-      <Button variant="outline">Outline</Button>
-      <Button variant="ghost">Ghost</Button>
-      <Button variant="destructive">Destructive</Button>
-    </div>
-  ),
-  "hero": Hero,
-  "contact": Contact,
-  "footer": Footer,
-  "about": About,
-  "features-bento": FeaturesBento,
-  "testimonials-marquee": TestimonialsMarquee,
-  "cta-particles": CtaParticles,
+  "hero": dynamic(() => import("@/registry/hero/hero").then(m => ({ default: m.Hero }))),
+  "contact": dynamic(() => import("@/registry/contact/contact").then(m => ({ default: m.Contact }))),
+  "footer": dynamic(() => import("@/registry/footer/footer").then(m => ({ default: m.Footer }))),
+  "about": dynamic(() => import("@/registry/about/about").then(m => ({ default: m.About }))),
+  "features-bento": dynamic(() => import("@/registry/features-bento/features-bento").then(m => ({ default: m.FeaturesBento }))),
+  "cta-particles": dynamic(() => import("@/registry/cta-particles/cta-particles").then(m => ({ default: m.CtaParticles }))),
 };
 
 interface ComponentPreviewProps {

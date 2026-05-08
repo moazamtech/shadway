@@ -1,221 +1,91 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { LandingHeader } from "@/components/landing/header";
-import { ArrowLeft, Loader2, AlertCircle, Component } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import fs from "fs/promises";
+import path from "path";
 import { RegistryBlock } from "@/components/registry-block";
-import { Skeleton } from "@/components/ui/skeleton";
-import { RegistryBlockSkeleton } from "@/components/registry-block-skeleton";
-import { ComponentRegistry } from "@/lib/types";
+import { CategoryPageHeader } from "./_header";
+import { CATEGORIES_CONFIG } from "@/lib/docs-config";
+import type { ComponentRegistry } from "@/lib/types";
 
-export default function CategoryPage() {
-  const { category } = useParams();
-  const router = useRouter();
-  const [components, setComponents] = useState<ComponentRegistry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+async function getComponents(category: string): Promise<ComponentRegistry[]> {
+  const registryPath = path.join(process.cwd(), "registry/registry.json");
+  const registry = JSON.parse(await fs.readFile(registryPath, "utf-8"));
 
-  useEffect(() => {
-    const fetchCategoryComponents = async () => {
+  const isAll = category.toLowerCase() === "all";
+  const items: any[] = isAll
+    ? registry.items
+    : registry.items.filter(
+        (item: any) =>
+          (item.category || "ui").toLowerCase() === category.toLowerCase(),
+      );
+
+  const components = await Promise.all(
+    items.map(async (item: any) => {
       try {
-        const response = await fetch("/registry");
-        if (!response.ok) throw new Error("Failed to fetch registry");
-
-        const data = await response.json();
-
-        // Filter by category
-        const categoryItems = data.items.filter(
-          (item: any) =>
-            (item.category || "ui").toLowerCase() ===
-            (category as string).toLowerCase(),
+        const jsonPath = path.join(
+          process.cwd(),
+          `registry/${item.name}.json`,
         );
-
-        const detailedComponents = await Promise.all(
-          categoryItems.map(async (item: any) => {
-            const detailResponse = await fetch(`/r/${item.name}.json`);
-            if (detailResponse.ok) return detailResponse.json();
-            return null;
-          }),
-        );
-
-        setComponents(detailedComponents.filter(Boolean));
-      } catch (err) {
-        console.error("Error fetching components:", err);
-        setError("Could not load components for this category.");
-      } finally {
-        setLoading(false);
+        return JSON.parse(await fs.readFile(jsonPath, "utf-8"));
+      } catch {
+        return null;
       }
-    };
+    }),
+  );
 
-    fetchCategoryComponents();
-  }, [category]);
+  return components.filter(Boolean);
+}
 
-  const categoryName =
-    (category as string).charAt(0).toUpperCase() +
-    (category as string).slice(1);
+export default async function CategoryPage({
+  params,
+}: {
+  params: Promise<{ category: string }>;
+}) {
+  const { category } = await params;
+  const components = await getComponents(category);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground relative">
-        <div className="relative mx-auto w-full max-w-7xl">
-          {/* Continuous vertical rails */}
-          <div className="absolute inset-y-0 left-0 z-100 w-[2px] bg-border/70" />
-          <div className="absolute inset-y-0 left-2 z-100 w-[2px] bg-border/40" />
-          <div className="absolute inset-y-0 right-0 z-100 w-[2px] bg-border/70" />
-          <div className="absolute inset-y-0 right-2 z-100 w-[2px] bg-border/40" />
-
-          <LandingHeader />
-
-          <div className="max-w-7xl mx-auto px-2 py-4 md:py-6 relative">
-            <section className="mb-12 space-y-4 relative px-6 md:px-12">
-              <Skeleton className="h-8 w-32 rounded-none opacity-40 -ml-3" />
-              <div className="space-y-4 pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Skeleton className="h-px w-8 bg-primary/40" />
-                  <Skeleton className="h-3 w-32 rounded-none opacity-40" />
-                </div>
-                <div className="space-y-3">
-                  <Skeleton className="h-12 w-64 md:h-20 md:w-96 rounded-none" />
-                  <Skeleton className="h-12 w-48 md:h-20 md:w-64 rounded-none opacity-40 ml-0 md:ml-12" />
-                </div>
-              </div>
-
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 border-t border-border/40">
-                <div className="space-y-3 max-w-xl">
-                  <Skeleton className="h-4 w-full rounded-none" />
-                  <Skeleton className="h-4 w-5/6 rounded-none" />
-                </div>
-                <div className="flex items-center gap-6">
-                  <Skeleton className="h-10 w-24 rounded-none" />
-                  <Skeleton className="h-10 w-24 rounded-none" />
-                </div>
-              </div>
-            </section>
-
-            <div className="space-y-16">
-              {[1, 2].map((i) => (
-                <RegistryBlockSkeleton key={i} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isAll = category.toLowerCase() === "all";
+  const configName = CATEGORIES_CONFIG.find(
+    (c) => c.name.toLowerCase() === category.toLowerCase()
+  )?.name;
+  const categoryName = isAll
+    ? "All Blocks"
+    : configName || (category.charAt(0).toUpperCase() + category.slice(1));
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative">
       <div className="max-w-7xl mx-auto px-2 py-4 md:py-6 relative">
-        {/* Header Section */}
-        <section className="mb-12 space-y-4 relative px-6 md:px-12">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="group -ml-3 gap-2 text-muted-foreground/60 hover:text-foreground transition-colors uppercase text-[10px] font-bold tracking-widest px-3"
-            onClick={() => router.push("/docs")}
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-            Back to Blocks
-          </Button>
+        <CategoryPageHeader
+          category={category}
+          categoryName={categoryName}
+          componentCount={components.length}
+        />
 
-          <div className="space-y-4">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 text-[10px] font-bold tracking-[0.3em] uppercase text-primary/80 mb-2"
-            >
-              <div className="w-8 h-px bg-primary/40" />
-              Module Category
-            </motion.div>
-
-            <h1 className="text-5xl md:text-8xl font-medium tracking-tight leading-[0.9]">
-              {categoryName}
-              <br />
-              <span className="text-muted-foreground/40 font-serif italic">
-                Archive
-              </span>
-              .
-            </h1>
-          </div>
-
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 border-t border-border/40">
-            <p className="max-w-xl text-lg text-muted-foreground/80 font-light leading-relaxed">
-              Professionally built {categoryName.toLowerCase()} components and
-              blocks. Designed for high-performance and visual excellence in
-              production.
-            </p>
-
-            <div className="flex items-center gap-6 text-[11px] font-mono text-muted-foreground/60">
-              <div className="flex flex-col gap-1">
-                <span className="uppercase tracking-widest text-foreground/40 text-[9px]">
-                  Inventory
-                </span>
-                <span className="text-foreground">
-                  {components.length} ITEMS
-                </span>
-              </div>
-              <div className="w-px h-8 bg-border/40" />
-              <div className="flex flex-col gap-1">
-                <span className="uppercase tracking-widest text-foreground/40 text-[9px]">
-                  Module Type
-                </span>
-                <span className="text-primary flex items-center gap-1.5 capitalize">
-                  <Component className="w-3 h-3" />
-                  {category as string}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Content Section */}
         <div className="space-y-0">
-          {error && (
-            <Alert
-              variant="destructive"
-              className="mb-12 rounded-none border-destructive/20 bg-destructive/5"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle className="text-xs font-bold uppercase tracking-widest">
-                System Error
-              </AlertTitle>
-              <AlertDescription className="text-sm opacity-80">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {components.length === 0 && !error && (
+          {components.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border/40 mx-6 md:mx-12">
               <p className="text-sm text-muted-foreground/60 font-mono uppercase tracking-[0.2em]">
                 Empty Module / No items discovered
               </p>
             </div>
+          ) : (
+            <div className="space-y-16 divide-y divide-border/20">
+              {components.map((component, index) => (
+                <div key={component.name} className={index === 0 ? "" : "pt-16"}>
+                  <RegistryBlock
+                    index={index}
+                    name={component.name}
+                    title={component.title || component.name}
+                    description={component.description}
+                    category={category}
+                    code={component.files[0]?.content || ""}
+                    installCommand={`npx shadcn@latest add https://shadway.online/r/${component.name}.json`}
+                  />
+                </div>
+              ))}
+            </div>
           )}
-
-          <div className="space-y-16 divide-y divide-border/20">
-            {components.map((component, index) => (
-              <div key={component.name} className={index === 0 ? "" : "pt-16"}>
-                <RegistryBlock
-                  index={index}
-                  name={component.name}
-                  title={component.title || component.name}
-                  description={component.description}
-                  category={category as string}
-                  code={component.files[0]?.content || ""}
-                  installCommand={`npx shadcn@latest add https://shadway.online/r/${component.name}.json`}
-                />
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Footer Line */}
       <div className="h-px w-full bg-border/10 mt-20" />
     </div>
   );

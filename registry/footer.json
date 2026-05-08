@@ -1,8 +1,8 @@
 {
     "name": "footer",
     "type": "registry:block",
-    "title": "Comprehensive Footer",
-    "description": "A feature-rich footer with navigation links, social icons, and newsletter integration.",
+    "title": "Footer",
+    "description": "Shadway-style footer with brand section, newsletter form, link grid, and sharp-corner aesthetic.",
     "category": "footer",
     "files": [
         {

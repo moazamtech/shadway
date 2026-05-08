@@ -1,8 +1,8 @@
 {
     "name": "contact",
     "type": "registry:block",
-    "title": "Modern Contact Form",
-    "description": "A split-layout contact section with info cards and a functional form UI.",
+    "title": "Contact",
+    "description": "Full-viewport contact section with border-grid layout, contact info rows, and sharp-corner form.",
     "category": "contact",
     "files": [
         {
