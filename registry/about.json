@@ -1,7 +1,7 @@
 {
     "name": "about",
     "type": "registry:block",
-    "title": "About",
+    "title": "Stats Pillars",
     "description": "Full-viewport about section with stats row, feature pillars, and Shadway border-grid aesthetic.",
     "category": "about",
     "files": [

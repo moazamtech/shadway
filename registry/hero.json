@@ -1,7 +1,7 @@
 {
     "name": "hero",
     "type": "registry:block",
-    "title": "Hero",
+    "title": "Dot Grid",
     "description": "Full-viewport hero section with dot grid, radial glow, vertical rails, and stats row.",
     "category": "hero",
     "files": [

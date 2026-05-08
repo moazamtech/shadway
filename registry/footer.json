@@ -1,7 +1,7 @@
 {
     "name": "footer",
     "type": "registry:block",
-    "title": "Footer",
+    "title": "Newsletter",
     "description": "Shadway-style footer with brand section, newsletter form, link grid, and sharp-corner aesthetic.",
     "category": "footer",
     "files": [

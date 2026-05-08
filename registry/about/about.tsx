@@ -36,7 +36,7 @@ export function About() {
         <div className="absolute inset-y-0 left-6 lg:left-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
         <div className="absolute inset-y-0 right-6 lg:right-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
         {/* Top header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40 px-4">
           <div className="space-y-4 max-w-2xl">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -101,23 +101,23 @@ export function About() {
               className="group relative border-r border-b border-border/40 p-8 md:p-10 hover:bg-muted/5 transition-colors duration-300"
             >
               <div className="flex flex-col gap-6">
-                <div className="p-2.5 w-fit border border-border/50 group-hover:border-primary/30 group-hover:bg-primary/5 transition-all duration-300">
-                  <pillar.icon className="w-5 h-5 text-foreground/60 group-hover:text-primary transition-colors" />
+                <div className="flex items-start justify-between">
+                  <div className="p-2.5 w-fit border border-border/50 group-hover:border-primary/30 group-hover:bg-primary/5 transition-all duration-300">
+                    <pillar.icon className="w-5 h-5 text-foreground/60 group-hover:text-primary transition-colors" />
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0 mt-2.5" />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold tracking-tight">{pillar.title}</h3>
                   <p className="text-sm text-muted-foreground/70 leading-relaxed font-light">{pillar.desc}</p>
                 </div>
-                <div className="flex items-center gap-3 mt-auto">
-                  <div className="h-px flex-1 bg-border/20 overflow-hidden">
-                    <motion.div
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: "0%" }}
-                      transition={{ duration: 0.4, ease: "easeOut" }}
-                      className="h-full bg-primary"
-                    />
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" />
+                <div className="h-px mt-auto bg-border/20 overflow-hidden">
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "0%" }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="h-full bg-primary"
+                  />
                 </div>
               </div>
             </motion.div>

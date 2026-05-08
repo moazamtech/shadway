@@ -47,7 +47,7 @@ export function FeaturesBento() {
     <section className="py-16 sm:py-20 lg:py-24 px-6 lg:px-12 bg-background text-foreground">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40 px-1">
           <div className="space-y-4">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -99,11 +99,12 @@ export function FeaturesBento() {
               </div>
 
               <div className="relative z-10 flex flex-col gap-8">
-                {/* Icon only — arrow moved to bottom accent */}
-                <div className="flex items-start">
+                {/* Icon + arrow */}
+                <div className="flex items-start justify-between">
                   <div className="p-2.5 border border-border/50 group-hover:border-primary/30 group-hover:bg-primary/5 transition-all duration-300">
                     <feature.icon className="w-5 h-5 text-foreground/60 group-hover:text-primary transition-colors" />
                   </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0 mt-2.5" />
                 </div>
 
                 {/* Text */}
@@ -114,17 +115,14 @@ export function FeaturesBento() {
                   </p>
                 </div>
 
-                {/* Hover accent line + arrow */}
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-border/20 overflow-hidden">
-                    <motion.div
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: "0%" }}
-                      transition={{ duration: 0.4, ease: "easeOut" }}
-                      className="h-full bg-primary"
-                    />
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-border/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" />
+                {/* Hover accent line */}
+                <div className="h-px flex-1 bg-border/20 overflow-hidden">
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "0%" }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="h-full bg-primary"
+                  />
                 </div>
               </div>
             </motion.div>

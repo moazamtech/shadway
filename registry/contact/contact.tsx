@@ -30,7 +30,7 @@ export function Contact() {
         <div className="absolute inset-y-0 left-6 lg:left-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
         <div className="absolute inset-y-0 right-6 lg:right-12 w-px bg-border/30 pointer-events-none hidden lg:block" />
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-16 border-b border-border/40 px-4">
           <div className="space-y-4">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
