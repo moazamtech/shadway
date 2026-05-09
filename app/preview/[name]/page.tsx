@@ -9,6 +9,7 @@ export default function PreviewPage({ params }: { params: Promise<{ name: string
   const { name } = React.use(params);
   const searchParams = useSearchParams();
   const { setTheme } = useTheme();
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const theme = searchParams.get("theme");
@@ -23,22 +24,34 @@ export default function PreviewPage({ params }: { params: Promise<{ name: string
     return () => window.removeEventListener("message", handleMessage);
   }, [setTheme]);
 
-  // Report natural height to parent so the iframe container sizes itself correctly
+  // Report natural content height to parent. Measure the wrapper directly —
+  // documentElement.scrollHeight is bounded by the iframe's viewport size, so it
+  // can't shrink back once the iframe has been forced taller.
   React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     const reportHeight = () => {
-      const height = document.documentElement.scrollHeight;
+      const height = el.scrollHeight;
       window.parent.postMessage({ type: "PREVIEW_HEIGHT", height }, "*");
     };
 
     reportHeight();
 
-    const observer = new ResizeObserver(reportHeight);
-    observer.observe(document.documentElement);
-    return () => observer.disconnect();
+    const resizeObs = new ResizeObserver(reportHeight);
+    resizeObs.observe(el);
+
+    const mutationObs = new MutationObserver(reportHeight);
+    mutationObs.observe(el, { childList: true, subtree: true, attributes: true });
+
+    return () => {
+      resizeObs.disconnect();
+      mutationObs.disconnect();
+    };
   }, []);
 
   return (
-    <div className="w-full bg-background">
+    <div ref={containerRef} data-preview-root className="w-full bg-background">
       <ComponentPreview name={name} />
     </div>
   );
