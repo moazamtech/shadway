@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Editor from "@monaco-editor/react";
-import { BlueprintGrid } from "./blueprint-grid";
 import {
   Monitor,
   Tablet,
@@ -19,14 +18,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import type { ImperativePanelHandle } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
-import { ComponentPreview } from "@/components/component-preview";
 import { useTheme } from "next-themes";
 
 interface RegistryBlockProps {
@@ -53,33 +45,41 @@ export function RegistryBlock({
   docsUrl,
 }: RegistryBlockProps) {
   const [activeView, setActiveView] = useState<"preview" | "code">("preview");
-  const [viewport, setViewport] = useState<number>(100);
+  const [viewport, setViewport] = useState<number>(100); // percentage 25-100
   const [isCopied, setIsCopied] = useState(false);
   const [isInstallCopied, setIsInstallCopied] = useState(false);
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const panelRef = React.useRef<ImperativePanelHandle>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isPulling, setIsPulling] = useState(false);
-  const [previewHeight, setPreviewHeight] = useState(600);
-  const previewContainerRef = React.useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [previewHeight, setPreviewHeight] = useState(800);
+  const stageRef = React.useRef<HTMLDivElement>(null);
+  const [stageWidth, setStageWidth] = React.useState(0);
 
   React.useEffect(() => {
-    const el = previewContainerRef.current;
+    const el = stageRef.current;
     if (!el) return;
-    const update = () => setContainerWidth(el.offsetWidth);
+    const update = () => setStageWidth(el.offsetWidth);
     update();
     const obs = new ResizeObserver(update);
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  const DESKTOP_WIDTH = 1440;
-  const isScaled = viewport === 100 && activeView === "preview" && containerWidth > 0;
-  const scale = isScaled ? containerWidth / DESKTOP_WIDTH : 1;
-  const scaledHeight = isScaled ? Math.round(previewHeight * scale) : previewHeight;
+  const MIN_VIEWPORT = 25;
+  const isPreview = activeView === "preview";
+  // Single rendering mode: the iframe always renders at the actual visible width,
+  // no scaling. At 100% that equals the full stage (≥ lg breakpoint → desktop
+  // layout); sliding narrows the iframe and the component reflows responsively
+  // through its md:/sm: breakpoints. No jump because there's no scale boundary.
+  const visibleWidth =
+    stageWidth > 0 ? Math.round((stageWidth * viewport) / 100) : 0;
+  const iframeRenderWidth = visibleWidth > 0 ? visibleWidth : 0;
+  const visibleScale = 1;
+  const visibleHeight = previewHeight;
+  const containerHeight = isPreview
+    ? Math.max(160, visibleHeight)
+    : 600;
 
   React.useEffect(() => {
     setMounted(true);
@@ -92,7 +92,7 @@ export function RegistryBlock({
         event.data?.type === "PREVIEW_HEIGHT" &&
         typeof event.data.height === "number"
       ) {
-        setPreviewHeight(Math.max(400, event.data.height));
+        setPreviewHeight(Math.max(320, event.data.height));
       }
     };
     window.addEventListener("message", handleMessage);
@@ -101,25 +101,68 @@ export function RegistryBlock({
 
   const handleViewportResize = (size: number) => {
     setIsResizing(true);
-    setIsPulling(false);
     setViewport(size);
     setActiveView("preview");
-    panelRef.current?.resize(size);
     setTimeout(() => setIsResizing(false), 500);
   };
 
-  const handleDragEnd = () => {
+  // Pointer-driven drag for the right-edge handle
+  const dragStateRef = React.useRef<{
+    startX: number;
+    startViewport: number;
+    stageW: number;
+  } | null>(null);
+
+  const onHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stageRef.current) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragStateRef.current = {
+      startX: e.clientX,
+      startViewport: viewport,
+      stageW: stageRef.current.offsetWidth,
+    };
+    setIsDragging(true);
+    setIsResizing(false);
+  };
+
+  const measureIframeContentHeight = React.useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    try {
+      const doc = iframe.contentDocument;
+      const root =
+        (doc?.querySelector("[data-preview-root]") as HTMLElement | null) ||
+        (doc?.body as HTMLElement | null);
+      if (root) {
+        setPreviewHeight(Math.max(320, root.scrollHeight));
+      }
+    } catch {
+      // cross-origin or not ready — ignore, postMessage handler will catch up
+    }
+  }, []);
+
+  const onHandlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = dragStateRef.current;
+    if (!s || s.stageW <= 0) return;
+    const deltaPct = ((e.clientX - s.startX) / s.stageW) * 100;
+    const next = Math.min(100, Math.max(MIN_VIEWPORT, s.startViewport + deltaPct));
+    setViewport(next);
+    // Read content height directly after the browser reflows the iframe at the new width
+    requestAnimationFrame(measureIframeContentHeight);
+  };
+
+  const onHandlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    dragStateRef.current = null;
     setIsDragging(false);
-    // If we're not at full size, pull back
+    // Snap back to full when released below 100%
     if (viewport < 100) {
       setIsResizing(true);
-      setIsPulling(true);
       setViewport(100);
-      panelRef.current?.resize(100);
-      setTimeout(() => {
-        setIsResizing(false);
-        setIsPulling(false);
-      }, 500);
+      // Re-measure once the iframe reflows at 1440 so the height tracks the snap-back
+      requestAnimationFrame(() => requestAnimationFrame(measureIframeContentHeight));
+      setTimeout(() => setIsResizing(false), 400);
     }
   };
 
@@ -224,28 +267,28 @@ export function RegistryBlock({
 
   return (
     <div className="group relative flex flex-col space-y-0 transition-all duration-300">
-      <div className="relative py-4 px-6 md:px-12 flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-visible">
+      <div className="relative py-4 px-4 sm:px-6 md:px-12 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 overflow-visible">
         {/* Subtle Index */}
         <div className="absolute left-6 -top-8 z-0 pointer-events-none hidden md:block select-none overflow-hidden text-[140px] font-black text-foreground/3 leading-none tracking-tighter">
           {String(index + 1).padStart(2, "0")}
         </div>
 
-        <div className="flex flex-col gap-3 relative z-10 px-0">
+        <div className="flex flex-col gap-3 relative z-10 px-0 min-w-0">
           <div className="flex items-center gap-4">
             <span className="text-[10px] font-mono font-bold text-primary px-2 py-1 border border-primary/20 bg-primary/5 rounded md:hidden uppercase tracking-widest">
               Block {String(index + 1).padStart(2, "0")}
             </span>
-            <h3 className="text-4xl md:text-6xl font-medium tracking-tight leading-none">
+            <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight leading-none break-words">
               {title || name.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
             </h3>
           </div>
-          <p className="text-base text-muted-foreground/60 max-w-2xl leading-relaxed italic font-light">
+          <p className="text-sm sm:text-base text-muted-foreground/60 max-w-2xl leading-relaxed italic font-light">
             {description}
           </p>
         </div>
 
         {/* View Switchers */}
-        <div className="flex items-center z-10 pb-2 md:pb-0">
+        <div className="flex items-center z-10 pb-2 md:pb-0 -mx-1 overflow-x-auto md:overflow-visible">
           <div className="flex items-center gap-1 p-1 bg-muted/20 border border-border/40 rounded-none">
             <Button
               variant="ghost"
@@ -299,7 +342,8 @@ export function RegistryBlock({
                 const sizes = [35, 60, 100];
                 const labels = ["Mobile", "Tablet", "Desktop"];
                 const isActive =
-                  viewport === sizes[i] && activeView === "preview";
+                  Math.abs(viewport - sizes[i]) < 0.5 &&
+                  activeView === "preview";
 
                 return (
                   <Button
@@ -350,9 +394,12 @@ export function RegistryBlock({
 
       {/* Main Content Area */}
       <div
-        ref={previewContainerRef}
-        className="relative border-y border-border/40 overflow-hidden bg-background mt-4 transition-[height] duration-300"
-        style={{ height: activeView === "code" ? 600 : scaledHeight }}
+        className={cn(
+          "relative border-y border-border/40 overflow-visible bg-background mt-4",
+          // Only animate height when not actively dragging, so height tracks every frame during slide
+          !isDragging && "transition-[height] duration-300",
+        )}
+        style={{ height: activeView === "code" ? 600 : containerHeight }}
       >
         <AnimatePresence mode="wait">
           {activeView === "preview" ? (
@@ -363,70 +410,101 @@ export function RegistryBlock({
               exit={{ opacity: 0 }}
               className="w-full h-full relative"
             >
-              {/* Static Background Layer */}
-              <div className="absolute inset-0 h-full w-full bg-slate-950/2 z-0">
+              {/* Dot-grid background fills the whole stage; iframe sits on top */}
+              <div className="absolute inset-0 z-0 bg-background pointer-events-none">
                 <div
-                  className="absolute inset-0 opacity-[0.15] dark:opacity-[0.2] pointer-events-none"
+                  className="absolute inset-0 opacity-[0.18] dark:opacity-[0.22]"
                   style={{
-                    backgroundImage: `radial-gradient(circle, var(--foreground) 1px, transparent 1px)`,
+                    backgroundImage: `radial-gradient(circle at 1.5px 1.5px, var(--foreground) 1.2px, transparent 0)`,
                     backgroundSize: "32px 32px",
                   }}
                 />
+                <div className="absolute inset-0 bg-linear-to-tr from-primary/[0.03] via-transparent to-transparent" />
               </div>
 
-              <ResizablePanelGroup
-                direction="horizontal"
-                className="h-full w-full relative z-10 overflow-visible"
-                onLayout={(sizes) => {
-                  if (!isPulling) {
-                    setViewport(sizes[0]);
-                  }
-                }}
+              <div
+                ref={stageRef}
+                className="relative h-full w-full z-10"
               >
-                <BlueprintGrid />
-                <ResizablePanel
-                  ref={panelRef}
-                  defaultSize={viewport}
-                  minSize={30}
+                {/* 1. Pill icon — rendered FIRST so it sits behind the iframe wrapper.
+                       At viewport=100% only its right half pokes out past the iframe's
+                       right edge; the left half is hidden behind the iframe's bg-background. */}
+                <div
                   className={cn(
-                    "relative flex items-center justify-center bg-muted/5",
-                    (isResizing || isPulling) &&
-                      "transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)",
+                    "pointer-events-none absolute z-[15]",
+                    isResizing && !isDragging && "transition-[left] duration-400 ease-out",
                   )}
+                  style={{
+                    left: visibleWidth > 0 ? visibleWidth : "100%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                  }}
                 >
-                  <div className="w-full h-full relative overflow-hidden">
-                    <div
-                      style={isScaled ? {
-                        width: DESKTOP_WIDTH,
+                  <motion.div
+                    animate={{ scale: isDragging ? 1.12 : 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className={cn(
+                      "h-10 w-5 rounded-full border bg-accent shadow-md flex items-center justify-center transition-colors duration-200",
+                      isDragging
+                        ? "border-primary shadow-lg shadow-primary/20"
+                        : "border-border",
+                    )}
+                  >
+                    <GripVertical
+                      className={cn(
+                        "w-3 h-3 transition-colors duration-200",
+                        isDragging ? "text-primary" : "text-muted-foreground",
+                      )}
+                    />
+                  </motion.div>
+                </div>
+
+                {/* 2. Iframe wrapper — rendered AFTER the pill, so its bg-background
+                       sits on top of and clips the pill's left half. */}
+                <div
+                  className={cn(
+                    "relative z-[20] h-full overflow-hidden bg-background",
+                    isResizing && !isDragging && "transition-[width] duration-400 ease-out",
+                  )}
+                  style={{
+                    width: visibleWidth > 0 ? visibleWidth : "100%",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: iframeRenderWidth,
+                      height: previewHeight,
+                      transform: `scale(${visibleScale})`,
+                      transformOrigin: "top left",
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                    }}
+                  >
+                    <iframe
+                      ref={iframeRef}
+                      src={`/preview/${name}`}
+                      style={{
+                        width: iframeRenderWidth,
                         height: previewHeight,
-                        transform: `scale(${scale})`,
-                        transformOrigin: "top left",
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                      } : { width: "100%", height: "100%" }}
-                    >
-                      <iframe
-                        ref={iframeRef}
-                        src={`/preview/${name}`}
-                        style={isScaled
-                          ? { width: DESKTOP_WIDTH, height: previewHeight, display: "block", border: "none" }
-                          : {}}
-                        className={isScaled ? "bg-background" : "w-full h-full border-0 bg-background shadow-sm overflow-hidden"}
-                        title={`${name} preview`}
-                        loading="lazy"
-                        onLoad={(e) => {
-                          const iframe = e.currentTarget;
-                          if (iframe.contentWindow) {
-                            iframe.contentWindow.postMessage(
-                              { type: "UPDATE_THEME", theme: resolvedTheme },
-                              "*",
-                            );
-                          }
-                        }}
-                      />
-                    </div>
+                        display: "block",
+                        border: "none",
+                      }}
+                      className="bg-background"
+                      title={`${name} preview`}
+                      loading="lazy"
+                      onLoad={(e) => {
+                        const iframe = e.currentTarget;
+                        if (iframe.contentWindow) {
+                          iframe.contentWindow.postMessage(
+                            { type: "UPDATE_THEME", theme: resolvedTheme },
+                            "*",
+                          );
+                        }
+                      }}
+                    />
                   </div>
+
                   {/* Reload Button Overlay */}
                   <Button
                     variant="ghost"
@@ -436,57 +514,46 @@ export function RegistryBlock({
                         iframeRef.current.src = iframeRef.current.src;
                       }
                     }}
-                    className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-dashed border-border hover:bg-background hover:border-primary/50 transition-all shadow-lg z-50 pointer-events-auto"
+                    className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-dashed border-border hover:bg-background hover:border-primary/50 transition-all shadow-lg z-30 pointer-events-auto"
                     title="Reload Preview"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </Button>
-                </ResizablePanel>
-                <ResizableHandle
-                  withHandle={false}
-                  className="relative w-px bg-border/20 transition-all hover:bg-primary/40 group/handle z-100 overflow-visible cursor-col-resize flex items-center justify-center p-0 touch-none"
-                  onPointerDown={() => {
-                    setIsDragging(true);
-                    setIsResizing(false);
-                    setIsPulling(false);
-                  }}
-                  onPointerUp={handleDragEnd}
-                >
-                  {/* Sleek Floating Icon Handle */}
-                  <div className="z-110 pointer-events-none absolute left-1/2 -translate-x-1/2">
-                    <motion.div
-                      animate={{
-                        scale: isDragging ? 1.2 : 1,
-                        backgroundColor:
-                          resolvedTheme === "dark" ? "#18181b" : "#ffffff",
-                        borderColor: isDragging
-                          ? "var(--primary)"
-                          : "var(--border)",
-                      }}
-                      whileHover={{ scale: 1.1 }}
-                      className="w-8 h-8 rounded-full border shadow-lg flex items-center justify-center transition-all duration-300"
-                    >
-                      <GripVertical
-                        className={cn(
-                          "w-3.5 h-3.5 transition-colors",
-                          isDragging ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                    </motion.div>
-                  </div>
-                </ResizableHandle>
-                <ResizablePanel
-                  defaultSize={100 - viewport}
-                  minSize={0}
+                </div>
+
+                {/* 3. Vertical guide line — sits exactly on the iframe's right edge,
+                       on top of the wrapper and the half-hidden pill. Same color as
+                       the pill border so they read as one continuous element. */}
+                <div
                   className={cn(
-                    "bg-transparent",
-                    (isResizing || isPulling) &&
-                      "transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)",
+                    "pointer-events-none absolute top-0 bottom-0 w-px z-[10] transition-colors duration-200",
+                    isDragging ? "bg-primary" : "bg-border",
+                    isResizing && !isDragging && "transition-[left,background-color] duration-[400ms] ease-out",
                   )}
-                >
-                  {/* Transparent spacer to reveal static background */}
-                </ResizablePanel>
-              </ResizablePanelGroup>
+                  style={{
+                    left: visibleWidth > 0 ? visibleWidth : "100%",
+                    transform: "translateX(-0.5px)",
+                  }}
+                />
+
+                {/* 4. Drag hit zone — invisible, captures all pointer events along
+                       the line and over the visible right half of the pill. */}
+                <div
+                  onPointerDown={onHandlePointerDown}
+                  onPointerMove={onHandlePointerMove}
+                  onPointerUp={onHandlePointerUp}
+                  onPointerCancel={onHandlePointerUp}
+                  className={cn(
+                    "absolute top-0 bottom-0 z-[30] cursor-col-resize touch-none",
+                    isResizing && !isDragging && "transition-[left] duration-[400ms] ease-out",
+                  )}
+                  style={{
+                    left: visibleWidth > 0 ? visibleWidth : "100%",
+                    width: 32,
+                    transform: "translateX(-16px)",
+                  }}
+                />
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -496,7 +563,7 @@ export function RegistryBlock({
               exit={{ opacity: 0 }}
               className="relative flex flex-col h-full transition-colors duration-300 bg-white dark:bg-black"
             >
-              <div className="flex items-center justify-between px-8 py-4 border-b border-border/20 bg-muted/5 transition-colors">
+              <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-border/20 bg-muted/5 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 group/file">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover/file:bg-primary transition-colors" />
@@ -531,7 +598,7 @@ export function RegistryBlock({
                 </div>
               </div>
 
-              <div className="flex-1 p-6 overflow-hidden">
+              <div className="flex-1 p-3 sm:p-4 overflow-hidden">
                 <Editor
                   height="100%"
                   defaultLanguage="typescript"
@@ -569,7 +636,7 @@ export function RegistryBlock({
       </div>
 
       {/* Footer / Install Command */}
-      <div className="py-6 px-6 md:px-12 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="py-6 px-4 sm:px-6 md:px-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
         {installCommand ? (
           <div
             className="flex items-center gap-3 cursor-pointer group/cmd"
