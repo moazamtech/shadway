@@ -20,7 +20,7 @@
 ## Sponsors
 
 <div align="center">
-  <a href="https://wrizzai.online/" target="_blank">WrizzAI</a> &nbsp;|&nbsp; <a href="https://down4media.online/" target="_blank">Down4Media</a>
+  <a href="https://wrizzai.online/" target="_blank">WrizzAI</a> &nbsp;|&nbsp; <a href="https://down4media.online/" target="_blank">Down4Media</a>  <a href="https://down4media.online/twitter-downloader" target="_blank">Twitter x  Down4Media</a>  <a href="https://down4media.online/tiktok-downloader" target="_blank">Tiktokdownloader Down4Media</a>
 </div>
 
 ---
