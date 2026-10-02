@@ -526,7 +526,7 @@ export function RegistryBlock({
                        the pill border so they read as one continuous element. */}
                 <div
                   className={cn(
-                    "pointer-events-none absolute top-0 bottom-0 w-px z-[10] transition-colors duration-200",
+                    "pointer-events-none absolute top-0 bottom-0 w-px z-[25] transition-colors duration-200",
                     isDragging ? "bg-primary" : "bg-border",
                     isResizing && !isDragging && "transition-[left,background-color] duration-[400ms] ease-out",
                   )}
