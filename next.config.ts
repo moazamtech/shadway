@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Babel must stay external so its runtime `require()` graph works on the server.
+  serverExternalPackages: ["@babel/core"],
   eslint: {
     ignoreDuringBuilds: true,
   },

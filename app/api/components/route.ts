@@ -5,7 +5,10 @@ import {
   listComponents,
   createComponent,
   isValidSlug,
+  getComponentsCollection,
 } from "@/lib/db/components";
+import { buildPreviewBundle } from "@/lib/preview/bundle";
+import { componentSourceFiles } from "@/lib/preview/files";
 
 export const runtime = "nodejs";
 
@@ -85,8 +88,11 @@ export async function POST(request: NextRequest) {
       author = {
         userId: session.user.id || session.user.email || "unknown",
         name: session.user.name || session.user.email || "Unknown user",
-        username: (session.user as { username?: string }).username || session.user.email?.split("@")[0] || "anonymous",
-        avatar: session.user.image || undefined,
+        username:
+          (session.user as { username?: string }).username ||
+          session.user.email?.split("@")[0] ||
+          "anonymous",
+        avatar: (session.user as { image?: string }).image || undefined,
       };
     } else {
       const fallbackName = String(body.authorName || body.author || "Anonymous").trim();
@@ -123,6 +129,64 @@ export async function POST(request: NextRequest) {
       version: String(body.version || "1.0.0"),
       license: String(body.license || "MIT"),
     });
+
+    // Build the preview bundle once, at publish time, exactly like 21st.dev.
+    // The feed then serves static HTML instead of bundling on every visit.
+    let previewHtml: string | undefined;
+    let previewHash: string | undefined;
+
+    try {
+      const bundle = await buildPreviewBundle(
+        componentSourceFiles({
+          code: item.code,
+          demoCode: item.demoCode,
+          files: item.files,
+        }),
+        { entry: "/src/App.tsx", title: item.title }
+      );
+
+      previewHtml = bundle.html;
+      previewHash = bundle.hash;
+    } catch (bundleError) {
+      console.error("Preview bundle build failed:", bundleError);
+    }
+
+    if (previewHtml) {
+      const collection = await getComponentsCollection();
+      await collection.updateOne(
+        { slug: item.slug },
+        { $set: { previewHtml, previewHash, updatedAt: new Date() } }
+      );
+      item.previewHtml = previewHtml;
+      item.previewHash = previewHash;
+
+      // Capture a static cover image once, so the feed never bundles per visitor.
+      if (!item.thumbnailUrl) {
+        try {
+          const { capturePreview } = await import("@/lib/preview/capture");
+          const { uploadBufferToCloudinary } = await import("@/lib/cloudinary");
+          const capture = await capturePreview(previewHtml, { width: 1200, height: 900 });
+
+          if (capture) {
+            const url = await uploadBufferToCloudinary(
+              capture.buffer.buffer.slice(
+                capture.buffer.byteOffset,
+                capture.buffer.byteOffset + capture.buffer.byteLength
+              ) as ArrayBuffer,
+              `${item.slug}-cover.png`,
+              `shadway-covers/${item.slug}`
+            );
+            await collection.updateOne(
+              { slug: item.slug },
+              { $set: { thumbnailUrl: url, updatedAt: new Date() } }
+            );
+            item.thumbnailUrl = url;
+          }
+        } catch (captureError) {
+          console.error("Cover capture failed:", captureError);
+        }
+      }
+    }
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {

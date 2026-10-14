@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/lib/mongodb";
-import { Collection, ObjectId } from "mongodb";
+import { Collection, ObjectId, type Sort } from "mongodb";
 
 export type ComponentVisibility = "public" | "unlisted" | "private";
 export type ComponentStatus = "draft" | "published" | "hidden" | "flagged";
@@ -26,6 +26,8 @@ export type ComponentDocument = {
   description: string;
   code: string;
   demoCode?: string;
+  previewHtml?: string;
+  previewHash?: string;
   thumbnailUrl?: string;
   videoUrl?: string;
   assets?: { url: string; type: string }[];
@@ -127,7 +129,7 @@ export async function listComponents(options: ListComponentsOptions = {}) {
     ];
   }
 
-  const sort =
+  const sort: Sort =
     options.sort === "popular"
       ? { likes: -1, views: -1, createdAt: -1 }
       : options.sort === "installs"

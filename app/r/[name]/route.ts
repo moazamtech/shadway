@@ -58,6 +58,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name?: 
           type: "registry:component",
         },
         ...(component.files || []),
+        ...(component.demoCode
+          ? [
+              {
+                path: `components/demo/${component.slug}-demo.tsx`,
+                content: component.demoCode,
+                type: "registry:block" as const,
+              },
+            ]
+          : []),
       ],
     };
 

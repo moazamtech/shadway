@@ -1,85 +1,73 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { LocalPreview } from "@/components/preview/local-preview";
+import {
+  buildPreviewFiles,
+  type PreviewFileInput,
+  type PreviewFiles,
+} from "@/lib/preview/files";
 
-const SandpackProvider = dynamic(() => import("@codesandbox/sandpack-react").then((m) => m.SandpackProvider), {
-  ssr: false,
-});
-const SandpackPreview = dynamic(() => import("@codesandbox/sandpack-react").then((m) => m.SandpackPreview), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-44 items-center justify-center text-xs text-muted-foreground">
-      Loading preview...
-    </div>
-  ),
-});
+export { buildPreviewFiles };
+export type { PreviewFiles, PreviewFileInput };
 
+/**
+ * Live, in-browser preview. Used by the studio and quick-paste flow where the
+ * source is still being edited. Published components on the feed use the
+ * server-built bundle at /api/components/preview instead (built once).
+ */
 export function ComponentSandpackPreview({
   code,
   title,
-  dependencies = [],
+  files,
+  height = 200,
 }: {
-  code: string;
+  code?: string;
   title: string;
   dependencies?: string[];
+  files?: PreviewFiles;
+  height?: number;
 }) {
-  const dependencyMap = dependencies.reduce<Record<string, string>>((acc, dep) => {
-    const name = dep.split("@")[0]?.trim();
-    if (name) acc[name] = "latest";
-    return acc;
-  }, {});
   const ref = useRef<HTMLDivElement | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
+          setMounted(true);
           observer.disconnect();
         }
       },
-      { rootMargin: "180px" }
+      { rootMargin: "160px" }
     );
-
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
+  const [previewFiles, setPreviewFiles] = useState<PreviewFileInput[]>([]);
+
+  useEffect(() => {
+    const source = files ?? code;
+    if (!source) {
+      setPreviewFiles([]);
+      return;
+    }
+    setPreviewFiles(buildPreviewFiles(source));
+  }, [files, code]);
+
   return (
     <div ref={ref} className="overflow-hidden rounded-lg border bg-background">
-      {visible ? (
-        <SandpackProvider
-          template="react-ts"
-          customSetup={{
-            dependencies: {
-              "lucide-react": "0.544.0",
-              ...dependencyMap,
-            },
-          }}
-          options={{
-            externalResources: ["https://cdn.tailwindcss.com"],
-          }}
-          files={{
-            "/App.tsx": code,
-          }}
-          theme="dark"
-        >
-          <SandpackPreview
-            showOpenInCodeSandbox={false}
-            showRefreshButton={false}
-            showOpenNewtab={false}
-            showRestartButton={false}
-            style={{ minHeight: 180, height: 180 }}
-          />
-        </SandpackProvider>
+      {mounted ? (
+        <LocalPreview files={previewFiles} height={height} />
       ) : (
-        <div className="flex h-44 items-center justify-center text-xs text-muted-foreground">
-          {title} preview will load when visible
+        <div
+          className="flex items-center justify-center text-xs text-muted-foreground"
+          style={{ height }}
+        >
+          {title} preview
         </div>
       )}
     </div>
