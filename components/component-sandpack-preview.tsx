@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 
-const Sandpack = dynamic(() => import("@codesandbox/sandpack-react").then((m) => m.Sandpack), {
+const SandpackProvider = dynamic(() => import("@codesandbox/sandpack-react").then((m) => m.SandpackProvider), {
+  ssr: false,
+});
+const SandpackPreview = dynamic(() => import("@codesandbox/sandpack-react").then((m) => m.SandpackPreview), {
   ssr: false,
   loading: () => (
     <div className="flex h-44 items-center justify-center text-xs text-muted-foreground">
@@ -50,7 +53,7 @@ export function ComponentSandpackPreview({
   return (
     <div ref={ref} className="overflow-hidden rounded-lg border bg-background">
       {visible ? (
-        <Sandpack
+        <SandpackProvider
           template="react-ts"
           customSetup={{
             dependencies: {
@@ -59,18 +62,21 @@ export function ComponentSandpackPreview({
             },
           }}
           options={{
-            showTabs: false,
-            showLineNumbers: false,
             externalResources: ["https://cdn.tailwindcss.com"],
-            editorHeight: 0,
-            previewHeight: 180,
-            showConsole: false,
           }}
           files={{
             "/App.tsx": code,
           }}
           theme="dark"
-        />
+        >
+          <SandpackPreview
+            showOpenInCodeSandbox={false}
+            showRefreshButton={false}
+            showOpenNewtab={false}
+            showRestartButton={false}
+            style={{ minHeight: 180, height: 180 }}
+          />
+        </SandpackProvider>
       ) : (
         <div className="flex h-44 items-center justify-center text-xs text-muted-foreground">
           {title} preview will load when visible
