@@ -2,14 +2,16 @@ import OpenAI from "openai";
 
 export const maxDuration = 60;
 
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
-    "X-Title": "Shadway Chat",
-  },
-});
+function getClient() {
+  return new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
+    defaultHeaders: {
+      "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://shadway.online",
+      "X-Title": "Shadway Chat",
+    },
+  });
+}
 
 type Message = {
   role: "user" | "assistant" | "system";
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
 
   const supportsReasoning = REASONING_MODELS.includes(model);
 
-  const stream = await client.chat.completions.create({
+  const stream = await getClient().chat.completions.create({
     model,
     messages: messages.map((m) => {
       const msg: any = {

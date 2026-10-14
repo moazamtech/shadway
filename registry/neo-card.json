@@ -1,0 +1,14 @@
+{
+  "name": "neo-card",
+  "type": "registry:component",
+  "title": "Neo Card",
+  "description": "Layered card with glass effect and status chip.",
+  "dependencies": [],
+  "files": [
+    {
+      "path": "components/ui/neo-card.tsx",
+      "content": "export default function NeoCard() {\n  return (\n    <div className=\"w-72 rounded-2xl border border-white/10 bg-white/5 p-5 text-white backdrop-blur-xl\">\n      <div className=\"mb-3 flex items-center justify-between\">\n        <span className=\"text-sm font-semibold\">Neo Card</span>\n        <span className=\"rounded-full bg-emerald-400/20 px-2 py-1 text-xs text-emerald-300\">Live</span>\n      </div>\n      <p className=\"text-sm text-white/70\">Composable surface for component previews.</p>\n    </div>\n  );\n}\n",
+      "type": "registry:component"
+    }
+  ]
+}
