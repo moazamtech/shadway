@@ -10,6 +10,10 @@ import {
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  if (!process.env.MONGODB_URI) {
+    return NextResponse.json({ items: [], count: 0, degraded: true });
+  }
+
   try {
     const { searchParams } = request.nextUrl;
     const q = searchParams.get("q") ?? undefined;
@@ -42,6 +46,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!process.env.MONGODB_URI) {
+    return NextResponse.json(
+      { error: "Database is not configured. Set MONGODB_URI to enable publishing." },
+      { status: 503 }
+    );
+  }
+
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
