@@ -20,7 +20,10 @@
 ## Sponsors
 
 <div align="center">
-  <a href="https://wrizzai.online/" target="_blank">WrizzAI</a> &nbsp;|&nbsp; <a href="https://down4media.online/" target="_blank">Down4Media</a>  <a href="https://down4media.online/twitter-downloader" target="_blank">Twitter x  Down4Media</a>  <a href="https://down4media.online/tiktok-downloader" target="_blank">Tiktokdownloader Down4Media</a>
+  <a href="https://wrizzai.online/" target="_blank">WrizzAI</a> &nbsp;|&nbsp;
+  <a href="https://down4media.online/" target="_blank">Down4Media</a> &nbsp;|&nbsp;
+  <a href="https://down4media.online/twitter-downloader" target="_blank">Twitter Downloader</a> &nbsp;|&nbsp;
+  <a href="https://down4media.online/tiktok-downloader" target="_blank">TikTok Downloader</a>
 </div>
 
 ---
@@ -102,7 +105,7 @@ shadway/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/moazamtech/shadway.git
+   git clone https://github.com/moazamdotdev/shadway.git
    cd shadway
    ```
 
@@ -203,7 +206,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Website**: [https://shadway.online/](https://shadway.online/)
 - **Twitter**: [@loxtmozzi](https://x.com/loxtmozzi)
-- **GitHub**: [https://github.com/moazamtech/shadway](https://github.com/moazamtech/shadway)
+- **GitHub**: [https://github.com/moazamdotdev/shadway](https://github.com/moazamdotdev/shadway)
 
 ---
 
