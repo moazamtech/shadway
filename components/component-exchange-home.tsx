@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ComponentSandpackPreview } from "@/components/component-sandpack-preview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -205,7 +204,11 @@ export function ComponentExchangeHome() {
                     </Button>
                   </div>
 
-                  <ComponentSandpackPreview code={item.code} title={item.title} dependencies={item.dependencies} />
+                  <div className="rounded-lg border bg-zinc-950 p-3">
+                    <pre className="max-h-32 overflow-hidden whitespace-pre-wrap text-[11px] leading-5 text-zinc-300">
+                      {item.code.slice(0, 360)}
+                    </pre>
+                  </div>
 
                   <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
 
