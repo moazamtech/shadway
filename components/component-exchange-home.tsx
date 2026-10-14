@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ComponentSandpackPreview } from "@/components/component-sandpack-preview";
 
 type FeedItem = {
   slug: string;
@@ -66,6 +67,8 @@ export function ComponentExchangeHome() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [activeSlug, setActiveSlug] = useState<string>(MOCK_ITEMS[0]?.slug || "");
+  const autoPreview = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,20 +79,20 @@ export function ComponentExchangeHome() {
         if (!res.ok) throw new Error("feed unavailable");
         const data = await res.json();
         if (!cancelled && Array.isArray(data.items) && data.items.length) {
-          setItems(
-            data.items.map((item: any) => ({
-              slug: item.slug,
-              title: item.title,
-              description: item.description,
-              author: item.author,
-              tags: item.tags || [],
-              dependencies: item.dependencies || [],
-              code: item.code,
-              installs: item.installs || 0,
-              views: item.views || 0,
-              likes: item.likes || 0,
-            }))
-          );
+          const nextItems = data.items.map((item: any) => ({
+            slug: item.slug,
+            title: item.title,
+            description: item.description,
+            author: item.author,
+            tags: item.tags || [],
+            dependencies: item.dependencies || [],
+            code: item.code,
+            installs: item.installs || 0,
+            views: item.views || 0,
+            likes: item.likes || 0,
+          }));
+          setItems(nextItems);
+          if (nextItems.length) setActiveSlug(nextItems[0].slug);
         }
       } catch {
         // Keep mock data as resilient fallback.
@@ -114,6 +117,11 @@ export function ComponentExchangeHome() {
       );
     });
   }, [items, query]);
+
+  const activeItem = useMemo(
+    () => items.find((item) => item.slug === activeSlug) || filtered[0] || items[0],
+    [items, filtered, activeSlug]
+  );
 
   async function copyInstall(slug: string) {
     try {
@@ -188,6 +196,8 @@ export function ComponentExchangeHome() {
               return (
                 <article
                   key={item.slug}
+                  onMouseEnter={() => setActiveSlug(item.slug)}
+                  onFocus={() => setActiveSlug(item.slug)}
                   className={`mb-4 break-inside-avoid rounded-2xl border bg-card p-3 shadow-sm transition hover:shadow-md ${
                     index % 5 === 0 ? "md:col-span-2" : ""
                   }`}
@@ -247,6 +257,30 @@ export function ComponentExchangeHome() {
             </div>
           )}
         </section>
+
+        <aside className="hidden w-80 shrink-0 2xl:block">
+          <div className="sticky top-6 space-y-3 rounded-2xl border bg-card p-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">Live preview</p>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight">{activeItem?.title}</h2>
+              <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{activeItem?.description}</p>
+            </div>
+            {activeItem?.code ? (
+              <ComponentSandpackPreview
+                code={activeItem.code}
+                title={activeItem.title}
+                dependencies={activeItem.dependencies}
+              />
+            ) : (
+              <div className="flex h-44 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+                Hover or select a component
+              </div>
+            )}
+            <code className="block overflow-hidden text-ellipsis rounded-md bg-muted px-2 py-1 text-xs">
+              npx shadcn@latest add https://shadway.com/r/{activeItem?.slug}
+            </code>
+          </div>
+        </aside>
       </div>
     </main>
   );
