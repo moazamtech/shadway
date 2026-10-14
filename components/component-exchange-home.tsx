@@ -7,6 +7,8 @@ import { ComponentSandpackPreview } from "@/components/component-sandpack-previe
 
 type FeedItem = {
   slug: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
   title: string;
   description: string;
   author: { name: string; username: string; avatar?: string };
@@ -81,6 +83,8 @@ export function ComponentExchangeHome() {
         if (!cancelled && Array.isArray(data.items) && data.items.length) {
           const nextItems = data.items.map((item: any) => ({
             slug: item.slug,
+            thumbnailUrl: item.thumbnailUrl,
+            videoUrl: item.videoUrl,
             title: item.title,
             description: item.description,
             author: item.author,
@@ -214,11 +218,17 @@ export function ComponentExchangeHome() {
                     </Button>
                   </div>
 
-                  <div className="rounded-lg border bg-zinc-950 p-3">
-                    <pre className="max-h-32 overflow-hidden whitespace-pre-wrap text-[11px] leading-5 text-zinc-300">
-                      {item.code.slice(0, 360)}
-                    </pre>
-                  </div>
+                  {item.thumbnailUrl ? (
+                    <div className="overflow-hidden rounded-lg border">
+                      <img src={item.thumbnailUrl} alt={item.title} className="aspect-video w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border bg-zinc-950 p-3">
+                      <pre className="max-h-32 overflow-hidden whitespace-pre-wrap text-[11px] leading-5 text-zinc-300">
+                        {item.code.slice(0, 360)}
+                      </pre>
+                    </div>
+                  )}
 
                   <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
 

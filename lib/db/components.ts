@@ -26,6 +26,9 @@ export type ComponentDocument = {
   description: string;
   code: string;
   demoCode?: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
+  assets?: { url: string; type: string }[];
   files?: ComponentFile[];
   category: string;
   tags: string[];
@@ -164,6 +167,9 @@ export async function createComponent(input: ComponentInput) {
     description: input.description || "",
     code: input.code,
     demoCode: input.demoCode,
+    thumbnailUrl: input.thumbnailUrl,
+    videoUrl: input.videoUrl,
+    assets: input.assets,
     files: input.files,
     category: input.category || "ui",
     tags: (input.tags || []).map((t) => t.trim()).filter(Boolean),

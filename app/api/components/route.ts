@@ -106,6 +106,8 @@ export async function POST(request: NextRequest) {
       code,
       demoCode: body.demoCode ? String(body.demoCode) : undefined,
       files: Array.isArray(body.files) ? body.files : undefined,
+      thumbnailUrl: body.thumbnailUrl ? String(body.thumbnailUrl) : undefined,
+      videoUrl: body.videoUrl ? String(body.videoUrl) : undefined,
       category: String(body.category || "ui"),
       tags: Array.isArray(body.tags) ? body.tags : [],
       dependencies: Array.isArray(body.dependencies) ? body.dependencies : [],

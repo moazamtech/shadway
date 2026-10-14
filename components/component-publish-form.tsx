@@ -14,8 +14,29 @@ export function ComponentPublishForm() {
   const [dependencies, setDependencies] = useState("");
   const [category, setCategory] = useState("ui");
   const [visibility, setVisibility] = useState<"public" | "unlisted">("public");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function uploadMedia(file: File, kind: "image" | "video") {
+    setUploadingMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", kind);
+      const response = await fetch("/api/components/upload-media", { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Upload failed");
+      if (kind === "image") setThumbnailUrl(data.url);
+      else setVideoUrl(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Media upload failed");
+    } finally {
+      setUploadingMedia(false);
+    }
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -32,6 +53,8 @@ export function ComponentPublishForm() {
           description,
           tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
           dependencies: dependencies.split(",").map((dep) => dep.trim()).filter(Boolean),
+          thumbnailUrl,
+          videoUrl,
           category,
           visibility,
         }),
@@ -106,6 +129,42 @@ export function ComponentPublishForm() {
             placeholder="framer-motion, lucide-react"
           />
         </label>
+
+        <div className="space-y-3 rounded-lg border p-3">
+          <p className="text-sm font-medium">Marketplace media</p>
+          <label className="space-y-1 text-sm">
+            <span className="font-medium">Thumbnail image</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="block w-full text-sm"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadMedia(file, "image");
+              }}
+            />
+          </label>
+          {thumbnailUrl && (
+            <img src={thumbnailUrl} alt="Thumbnail preview" className="h-32 w-full rounded-lg object-cover" />
+          )}
+
+          <label className="space-y-1 text-sm">
+            <span className="font-medium">Preview video (optional)</span>
+            <input
+              type="file"
+              accept="video/*"
+              className="block w-full text-sm"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadMedia(file, "video");
+              }}
+            />
+          </label>
+          {videoUrl && (
+            <video src={videoUrl} className="h-32 w-full rounded-lg object-cover" controls />
+          )}
+          {uploadingMedia && <p className="text-xs text-muted-foreground">Uploading media...</p>}
+        </div>
 
         <label className="space-y-1 text-sm">
           <span className="font-medium">Component code (TSX)</span>

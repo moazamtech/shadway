@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 
 type Item = {
   slug: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
   title: string;
   description: string;
   author: { name: string; username: string; avatar?: string };
@@ -70,7 +72,17 @@ export default function ComponentDetailPage() {
           <Button onClick={copyInstall}>{copied ? "Copied" : "Copy install command"}</Button>
         </div>
 
-        <ComponentSandpackPreview code={item.code} title={item.title} />
+        {(item.thumbnailUrl || item.videoUrl) && (
+          <div className="mb-6 overflow-hidden rounded-2xl border">
+            {item.videoUrl ? (
+              <video src={item.videoUrl} className="aspect-video w-full" controls />
+            ) : (
+              <img src={item.thumbnailUrl} alt={item.title} className="aspect-video w-full object-cover" />
+            )}
+          </div>
+        )}
+
+        <ComponentSandpackPreview code={item.code} title={item.title} dependencies={item.dependencies} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <section className="rounded-2xl border p-4">
