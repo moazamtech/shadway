@@ -2,6 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from '@/components/theme-provider';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ export function Providers({ children }: ProvidersProps) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
       </ThemeProvider>
     </SessionProvider>
   );
