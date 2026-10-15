@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/lib/mongodb";
-import { Collection, ObjectId, type Sort } from "mongodb";
+import { ObjectId, type Sort } from "mongodb";
 
 export type ComponentVisibility = "public" | "unlisted" | "private";
 export type ComponentStatus = "draft" | "published" | "hidden" | "flagged";
@@ -44,6 +44,7 @@ export type ComponentDocument = {
   installs: number;
   views: number;
   likes: number;
+  bookmarks?: number;
   featured: boolean;
   version: string;
   parentSlug?: string;

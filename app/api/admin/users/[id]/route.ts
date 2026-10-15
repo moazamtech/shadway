@@ -6,6 +6,9 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
 import { User as DbUser } from "@/lib/types";
 
+/** Users are keyed by ObjectId in Mongo even though the shared type says string. */
+type UserDoc = Omit<DbUser, "_id"> & { _id?: ObjectId };
+
 const MIN_PASSWORD_LENGTH = 12;
 
 function normalizeEmail(email: string) {
@@ -41,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const currentPassword =
       typeof body?.currentPassword === "string" ? body.currentPassword : "";
 
-    const updates: Partial<DbUser> = {};
+    const updates: Partial<UserDoc> = {};
     if (rawEmail !== undefined) {
       const email = normalizeEmail(rawEmail);
       if (!email) {
@@ -76,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const { db } = await connectToDatabase();
-    const users = db.collection<DbUser>("users");
+    const users = db.collection<UserDoc>("users");
     const targetId = new ObjectId(id);
     const targetUser = await users.findOne({ _id: targetId });
 
@@ -136,14 +139,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { returnDocument: "after", projection: { password: 0 } },
     );
 
-    if (!result?.value) {
+    if (!result) {
       return NextResponse.json(
         { error: "Admin user not found" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json(result.value);
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error updating admin user:", error);
     return NextResponse.json(

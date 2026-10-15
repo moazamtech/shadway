@@ -1,8 +1,11 @@
-import { generateText } from "ai";
+import { generateText, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+
+/** The gateway package targets a newer AI SDK major; cast at the boundary. */
+const gatewayModel = (id: string) => gateway(id) as unknown as LanguageModel;
 
 type GenerateDetailsBody = {
   prompt?: string;
@@ -59,7 +62,7 @@ export async function POST(req: Request) {
       .join("\n\n");
 
     const { text } = await generateText({
-      model: gateway("mistral/devstral-2"),
+      model: gatewayModel("mistral/devstral-2"),
       system:
         "You write concise, high-quality metadata for UI components. Return ONLY valid JSON with keys: title, description, category, tags. Title <= 60 chars. Description <= 160 chars. Category is a short label like Hero, Pricing, Footer, Dashboard, Form, Navigation, or Card. Tags is an array of 3-6 short lowercase tags.",
       prompt:

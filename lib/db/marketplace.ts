@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/lib/mongodb";
-import { Collection, ObjectId } from "mongodb";
+import { ObjectId, type Collection } from "mongodb";
 
 /* -------------------------------------------------------------------------- */
 /*                              Bookmarks                                    */
@@ -29,12 +29,28 @@ export async function ensureBookmarked(userId: string, slug: string): Promise<bo
     { $setOnInsert: { userId, slug, createdAt: new Date() } },
     { upsert: true }
   );
+
+  if (result.upsertedCount > 0) {
+    const { db } = await connectToDatabase();
+    await db
+      .collection("components")
+      .updateOne({ slug }, { $inc: { bookmarks: 1 } });
+  }
+
   return result.upsertedCount > 0;
 }
 
 export async function removeBookmark(userId: string, slug: string): Promise<boolean> {
   const collection = await getBookmarksCollection();
   const result = await collection.deleteOne({ userId, slug });
+
+  if (result.deletedCount > 0) {
+    const { db } = await connectToDatabase();
+    await db
+      .collection("components")
+      .updateOne({ slug, bookmarks: { $gt: 0 } }, { $inc: { bookmarks: -1 } });
+  }
+
   return result.deletedCount > 0;
 }
 
@@ -73,13 +89,17 @@ export async function getVotesCollection(): Promise<Collection<VoteDocument>> {
 export async function toggleVote(userId: string, slug: string): Promise<boolean> {
   const collection = await getVotesCollection();
   const existing = await collection.findOne({ userId, slug });
+  const { db } = await connectToDatabase();
+  const components = db.collection("components");
 
   if (existing) {
     await collection.deleteOne({ userId, slug });
+    await components.updateOne({ slug, likes: { $gt: 0 } }, { $inc: { likes: -1 } });
     return false;
   }
 
   await collection.insertOne({ userId, slug, createdAt: new Date() });
+  await components.updateOne({ slug }, { $inc: { likes: 1 } });
   return true;
 }
 

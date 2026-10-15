@@ -1,5 +1,8 @@
-import { streamText, tool, stepCountIs } from "ai";
+import { streamText, tool, stepCountIs, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
+
+/** The gateway package targets a newer AI SDK major; cast at the boundary. */
+const gatewayModel = (id: string) => gateway(id) as unknown as LanguageModel;
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { z } from "zod";
@@ -601,7 +604,7 @@ Usage rules:
 
     const modelId = await getActiveModelId();
     const result = streamText({
-      model: gateway(modelId),
+      model: gatewayModel(modelId),
       messages,
       temperature: 0.9,
       stopWhen: stepCountIs(3),

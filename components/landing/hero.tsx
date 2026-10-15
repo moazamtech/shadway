@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
   GrainGradient,
@@ -42,12 +42,12 @@ type RegistryResponse = { items?: RegistryItem[] };
 /*  Animation variants                                                 */
 /* ------------------------------------------------------------------ */
 
-const staggerHeading = {
+const staggerHeading: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.09, delayChildren: 0.3 } },
 };
 
-const wordReveal = {
+const wordReveal: Variants = {
   hidden: { opacity: 0, y: 28, filter: "blur(6px)" },
   visible: {
     opacity: 1,
@@ -57,7 +57,7 @@ const wordReveal = {
   },
 };
 
-const fadeUp = (delay: number) => ({
+const fadeUp = (delay: number): Variants => ({
   hidden: { opacity: 0, y: 18 },
   visible: {
     opacity: 1,
@@ -71,7 +71,7 @@ const staggerContainer = {
   show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
 
-const staggerItem = {
+const staggerItem: Variants = {
   hidden: { opacity: 0, y: 16 },
   show: {
     opacity: 1,

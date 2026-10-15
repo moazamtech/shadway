@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 type RouteParams = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 const MAX_TITLE_LENGTH = 120;
@@ -27,11 +27,12 @@ function normalizeTags(tags: unknown) {
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
+  const { slug } = await params;
   try {
     const { db } = await connectToDatabase();
     const vibecode = db.collection<VibecodeComponent>("vibecode");
     const item = await vibecode.findOne({
-      slug: params.slug,
+      slug: slug,
       status: "published",
     });
 
@@ -55,13 +56,14 @@ export async function GET(_request: Request, { params }: RouteParams) {
 }
 
 export async function PATCH(request: Request, { params }: RouteParams) {
+  const { slug } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!params.slug) {
+    if (!slug) {
       return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
@@ -96,19 +98,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     };
 
     const result = await vibecode.findOneAndUpdate(
-      { slug: params.slug },
+      { slug: slug },
       { $set: update },
       { returnDocument: "after" },
     );
 
-    if (!result?.value) {
+    if (!result) {
       return NextResponse.json(
         { error: "Vibecode component not found" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json(result.value);
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error updating vibecode component:", error);
     return NextResponse.json(
@@ -119,19 +121,20 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
+  const { slug } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!params.slug) {
+    if (!slug) {
       return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
     const { db } = await connectToDatabase();
     const vibecode = db.collection<VibecodeComponent>("vibecode");
-    const result = await vibecode.deleteOne({ slug: params.slug });
+    const result = await vibecode.deleteOne({ slug: slug });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

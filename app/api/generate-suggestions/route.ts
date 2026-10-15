@@ -1,6 +1,9 @@
-import { generateText } from "ai";
+import { generateText, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { NextResponse } from "next/server";
+
+/** The gateway package targets a newer AI SDK major; cast at the boundary. */
+const gatewayModel = (id: string) => gateway(id) as unknown as LanguageModel;
 
 export const runtime = "nodejs";
 
@@ -298,7 +301,7 @@ Keep them distinct from each other, do not reuse any avoided title, and make eac
 
     try {
       const { text } = await generateText({
-        model: gateway("mistral/devstral-small-2507"),
+        model: gatewayModel("mistral/devstral-small-2507"),
         system: systemPrompt,
         prompt: initialPrompt,
         temperature: 1,
@@ -323,7 +326,7 @@ Keep them distinct from each other, do not reuse any avoided title, and make eac
         const retryPatterns = pickRandomItems(HERO_MOTIFS, 4);
 
         const { text } = await generateText({
-          model: gateway("mistral/devstral-small-2507"),
+          model: gatewayModel("mistral/devstral-small-2507"),
           system: systemPrompt,
           prompt: `Request ID: ${retryId}
 Random seed: ${retryNumber}

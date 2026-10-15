@@ -412,7 +412,7 @@ export default function ComponentGeneratorPage() {
     }),
     [generatedComponent?.files, editedFiles],
   );
-  const mergedProjectFiles = useMemo(
+  const mergedProjectFiles = useMemo<Record<string, string>>(
     () => ({
       ...baseSandboxFiles,
       ...mergedUserFiles,
@@ -612,10 +612,11 @@ export default function ComponentGeneratorPage() {
           files = fallbackFiles;
           if (!entryFile) {
             const ef = detectedEntry || fallbackFiles["/App.tsx"] ? "/App.tsx" : Object.keys(fallbackFiles)[0];
+            const fallbackContent = fallbackFiles[ef || Object.keys(fallbackFiles)[0]] || "";
             return {
               reasoning,
-              content: content.trim(),
-              code: fallbackFiles[ef || Object.keys(fallbackFiles)[0]] || "",
+              content: fallbackContent.trim(),
+              code: fallbackContent,
               skills,
               files: fallbackFiles,
               entryFile: ef,
@@ -851,7 +852,7 @@ export default function ComponentGeneratorPage() {
 
   const handleFileCopy = useCallback(
     (path: string) => {
-      const allFiles = {
+      const allFiles: Record<string, string> = {
         ...SANDPACK_BASE_FILES,
         ...SANDPACK_SHADCN_FILES,
         ...(generatedComponent?.files || {}),
@@ -887,7 +888,7 @@ export default function ComponentGeneratorPage() {
       let newPath = `${targetPath}/${baseName}_copy${ext}`;
       let counter = 1;
 
-      const allFiles = {
+      const allFiles: Record<string, string> = {
         ...SANDPACK_BASE_FILES,
         ...SANDPACK_SHADCN_FILES,
         ...(generatedComponent?.files || {}),
@@ -1170,7 +1171,7 @@ export default function ComponentGeneratorPage() {
         }));
 
         const buildProjectContext = () => {
-          const baseFiles = generatedComponent?.files
+          const baseFiles: Record<string, string> | null = generatedComponent?.files
             ? {
                 ...SANDPACK_BASE_FILES,
                 ...SANDPACK_SHADCN_FILES,
