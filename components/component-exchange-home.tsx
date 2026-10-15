@@ -212,7 +212,7 @@ export function ComponentExchangeHome() {
       />
 
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-4 py-3 lg:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 lg:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <Layers className="h-4 w-4" />
@@ -280,7 +280,7 @@ export function ComponentExchangeHome() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1500px] gap-8 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex max-w-[1600px] gap-8 px-4 py-6 lg:px-6">
         {/* Sidebar — category nav with counts. */}
         <aside className="hidden w-52 shrink-0 lg:block">
           <div className="sticky top-20 space-y-6">

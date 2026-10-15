@@ -171,7 +171,7 @@ export default function ComponentDetailPage() {
     <main className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3 lg:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 lg:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <Layers className="h-4 w-4" />
@@ -204,7 +204,7 @@ export default function ComponentDetailPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1400px] px-4 py-8 lg:px-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-8 lg:px-6">
         {/* Hero */}
         <div className="mb-8">
           <div className="flex flex-wrap items-start justify-between gap-4">

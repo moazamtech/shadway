@@ -47,7 +47,7 @@ export default async function AuthorPage({
     <main className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3 lg:px-6">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 lg:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <Layers className="h-4 w-4" />
@@ -62,7 +62,7 @@ export default async function AuthorPage({
         {/* Banner */}
         <div className="h-32 bg-gradient-to-r from-primary/20 via-muted to-primary/10 sm:h-40" />
 
-        <div className="mx-auto max-w-[1400px] px-4 lg:px-6">
+        <div className="mx-auto max-w-[1600px] px-4 lg:px-6">
           <div className="relative -mt-12 flex flex-wrap items-end gap-4 sm:-mt-14">
             <span className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border-4 border-background bg-gradient-to-br from-muted to-muted/50 text-2xl font-bold uppercase text-muted-foreground shadow-lg sm:h-28 sm:w-28">
               {author.avatar ? (
@@ -102,7 +102,7 @@ export default async function AuthorPage({
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1400px] px-4 py-8 lg:px-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-8 lg:px-6">
         {/* Components */}
         {components.length ? (
           <section>
