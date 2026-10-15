@@ -115,6 +115,110 @@ export async function getVoterIds(slug: string): Promise<string[]> {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                            Per-account likes                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether a given account has liked a component.
+ *
+ * The like is keyed on the signed-in account id, so it survives sessions and
+ * devices — unlike the legacy `toggleVote` path, which keyed on an anonymous
+ * `x-forwarded-for` value and therefore counted every visitor behind one NAT
+ * address as the same voter.
+ */
+export async function getLikeState(userId: string, slug: string): Promise<boolean> {
+  const collection = await getVotesCollection();
+  const row = await collection.findOne({ userId, slug });
+  return Boolean(row);
+}
+
+/**
+ * Toggle a like for a signed-in account.
+ *
+ * Returns the resulting state. The denormalised `likes` counter on the
+ * component is kept in step here so the feed can sort and render without a
+ * `countDocuments` on every card — at 100k users that per-card count would be
+ * the thing that kills the feed.
+ */
+export async function toggleLike(userId: string, slug: string): Promise<boolean> {
+  const collection = await getVotesCollection();
+  const { db } = await connectToDatabase();
+  const components = db.collection("components");
+
+  const existing = await collection.findOne({ userId, slug });
+
+  if (existing) {
+    await collection.deleteOne({ userId, slug });
+    await components.updateOne(
+      { slug, likes: { $gt: 0 } },
+      { $inc: { likes: -1 } }
+    );
+    return false;
+  }
+
+  await collection.updateOne(
+    { userId, slug },
+    { $setOnInsert: { userId, slug, createdAt: new Date() } },
+    { upsert: true }
+  );
+  await components.updateOne({ slug }, { $inc: { likes: 1 } });
+  return true;
+}
+
+/**
+ * The components a signed-in account has liked.
+ *
+ * Kept for the "liked" filter and for the profile's saved tab.
+ */
+export async function getUserLikes(userId: string): Promise<string[]> {
+  const collection = await getVotesCollection();
+  const rows = await collection.find({ userId }).toArray();
+  return rows.map((row) => row.slug);
+}
+
+/**
+ * Like states for a batch of slugs, in one query.
+ *
+ * The feed renders up to 48 cards at once; asking the database once per card
+ * would be an N+1. One `$in` query and a Set lookup instead.
+ */
+export async function getLikeStates(
+  userId: string,
+  slugs: string[]
+): Promise<Record<string, boolean>> {
+  if (!slugs.length) return {};
+  const collection = await getVotesCollection();
+  const rows = await collection
+    .find({ userId, slug: { $in: slugs } })
+    .project<{ slug: string }>({ slug: 1 })
+    .toArray();
+  const map: Record<string, boolean> = {};
+  for (const row of rows) map[row.slug] = true;
+  return map;
+}
+
+/**
+ * Like counts for a batch of slugs.
+ *
+ * Read from the denormalised counter rather than `countDocuments`, so a page
+ * of cards costs one query instead of one per card.
+ */
+export async function getLikeCounts(
+  slugs: string[]
+): Promise<Record<string, number>> {
+  if (!slugs.length) return {};
+  const { db } = await connectToDatabase();
+  const rows = await db
+    .collection("components")
+    .find({ slug: { $in: slugs } })
+    .project<{ slug: string; likes: number }>({ slug: 1, likes: 1 })
+    .toArray();
+  const map: Record<string, number> = {};
+  for (const row of rows) map[row.slug] = row.likes ?? 0;
+  return map;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              Collections                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -215,15 +319,23 @@ export async function ensureStarterCollections(): Promise<void> {
     },
   ];
 
-  for (const starter of starters) {
-    const exists = await collection.findOne({ slug: starter.slug });
-    if (!exists) {
-      await collection.insertOne({
-        ...starter,
-        curatorId: "shadway",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
-  }
+  // One round trip instead of a findOne + insertOne per starter on every
+  // request. `upsert` also makes concurrent first-requests safe rather than
+  // racing to insert the same slug twice.
+  await collection.bulkWrite(
+    starters.map((starter) => ({
+      updateOne: {
+        filter: { slug: starter.slug },
+        update: {
+          $setOnInsert: {
+            ...starter,
+            curatorId: "shadway",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        upsert: true,
+      },
+    }))
+  );
 }

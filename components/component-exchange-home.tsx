@@ -6,9 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUpDown,
   Clock,
-  Eye,
-  Flame,
   Download,
+  Flame,
   Search,
   X,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import {
 } from "@/components/marketplace/component-card";
 import { CommandPalette } from "@/components/marketplace/command-palette";
 import { AppShell } from "@/components/marketplace/app-shell";
+import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,7 +35,6 @@ const SORTS = [
   { id: "newest", label: "Newest", icon: Clock },
   { id: "popular", label: "Popular", icon: Flame },
   { id: "installs", label: "Most installed", icon: Download },
-  { id: "views", label: "Most viewed", icon: Eye },
 ] as const;
 
 type SortId = (typeof SORTS)[number]["id"];
@@ -51,8 +50,6 @@ function sortItems(items: FeedItem[], sort: SortId): FeedItem[] {
       );
     case "installs":
       return copy.sort((a, b) => b.installs - a.installs);
-    case "views":
-      return copy.sort((a, b) => b.views - a.views);
     case "newest":
     default:
       return copy.sort((a, b) => {
@@ -76,7 +73,9 @@ export function ComponentExchangeHome() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({});
+  const [likedSlugs, setLikedSlugs] = useState<Record<string, boolean>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [openSlug, setOpenSlug] = useState<string | null>(null);
 
   // The rail's category links navigate to /?category=… — keep the feed state
   // reading from the URL so deep links and rail clicks stay in sync.
@@ -130,7 +129,7 @@ export function ComponentExchangeHome() {
     };
   }, []);
 
-  // Restore saved components for signed-in users.
+  // Restore saved and liked components for signed-in users.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/components/bookmarks", { cache: "no-store" })
@@ -140,6 +139,16 @@ export function ComponentExchangeHome() {
         const map: Record<string, boolean> = {};
         for (const slug of data.slugs ?? []) map[slug] = true;
         setSavedSlugs(map);
+      })
+      .catch(() => {});
+
+    fetch("/api/me/likes", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { slugs: [] }))
+      .then((data) => {
+        if (cancelled) return;
+        const map: Record<string, boolean> = {};
+        for (const slug of data.slugs ?? []) map[slug] = true;
+        setLikedSlugs(map);
       })
       .catch(() => {});
     return () => {
@@ -204,6 +213,26 @@ export function ComponentExchangeHome() {
     [savedSlugs]
   );
 
+  const toggleLike = useCallback(
+    async (slug: string) => {
+      const wasLiked = Boolean(likedSlugs[slug]);
+      setLikedSlugs((prev) => ({ ...prev, [slug]: !wasLiked }));
+
+      try {
+        const res = await fetch(`/api/components/${encodeURIComponent(slug)}/like`, {
+          method: wasLiked ? "DELETE" : "POST",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (typeof data.liked === "boolean") {
+          setLikedSlugs((prev) => ({ ...prev, [slug]: data.liked }));
+        }
+      } catch {
+        setLikedSlugs((prev) => ({ ...prev, [slug]: wasLiked }));
+      }
+    },
+    [likedSlugs]
+  );
+
   const selectCategory = useCallback(
     (next: string) => {
       setCategory(next);
@@ -226,12 +255,30 @@ export function ComponentExchangeHome() {
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
 
+  const activeItem = useMemo(
+    () => items.find((item) => item.slug === openSlug) ?? null,
+    [items, openSlug]
+  );
+
   return (
     <>
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onSelect={handlePaletteSelect}
+      />
+
+      <ComponentDetailDialog
+        item={activeItem}
+        open={Boolean(openSlug)}
+        onOpenChange={(next) => {
+          if (!next) setOpenSlug(null);
+        }}
+        saved={activeItem ? Boolean(savedSlugs[activeItem.slug]) : false}
+        liked={activeItem ? Boolean(likedSlugs[activeItem.slug]) : false}
+        likeCount={activeItem?.likes ?? 0}
+        onToggleSave={toggleSave}
+        onToggleLike={toggleLike}
       />
 
       {/* The shell: a rail on the tinted canvas, and the feed living in a
@@ -306,91 +353,94 @@ export function ComponentExchangeHome() {
         }
       >
         <div className="px-3 py-4 lg:px-5 lg:py-5">
-              {/* Mobile category chips (the rail is behind the drawer here). */}
-              <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1 md:hidden">
-                {categories.list.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    aria-pressed={category === cat}
-                    onClick={() => selectCategory(cat)}
-                    className={cn(
-                      "shrink-0 rounded-full border px-3 py-1 text-xs capitalize transition",
-                      category === cat
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+          {/* Mobile category chips (the rail is behind the drawer here). */}
+          <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1 md:hidden">
+            {categories.list.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                aria-pressed={category === cat}
+                onClick={() => selectCategory(cat)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1 text-xs capitalize transition",
+                  category === cat
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-              {loading ? (
+          {loading ? (
+            <div
+              className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4"
+              aria-busy="true"
+              aria-label="Loading components"
+            >
+              {Array.from({ length: 8 }).map((_, index) => (
                 <div
-                  className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4"
-                  aria-busy="true"
-                  aria-label="Loading components"
+                  key={index}
+                  className="overflow-hidden rounded-lg border border-border"
                 >
-                  {Array.from({ length: 8 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="overflow-hidden rounded-lg border border-border"
-                    >
-                      <Skeleton className="aspect-[16/10] w-full rounded-none" />
-                      <div className="space-y-2 p-3">
-                        <Skeleton className="h-4 w-3/5" />
-                        <Skeleton className="h-3 w-4/5" />
-                      </div>
-                    </div>
-                  ))}
+                  <Skeleton className="aspect-[16/10] w-full rounded-none" />
+                  <div className="space-y-2 p-3">
+                    <Skeleton className="h-4 w-3/5" />
+                    <Skeleton className="h-3 w-4/5" />
+                  </div>
                 </div>
-              ) : filtered.length ? (
-                <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">
-                  {filtered.map((item) => (
-                    <ComponentCard
-                      key={item.slug}
-                      item={item}
-                      onSave={toggleSave}
-                      savedSlugs={savedSlugs}
-                    />
-                  ))}
-                </div>
+              ))}
+            </div>
+          ) : filtered.length ? (
+            <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">
+              {filtered.map((item) => (
+                <ComponentCard
+                  key={item.slug}
+                  item={item}
+                  onSave={toggleSave}
+                  onLike={toggleLike}
+                  savedSlugs={savedSlugs}
+                  likedSlugs={likedSlugs}
+                  onOpen={setOpenSlug}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border p-16 text-center">
+              <p className="text-sm font-medium">
+                {failed
+                  ? "The feed is unavailable right now"
+                  : isFiltering
+                    ? "No components match your filters"
+                    : "No components yet"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {failed
+                  ? "Please refresh in a moment."
+                  : isFiltering
+                    ? "Try a different search term or category."
+                    : "Be the first to publish one from the studio."}
+              </p>
+              {isFiltering && !failed ? (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => {
+                    setQuery("");
+                    selectCategory("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
               ) : (
-                <div className="rounded-xl border border-dashed border-border p-16 text-center">
-                  <p className="text-sm font-medium">
-                    {failed
-                      ? "The feed is unavailable right now"
-                      : isFiltering
-                        ? "No components match your filters"
-                        : "No components yet"}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {failed
-                      ? "Please refresh in a moment."
-                      : isFiltering
-                        ? "Try a different search term or category."
-                        : "Be the first to publish one from the studio."}
-                  </p>
-                  {isFiltering && !failed ? (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => {
-                        setQuery("");
-                        selectCategory("all");
-                      }}
-                    >
-                      Clear filters
-                    </Button>
-                  ) : (
-                    <Button className="mt-4" asChild>
-                      <Link href="/studio">Open studio</Link>
-                    </Button>
-                  )}
-                </div>
+                <Button className="mt-4" asChild>
+                  <Link href="/studio">Open studio</Link>
+                </Button>
               )}
             </div>
+          )}
+        </div>
       </AppShell>
     </>
   );
