@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
+import { sessionAvatar, sessionDisplayName, sessionUsername } from "@/lib/session";
+import { ensureUsername } from "@/lib/db/users";
 import { User as DbUser } from "@/lib/types";
 
 /**
@@ -26,23 +30,43 @@ export async function requireSession() {
   return { session, response: null };
 }
 
-/** Resolves the author's public profile from the users collection. */
-export async function resolveAuthor(session: {
-  user: { id: string; email: string; name: string; role: string };
-}) {
+/** Resolves the author's public profile for a publish. */
+export async function resolveAuthor(session: Session) {
   const { db } = await connectToDatabase();
-  const user = await db.collection<DbUser>("users").findOne({ _id: session.user.id });
 
-  const username =
-    (user as { username?: string } | null)?.username ||
-    session.user.email?.split("@")[0] ||
-    "author";
+  // Prefer the handle stored on the account — that is the name its profile
+  // page lives at, and `ComponentAuthor.username` is what
+  // `listComponents({ author })` filters on. Accounts created before handles
+  // existed get one minted here (the same way their profile page would), so
+  // a first publish and a first profile visit can never disagree about who
+  // the author is.
+  let username: string | null = null;
+  const email = session.user?.email;
+  if (email) {
+    username = await ensureUsername(email).catch(() => null);
+  }
+  username = username ?? sessionUsername(session);
+
+  // The display name is read live from the database: a name changed in
+  // settings should land on the next publish even while the token still
+  // carries the old copy.
+  let name: string | undefined;
+  const id = session.user?.id;
+  if (id && ObjectId.isValid(id)) {
+    type StoredUser = Omit<DbUser, "_id"> & { _id?: ObjectId };
+    // A raw string here would silently match nothing, since `_id` is an
+    // ObjectId and `session.user.id` is its stringified form.
+    const stored = await db
+      .collection<StoredUser>("users")
+      .findOne({ _id: new ObjectId(id) });
+    name = stored?.name ?? undefined;
+  }
 
   return {
-    userId: session.user.id,
-    name: session.user.name || user?.name || username,
+    userId: id ?? "",
+    name: name || sessionDisplayName(session) || username,
     username,
-    avatar: (user as { image?: string } | null)?.image,
-    role: session.user.role,
+    avatar: sessionAvatar(session),
+    role: session.user?.role || "user",
   };
 }

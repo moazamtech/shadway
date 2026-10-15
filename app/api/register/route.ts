@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 
 import { connectToDatabase } from "@/lib/mongodb";
 import { authRateLimiter, getClientIP } from "@/lib/rate-limit";
+import { planUsername } from "@/lib/db/users";
 import { User as DbUser } from "@/lib/types";
 
 /** Users are keyed by ObjectId in Mongo even though the shared type says string. */
@@ -90,18 +91,22 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const password = await bcrypt.hash(rawPassword, 12);
+    // The public handle is minted at signup so the account has a profile URL
+    // from day one, and so its first publish lands on that URL.
+    const username = await planUsername(email, name);
 
     const result = await users.insertOne({
       email,
       password,
       name,
+      username,
       role: "user",
       createdAt: now,
       updatedAt: now,
     });
 
     return NextResponse.json(
-      { id: result.insertedId.toString(), email, name },
+      { id: result.insertedId.toString(), email, name, username },
       { status: 201 },
     );
   } catch (error) {

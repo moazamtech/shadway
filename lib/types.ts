@@ -22,6 +22,8 @@ export interface User {
   email: string;
   password: string;
   name: string;
+  /** The public handle the account's profile lives at (`/u/<username>`). */
+  username?: string;
   role: "admin" | "user";
   createdAt?: Date;
   updatedAt?: Date;

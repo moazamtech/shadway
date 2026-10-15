@@ -151,6 +151,30 @@ export async function getComponentBySlug(slug: string) {
   return collection.findOne({ slug, status: "published" });
 }
 
+/**
+ * Fetches published components by slug, keeping the order the slugs were
+ * given in — which is what a bookmarks list, stored newest-first, needs.
+ */
+export async function listComponentsBySlugs(slugs: string[]) {
+  if (!slugs.length) return [];
+  const wanted = slugs.slice(0, 60);
+  const collection = await getComponentsCollection();
+  const rows = await collection
+    .find({
+      slug: { $in: wanted },
+      status: "published",
+      visibility: "public",
+    })
+    .toArray();
+  const bySlug = new Map(rows.map((row) => [row.slug, row]));
+  const ordered = [];
+  for (const slug of wanted) {
+    const row = bySlug.get(slug);
+    if (row) ordered.push(row);
+  }
+  return ordered;
+}
+
 export async function createComponent(input: ComponentInput) {
   const collection = await getComponentsCollection();
   const now = new Date();
