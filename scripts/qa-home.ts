@@ -71,21 +71,32 @@ async function main() {
     log("no hydration warnings", hydration.length === 0, `count=${hydration.length}`);
 
     // ------------------------------------------------------------- category --
+    // Desktop uses sidebar buttons; mobile uses aria-pressed chips.
+    const sidebarCategories = await page.$$eval(
+      "aside button",
+      (nodes) =>
+        nodes
+          .map((n) => (n.textContent || "").trim().toLowerCase())
+          .filter(Boolean)
+    );
+    log(
+      "sidebar categories present",
+      sidebarCategories.length > 1,
+      sidebarCategories.slice(0, 6).join(",")
+    );
+
     const chips = await page.$$eval(
       'button[aria-pressed]',
       (nodes) => nodes.map((n) => (n.textContent || "").trim().toLowerCase())
     );
-    log(
-      "category chips are data-derived",
-      chips.length > 1 && chips[0] === "all",
-      chips.join(",")
-    );
-
-    if (chips.length > 1) {
+    if (chips.length > 1 && chips[0] === "all") {
       const target = chips[1];
-      await page.click(
-        `button[aria-pressed][class*="capitalize"]:not([aria-pressed="true"])`
-      );
+      await page.evaluate((cat) => {
+        const btn = Array.from(
+          document.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")
+        ).find((b) => (b.textContent || "").trim().toLowerCase() === cat);
+        btn?.click();
+      }, target);
       await new Promise((r) => setTimeout(r, 400));
       const filtered = await cardCount(page);
       log(
@@ -93,7 +104,6 @@ async function main() {
         filtered > 0 && filtered <= total,
         `after=${filtered} before=${total}`
       );
-      // Reset to "all".
       await page.evaluate(() => {
         const all = Array.from(
           document.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")
