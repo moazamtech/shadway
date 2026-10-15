@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 import { ComponentExchangeHome } from "@/components/component-exchange-home";
 import { generateSEOMetadata } from "@/lib/seo";
@@ -18,5 +19,9 @@ export const metadata: Metadata = generateSEOMetadata({
 });
 
 export default function HomePage() {
-  return <ComponentExchangeHome />;
+  return (
+    <Suspense>
+      <ComponentExchangeHome />
+    </Suspense>
+  );
 }
