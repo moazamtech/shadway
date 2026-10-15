@@ -4,30 +4,65 @@ import { getComponentsCollection } from "@/lib/db/components";
 export async function GET() {
   try {
     if (!process.env.MONGODB_URI) {
-      return new NextResponse("Internal Server Error", { status: 500 });
+      return new NextResponse("<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>", {
+        headers: { "Content-Type": "application/xml" },
+      });
     }
 
     const baseUrl = "https://shadway.online";
     const collection = await getComponentsCollection();
 
-    const items = await collection
-      .find({ status: "published", visibility: "public" })
-      .sort({ publishedAt: -1, createdAt: -1 })
-      .limit(5000)
-      .toArray();
+    const [items, authors] = await Promise.all([
+      collection
+        .find({ status: "published", visibility: "public" })
+        .sort({ publishedAt: -1, createdAt: -1 })
+        .limit(5000)
+        .toArray(),
+      collection
+        .aggregate<{ _id: string; count: number }>([
+          { $match: { status: "published", visibility: "public" } },
+          { $group: { _id: "$author.username", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 500 },
+        ])
+        .toArray(),
+    ]);
+
+    const staticUrls = [
+      {
+        loc: `${baseUrl}/collections`,
+        lastmod: new Date().toISOString(),
+        changefreq: "daily",
+        priority: "0.8",
+      },
+      ...authors.map((author) => ({
+        loc: `${baseUrl}/u/${encodeURIComponent(author._id)}`,
+        lastmod: new Date().toISOString(),
+        changefreq: "weekly",
+        priority: "0.6",
+      })),
+    ];
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${items
-  .map(
-    (item) => `  <url>
+${[
+      ...staticUrls.map(
+        (url) => `  <url>
+    <loc>${url.loc}</loc>
+    <lastmod>${url.lastmod}</lastmod>
+    <changefreq>${url.changefreq}</changefreq>
+    <priority>${url.priority}</priority>
+  </url>`,
+      ),
+      ...items.map(
+        (item) => `  <url>
     <loc>${baseUrl}/c/${encodeURIComponent(item.slug)}</loc>
     <lastmod>${new Date(item.updatedAt || item.createdAt || new Date()).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`,
-  )
-  .join("\n")}
+      ),
+    ].join("\n")}
 </urlset>`;
 
     return new NextResponse(sitemap, {

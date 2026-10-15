@@ -1,35 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ChevronDown,
   ChevronRight,
   FileCode2,
   FileJson,
+  FilePlus2,
   FileText,
   Folder,
   Loader2,
   Monitor,
   Moon,
-  Rocket,
+  Package,
   RotateCcw,
+  Rocket,
   Smartphone,
   Sun,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LocalPreview, type PreviewFileInput } from "@/components/preview/local-preview";
-import { buildPreviewFiles, type PreviewFiles } from "@/components/component-sandpack-preview";
-
-type StudioFile = { path: string; label: string; group: string };
-
-const GROUP_LABELS: Record<string, string> = {
-  components: "src/components",
-  ui: "src/components/ui",
-  lib: "src/lib",
-  root: "src",
-};
+import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
+import { PublishPanel } from "@/components/studio/publish-panel";
+import { buildPreviewFiles, type PreviewFiles } from "@/lib/preview/files";
 
 const STARTER_FILES: PreviewFiles = {
   "/src/components/component.tsx": `import { Button } from "@/components/ui/button";
@@ -99,53 +95,76 @@ export function Button({ className, variant = "default", size = "default", ...pr
 `,
 };
 
-const FILE_LIST: StudioFile[] = [
-  { path: "/src/components/component.tsx", label: "component.tsx", group: "components" },
-  { path: "/src/App.tsx", label: "App.tsx", group: "root" },
-  { path: "/src/index.css", label: "index.css", group: "root" },
-  { path: "/src/lib/utils.ts", label: "utils.ts", group: "lib" },
-  { path: "/src/components/ui/button.tsx", label: "button.tsx", group: "ui" },
-];
-
 function fileIcon(path: string) {
   if (path.endsWith(".css")) return FileText;
   if (path.endsWith(".json")) return FileJson;
   return FileCode2;
 }
 
-export type PublishMeta = {
-  title: string;
-  description: string;
-  tags: string;
-  dependencies: string;
-  category: string;
-  visibility: "public" | "unlisted";
-  thumbnailUrl: string;
-  videoUrl: string;
+type TreeNode = {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+  children?: TreeNode[];
 };
 
+/** Builds a nested tree so folders can be expanded/collapsed like a real IDE. */
+function buildTree(files: Record<string, string>): TreeNode[] {
+  const root: TreeNode = { name: "", path: "", type: "dir", children: [] };
+
+  for (const path of Object.keys(files)) {
+    const segments = path.split("/").filter(Boolean);
+    let cursor = root;
+
+    segments.forEach((segment, index) => {
+      const isLast = index === segments.length - 1;
+      const currentPath = "/" + segments.slice(0, index + 1).join("/");
+
+      if (isLast) {
+        cursor.children!.push({ name: segment, path: currentPath, type: "file" });
+        return;
+      }
+
+      let next = cursor.children!.find(
+        (child) => child.type === "dir" && child.name === segment
+      );
+      if (!next) {
+        next = { name: segment, path: currentPath, type: "dir", children: [] };
+        cursor.children!.push(next);
+      }
+      cursor = next;
+    });
+  }
+
+  const sort = (nodes: TreeNode[]): TreeNode[] => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    nodes.forEach((node) => {
+      if (node.children) sort(node.children);
+    });
+    return nodes;
+  };
+
+  return sort(root.children!);
+}
+
 export function ComponentStudio() {
-  const router = useRouter();
   const [files, setFiles] = useState<PreviewFiles>(STARTER_FILES);
   const [activePath, setActivePath] = useState("/src/components/component.tsx");
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
   const [debouncedFiles, setDebouncedFiles] = useState<PreviewFiles>(STARTER_FILES);
+  const [newFileName, setNewFileName] = useState("");
+  const [showNewFile, setShowNewFile] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [packageInput, setPackageInput] = useState("");
+  const [installedPackages, setInstalledPackages] = useState<Record<string, string>>({});
+  const [resolving, setResolving] = useState(false);
+  const [showPackages, setShowPackages] = useState(true);
   const [publishing, setPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PublishMeta>({
-    title: "",
-    description: "",
-    tags: "",
-    dependencies: "",
-    category: "ui",
-    visibility: "public",
-    thumbnailUrl: "",
-    videoUrl: "",
-  });
 
-  // Debounce preview rebuilds so typing stays smooth.
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedFiles(files), 450);
     return () => window.clearTimeout(id);
@@ -156,8 +175,8 @@ export function ComponentStudio() {
     [debouncedFiles]
   );
 
+  const tree = useMemo(() => buildTree(files), [files]);
   const activeCode = files[activePath] ?? "";
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
 
   const updateActive = useCallback(
     (value: string) => {
@@ -166,209 +185,300 @@ export function ComponentStudio() {
     [activePath]
   );
 
-  const grouped = useMemo(() => {
-    return FILE_LIST.reduce<Record<string, StudioFile[]>>((acc, file) => {
-      (acc[file.group] ||= []).push(file);
-      return acc;
-    }, {});
-  }, []);
+  function createFile() {
+    const raw = newFileName.trim();
+    if (!raw) return;
 
-  async function uploadMedia(file: File, kind: "image" | "video") {
-    setUploading(kind);
-    setPublishError(null);
+    let path = raw.startsWith("/") ? raw : raw.startsWith("src/") ? `/${raw}` : `/src/${raw}`;
+    if (!/\.(tsx?|jsx?|css)$/.test(path)) path += ".tsx";
+    if (files[path]) return;
+
+    const name = path.split("/").pop()!.replace(/\.(tsx?|jsx?)$/, "");
+    setFiles((prev) => ({
+      ...prev,
+      [path]: `export default function ${name.replace(/[^a-zA-Z0-9]/g, "")}() {
+  return <div className="p-6 text-sm text-muted-foreground">New component</div>;
+}
+`,
+    }));
+    setActivePath(path);
+    setNewFileName("");
+    setShowNewFile(false);
+  }
+
+  function deleteFile(path: string) {
+    if (path === "/src/components/component.tsx" || path === "/src/App.tsx") return;
+    setFiles((prev) => {
+      const next = { ...prev };
+      delete next[path];
+      return next;
+    });
+    if (activePath === path) setActivePath("/src/components/component.tsx");
+  }
+
+  async function installPackage() {
+    const raw = packageInput.trim().replace(/^["']|["']$/g, "");
+    if (!raw) return;
+    const pkgName = raw.split("@")[0];
+    if (!pkgName) return;
+
+    setResolving(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("kind", kind);
-      const response = await fetch("/api/components/upload-media", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Upload failed");
-      setMeta((prev) => ({
-        ...prev,
-        [kind === "image" ? "thumbnailUrl" : "videoUrl"]: data.url,
-      }));
-    } catch (error) {
-      setPublishError(error instanceof Error ? error.message : "Upload failed");
+      const res = await fetch(`/api/registry/resolve-package?name=${encodeURIComponent(pkgName)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setInstalledPackages((prev) => ({ ...prev, [pkgName]: data.version }));
+      setPackageInput("");
+    } catch {
+      /* ignore offline */
     } finally {
-      setUploading(null);
+      setResolving(false);
     }
   }
 
-  async function publish() {
-    setPublishing(true);
-    setPublishError(null);
-    try {
-      const componentCode = files["/src/components/component.tsx"] || "";
-      const demoCode = files["/src/App.tsx"] || "";
-
-      if (!componentCode.trim()) {
-        throw new Error("Write your component in component.tsx before publishing.");
-      }
-
-      const extraFiles = Object.entries(files)
+  const extraFiles = useMemo(
+    () =>
+      Object.entries(files)
         .filter(([path]) => path.startsWith("/src/lib/") || path.startsWith("/src/hooks/"))
         .map(([path, content]) => ({
           path: path.replace(/^\/src\//, ""),
           content,
           type: path.includes("/hooks/") ? "registry:hook" : "registry:lib",
-        }));
+        })),
+    [files]
+  );
 
-      const response = await fetch("/api/components", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: meta.title,
-          description: meta.description,
-          tags: meta.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          dependencies: meta.dependencies.split(",").map((d) => d.trim()).filter(Boolean),
-          category: meta.category,
-          visibility: meta.visibility,
-          thumbnailUrl: meta.thumbnailUrl,
-          videoUrl: meta.videoUrl,
-          code: componentCode,
-          demoCode,
-          files: extraFiles,
-        }),
-      });
+  function renderTree(nodes: TreeNode[], depth = 0) {
+    return nodes.map((node) => {
+      if (node.type === "dir") {
+        const isCollapsed = collapsed[node.path];
+        return (
+          <div key={node.path}>
+            <button
+              onClick={() =>
+                setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
+              }
+              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
+              style={{ paddingLeft: `${depth * 12 + 8}px` }}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              )}
+              <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="truncate">{node.name}</span>
+            </button>
+            {!isCollapsed && node.children && renderTree(node.children, depth + 1)}
+          </div>
+        );
+      }
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to publish component");
-      router.push(`/c/${data.item.slug}`);
-    } catch (error) {
-      setPublishError(error instanceof Error ? error.message : "Failed to publish component");
-    } finally {
-      setPublishing(false);
-    }
+      const Icon = fileIcon(node.path);
+      const isActive = node.path === activePath;
+      const removable =
+        node.path !== "/src/components/component.tsx" && node.path !== "/src/App.tsx";
+
+      return (
+        <div key={node.path} className="group/file flex items-center">
+          <button
+            onClick={() => setActivePath(node.path)}
+            className={`flex flex-1 items-center gap-1.5 rounded-md py-1.5 text-left text-sm transition ${
+              isActive ? "bg-primary/10 text-primary" : "hover:bg-muted"
+            }`}
+            style={{ paddingLeft: `${depth * 12 + 20}px` }}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{node.name}</span>
+          </button>
+          {removable && (
+            <button
+              onClick={() => deleteFile(node.path)}
+              className="mr-1 opacity-0 transition group-hover/file:opacity-100"
+              title="Delete file"
+            >
+              <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+            </button>
+          )}
+        </div>
+      );
+    });
   }
 
-  function onEditorKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Tab") {
-      event.preventDefault();
-      const el = event.currentTarget;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const next = `${activeCode.slice(0, start)}  ${activeCode.slice(end)}`;
-      updateActive(next);
-      requestAnimationFrame(() => {
-        el.selectionStart = el.selectionEnd = start + 2;
-      });
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      void publish();
-    }
+  if (publishing) {
+    return (
+      <PublishPanel
+        code={files["/src/components/component.tsx"] || ""}
+        demoCode={files["/src/App.tsx"] || ""}
+        extraFiles={extraFiles}
+        dependencies={Object.keys(installedPackages)}
+        onBack={() => setPublishing(false)}
+      />
+    );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-sm font-semibold tracking-tight">
             Shadway
           </Link>
           <Badge variant="secondary">Studio</Badge>
-          <span className="hidden text-xs text-muted-foreground sm:inline">
-            Edit your component, preview it live, then publish to the registry.
-          </span>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
+            title="Toggle preview theme"
           >
-            {previewTheme === "light" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            {previewTheme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <span className="text-xs text-muted-foreground">⌘/Ctrl + Enter to publish</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFiles(STARTER_FILES)}
+            title="Reset files"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" onClick={() => setPublishing(true)}>
+            <Rocket className="h-4 w-4" />
+            Publish
+          </Button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[210px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[240px_minmax(0,1fr)_minmax(0,1fr)]">
         <aside className="hidden min-h-0 flex-col border-r bg-muted/30 lg:flex">
-          <div className="border-b px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Files
+          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Explorer
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setShowNewFile((v) => !v)}
+              title="New file"
+            >
+              <FilePlus2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-2">
-            {Object.entries(grouped).map(([group, list]) => (
-              <div key={group} className="mb-3">
-                <p className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground">
-                  <ChevronRight className="h-3 w-3" />
-                  <Folder className="h-3 w-3" />
-                  {GROUP_LABELS[group] ?? group}
-                </p>
-                {list.map((file) => {
-                  const Icon = fileIcon(file.path);
-                  const isActive = file.path === activePath;
-                  return (
-                    <button
-                      key={file.path}
-                      onClick={() => setActivePath(file.path)}
-                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${
-                        isActive ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{file.label}</span>
-                    </button>
-                  );
-                })}
+
+          {showNewFile && (
+            <div className="border-b p-2">
+              <input
+                autoFocus
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") createFile();
+                  if (e.key === "Escape") setShowNewFile(false);
+                }}
+                placeholder="hooks/use-thing.ts"
+                className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+              />
+              <Button size="sm" className="mt-2 h-7 w-full text-xs" onClick={createFile}>
+                Create file
+              </Button>
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-auto p-2 text-sm">{renderTree(tree)}</div>
+
+          <div className="border-t">
+            <button
+              onClick={() => setShowPackages((v) => !v)}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              {showPackages ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              <Package className="h-3 w-3" />
+              Packages
+            </button>
+
+            {showPackages && (
+              <div className="px-3 pb-3">
+                <input
+                  value={packageInput}
+                  onChange={(e) => setPackageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void installPackage();
+                  }}
+                  placeholder="Add npm package"
+                  className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                />
+                <Button
+                  size="sm"
+                  className="mt-2 h-7 w-full text-xs"
+                  disabled={resolving || !packageInput.trim()}
+                  onClick={() => void installPackage()}
+                >
+                  {resolving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Install"}
+                </Button>
+
+                {Object.keys(installedPackages).length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {Object.entries(installedPackages).map(([name, version]) => (
+                      <li
+                        key={name}
+                        className="flex items-center justify-between text-[11px]"
+                      >
+                        <code className="truncate">{name}</code>
+                        <span className="text-muted-foreground">{version}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ))}
+            )}
           </div>
         </aside>
 
         <section className="flex min-h-0 flex-col border-r">
-          <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
             <p className="truncate font-mono text-xs text-muted-foreground">{activePath}</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setFiles(STARTER_FILES)}
-              title="Reset all files"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </Button>
           </div>
-          <textarea
-            ref={editorRef}
-            value={activeCode}
-            onChange={(event) => updateActive(event.target.value)}
-            onKeyDown={onEditorKeyDown}
-            spellCheck={false}
-            className="min-h-[420px] flex-1 resize-none bg-[#0d0d0d] p-4 font-mono text-[13px] leading-6 text-zinc-200 outline-none"
-          />
+          <div className="min-h-0 flex-1">
+            <StudioEditor
+              path={activePath}
+              value={activeCode}
+              language={languageFor(activePath)}
+              onChange={updateActive}
+              projectFiles={files}
+              packages={Object.keys(installedPackages)}
+            />
+          </div>
         </section>
 
         <section className="flex min-h-0 flex-col">
-          <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Live preview
+              Preview
             </p>
             <div className="flex items-center gap-1">
               <Button
                 variant={viewport === "desktop" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => setViewport("desktop")}
                 title="Desktop"
               >
-                <Monitor className="h-4 w-4" />
+                <Monitor className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant={viewport === "mobile" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => setViewport("mobile")}
                 title="Mobile"
               >
-                <Smartphone className="h-4 w-4" />
+                <Smartphone className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -387,135 +497,6 @@ export function ComponentStudio() {
             </div>
           </div>
         </section>
-      </div>
-
-      <div className="border-t bg-background">
-        <div className="grid gap-3 p-4 lg:grid-cols-4">
-          <label className="space-y-1 text-xs font-medium">
-            Title
-            <input
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              value={meta.title}
-              onChange={(e) => setMeta({ ...meta, title: e.target.value })}
-              placeholder="Animated gradient button"
-            />
-          </label>
-          <label className="space-y-1 text-xs font-medium">
-            Category
-            <select
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              value={meta.category}
-              onChange={(e) => setMeta({ ...meta, category: e.target.value })}
-            >
-              <option value="ui">UI</option>
-              <option value="block">Block</option>
-              <option value="marketing">Marketing</option>
-              <option value="animation">Animation</option>
-              <option value="form">Form</option>
-              <option value="data">Data</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-xs font-medium">
-            Tags
-            <input
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              value={meta.tags}
-              onChange={(e) => setMeta({ ...meta, tags: e.target.value })}
-              placeholder="button, animation"
-            />
-          </label>
-          <label className="space-y-1 text-xs font-medium">
-            npm dependencies
-            <input
-              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              value={meta.dependencies}
-              onChange={(e) => setMeta({ ...meta, dependencies: e.target.value })}
-              placeholder="framer-motion"
-            />
-          </label>
-        </div>
-
-        <div className="grid gap-3 px-4 pb-4 lg:grid-cols-[minmax(0,2fr)_auto]">
-          <div className="space-y-3">
-            <label className="block space-y-1 text-xs font-medium">
-              Description
-              <input
-                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-                value={meta.description}
-                onChange={(e) => setMeta({ ...meta, description: e.target.value })}
-                placeholder="A short description shown on the card and used by agents."
-              />
-            </label>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs">
-                {uploading === "image" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Rocket className="h-3.5 w-3.5" />
-                )}
-                {meta.thumbnailUrl ? "Cover set" : "Cover image"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadMedia(file, "image");
-                  }}
-                />
-              </label>
-
-              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-xs">
-                {uploading === "video" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Rocket className="h-3.5 w-3.5" />
-                )}
-                {meta.videoUrl ? "Video set" : "Demo video"}
-                <input
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void uploadMedia(file, "video");
-                  }}
-                />
-              </label>
-
-              {meta.thumbnailUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={meta.thumbnailUrl}
-                  alt="cover"
-                  className="h-9 w-16 rounded-md object-cover"
-                />
-              )}
-            </div>
-
-            {publishError && (
-              <p className="text-xs text-destructive">{publishError}</p>
-            )}
-          </div>
-
-          <div className="flex items-start gap-2">
-            <select
-              className="h-9 rounded-md border bg-background px-2 text-xs"
-              value={meta.visibility}
-              onChange={(e) =>
-                setMeta({ ...meta, visibility: e.target.value as "public" | "unlisted" })
-              }
-            >
-              <option value="public">Public</option>
-              <option value="unlisted">Unlisted</option>
-            </select>
-            <Button disabled={publishing || !meta.title.trim()} onClick={publish}>
-              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-              Publish
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

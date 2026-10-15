@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  Bookmark,
   Check,
   Copy,
   Download,
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BundledPreview } from "@/components/preview/bundled-preview";
+import { InstallTabs } from "@/components/marketplace/install-tabs";
 
 type Item = {
   slug: string;
@@ -45,6 +47,57 @@ export default function ComponentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState<string | null>(null);
+  const [voted, setVoted] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+
+    fetch("/api/components/bookmarks", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { slugs: [] }))
+      .then((data) => {
+        if (!cancelled) setSaved((data.slugs ?? []).includes(slug));
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  async function vote() {
+    if (!item) return;
+    const next = !voted;
+    setVoted(next);
+    try {
+      const res = await fetch("/api/components/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: item.slug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.voted === "boolean") setVoted(data.voted);
+    } catch {
+      setVoted(!next);
+    }
+  }
+
+  async function toggleSave() {
+    if (!item) return;
+    const next = !saved;
+    setSaved(next);
+    try {
+      const res = await fetch("/api/components/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: item.slug, action: next ? "save" : "remove" }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      setSaved(!next);
+    }
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -98,8 +151,9 @@ export default function ComponentDetailPage() {
     );
   }
 
-  const installCommand = `npx shadcn@latest add https://shadway.com/r/${item.slug}`;
-  const registryUrl = `https://shadway.com/r/${item.slug}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://shadway.com";
+  const installCommand = `npx shadcn@latest add ${origin}/r/${item.slug}`;
+  const registryUrl = `${origin}/r/${item.slug}`;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -118,6 +172,14 @@ export default function ComponentDetailPage() {
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/studio")}>
               Remix
+            </Button>
+            <Button
+              variant={saved ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => void toggleSave()}
+              title={saved ? "Remove from saved" : "Save for later"}
+            >
+              {saved ? <Bookmark className="h-4 w-4 fill-current" /> : <Bookmark className="h-4 w-4" />}
             </Button>
             <Button size="sm" onClick={() => copy(installCommand, "install")}>
               {copied === "install" ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
@@ -146,10 +208,17 @@ export default function ComponentDetailPage() {
               <Eye className="h-4 w-4" />
               {item.views}
             </span>
-            <span className="flex items-center gap-1">
-              <Heart className="h-4 w-4" />
-              {item.likes}
-            </span>
+            <button
+              type="button"
+              onClick={() => void vote()}
+              className={`flex items-center gap-1 transition hover:text-foreground ${
+                voted ? "text-destructive" : ""
+              }`}
+              title="Upvote this component"
+            >
+              <Heart className={`h-4 w-4 ${voted ? "fill-current" : ""}`} />
+              {item.likes + (voted ? 1 : 0)}
+            </button>
             <span className="flex items-center gap-1">
               <Download className="h-4 w-4" />
               {item.installs}
@@ -207,53 +276,11 @@ export default function ComponentDetailPage() {
 
           {tab === "install" && (
             <div className="space-y-4 p-5">
-              <CopyBlock
-                label="CLI"
-                value={installCommand}
-                onCopy={() => copy(installCommand, "install")}
-                copied={copied === "install"}
+              <InstallTabs
+                slug={item.slug}
+                dependencies={item.dependencies}
+                registryDependencies={item.registryDependencies}
               />
-              <CopyBlock
-                label="Registry URL"
-                value={registryUrl}
-                onCopy={() => copy(registryUrl, "link")}
-                copied={copied === "link"}
-              />
-
-              <div className="grid gap-4 pt-2 sm:grid-cols-2">
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    npm dependencies
-                  </h3>
-                  {item.dependencies.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.dependencies.map((dep) => (
-                        <Badge key={dep} variant="secondary">
-                          {dep}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  )}
-                </div>
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Registry dependencies
-                  </h3>
-                  {item.registryDependencies.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.registryDependencies.map((dep) => (
-                        <Badge key={dep} variant="outline">
-                          {dep}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  )}
-                </div>
-              </div>
 
               <div className="flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-muted-foreground">
@@ -271,28 +298,3 @@ export default function ComponentDetailPage() {
   );
 }
 
-function CopyBlock({
-  label,
-  value,
-  onCopy,
-  copied,
-}: {
-  label: string;
-  value: string;
-  onCopy: () => void;
-  copied: boolean;
-}) {
-  return (
-    <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-        <code className="flex-1 overflow-x-auto whitespace-nowrap text-xs">{value}</code>
-        <Button variant="ghost" size="sm" onClick={onCopy}>
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </Button>
-      </div>
-    </div>
-  );
-}

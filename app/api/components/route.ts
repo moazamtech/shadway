@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Build the preview bundle once, at publish time, exactly like 21st.dev.
     // The feed then serves static HTML instead of bundling on every visit.
+    const collection = await getComponentsCollection();
     let previewHtml: string | undefined;
     let previewHash: string | undefined;
 
@@ -147,12 +148,30 @@ export async function POST(request: NextRequest) {
 
       previewHtml = bundle.html;
       previewHash = bundle.hash;
+
+      // Auto-detect npm packages actually imported by the component so
+      // authors don't have to list them by hand.
+      const declared = Array.isArray(body.dependencies) ? body.dependencies : [];
+      const detected = bundle.externals ?? [];
+      const merged = Array.from(
+        new Set([
+          ...detected.filter((name) => name !== "react" && name !== "react-dom"),
+          ...declared.map(String),
+        ])
+      );
+
+      if (merged.length !== (item.dependencies?.length ?? 0)) {
+        await collection.updateOne(
+          { slug: item.slug },
+          { $set: { dependencies: merged, updatedAt: new Date() } }
+        );
+        item.dependencies = merged;
+      }
     } catch (bundleError) {
       console.error("Preview bundle build failed:", bundleError);
     }
 
     if (previewHtml) {
-      const collection = await getComponentsCollection();
       await collection.updateOne(
         { slug: item.slug },
         { $set: { previewHtml, previewHash, updatedAt: new Date() } }

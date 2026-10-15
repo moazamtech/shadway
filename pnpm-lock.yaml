@@ -197,6 +197,9 @@ importers:
       marked:
         specifier: ^17.0.1
         version: 17.0.6
+      monaco-editor:
+        specifier: 0.57.0
+        version: 0.57.0
       mongodb:
         specifier: ^6.20.0
         version: 6.21.0(socks@2.8.10)
