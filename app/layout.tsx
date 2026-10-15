@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { StructuredData } from "@/components/structured-data";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { generateSEOMetadata } from "@/lib/seo";
+import { SIDEBAR_SCRIPT } from "@/lib/sidebar-state";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -85,8 +86,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f3f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#202020" },
   ],
 };
 
@@ -98,6 +99,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Restores the rail's width/collapsed state before first paint, so
+            the shell never flashes its default geometry. */}
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_SCRIPT }} />
         <link
           rel="icon"
           href="/favicon-32x32.png"
