@@ -21,7 +21,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { LocalPreview, type PreviewFileInput } from "@/components/preview/local-preview";
 import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
 import { PublishPanel } from "@/components/studio/publish-panel";
@@ -95,10 +94,11 @@ export function Button({ className, variant = "default", size = "default", ...pr
 `,
 };
 
-function fileIcon(path: string) {
-  if (path.endsWith(".css")) return FileText;
-  if (path.endsWith(".json")) return FileJson;
-  return FileCode2;
+function iconFor(path: string) {
+  if (path.endsWith(".css")) return { Icon: FileText, tone: "text-sky-400" };
+  if (path.endsWith(".json")) return { Icon: FileJson, tone: "text-amber-400" };
+  if (path.includes("/components/ui/")) return { Icon: FileCode2, tone: "text-emerald-400" };
+  return { Icon: FileCode2, tone: "text-primary" };
 }
 
 type TreeNode = {
@@ -108,7 +108,7 @@ type TreeNode = {
   children?: TreeNode[];
 };
 
-/** Builds a nested tree so folders can be expanded/collapsed like a real IDE. */
+/** Builds a nested tree so folders expand and collapse like a real IDE. */
 function buildTree(files: Record<string, string>): TreeNode[] {
   const root: TreeNode = { name: "", path: "", type: "dir", children: [] };
 
@@ -177,6 +177,7 @@ export function ComponentStudio() {
 
   const tree = useMemo(() => buildTree(files), [files]);
   const activeCode = files[activePath] ?? "";
+  const packageCount = Object.keys(installedPackages).length;
 
   const updateActive = useCallback(
     (value: string) => {
@@ -189,7 +190,11 @@ export function ComponentStudio() {
     const raw = newFileName.trim();
     if (!raw) return;
 
-    let path = raw.startsWith("/") ? raw : raw.startsWith("src/") ? `/${raw}` : `/src/${raw}`;
+    let path = raw.startsWith("/")
+      ? raw
+      : raw.startsWith("src/")
+        ? `/${raw}`
+        : `/src/${raw}`;
     if (!/\.(tsx?|jsx?|css)$/.test(path)) path += ".tsx";
     if (files[path]) return;
 
@@ -224,13 +229,15 @@ export function ComponentStudio() {
 
     setResolving(true);
     try {
-      const res = await fetch(`/api/registry/resolve-package?name=${encodeURIComponent(pkgName)}`);
+      const res = await fetch(
+        `/api/registry/resolve-package?name=${encodeURIComponent(pkgName)}`
+      );
       if (!res.ok) return;
       const data = await res.json();
       setInstalledPackages((prev) => ({ ...prev, [pkgName]: data.version }));
       setPackageInput("");
     } catch {
-      /* ignore offline */
+      /* offline */
     } finally {
       setResolving(false);
     }
@@ -258,43 +265,48 @@ export function ComponentStudio() {
               onClick={() =>
                 setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
               }
-              className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-              style={{ paddingLeft: `${depth * 12 + 8}px` }}
+              className="group flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              style={{ paddingLeft: `${depth * 12 + 6}px` }}
             >
               {isCollapsed ? (
-                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
               ) : (
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
               )}
-              <Folder className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="truncate">{node.name}</span>
+              <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+              <span className="truncate font-medium">{node.name}</span>
             </button>
             {!isCollapsed && node.children && renderTree(node.children, depth + 1)}
           </div>
         );
       }
 
-      const Icon = fileIcon(node.path);
+      const { Icon, tone } = iconFor(node.path);
       const isActive = node.path === activePath;
       const removable =
         node.path !== "/src/components/component.tsx" && node.path !== "/src/App.tsx";
 
       return (
-        <div key={node.path} className="group/file flex items-center">
+        <div key={node.path} className="group/file relative flex items-center">
+          {isActive && (
+            <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary" />
+          )}
           <button
             onClick={() => setActivePath(node.path)}
-            className={`flex flex-1 items-center gap-1.5 rounded-md py-1.5 text-left text-sm transition ${
-              isActive ? "bg-primary/10 text-primary" : "hover:bg-muted"
+            className={`flex flex-1 items-center gap-2 rounded-md py-1.5 pr-2 text-left text-[13px] transition-colors ${
+              isActive
+                ? "bg-primary/10 text-foreground"
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             }`}
-            style={{ paddingLeft: `${depth * 12 + 20}px` }}
+            style={{ paddingLeft: `${depth * 12 + 22}px` }}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
             <span className="truncate">{node.name}</span>
           </button>
           {removable && (
             <button
               onClick={() => deleteFile(node.path)}
-              className="mr-1 opacity-0 transition group-hover/file:opacity-100"
+              className="mr-1.5 opacity-0 transition group-hover/file:opacity-100"
               title="Delete file"
             >
               <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
@@ -319,47 +331,65 @@ export function ComponentStudio() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
-            Shadway
-          </Link>
-          <Badge variant="secondary">Studio</Badge>
+      <header className="relative shrink-0">
+        <div className="flex h-12 items-center justify-between gap-3 px-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="font-serif text-base tracking-tight">
+              Shadway
+            </Link>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              Studio
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
+              title="Toggle preview theme"
+            >
+              {previewTheme === "light" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setFiles(STARTER_FILES)}
+              title="Reset files"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-full pl-3"
+              onClick={() => setPublishing(true)}
+            >
+              <Rocket className="mr-1.5 h-3.5 w-3.5" />
+              Publish
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
-            title="Toggle preview theme"
-          >
-            {previewTheme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFiles(STARTER_FILES)}
-            title="Reset files"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-          <Button size="sm" onClick={() => setPublishing(true)}>
-            <Rocket className="h-4 w-4" />
-            Publish
-          </Button>
-        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[240px_minmax(0,1fr)_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 flex-col border-r bg-muted/30 lg:flex">
-          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[248px_minmax(0,1fr)_minmax(0,1fr)]">
+        {/* Explorer */}
+        <aside className="hidden min-h-0 flex-col bg-muted/20 lg:flex">
+          <div className="flex h-10 shrink-0 items-center justify-between px-3">
+            <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
               Explorer
             </span>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
               onClick={() => setShowNewFile((v) => !v)}
               title="New file"
             >
@@ -368,7 +398,7 @@ export function ComponentStudio() {
           </div>
 
           {showNewFile && (
-            <div className="border-b p-2">
+            <div className="px-3 pb-3">
               <input
                 autoFocus
                 value={newFileName}
@@ -378,20 +408,23 @@ export function ComponentStudio() {
                   if (e.key === "Escape") setShowNewFile(false);
                 }}
                 placeholder="hooks/use-thing.ts"
-                className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
               />
-              <Button size="sm" className="mt-2 h-7 w-full text-xs" onClick={createFile}>
+              <Button size="sm" className="mt-2 h-7 w-full rounded-md text-xs" onClick={createFile}>
                 Create file
               </Button>
             </div>
           )}
 
-          <div className="min-h-0 flex-1 overflow-auto p-2 text-sm">{renderTree(tree)}</div>
+          <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
+            {renderTree(tree)}
+          </div>
 
-          <div className="border-t">
+          {/* Packages */}
+          <div className="border-t border-border/70">
             <button
               onClick={() => setShowPackages((v) => !v)}
-              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              className="flex w-full items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground"
             >
               {showPackages ? (
                 <ChevronDown className="h-3 w-3" />
@@ -400,6 +433,11 @@ export function ComponentStudio() {
               )}
               <Package className="h-3 w-3" />
               Packages
+              {packageCount > 0 && (
+                <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                  {packageCount}
+                </span>
+              )}
             </button>
 
             {showPackages && (
@@ -411,26 +449,30 @@ export function ComponentStudio() {
                     if (e.key === "Enter") void installPackage();
                   }}
                   placeholder="Add npm package"
-                  className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                  className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
                 />
                 <Button
                   size="sm"
-                  className="mt-2 h-7 w-full text-xs"
+                  className="mt-2 h-7 w-full rounded-md text-xs"
                   disabled={resolving || !packageInput.trim()}
                   onClick={() => void installPackage()}
                 >
-                  {resolving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Install"}
+                  {resolving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Install"
+                  )}
                 </Button>
 
-                {Object.keys(installedPackages).length > 0 && (
-                  <ul className="mt-2 space-y-1">
+                {packageCount > 0 && (
+                  <ul className="mt-2.5 space-y-1">
                     {Object.entries(installedPackages).map(([name, version]) => (
                       <li
                         key={name}
-                        className="flex items-center justify-between text-[11px]"
+                        className="flex items-center justify-between gap-2 text-[11px]"
                       >
-                        <code className="truncate">{name}</code>
-                        <span className="text-muted-foreground">{version}</span>
+                        <code className="truncate text-foreground">{name}</code>
+                        <span className="shrink-0 text-muted-foreground">{version}</span>
                       </li>
                     ))}
                   </ul>
@@ -440,11 +482,18 @@ export function ComponentStudio() {
           </div>
         </aside>
 
-        <section className="flex min-h-0 flex-col border-r">
-          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
-            <p className="truncate font-mono text-xs text-muted-foreground">{activePath}</p>
+        {/* Editor */}
+        <section className="relative flex min-h-0 flex-col">
+          <div className="flex h-10 shrink-0 items-center gap-2 px-4">
+            {(() => {
+              const { Icon, tone } = iconFor(activePath);
+              return <Icon className={`h-3.5 w-3.5 ${tone}`} />;
+            })()}
+            <span className="truncate font-mono text-[11px] text-muted-foreground">
+              {activePath}
+            </span>
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1 border-t border-border/70">
             <StudioEditor
               path={activePath}
               value={activeCode}
@@ -456,35 +505,36 @@ export function ComponentStudio() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col">
-          <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {/* Preview */}
+        <section className="relative flex min-h-0 flex-col">
+          <div className="flex h-10 shrink-0 items-center justify-between px-4">
+            <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
               Preview
-            </p>
-            <div className="flex items-center gap-1">
+            </span>
+            <div className="flex items-center gap-0.5 rounded-full border p-0.5">
               <Button
                 variant={viewport === "desktop" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-7 w-7"
+                className="h-6 w-6 rounded-full"
                 onClick={() => setViewport("desktop")}
                 title="Desktop"
               >
-                <Monitor className="h-3.5 w-3.5" />
+                <Monitor className="h-3 w-3" />
               </Button>
               <Button
                 variant={viewport === "mobile" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-7 w-7"
+                className="h-6 w-6 rounded-full"
                 onClick={() => setViewport("mobile")}
                 title="Mobile"
               >
-                <Smartphone className="h-3.5 w-3.5" />
+                <Smartphone className="h-3 w-3" />
               </Button>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 justify-center overflow-auto bg-muted/40 p-3">
+          <div className="flex min-h-0 flex-1 justify-center overflow-auto bg-muted/20 p-4">
             <div
-              className={`h-full overflow-hidden rounded-xl border bg-background shadow-sm ${
+              className={`h-full overflow-hidden rounded-xl border bg-background shadow-sm transition-all ${
                 viewport === "mobile" ? "w-[390px]" : "w-full"
               }`}
             >
