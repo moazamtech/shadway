@@ -8,7 +8,7 @@ import { LoginForm } from "@/components/auth/login-form";
 export const metadata: Metadata = {
   title: "Sign in | Shadway",
   description:
-    "Sign in to your Shadway account to publish and manage shadcn/ui components and bundles.",
+    "Sign in to your Shadway account to publish and manage shadcn/ui components.",
   robots: { index: false, follow: false },
 };
 
@@ -33,7 +33,7 @@ export default async function LoginPage({
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to publish components, manage bundles and keep your work in one place."
+      subtitle="Sign in to publish components and keep your work in one place."
       footer={
         <>
           New to Shadway?{" "}

@@ -152,6 +152,25 @@ export async function getComponentBySlug(slug: string) {
 }
 
 /**
+ * Any component by slug, drafts included — for the owner's own surfaces
+ * (the dashboard and the studio), never for the public feed.
+ */
+export async function getComponentBySlugAnyStatus(slug: string) {
+  const collection = await getComponentsCollection();
+  return collection.findOne({ slug });
+}
+
+/** Everything one author owns, drafts first, newest first. */
+export async function listUserComponents(userId: string, limit = 60) {
+  const collection = await getComponentsCollection();
+  return collection
+    .find({ "author.userId": userId })
+    .sort({ status: 1, updatedAt: -1 })
+    .limit(Math.min(Math.max(limit, 1), 200))
+    .toArray();
+}
+
+/**
  * Fetches published components by slug, keeping the order the slugs were
  * given in — which is what a bookmarks list, stored newest-first, needs.
  */
@@ -216,7 +235,8 @@ export async function createComponent(input: ComponentInput) {
     license: input.license || "MIT",
     createdAt: now,
     updatedAt: now,
-    publishedAt: new Date(),
+    publishedAt:
+      (input.status || "published") === "published" ? now : undefined,
   };
 
   const result = await collection.insertOne(doc);

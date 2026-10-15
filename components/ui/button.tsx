@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  /* Ported from whirl. Named transition properties, not `all`: the variants
+  /* Named transition properties, not `all`: the variants
      below only ever move color, background, border, the focus ring and the
      active nudge — `all` would also hand the browser every OTHER changed
      property to interpolate, which makes an icon appearing animate the
@@ -34,7 +34,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        /* Whirl's compact ladder: the resting button is a 32px-tall pill, and
+        /* The compact ladder: the resting button is a 32px-tall pill, and
            the min() caps keep the small sizes from reading as pills once
            --radius grows. */
         default: "h-8 gap-1.5 px-2.5 has-[>svg]:pr-2 has-[>svg]:pl-2",

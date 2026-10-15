@@ -1,6 +1,8 @@
 // @ts-expect-error - @babel/core ships no bundled types in this setup.
 import { transformAsync } from "@babel/core";
 import crypto from "crypto";
+import { PREVIEW_ERROR_CSS, PREVIEW_ERROR_SCRIPT } from "./error-overlay";
+import { PREVIEW_THEME_CSS } from "./theme.generated";
 
 export type BundleFile = { path: string; content: string };
 export type BundleResult = { html: string; hash: string; externals: string[] };
@@ -14,32 +16,10 @@ const REACT_MODULES = new Set([
   "react-dom/client",
 ]);
 
-const THEME_CSS = `
-:root{
-  --background:0 0% 100%;--foreground:240 10% 3.9%;
-  --card:0 0% 100%;--card-foreground:240 10% 3.9%;
-  --popover:0 0% 100%;--popover-foreground:240 10% 3.9%;
-  --primary:240 5.9% 10%;--primary-foreground:0 0% 98%;
-  --secondary:240 4.8% 95.9%;--secondary-foreground:240 5.9% 10%;
-  --muted:240 4.8% 95.9%;--muted-foreground:240 3.8% 46.1%;
-  --accent:240 4.8% 95.9%;--accent-foreground:240 5.9% 10%;
-  --destructive:0 84.2% 60.2%;--destructive-foreground:0 0% 100%;
-  --border:240 5.9% 90%;--input:240 5.9% 90%;--ring:240 5% 64.9%;--radius:.5rem;
-}
-.dark{
-  --background:240 10% 3.9%;--foreground:0 0% 98%;
-  --card:240 10% 3.9%;--card-foreground:0 0% 98%;
-  --popover:240 10% 3.9%;--popover-foreground:0 0% 98%;
-  --primary:0 0% 98%;--primary-foreground:240 5.9% 10%;
-  --secondary:240 3.7% 15.9%;--secondary-foreground:0 0% 98%;
-  --muted:240 3.7% 15.9%;--muted-foreground:240 5% 64.9%;
-  --accent:240 3.7% 15.9%;--accent-foreground:0 0% 98%;
-  --destructive:0 62.8% 30.6%;--destructive-foreground:0 0% 98%;
-  --border:240 3.7% 15.9%;--input:240 3.7% 15.9%;--ring:240 4.9% 83.9%;
-}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-.tw-bundle-error{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;padding:14px;color:#ef4444;white-space:pre-wrap;line-height:1.55}
+const BASE_CSS = `
+html,body{height:100%}
+body{margin:0;background:var(--background);color:var(--foreground);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+${PREVIEW_ERROR_CSS}
 `;
 
 function normalize(path: string) {
@@ -50,7 +30,18 @@ function resolveLocal(specifier: string, fromPath: string, known: string[]): str
   const candidates: string[] = [];
 
   if (specifier.startsWith("@/")) {
-    candidates.push(normalize(`/src/${specifier.slice(2)}`));
+    const rest = specifier.slice(2);
+    candidates.push(normalize(`/src/${rest}`));
+
+    // Alias drift: projects (and pasted code) move between a `ui/` folder and
+    // `components/` — try the sibling spelling before giving up.
+    if (rest.startsWith("components/ui/")) {
+      candidates.push(normalize(`/src/components/${rest.slice("components/ui/".length)}`));
+    } else if (rest.startsWith("components/")) {
+      candidates.push(normalize(`/src/components/ui/${rest.slice("components/".length)}`));
+    } else if (rest.startsWith("ui/")) {
+      candidates.push(normalize(`/src/components/ui/${rest.slice("ui/".length)}`));
+    }
   } else if (specifier.startsWith(".")) {
     const stack = normalize(fromPath).split("/").slice(0, -1);
     for (const segment of specifier.split("/")) {
@@ -72,6 +63,21 @@ function resolveLocal(specifier: string, fromPath: string, known: string[]): str
       if (known.includes(`${candidate}/index${ext}`)) return `${candidate}/index${ext}`;
     }
   }
+
+  // Last resort for aliases: match the file by name inside the folders a
+  // component project actually uses.
+  if (specifier.startsWith("@/")) {
+    const name = specifier.split("/").pop()?.replace(/\.(tsx?|jsx?)$/, "");
+    if (name) {
+      for (const dir of ["components", "components/ui", "ui", "hooks", "lib"]) {
+        for (const ext of EXTENSIONS) {
+          const candidate = `/src/${dir}/${name}${ext}`;
+          if (known.includes(candidate)) return candidate;
+        }
+      }
+    }
+  }
+
   return null;
 }
 
@@ -112,6 +118,8 @@ export async function buildPreviewBundle(
   const externals = new Set<string>();
   const css: string[] = [];
   const modules: { id: string; code: string }[] = [];
+  const unresolved: { specifier: string; from: string }[] = [];
+  const unresolvedSeen = new Set<string>();
 
   for (const file of files) {
     const id = normalize(file.path);
@@ -128,6 +136,18 @@ export async function buildPreviewBundle(
 
       const local = resolveLocal(bare, id, known);
       if (local) return `${prefix}${quote}@vfs${local}${quote}`;
+
+      // An alias that points at nothing is a missing file, not a package.
+      // Report it the way a dev server does instead of leaving a specifier
+      // the browser cannot resolve.
+      if (bare.startsWith("@/")) {
+        const key = `${bare}::${id}`;
+        if (!unresolvedSeen.has(key)) {
+          unresolvedSeen.add(key);
+          unresolved.push({ specifier: bare, from: id.replace(/^\//, "") });
+        }
+        return match;
+      }
 
       // A demo may import the component by its original file name (e.g.
       // "./gradient-ring-loader") while the published module lives at a
@@ -198,27 +218,12 @@ ${mod.code}
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(options.title ?? "Component preview")}</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = { darkMode: ["class"], theme: { extend: {
-  colors: {
-    background: "hsl(var(--background))",
-    foreground: "hsl(var(--foreground))",
-    card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-    popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
-    primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
-    secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
-    muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
-    accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
-    destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
-    border: "hsl(var(--border))",
-    input: "hsl(var(--input))",
-    ring: "hsl(var(--ring))"
-  },
-  borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
-} } };
-</script>
-<style>${THEME_CSS}</style>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+@import "tailwindcss";
+${PREVIEW_THEME_CSS}
+</style>
+<style>${BASE_CSS}</style>
 <style>${css.join("\n")}</style>
 <script type="importmap">
 ${JSON.stringify({
@@ -231,6 +236,9 @@ ${JSON.stringify({
   },
 })}
 </script>
+<script>window.__shadwayUnresolved = ${JSON.stringify(unresolved).replace(/</g, "\\u003c")};</script>
+<script type="module" src="/preview/vite-overlay.js"></script>
+<script>${PREVIEW_ERROR_SCRIPT}</script>
 </head>
 <body>
 <div id="root"></div>
@@ -276,9 +284,15 @@ try {
     React.createElement(React.StrictMode, null, React.createElement(Component))
   );
 } catch (error) {
-  const root = document.getElementById("root");
-  root.innerHTML = '<pre class="tw-bundle-error"></pre>';
-  root.firstElementChild.textContent = String(error && error.message ? error.message : error);
+  const message = String(error && error.message ? error.message : error);
+  if (typeof window.__shadwayPreviewError === "function") {
+    window.__shadwayPreviewError({
+      message: message,
+      stack: error && error.stack ? error.stack : "",
+    });
+  } else {
+    document.getElementById("root").textContent = message;
+  }
 }
 </script>
 </body>

@@ -5,7 +5,7 @@ import { StudioDashboard } from "@/components/marketplace/studio-dashboard";
 export const metadata: Metadata = generateSEOMetadata({
   title: "Dashboard",
   description:
-    "Your Shadway dashboard: manage published components, bundles, saved items and marketplace activity.",
+    "Your Shadway dashboard: manage published components, saved items and marketplace activity.",
   url: "/dashboard",
   noIndex: true,
 });

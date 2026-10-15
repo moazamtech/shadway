@@ -5,9 +5,10 @@ import {
   createComponent,
   isValidSlug,
   getComponentsCollection,
+  type ComponentVisibility,
 } from "@/lib/db/components";
 import { buildPreviewBundle } from "@/lib/preview/bundle";
-import { componentSourceFiles } from "@/lib/preview/files";
+import { componentPreviewFiles } from "@/lib/preview/server-files";
 
 export const runtime = "nodejs";
 
@@ -85,9 +86,9 @@ export async function POST(request: NextRequest) {
     }
 
     const author = await resolveAuthor(session);
+    const collection = await getComponentsCollection();
 
-    const item = await createComponent({
-      slug: requestedSlug && isValidSlug(requestedSlug) ? requestedSlug : undefined,
+    const publishFields = {
       name: String(body.name || title).replace(/\s+/g, "-"),
       title,
       description,
@@ -104,23 +105,58 @@ export async function POST(request: NextRequest) {
         ? body.registryDependencies
         : [],
       cssVars: body.cssVars,
-      author,
-      visibility: body.visibility === "unlisted" ? "unlisted" : "public",
-      status: "published",
-      featured: false,
-      version: String(body.version || "1.0.0"),
-      license: String(body.license || "MIT"),
-    });
+      visibility: (body.visibility === "unlisted" ? "unlisted" : "public") as ComponentVisibility,
+    };
 
-    // Build the preview bundle once, at publish time, exactly like 21st.dev.
-    // The feed then serves static HTML instead of bundling on every visit.
-    const collection = await getComponentsCollection();
+    // Publishing an existing draft updates it in place, so the project keeps
+    // its slug, files and history instead of creating a second record.
+    const existing = requestedSlug
+      ? await collection.findOne({ slug: requestedSlug })
+      : null;
+
+    let item: Awaited<ReturnType<typeof createComponent>>;
+    if (existing) {
+      const isOwner = existing.author.userId === session.user.id;
+      const isAdmin = session.user.role === "admin";
+      if (!isOwner && !isAdmin) {
+        return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+      }
+
+      const updates = {
+        ...publishFields,
+        featured: existing.featured,
+        version: existing.version,
+        license: existing.license,
+        status: "published" as const,
+        publishedAt: existing.publishedAt ?? new Date(),
+        updatedAt: new Date(),
+      };
+
+      await collection.updateOne(
+        { slug: existing.slug },
+        { $set: updates, $unset: { previewHtml: "", previewHash: "" } }
+      );
+      item = { ...existing, ...updates };
+    } else {
+      item = await createComponent({
+        slug: requestedSlug && isValidSlug(requestedSlug) ? requestedSlug : undefined,
+        ...publishFields,
+        author,
+        status: "published",
+        featured: false,
+        version: String(body.version || "1.0.0"),
+        license: String(body.license || "MIT"),
+      });
+    }
+
+    // Build the preview bundle once, at publish time. The feed then serves
+    // static HTML instead of bundling on every visit.
     let previewHtml: string | undefined;
     let previewHash: string | undefined;
 
     try {
       const bundle = await buildPreviewBundle(
-        componentSourceFiles({
+        componentPreviewFiles({
           code: item.code,
           demoCode: item.demoCode,
           files: item.files,

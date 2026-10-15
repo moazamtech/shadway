@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { getComponentsCollection } from "@/lib/db/components";
 
+// Helper function to escape XML entities
+function escapeXml(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 export async function GET() {
   try {
     if (!process.env.MONGODB_URI) {
@@ -30,6 +41,12 @@ export async function GET() {
 
     const staticUrls = [
       {
+        loc: `${baseUrl}/`,
+        lastmod: new Date().toISOString(),
+        changefreq: "daily",
+        priority: "1.0",
+      },
+      {
         loc: `${baseUrl}/collections`,
         lastmod: new Date().toISOString(),
         changefreq: "daily",
@@ -48,7 +65,7 @@ export async function GET() {
 ${[
       ...staticUrls.map(
         (url) => `  <url>
-    <loc>${url.loc}</loc>
+    <loc>${escapeXml(url.loc)}</loc>
     <lastmod>${url.lastmod}</lastmod>
     <changefreq>${url.changefreq}</changefreq>
     <priority>${url.priority}</priority>
@@ -56,7 +73,7 @@ ${[
       ),
       ...items.map(
         (item) => `  <url>
-    <loc>${baseUrl}/c/${encodeURIComponent(item.slug)}</loc>
+    <loc>${escapeXml(`${baseUrl}/c/${encodeURIComponent(item.slug)}`)}</loc>
     <lastmod>${new Date(item.updatedAt || item.createdAt || new Date()).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>

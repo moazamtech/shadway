@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-/* Ring-based field, ported from whirl. A 1px ring replaces the border: it
+/* Ring-based field. A 1px ring replaces the border: it
    paints outside the box, so the field's height stays a clean 9, the inner
    text never shifts by a border width, and the focus ring can simply widen the
    same ring instead of stacking a second outline on top of a border. */

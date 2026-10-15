@@ -89,6 +89,7 @@ export async function PATCH(
 
     const body = await request.json();
     const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const removals: Record<string, ""> = {};
 
     if (typeof body.title === "string" && body.title.trim()) updates.title = body.title.trim();
     if (typeof body.description === "string") updates.description = body.description.trim();
@@ -103,11 +104,55 @@ export async function PATCH(
     if (body.visibility === "public" || body.visibility === "unlisted")
       updates.visibility = body.visibility;
     if (typeof body.featured === "boolean" && isAdmin) updates.featured = body.featured;
-    if (body.status === "hidden" || body.status === "published") {
-      if (isAdmin || isOwner) updates.status = body.status;
+    if (body.status === "hidden" || body.status === "published" || body.status === "draft") {
+      if (isAdmin || isOwner) {
+        updates.status = body.status;
+        if (body.status === "published" && component.status !== "published") {
+          updates.publishedAt = new Date();
+        }
+        if (body.status === "draft") removals.publishedAt = "";
+      }
     }
 
-    await collection.updateOne({ slug: decoded }, { $set: updates });
+    // The project's own files, saved from the studio. Content changes on a
+    // published component invalidate the cached preview so the next visit
+    // rebuilds it from the new source.
+    const contentTouched =
+      typeof body.code === "string" ||
+      typeof body.demoCode === "string" ||
+      Array.isArray(body.files);
+    if (typeof body.code === "string" && body.code.trim()) updates.code = body.code;
+    if (typeof body.demoCode === "string") updates.demoCode = body.demoCode;
+    if (Array.isArray(body.files)) {
+      const rawFiles: unknown[] = body.files;
+      updates.files = rawFiles
+        .filter(
+          (file): file is { path: string; content: string; type?: string } =>
+            Boolean(
+              file &&
+                typeof (file as { path?: unknown }).path === "string" &&
+                typeof (file as { content?: unknown }).content === "string"
+            )
+        )
+        .map((file) => ({
+          path: file.path,
+          content: file.content,
+          type: file.type || "registry:file",
+        }))
+        .slice(0, 80);
+    }
+    if (contentTouched && component.status !== "draft") {
+      removals.previewHtml = "";
+      removals.previewHash = "";
+    }
+
+    await collection.updateOne(
+      { slug: decoded },
+      {
+        $set: updates,
+        ...(Object.keys(removals).length ? { $unset: removals } : {}),
+      }
+    );
 
     return NextResponse.json({ item: { ...component, ...updates } });
   } catch (error) {

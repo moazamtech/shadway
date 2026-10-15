@@ -2,12 +2,12 @@ import type { Session } from "next-auth";
 import { deriveHandleFromEmail } from "@/lib/handles";
 
 /**
- * The username a component or bundle is attributed to.
+ * The username a component is attributed to.
  *
- * `ComponentAuthor.username` is what `listComponents({ author })` and
- * `listBundles({ author })` filter on, so every writer must derive it the same
- * way or an author's own pages will not find their work. The rule lives in
- * `lib/handles.ts` next to the profile lookup that has to agree with it.
+ * `ComponentAuthor.username` is what `listComponents({ author })` filters on,
+ * so every writer must derive it the same way or an author's own pages will
+ * not find their work. The rule lives in `lib/handles.ts` next to the profile
+ * lookup that has to agree with it.
  */
 export function sessionUsername(session: Session | null): string {
   if (!session?.user) return "anonymous";

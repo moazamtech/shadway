@@ -1,41 +1,13 @@
 export type PreviewFileInput = { path: string; content: string };
 export type PreviewFiles = Record<string, string>;
 
-/** Minimal shadcn runtime available to every preview: cn() + Button. */
-export const SHADCN_UTILS = `export function cn(...inputs) {
-  return inputs.filter(Boolean).join(" ");
-}
-`;
-
-export const SHADCN_BUTTON = `import { cn } from "@/lib/utils";
-
-export function Button(props) {
-  const { className = "", variant = "default", size = "default", ...rest } = props;
-  const variants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90",
-    outline: "border border-input bg-background hover:bg-accent",
-    ghost: "hover:bg-accent hover:text-accent-foreground",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  };
-  const sizes = { default: "h-10 px-4 py-2", sm: "h-9 px-3", lg: "h-11 px-6", icon: "h-10 w-10" };
-  return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors disabled:opacity-50",
-        variants[variant] || variants.default,
-        sizes[size] || sizes.default,
-        className,
-      )}
-      {...rest}
-    />
-  );
-}
-`;
-
 /**
  * Accepts either a single component string (published component) or a full
  * file map (studio project) and returns a complete, previewable file set.
+ *
+ * The shadcn `components/ui` folder is not listed here: every preview is
+ * handed the vendored registry files it imports (`withShadcnFiles`), the same
+ * way a shadcn project resolves `@/components/ui/*` from disk.
  */
 export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInput[] {
   if (typeof input !== "string") {
@@ -45,29 +17,13 @@ export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInpu
     }));
   }
 
-  const hasDefaultExport = /export\s+default/.test(input);
-
-  const files: PreviewFileInput[] = [
-    { path: "/src/index.css", content: ":root{--radius:.5rem}" },
-    { path: "/src/lib/utils.ts", content: SHADCN_UTILS },
-    { path: "/src/components/ui/button.tsx", content: SHADCN_BUTTON },
+  return [
+    { path: "/src/components/component.tsx", content: input },
+    {
+      path: "/src/App.tsx",
+      content: `import Component from "./components/component";\nexport default function App() {\n  return <Component />;\n}\n`,
+    },
   ];
-
-  if (hasDefaultExport) {
-    files.push({ path: "/src/components/component.tsx", content: input });
-    files.push({
-      path: "/src/App.tsx",
-      content: `import Component from "./components/component";\nexport default function App() {\n  return <Component />;\n}\n`,
-    });
-  } else {
-    files.push({ path: "/src/components/component.tsx", content: input });
-    files.push({
-      path: "/src/App.tsx",
-      content: `import Component from "./components/component";\nexport default function App() {\n  return <Component />;\n}\n`,
-    });
-  }
-
-  return files;
 }
 
 /**

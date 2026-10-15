@@ -6,16 +6,11 @@ import { authOptions } from "@/lib/auth";
 import { sessionUsername } from "@/lib/session";
 import { resolveProfile } from "@/lib/db/users";
 import { listComponents } from "@/lib/db/components";
-import { listBundles } from "@/lib/db/bundles";
 import { ComponentCard } from "@/components/marketplace/component-card";
 import { AppShell } from "@/components/marketplace/app-shell";
 import { UserMenu } from "@/components/user-menu";
 import { Button } from "@/components/ui/button";
-import {
-  ProfileBody,
-  ProfileBundles,
-  ProfileEmpty,
-} from "@/components/profile/profile-body";
+import { ProfileBody, ProfileEmpty } from "@/components/profile/profile-body";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +38,7 @@ export async function generateMetadata({
     title: `${profile.name} (@${profile.handle}) · Shadway`,
     description:
       profile.bio ||
-      `Components and bundles published by ${profile.name} on Shadway.`,
+      `Components published by ${profile.name} on Shadway.`,
   };
 }
 
@@ -57,14 +52,11 @@ export async function generateMetadata({
  */
 export default async function AuthorPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ tab?: string }>;
 }) {
-  const [{ username }, { tab: tabParam }, session] = await Promise.all([
+  const [{ username }, session] = await Promise.all([
     params,
-    searchParams,
     getServerSession(authOptions),
   ]);
 
@@ -72,10 +64,9 @@ export default async function AuthorPage({
   if (!profile) notFound();
   const handle = profile.handle;
 
-  const [components, bundles] = await Promise.all([
-    listComponents({ author: handle, limit: 60 }).catch(() => []),
-    listBundles({ author: handle, limit: 60 }).catch(() => []),
-  ]);
+  const components = await listComponents({ author: handle, limit: 60 }).catch(
+    () => [],
+  );
 
   const viewer = session ? sessionUsername(session) : null;
   const isOwner = Boolean(viewer && viewer.toLowerCase() === handle);
@@ -87,7 +78,6 @@ export default async function AuthorPage({
     installs: components.reduce((sum, item) => sum + (item.installs || 0), 0),
   };
 
-  const activeTab = tabParam === "bundles" ? "bundles" : "components";
   const basePath = `/u/${handle}`;
 
   return (
@@ -112,49 +102,32 @@ export default async function AuthorPage({
         joinedAt={profile.joinedAt}
         isOwner={isOwner}
         basePath={basePath}
-        activeTab={activeTab}
-        tabs={[
-          { id: "components", label: "Components", count: components.length },
-          { id: "bundles", label: "Bundles", count: bundles.length },
-        ]}
+        activeTab="components"
+        tabs={[{ id: "components", label: "Components", count: components.length }]}
         stats={stats}
       >
-        {activeTab === "components" ? (
-          components.length ? (
-            <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[1200px]:grid-cols-3">
-              {components.map((item) => (
-                <ComponentCard key={item.slug} item={toCardItem(item)} />
-              ))}
-            </div>
-          ) : (
-            <ProfileEmpty
-              title={
-                isOwner ? "You haven't published anything yet" : "Nothing published yet"
-              }
-              body={
-                isOwner
-                  ? "Components you publish show up here, on your public profile."
-                  : `When @${handle} publishes a component, it will show up here.`
-              }
-              action={
-                isOwner ? (
-                  <Button size="sm" asChild>
-                    <Link href="/studio">Open studio</Link>
-                  </Button>
-                ) : undefined
-              }
-            />
-          )
-        ) : bundles.length ? (
-          <ProfileBundles bundles={bundles} />
+        {components.length ? (
+          <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[1200px]:grid-cols-3">
+            {components.map((item) => (
+              <ComponentCard key={item.slug} item={toCardItem(item)} />
+            ))}
+          </div>
         ) : (
           <ProfileEmpty
-            icon="bundles"
-            title="No bundles yet"
+            title={
+              isOwner ? "You haven't published anything yet" : "Nothing published yet"
+            }
             body={
               isOwner
-                ? "Packs of components you publish will be listed here."
-                : `When @${handle} publishes a bundle, it will show up here.`
+                ? "Components you publish show up here, on your public profile."
+                : `When @${handle} publishes a component, it will show up here.`
+            }
+            action={
+              isOwner ? (
+                <Button size="sm" asChild>
+                  <Link href="/studio">Open studio</Link>
+                </Button>
+              ) : undefined
             }
           />
         )}

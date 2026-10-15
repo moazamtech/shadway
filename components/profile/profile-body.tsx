@@ -6,7 +6,6 @@ import {
   Github,
   Globe,
   Link2,
-  Package,
   Twitter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -233,40 +232,6 @@ export function ProfileBody({
   );
 }
 
-/** A bundle row in a profile's bundles tab. */
-export function ProfileBundles({
-  bundles,
-}: {
-  bundles: {
-    slug: string;
-    name: string;
-    isPublic?: boolean;
-    componentSlugs: string[];
-  }[];
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {bundles.map((bundle) => (
-        <Link
-          key={bundle.slug}
-          href={`/bundles/${bundle.slug}`}
-          className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 transition hover:border-foreground/20"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{bundle.name}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {bundle.componentSlugs.length}{" "}
-              {bundle.componentSlugs.length === 1 ? "component" : "components"}
-              {bundle.isPublic === false ? " · Draft" : ""}
-            </p>
-          </div>
-          <Package className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-foreground" />
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 /** The empty state shared by every profile tab. */
 export function ProfileEmpty({
   icon = "components",
@@ -274,13 +239,12 @@ export function ProfileEmpty({
   body,
   action,
 }: {
-  icon?: "components" | "bundles" | "saved";
+  icon?: "components" | "saved";
   title: string;
   body: string;
   action?: ReactNode;
 }) {
-  const Icon =
-    icon === "bundles" ? Package : icon === "saved" ? FolderOpen : Link2;
+  const Icon = icon === "saved" ? FolderOpen : Link2;
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-16 text-center">
       <span className="flex size-11 items-center justify-center rounded-lg bg-well text-muted-foreground">

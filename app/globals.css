@@ -58,7 +58,7 @@
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
     --color-card: var(--card);
-    /* One radius for the whole ladder (whirl): every control and surface
+    /* One radius for the whole ladder: every control and surface
        rounds to the same 12px, so a tooltip, a button and a dialog all read
        as one family instead of five near-miss corner sizes. */
     --radius-xs: 0.75rem;
@@ -72,7 +72,7 @@
 }
 
 :root {
-    /* Strict monochrome with real tonal structure (ported from whirl).
+    /* Strict monochrome with real tonal structure.
        The content surface is the plane everything is placed against, chrome
        (header, sidebar rail) steps away from it, and every hover/press is a
        lightness move — never a hue. Light descends from white; dark climbs

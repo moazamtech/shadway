@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-/* Sidebar geometry lives in localStorage (the same keys the whirl shell
-   uses) and is painted before hydration by an inline script in the root
+/* Sidebar geometry lives in localStorage and is painted before hydration by
+   an inline script in the root
    layout, which sets `--sidebar-width` and `data-sidebar-collapsed` on
    <html> — the same pre-paint trick the canvas tint uses. React state here
    drives behavior (aria labels, resize math); the CSS var and attribute are

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getComponentBySlug, getComponentsCollection } from "@/lib/db/components";
 import { buildPreviewBundle } from "@/lib/preview/bundle";
-import { componentSourceFiles } from "@/lib/preview/files";
+import { componentPreviewFiles } from "@/lib/preview/server-files";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ async function bundleForComponent(slug: string) {
   if (!component) return null;
 
   const bundle = await buildPreviewBundle(
-    componentSourceFiles({
+    componentPreviewFiles({
       code: component.code,
       demoCode: component.demoCode,
       files: component.files,
@@ -29,7 +29,7 @@ async function bundleForComponent(slug: string) {
 
 /**
  * Serves the prebuilt preview bundle. The bundle is created once at publish time
- * and only rebuilt when the source changes (same approach as 21st.dev).
+ * and only rebuilt when the source changes.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

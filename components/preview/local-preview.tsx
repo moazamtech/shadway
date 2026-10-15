@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { TranspiledModule } from "@/lib/preview/transpile";
+import type {
+  BuildError,
+  TranspiledModule,
+  UnresolvedImport,
+} from "@/lib/preview/transpile";
+import { PREVIEW_ERROR_CSS, PREVIEW_ERROR_SCRIPT } from "@/lib/preview/error-overlay";
+import { PREVIEW_THEME_CSS } from "@/lib/preview/theme.generated";
 
 export type PreviewFileInput = { path: string; content: string };
 
@@ -25,32 +31,10 @@ const REACT_IMPORT_MAP = {
   },
 };
 
-const SHADCN_THEME_CSS = `
-:root{
-  --background:0 0% 100%;--foreground:240 10% 3.9%;
-  --card:0 0% 100%;--card-foreground:240 10% 3.9%;
-  --popover:0 0% 100%;--popover-foreground:240 10% 3.9%;
-  --primary:240 5.9% 10%;--primary-foreground:0 0% 98%;
-  --secondary:240 4.8% 95.9%;--secondary-foreground:240 5.9% 10%;
-  --muted:240 4.8% 95.9%;--muted-foreground:240 3.8% 46.1%;
-  --accent:240 4.8% 95.9%;--accent-foreground:240 5.9% 10%;
-  --destructive:0 84.2% 60.2%;--destructive-foreground:0 0% 100%;
-  --border:240 5.9% 90%;--input:240 5.9% 90%;--ring:240 5% 64.9%;--radius:.5rem;
-}
-.dark{
-  --background:240 10% 3.9%;--foreground:0 0% 98%;
-  --card:240 10% 3.9%;--card-foreground:0 0% 98%;
-  --popover:240 10% 3.9%;--popover-foreground:0 0% 98%;
-  --primary:0 0% 98%;--primary-foreground:240 5.9% 10%;
-  --secondary:240 3.7% 15.9%;--secondary-foreground:0 0% 98%;
-  --muted:240 3.7% 15.9%;--muted-foreground:240 5% 64.9%;
-  --accent:240 3.7% 15.9%;--accent-foreground:0 0% 98%;
-  --destructive:0 62.8% 30.6%;--destructive-foreground:0 0% 98%;
-  --border:240 3.7% 15.9%;--input:240 3.7% 15.9%;--ring:240 4.9% 83.9%;
-}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:hsl(var(--background));color:hsl(var(--foreground));font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-.twp-error{font-family:ui-monospace,monospace;font-size:12px;padding:12px;color:#ef4444;white-space:pre-wrap;line-height:1.5}
+const BASE_CSS = `
+html,body{height:100%}
+body{margin:0;background:var(--background);color:var(--foreground);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+${PREVIEW_ERROR_CSS}
 `;
 
 function topologicalSort(modules: TranspiledModule[]): TranspiledModule[] {
@@ -76,7 +60,13 @@ function topologicalSort(modules: TranspiledModule[]): TranspiledModule[] {
 }
 
 /** Cache transpiled output per unique source so a component is only built once. */
-type CachedBundle = { modules: TranspiledModule[]; css: string[]; entry: string };
+type CachedBundle = {
+  modules: TranspiledModule[];
+  css: string[];
+  entry: string;
+  unresolved: UnresolvedImport[];
+  errors: BuildError[];
+};
 
 const transpileCache = new Map<string, Promise<CachedBundle>>();
 
@@ -88,9 +78,9 @@ async function transpileCached(
   files: PreviewFileInput[],
   entry: string | undefined,
   payload: string
-): Promise<{ modules: TranspiledModule[]; css: string[] }> {
+): Promise<CachedBundle> {
   const cached = transpileCache.get(payload);
-  if (cached) return cached as Promise<{ modules: TranspiledModule[]; css: string[] }>;
+  if (cached) return cached;
 
   const request = (async () => {
     const response = await fetch("/api/preview/transpile", {
@@ -105,6 +95,8 @@ async function transpileCached(
       modules: data.modules as TranspiledModule[],
       css: (data.css || []) as string[],
       entry: data.entry as string,
+      unresolved: (data.unresolved || []) as UnresolvedImport[],
+      errors: (data.errors || []) as BuildError[],
     };
 
     if (transpileCache.size > 40) {
@@ -117,6 +109,52 @@ async function transpileCached(
 
   transpileCache.set(payload, request);
   return request;
+}
+
+/**
+ * A broken build still renders a page: the Vite error overlay sits on top of
+ * it with the message, the file and the code frame, so the preview pane never
+ * goes silently blank.
+ */
+function errorDocument(
+  origin: string,
+  buildError: BuildError | undefined,
+  unresolved: UnresolvedImport | undefined,
+  theme: "light" | "dark"
+): string {
+  const payload = buildError
+    ? {
+        message: buildError.message,
+        file: buildError.file,
+        frame: buildError.frame,
+        loc: buildError.line
+          ? {
+              file: buildError.file,
+              line: buildError.line,
+              column: buildError.column ?? 1,
+            }
+          : undefined,
+      }
+    : {
+        message: `Failed to resolve import "${unresolved?.specifier ?? ""}" from "${
+          unresolved?.from ?? "your project"
+        }". Does the file exist?`,
+        file: unresolved?.from,
+      };
+
+  return `<!DOCTYPE html>
+<html lang="en" class="${theme === "dark" ? "dark" : ""}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
+<style>${BASE_CSS}</style>
+<script>window.__shadwayBuildError = ${JSON.stringify(payload).replace(/</g, "\\u003c")};</script>
+<script type="module" src="${origin}/preview/vite-overlay.js"></script>
+<script>${PREVIEW_ERROR_SCRIPT}</script>
+</head>
+<body></body>
+</html>`;
 }
 
 export function LocalPreview({
@@ -147,10 +185,29 @@ export function LocalPreview({
       onError?.(null);
 
       try {
-        const { modules, css } = await transpileCached(files, entry, payload);
+        const { modules, css, unresolved, errors } = await transpileCached(files, entry, payload);
         if (cancelled) return;
 
         cleanup();
+
+        const origin = window.location.origin;
+
+        // A file that will not compile, or an `@/` import that points at
+        // nothing, means there is no app to run — show the same overlay a
+        // dev server would show instead of a blank canvas.
+        if (errors.length || unresolved.length) {
+          const htmlUrl = URL.createObjectURL(
+            new Blob([errorDocument(origin, errors[0], unresolved[0], theme)], {
+              type: "text/html",
+            })
+          );
+          urlsRef.current.push(htmlUrl);
+          if (iframeRef.current && !cancelled) {
+            iframeRef.current.src = htmlUrl;
+            setStatus("ready");
+          }
+          return;
+        }
 
         const entryPath: string =
           modules.find((m) => m.path === entry)?.path ??
@@ -173,6 +230,12 @@ export function LocalPreview({
         const entryUrl = blobUrls.get(entryPath);
         if (!entryUrl) throw new Error(`Entry file not found: ${entryPath}`);
 
+        // So stack traces read as project paths instead of blob: URLs.
+        const blobMap: Record<string, string> = {};
+        blobUrls.forEach((url, path) => {
+          blobMap[url] = path;
+        });
+
         const bootstrap = `
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -189,46 +252,24 @@ createRoot(container).render(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://esm.sh https://cdn.tailwindcss.com; script-src 'self' blob: 'unsafe-inline' 'unsafe-eval' https://esm.sh https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src https://esm.sh https://cdn.tailwindcss.com; img-src 'self' data: blob: https:; frame-src 'none'; object-src 'none'" />
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-  darkMode: ["class"],
-  theme: { extend: {
-    colors: {
-      background: "hsl(var(--background))",
-      foreground: "hsl(var(--foreground))",
-      card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
-      primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
-      secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
-      muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
-      accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
-      destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
-      border: "hsl(var(--border))",
-      input: "hsl(var(--input))",
-      ring: "hsl(var(--ring))"
-    },
-    borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" }
-  }}
-};
-</script>
-<style>${SHADCN_THEME_CSS}</style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://esm.sh https://cdn.jsdelivr.net; script-src 'self' blob: 'unsafe-inline' 'unsafe-eval' https://esm.sh https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https://esm.sh https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; frame-src 'none'; object-src 'none'" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+@import "tailwindcss";
+${PREVIEW_THEME_CSS}
+</style>
+<style>${BASE_CSS}</style>
 <style>${css.join("\n")}</style>
 <script type="importmap">${JSON.stringify(REACT_IMPORT_MAP)}</script>
+<script>window.__shadwayBlobMap = ${JSON.stringify(blobMap)};</script>
+<script>window.__shadwayUnresolved = ${JSON.stringify(unresolved)};</script>
+<script type="module" src="${origin}/preview/vite-overlay.js"></script>
+<script>${PREVIEW_ERROR_SCRIPT}</script>
 </head>
 <body>
 <div id="root"></div>
 <script type="module">
 ${bootstrap}
-</script>
-<script type="module">
-  window.addEventListener("error", (event) => {
-    const el = document.getElementById("root");
-    if (el && !el.childElementCount) {
-      el.innerHTML = '<pre class="twp-error"></pre>';
-      el.firstElementChild.textContent = String(event.message || "Runtime error");
-    }
-  });
 </script>
 </body>
 </html>`;
@@ -272,10 +313,19 @@ ${bootstrap}
         </div>
       )}
       {status === "error" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background p-3">
-          <pre className="max-h-full overflow-auto whitespace-pre-wrap text-left font-mono text-[11px] leading-4 text-destructive">
-            {error}
-          </pre>
+        <div className="absolute inset-0 flex items-start justify-center overflow-auto bg-zinc-950/60 p-4">
+          <div className="mt-1 w-full max-w-xl overflow-hidden rounded-lg border border-red-500/45 bg-zinc-900 text-left shadow-2xl">
+            <div className="flex items-center gap-2 border-b border-red-500/35 bg-red-500/12 px-3 py-2 text-xs font-semibold text-red-300">
+              <span aria-hidden className="text-[10px]">✕</span>
+              Build error
+            </div>
+            <pre className="max-h-[50vh] overflow-auto p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-red-200">
+              {error}
+            </pre>
+            <p className="border-t border-zinc-700/60 bg-zinc-950/60 px-3 py-2 text-[10px] text-zinc-500">
+              Fix the error in the studio — the preview rebuilds as you edit.
+            </p>
+          </div>
         </div>
       )}
     </div>

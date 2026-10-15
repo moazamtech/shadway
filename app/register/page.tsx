@@ -8,7 +8,7 @@ import { RegisterForm } from "@/components/auth/register-form";
 export const metadata: Metadata = {
   title: "Create an account | Shadway",
   description:
-    "Create a free Shadway account to publish shadcn/ui components, build bundles and showcase your work.",
+    "Create a free Shadway account to publish shadcn/ui components and showcase your work.",
   robots: { index: false, follow: false },
 };
 
@@ -33,7 +33,7 @@ export default async function RegisterPage({
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Join the marketplace to publish components, build bundles and showcase your work."
+      subtitle="Join the marketplace to publish components and showcase your work."
       footer={
         <>
           Already have an account?{" "}

@@ -8,7 +8,6 @@ import {
   FolderOpen,
   Home,
   LayoutDashboard,
-  Package,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -72,7 +71,6 @@ type RailNavItem = {
 
 const NAV: RailNavItem[] = [
   { title: "Home", href: "/", icon: Home, exact: true },
-  { title: "Bundles", href: "/bundles", icon: Package },
   { title: "Collections", href: "/collections", icon: FolderOpen },
   { title: "Bookmarks", href: "/bookmarks", icon: Bookmark },
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },

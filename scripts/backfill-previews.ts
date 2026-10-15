@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { getComponentsCollection } from "../lib/db/components";
 import { buildPreviewBundle } from "../lib/preview/bundle";
-import { componentSourceFiles } from "../lib/preview/files";
+import { componentPreviewFiles } from "../lib/preview/server-files";
 import { capturePreview } from "../lib/preview/capture";
 import { uploadBufferToCloudinary } from "../lib/cloudinary";
 
@@ -13,7 +13,7 @@ async function main() {
     process.stdout.write(`- ${item.slug} ... `);
 
     const bundle = await buildPreviewBundle(
-      componentSourceFiles({ code: item.code, demoCode: item.demoCode, files: item.files }),
+      componentPreviewFiles({ code: item.code, demoCode: item.demoCode, files: item.files }),
       { entry: "/src/App.tsx", title: item.title }
     );
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { transpilePreview, previewEntryFor, type PreviewFile } from "@/lib/preview/transpile";
+import { withShadcnFiles } from "@/lib/preview/server-files";
 
 export const runtime = "nodejs";
 
@@ -29,8 +30,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const entry = body.entry ? String(body.entry) : previewEntryFor(files);
-    const result = await transpilePreview(files, entry);
+    // The studio sends only what the author wrote; the shadcn/ui files their
+    // imports resolve to are added here.
+    const withUi = withShadcnFiles(files);
+    const resolvedEntry = body.entry ? String(body.entry) : previewEntryFor(withUi);
+    const result = await transpilePreview(withUi, resolvedEntry);
 
     return NextResponse.json(result);
   } catch (error) {

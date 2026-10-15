@@ -4,11 +4,25 @@ import { transformAsync } from "@babel/core";
 export type PreviewFile = { path: string; content: string };
 export type TranspiledModule = { path: string; code: string; isStyle: boolean };
 
+/** An `@/...` import that points at nothing in the project. */
+export type UnresolvedImport = { specifier: string; from: string };
+
+/** A file that failed to compile, reported the way a dev server reports it. */
+export type BuildError = {
+  file: string;
+  message: string;
+  line?: number;
+  column?: number;
+  frame?: string;
+};
+
 export type TranspileResult = {
   modules: TranspiledModule[];
   entry: string;
   css: string[];
   externalPackages: string[];
+  unresolved: UnresolvedImport[];
+  errors: BuildError[];
 };
 
 const EXTENSIONS = [".tsx", ".ts", ".jsx", ".js", ".json"];
@@ -24,6 +38,11 @@ const REACT_IMPORT_MAP = new Set([
 
 function normalize(path: string): string {
   return path.startsWith("/") ? path : `/${path}`;
+}
+
+/** How a path reads in an error message: `src/components/component.tsx`. */
+function displayPath(path: string): string {
+  return normalize(path).replace(/^\//, "");
 }
 
 function baseName(path: string): string {
@@ -42,6 +61,16 @@ function resolveLocalPath(
   if (specifier.startsWith("@/")) {
     const rest = specifier.slice(2);
     candidates.push(normalize(`/src/${rest}`));
+
+    // Alias drift: projects (and pasted code) move between a `ui/` folder and
+    // `components/` — try the sibling spelling before giving up.
+    if (rest.startsWith("components/ui/")) {
+      candidates.push(normalize(`/src/components/${rest.slice("components/ui/".length)}`));
+    } else if (rest.startsWith("components/")) {
+      candidates.push(normalize(`/src/components/ui/${rest.slice("components/".length)}`));
+    } else if (rest.startsWith("ui/")) {
+      candidates.push(normalize(`/src/components/ui/${rest.slice("ui/".length)}`));
+    }
   } else if (specifier.startsWith(".")) {
     const fromDir = normalize(fromPath).split("/").slice(0, -1).join("/");
     const stack = [fromDir];
@@ -75,6 +104,21 @@ function resolveLocalPath(
     if (dirMatches.length) return dirMatches[0];
   }
 
+  // Last resort for aliases: match the file by name inside the folders a
+  // component project actually uses, so `@/components/ui/component` still
+  // finds `src/components/component.tsx`.
+  if (specifier.startsWith("@/")) {
+    const name = specifier.split("/").pop()?.replace(/\.(tsx?|jsx?)$/, "");
+    if (name) {
+      for (const dir of ["components", "components/ui", "ui", "hooks", "lib"]) {
+        for (const ext of EXTENSIONS) {
+          const candidate = `/src/${dir}/${name}${ext}`;
+          if (files.includes(candidate)) return candidate;
+        }
+      }
+    }
+  }
+
   return null;
 }
 
@@ -97,12 +141,48 @@ function toEsmUrl(specifier: string): string {
 const IMPORT_RE =
   /(\bimport\s+(?:[\s\S]*?\sfrom\s*)?|\bexport\s+(?:[\s\S]*?\sfrom\s*)|\bimport\s*\(\s*)(["'])([^"']+)\2/g;
 
+/** The few lines around a failing line, the way a dev server shows them. */
+function codeFrame(source: string, line?: number): string | undefined {
+  if (!line) return undefined;
+  const lines = source.split("\n");
+  const start = Math.max(0, line - 3);
+  const end = Math.min(lines.length, line + 2);
+  const width = String(end).length;
+  const out: string[] = [];
+  for (let index = start; index < end; index += 1) {
+    const marker = index === line - 1 ? ">" : " ";
+    out.push(`${marker} ${String(index + 1).padStart(width)}| ${lines[index]}`);
+  }
+  return out.join("\n");
+}
+
+/** Turns whatever Babel threw into the shape the error overlay renders. */
+function toBuildError(error: unknown, filePath: string, source: string): BuildError {
+  const shaped = error as { message?: string; loc?: { line?: number; column?: number } };
+  const message = String(shaped?.message ?? error)
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(/shadway-preview\.(tsx|ts|jsx|js)/g, displayPath(filePath));
+  const line = shaped?.loc?.line;
+  const column = shaped?.loc?.column;
+
+  return {
+    file: displayPath(filePath),
+    message,
+    line,
+    column,
+    frame: codeFrame(source, line),
+  };
+}
+
 export async function transpilePreview(
   files: PreviewFile[],
   entry: string
 ): Promise<TranspileResult> {
   const pathList = files.map((file) => normalize(file.path));
   const externalPackages = new Set<string>();
+  const unresolved: UnresolvedImport[] = [];
+  const errors: BuildError[] = [];
+  const unresolvedSeen = new Set<string>();
 
   const resolved: TranspiledModule[] = [];
 
@@ -128,6 +208,18 @@ export async function transpilePreview(
         return `${prefix}${quote}@vfs${local}${quote}`;
       }
 
+      // An alias that points at nothing is a missing file, not a package.
+      // Report it the way a dev server does instead of leaving a specifier
+      // the browser cannot resolve.
+      if (bare.startsWith("@/")) {
+        const key = `${bare}::${filePath}`;
+        if (!unresolvedSeen.has(key)) {
+          unresolvedSeen.add(key);
+          unresolved.push({ specifier: bare, from: displayPath(filePath) });
+        }
+        return match;
+      }
+
       if (REACT_IMPORT_MAP.has(bare)) {
         return `${prefix}${quote}${bare}${quote}`;
       }
@@ -136,28 +228,32 @@ export async function transpilePreview(
       return `${prefix}${quote}${toEsmUrl(bare)}${quote}`;
     });
 
-    const result = await transformAsync(rewritten, {
-      // Babel only uses the filename for language/syntax heuristics, so keep it
-      // relative and POSIX-free to stay valid on every platform.
-      filename: `shadway-preview${extnameOf(filePath)}`,
-      cwd: process.cwd(),
-      root: process.cwd(),
-      babelrc: false,
-      configFile: false,
-      sourceFileName: filePath,
-      sourceMaps: false,
-      compact: false,
-      presets: [
-        ["@babel/preset-typescript", { isTSX: true, allExtensions: true, onlyRemoveTypeImports: true }],
-        ["@babel/preset-react", { runtime: "automatic" }],
-      ],
-    });
+    try {
+      const result = await transformAsync(rewritten, {
+        // Babel only uses the filename for language/syntax heuristics, so keep it
+        // relative and POSIX-free to stay valid on every platform.
+        filename: `shadway-preview${extnameOf(filePath)}`,
+        cwd: process.cwd(),
+        root: process.cwd(),
+        babelrc: false,
+        configFile: false,
+        sourceFileName: filePath,
+        sourceMaps: false,
+        compact: false,
+        presets: [
+          ["@babel/preset-typescript", { isTSX: true, allExtensions: true, onlyRemoveTypeImports: true }],
+          ["@babel/preset-react", { runtime: "automatic" }],
+        ],
+      });
 
-    resolved.push({
-      path: filePath,
-      code: result?.code ?? rewritten,
-      isStyle: false,
-    });
+      resolved.push({
+        path: filePath,
+        code: result?.code ?? rewritten,
+        isStyle: false,
+      });
+    } catch (error) {
+      errors.push(toBuildError(error, filePath, file.content));
+    }
   }
 
   const css = resolved.filter((m) => m.isStyle).map((m) => m.code);
@@ -170,6 +266,8 @@ export async function transpilePreview(
     entry: entryPath,
     css,
     externalPackages: Array.from(externalPackages),
+    unresolved,
+    errors,
   };
 }
 

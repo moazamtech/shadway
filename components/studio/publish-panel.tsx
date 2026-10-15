@@ -29,18 +29,27 @@ export type PublishMeta = {
 /**
  * Step 2 of publishing: describe the component, attach media, then publish.
  * Kept as its own route so the studio stays a pure editor.
+ *
+ * When a `slug` is present the component is updated in place — the record
+ * keeps its slug, files and history instead of creating a second item.
  */
 export function PublishPanel({
+  slug,
   code,
   demoCode,
   extraFiles,
   dependencies,
+  initialMeta,
+  status = "draft",
   onBack,
 }: {
+  slug?: string;
   code: string;
   demoCode: string;
   extraFiles: { path: string; content: string; type: string }[];
   dependencies: string[];
+  initialMeta?: Partial<PublishMeta>;
+  status?: "draft" | "published" | "hidden" | "flagged";
   onBack?: () => void;
 }) {
   const router = useRouter();
@@ -52,12 +61,21 @@ export function PublishPanel({
     visibility: "public",
     thumbnailUrl: "",
     videoUrl: "",
+    ...initialMeta,
   });
   const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const preview = useMemo(() => code.slice(0, 1400), [code]);
+  const isUpdate = status === "published";
+  const registrySlug =
+    slug ||
+    meta.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") ||
+    "your-slug";
 
   async function uploadMedia(file: File, kind: "image" | "video") {
     setUploading(kind);
@@ -94,6 +112,7 @@ export function PublishPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          slug,
           title: meta.title,
           description: meta.description,
           tags: meta.tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -130,8 +149,11 @@ export function PublishPanel({
             Shadway
           </Link>
           <span className="text-sm text-muted-foreground">/</span>
-          <Badge variant="secondary">Publish</Badge>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={onBack}>
+          <Badge variant="secondary">{isUpdate ? "Update" : "Publish"}</Badge>
+          <Button variant="ghost" size="sm" className="ml-auto" asChild>
+            <Link href="/studio">All components</Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onBack}>
             Back to editor
           </Button>
         </div>
@@ -140,7 +162,9 @@ export function PublishPanel({
       <div className="mx-auto grid max-w-[1100px] gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-6">
         <div className="space-y-5">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Describe your component</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {isUpdate ? "Update your component" : "Describe your component"}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               This becomes the card on the marketplace and the description agents read.
             </p>
@@ -269,7 +293,7 @@ export function PublishPanel({
               <div>
                 <p className="text-muted-foreground">Registry item</p>
                 <code className="mt-1 block break-all rounded bg-muted p-2">
-                  /r/{meta.title ? meta.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "your-slug" : "your-slug"}
+                  /r/{registrySlug}
                 </code>
               </div>
               <div>
@@ -305,7 +329,7 @@ export function PublishPanel({
             ) : (
               <Rocket className="h-4 w-4" />
             )}
-            Publish component
+            {isUpdate ? "Update component" : "Publish component"}
           </Button>
         </aside>
       </div>
