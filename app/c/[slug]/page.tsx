@@ -1,21 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   Bookmark,
   Check,
+  Code2,
   Copy,
   Download,
   Eye,
   Heart,
-  Layers,
+  Maximize2,
   Share2,
   Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { BrandMark } from "@/components/brand-mark";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { useOrigin } from "@/hooks/use-origin";
 import { BundledPreview } from "@/components/preview/bundled-preview";
 import { InstallTabs } from "@/components/marketplace/install-tabs";
 
@@ -34,16 +47,104 @@ type Item = {
   installs: number;
   views: number;
   likes: number;
+  bookmarks?: number;
   category?: string;
   createdAt?: string;
 };
 
 type Tab = "preview" | "code" | "install";
 
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "preview", label: "Preview", icon: Eye },
+  { id: "code", label: "Code", icon: Code2 },
+  { id: "install", label: "Install", icon: Terminal },
+];
+
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function formatDate(value?: string): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/* The segmented thumb: a sliding plate under three equal cells, so the
+   selected view reads as one physical switch. */
+function SegmentedTabs({
+  tab,
+  onChange,
+  className,
+}: {
+  tab: Tab;
+  onChange: (tab: Tab) => void;
+  className?: string;
+}) {
+  const index = TABS.findIndex((t) => t.id === tab);
+  return (
+    <div
+      role="tablist"
+      aria-label="Component view"
+      className={cn(
+        "relative grid h-8 grid-cols-3 rounded-lg bg-muted p-0.5",
+        className
+      )}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-0.5 rounded-md bg-background shadow-sm transition-[left] duration-200 ease-out"
+        style={{
+          width: "calc((100% - 4px) / 3)",
+          left: `calc(2px + ${index} * ((100% - 4px) / 3))`,
+        }}
+      />
+      {TABS.map((t) => {
+        const Icon = t.icon;
+        const active = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(t.id)}
+            className={cn(
+              "relative z-10 flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-[13px] font-medium transition-colors",
+              active
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="hidden md:block">{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <p className="text-lg leading-6 font-semibold tabular-nums">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
 }
 
 export default function ComponentDetailPage() {
@@ -57,6 +158,7 @@ export default function ComponentDetailPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [voted, setVoted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -73,6 +175,44 @@ export default function ComponentDetailPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const response = await fetch(
+          `/api/components/${encodeURIComponent(slug!)}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) throw new Error("not found");
+        const data = await response.json();
+        if (!cancelled) setItem(data.item);
+      } catch {
+        if (!cancelled) setItem(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const origin = useOrigin();
+  const installCommand = item ? `npx shadcn@latest add ${origin}/r/${item.slug}` : "";
+  const registryUrl = item ? `${origin}/r/${item.slug}` : "";
+
+  async function copy(text: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
+    } catch {}
+  }
 
   async function vote() {
     if (!item) return;
@@ -99,7 +239,10 @@ export default function ComponentDetailPage() {
       const res = await fetch("/api/components/bookmarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: item.slug, action: next ? "save" : "remove" }),
+        body: JSON.stringify({
+          slug: item.slug,
+          action: next ? "save" : "remove",
+        }),
       });
       if (!res.ok) throw new Error("failed");
     } catch {
@@ -107,45 +250,26 @@ export default function ComponentDetailPage() {
     }
   }
 
-  useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const response = await fetch(`/api/components/${encodeURIComponent(slug)}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error("not found");
-        const data = await response.json();
-        if (!cancelled) setItem(data.item);
-      } catch {
-        if (!cancelled) setItem(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
-
-  async function copy(text: string, key: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
-    } catch {}
-  }
+  const npmDeps = useMemo(
+    () => (item?.dependencies ?? []).filter(Boolean),
+    [item]
+  );
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
-          <span className="text-sm text-muted-foreground">Loading component...</span>
+      <div className="flex h-dvh flex-col bg-background text-foreground">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
+          <div className="h-5 w-5 animate-pulse rounded-md bg-muted" />
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+          <div className="ml-auto h-8 w-64 animate-pulse rounded-lg bg-muted" />
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="min-h-0 flex-1 animate-pulse bg-muted/40" />
+          <div className="w-full shrink-0 space-y-4 border-t border-border p-5 lg:w-[360px] lg:border-t-0 lg:border-l">
+            <div className="h-10 w-full animate-pulse rounded-lg bg-muted" />
+            <div className="h-24 w-full animate-pulse rounded-lg bg-muted" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-muted" />
+          </div>
         </div>
       </div>
     );
@@ -153,7 +277,7 @@ export default function ComponentDetailPage() {
 
   if (!item) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background text-sm text-muted-foreground">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background text-sm text-muted-foreground">
         <p className="text-lg font-medium text-foreground">Component not found</p>
         <p>The component you are looking for does not exist or has been removed.</p>
         <Button asChild variant="outline">
@@ -163,179 +287,163 @@ export default function ComponentDetailPage() {
     );
   }
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://shadway.com";
-  const installCommand = `npx shadcn@latest add ${origin}/r/${item.slug}`;
-  const registryUrl = `${origin}/r/${item.slug}`;
+  const authorName = item.author.name || item.author.username;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 lg:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
-              <Layers className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-sm font-semibold tracking-tight">Shadway</span>
-          </Link>
-          <span className="text-muted-foreground">/</span>
+    <div className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:min-h-0">
+      {/* Top bar: brand → author crumb → actions. */}
+      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1.5 border-b border-border bg-background px-3 lg:static lg:gap-2 lg:px-4">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2"
+          aria-label="Shadway home"
+        >
+          <BrandMark size={24} />
+          <span className="hidden text-sm font-semibold tracking-tight sm:block">
+            Shadway
+          </span>
+        </Link>
+
+        <span aria-hidden className="px-0.5 text-sm text-border select-none">
+          /
+        </span>
+
+        <Link
+          href={`/u/${item.author.username}`}
+          className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-accent"
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[9px] font-bold uppercase text-muted-foreground">
+            {item.author.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.author.avatar}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              item.author.username.slice(0, 2)
+            )}
+          </span>
           <span className="truncate text-sm font-medium">{item.title}</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => copy(registryUrl, "link")}>
-              {copied === "link" ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              <span className="hidden sm:inline">Share</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/studio")}>
-              Remix
-            </Button>
-            <Button
-              variant={saved ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => void toggleSave()}
-              title={saved ? "Remove from saved" : "Save for later"}
-            >
-              {saved ? <Bookmark className="h-4 w-4 fill-current" /> : <Bookmark className="h-4 w-4" />}
-            </Button>
-            <Button size="sm" onClick={() => copy(installCommand, "install")}>
-              {copied === "install" ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-              Install
-            </Button>
-          </div>
+        </Link>
+
+        {item.category ? (
+          <span className="hidden rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase lg:block">
+            {item.category}
+          </span>
+        ) : null}
+
+        <div className="ml-auto flex items-center gap-1">
+          <SegmentedTabs tab={tab} onChange={setTab} className="hidden md:grid" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Copy link"
+                onClick={() => copy(registryUrl, "link")}
+              >
+                {copied === "link" ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Share2 className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy link</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={saved ? "Remove bookmark" : "Bookmark"}
+                onClick={() => void toggleSave()}
+              >
+                <Bookmark
+                  className={cn("h-4 w-4", saved && "fill-current")}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{saved ? "Remove bookmark" : "Bookmark"}</TooltipContent>
+          </Tooltip>
+
+          <Button
+            size="sm"
+            onClick={() => copy(installCommand, "install")}
+            className="ml-1"
+          >
+            {copied === "install" ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">
+              {copied === "install" ? "Copied" : "Install"}
+            </span>
+          </Button>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-8 lg:px-6">
-        {/* Hero */}
-        <div className="mb-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                {item.category && (
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {item.category}
-                  </span>
-                )}
-              </div>
-              <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
-                {item.title}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {item.description}
-              </p>
+      {/* Mobile view switcher */}
+      <div className="border-b border-border px-3 py-2 md:hidden">
+        <SegmentedTabs tab={tab} onChange={setTab} className="w-full" />
+      </div>
 
-              {/* Author + stats row */}
-              <div className="mt-5 flex flex-wrap items-center gap-4">
-                <Link
-                  href={`/u/${item.author.username}`}
-                  className="flex items-center gap-2.5 rounded-full border border-border/70 bg-muted/30 py-1.5 pl-1.5 pr-3 transition hover:bg-muted/60"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-muted to-muted/50 text-[10px] font-bold uppercase text-muted-foreground">
-                    {item.author.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.author.avatar} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      item.author.username.slice(0, 2)
-                    )}
-                  </span>
-                  <span className="text-sm font-medium">{item.author.name}</span>
-                  <span className="text-xs text-muted-foreground">@{item.author.username}</span>
-                </Link>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1.5" title={`${item.views} views`}>
-                    <Eye className="h-4 w-4" />
-                    {formatCount(item.views)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void vote()}
-                    className={`flex items-center gap-1.5 transition hover:text-foreground ${
-                      voted ? "text-destructive" : ""
-                    }`}
-                    title="Upvote this component"
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* Work area: the selected view fills the pane. */}
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border lg:border-b-0">
+          {tab === "preview" ? (
+            <div className="relative h-[340px] sm:h-[440px] lg:h-full lg:min-h-0">
+              <BundledPreview slug={item.slug} height="100%" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Open fullscreen preview"
+                    onClick={() => setFullscreen(true)}
+                    className="absolute top-3 right-3 z-10 bg-surface"
                   >
-                    <Heart className={`h-4 w-4 ${voted ? "fill-current" : ""}`} />
-                    {formatCount(item.likes + (voted ? 1 : 0))}
-                  </button>
-                  <span className="flex items-center gap-1.5" title={`${item.installs} installs`}>
-                    <Download className="h-4 w-4" />
-                    {formatCount(item.installs)}
-                  </span>
-                </div>
-              </div>
-
-              {item.tags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {item.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Fullscreen</TooltipContent>
+              </Tooltip>
             </div>
-          </div>
-        </div>
+          ) : null}
 
-        {/* Tabs */}
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card">
-          <div className="flex items-center gap-1 border-b border-border/70 bg-muted/30 px-3 py-2">
-            {(
-              [
-                { id: "preview", label: "Preview", icon: Eye },
-                { id: "code", label: "Code", icon: Copy },
-                { id: "install", label: "Install", icon: Terminal },
-              ] as const
-            ).map((t) => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition ${
-                    tab === t.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {tab === "preview" && (
-            <div className="bg-background">
-              <BundledPreview slug={item.slug} height={560} />
-            </div>
-          )}
-
-          {tab === "code" && (
-            <div className="relative">
+          {tab === "code" ? (
+            <div className="relative min-h-0 flex-1">
               <Button
                 variant="outline"
                 size="sm"
-                className="absolute right-3 top-3 z-10"
+                className="absolute top-3 right-3 z-10"
                 onClick={() => copy(item.code, "code")}
               >
-                {copied === "code" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied === "code" ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
                 Copy
               </Button>
-              <pre className="max-h-[560px] overflow-auto bg-zinc-950 p-5 text-xs leading-6 text-zinc-200">
+              <pre className="h-[420px] overflow-auto bg-well p-4 font-mono text-xs leading-6 lg:h-full">
                 <code>{item.code}</code>
               </pre>
             </div>
-          )}
+          ) : null}
 
-          {tab === "install" && (
-            <div className="space-y-5 p-5 sm:p-6">
+          {tab === "install" ? (
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 lg:p-6">
               <InstallTabs
                 slug={item.slug}
                 dependencies={item.dependencies}
                 registryDependencies={item.registryDependencies}
               />
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                 <p className="text-sm text-muted-foreground">
                   Published by{" "}
                   <Link
@@ -345,14 +453,185 @@ export default function ComponentDetailPage() {
                     @{item.author.username}
                   </Link>
                 </p>
-                <Button variant="outline" size="sm" onClick={() => router.push("/studio")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/studio")}
+                >
                   Remix in studio
                 </Button>
               </div>
             </div>
-          )}
-        </div>
+          ) : null}
+        </section>
+
+        {/* Info rail: author, actions, stats, install, metadata. */}
+        <aside className="w-full shrink-0 space-y-5 p-4 lg:w-[360px] lg:min-h-0 lg:space-y-6 lg:overflow-y-auto lg:border-l lg:border-border lg:p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-xs font-bold uppercase text-muted-foreground">
+              {item.author.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.author.avatar}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                item.author.username.slice(0, 2)
+              )}
+            </span>
+            <div className="min-w-0">
+              <Link
+                href={`/u/${item.author.username}`}
+                className="block truncate text-sm font-medium hover:underline"
+              >
+                {authorName}
+              </Link>
+              <p className="truncate text-xs text-muted-foreground">
+                @{item.author.username}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="ml-auto shrink-0"
+            >
+              <Link href={`/u/${item.author.username}`}>Profile</Link>
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={voted ? "secondary" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={() => void vote()}
+              title="Upvote this component"
+            >
+              <Heart
+                className={cn("h-3.5 w-3.5", voted && "fill-current text-destructive")}
+              />
+              {formatCount(item.likes + (voted ? 1 : 0))}
+            </Button>
+            <Button
+              variant={saved ? "secondary" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={() => void toggleSave()}
+              title={saved ? "Remove from bookmarks" : "Save for later"}
+            >
+              <Bookmark className={cn("h-3.5 w-3.5", saved && "fill-current")} />
+              {saved ? "Saved" : "Save"}
+            </Button>
+          </div>
+
+          {item.description ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {item.description}
+            </p>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Views" value={formatCount(item.views)} />
+            <Stat label="Installs" value={formatCount(item.installs)} />
+            <Stat label="Likes" value={formatCount(item.likes)} />
+            <Stat
+              label="Bookmarks"
+              value={formatCount(item.bookmarks ?? 0)}
+            />
+          </div>
+
+          {item.tags.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Install
+            </h2>
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-well p-1.5 pl-3">
+              <code className="min-w-0 flex-1 truncate font-mono text-xs">
+                {installCommand}
+              </code>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Copy install command"
+                onClick={() => copy(installCommand, "install-rail")}
+              >
+                {copied === "install-rail" ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {npmDeps.length || item.registryDependencies.length ? (
+            <div className="space-y-2">
+              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Dependencies
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {npmDeps.map((dep) => (
+                  <span
+                    key={`npm-${dep}`}
+                    className="rounded-md border border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+                  >
+                    {dep}
+                  </span>
+                ))}
+                {item.registryDependencies.map((dep) => (
+                  <span
+                    key={`reg-${dep}`}
+                    className="rounded-md border border-dashed border-border px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+                  >
+                    {dep}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <dl className="space-y-2 border-t border-border pt-4 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">License</dt>
+              <dd>MIT</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Published</dt>
+              <dd>{formatDate(item.createdAt)}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Registry</dt>
+              <dd className="max-w-[180px] truncate font-mono text-xs">
+                /r/{item.slug}
+              </dd>
+            </div>
+          </dl>
+        </aside>
       </div>
-    </main>
+
+      {/* Fullscreen preview */}
+      <Dialog open={fullscreen} onOpenChange={setFullscreen}>
+        <DialogContent className="max-w-none gap-0 overflow-hidden p-0 sm:max-w-[min(1400px,94vw)]">
+          <DialogTitle className="sr-only">{item.title} preview</DialogTitle>
+          <div className="h-[min(860px,88vh)] w-full">
+            <BundledPreview slug={item.slug} height="100%" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
