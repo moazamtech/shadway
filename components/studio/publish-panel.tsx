@@ -109,6 +109,10 @@ export function PublishPanel({
       });
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        throw new Error("Sign in to publish. Open the login page, then try again.");
+      }
       if (!response.ok) throw new Error(data.error || "Failed to publish component");
       router.push(`/c/${data.item.slug}`);
     } catch (err) {

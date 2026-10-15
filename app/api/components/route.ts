@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireSession, resolveAuthor } from "@/lib/auth/require-session";
 import {
   listComponents,
   createComponent,
@@ -57,7 +56,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const session = await getServerSession(authOptions);
+    const { session, response: authError } = await requireSession();
+    if (authError) return authError;
+
     const body = await request.json();
 
     const title = String(body.title || body.name || "").trim();
@@ -83,26 +84,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let author;
-    if (session?.user) {
-      author = {
-        userId: session.user.id || session.user.email || "unknown",
-        name: session.user.name || session.user.email || "Unknown user",
-        username:
-          (session.user as { username?: string }).username ||
-          session.user.email?.split("@")[0] ||
-          "anonymous",
-        avatar: (session.user as { image?: string }).image || undefined,
-      };
-    } else {
-      const fallbackName = String(body.authorName || body.author || "Anonymous").trim();
-      author = {
-        userId: `anon-${Date.now()}`,
-        name: fallbackName,
-        username: slugify(fallbackName),
-        avatar: undefined,
-      };
-    }
+    const author = await resolveAuthor(session);
 
     const item = await createComponent({
       slug: requestedSlug && isValidSlug(requestedSlug) ? requestedSlug : undefined,
@@ -212,13 +194,4 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create component:", error);
     return NextResponse.json({ error: "Failed to create component" }, { status: 500 });
   }
-}
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
 }
