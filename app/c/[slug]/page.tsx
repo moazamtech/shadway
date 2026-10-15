@@ -34,9 +34,17 @@ type Item = {
   installs: number;
   views: number;
   likes: number;
+  category?: string;
+  createdAt?: string;
 };
 
 type Tab = "preview" | "code" | "install";
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 export default function ComponentDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -134,16 +142,20 @@ export default function ComponentDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading component...
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
+          <span className="text-sm text-muted-foreground">Loading component...</span>
+        </div>
       </div>
     );
   }
 
   if (!item) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
-        <p>Component not found.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background text-sm text-muted-foreground">
+        <p className="text-lg font-medium text-foreground">Component not found</p>
+        <p>The component you are looking for does not exist or has been removed.</p>
         <Button asChild variant="outline">
           <Link href="/">Back to feed</Link>
         </Button>
@@ -157,13 +169,16 @@ export default function ComponentDetailPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-[1200px] items-center gap-4 px-4 py-3 lg:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Layers className="h-5 w-5" />
-            <span className="text-sm font-semibold tracking-tight">Shadway</span>
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3 lg:px-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+              <Layers className="h-4 w-4" />
+            </span>
+            <span className="font-serif text-sm font-semibold tracking-tight">Shadway</span>
           </Link>
-          <span className="text-sm text-muted-foreground">/</span>
+          <span className="text-muted-foreground">/</span>
           <span className="truncate text-sm font-medium">{item.title}</span>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => copy(registryUrl, "link")}>
@@ -189,63 +204,102 @@ export default function ComponentDetailPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1200px] px-4 py-6 lg:px-6">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{item.title}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{item.description}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {item.tags.slice(0, 6).map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
+      <div className="mx-auto max-w-[1400px] px-4 py-8 lg:px-6">
+        {/* Hero */}
+        <div className="mb-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                {item.category && (
+                  <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {item.category}
+                  </span>
+                )}
+              </div>
+              <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
+                {item.title}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {item.description}
+              </p>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
-              {item.views}
-            </span>
-            <button
-              type="button"
-              onClick={() => void vote()}
-              className={`flex items-center gap-1 transition hover:text-foreground ${
-                voted ? "text-destructive" : ""
-              }`}
-              title="Upvote this component"
-            >
-              <Heart className={`h-4 w-4 ${voted ? "fill-current" : ""}`} />
-              {item.likes + (voted ? 1 : 0)}
-            </button>
-            <span className="flex items-center gap-1">
-              <Download className="h-4 w-4" />
-              {item.installs}
-            </span>
+              {/* Author + stats row */}
+              <div className="mt-5 flex flex-wrap items-center gap-4">
+                <Link
+                  href={`/u/${item.author.username}`}
+                  className="flex items-center gap-2.5 rounded-full border border-border/70 bg-muted/30 py-1.5 pl-1.5 pr-3 transition hover:bg-muted/60"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-muted to-muted/50 text-[10px] font-bold uppercase text-muted-foreground">
+                    {item.author.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.author.avatar} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      item.author.username.slice(0, 2)
+                    )}
+                  </span>
+                  <span className="text-sm font-medium">{item.author.name}</span>
+                  <span className="text-xs text-muted-foreground">@{item.author.username}</span>
+                </Link>
+
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5" title={`${item.views} views`}>
+                    <Eye className="h-4 w-4" />
+                    {formatCount(item.views)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void vote()}
+                    className={`flex items-center gap-1.5 transition hover:text-foreground ${
+                      voted ? "text-destructive" : ""
+                    }`}
+                    title="Upvote this component"
+                  >
+                    <Heart className={`h-4 w-4 ${voted ? "fill-current" : ""}`} />
+                    {formatCount(item.likes + (voted ? 1 : 0))}
+                  </button>
+                  <span className="flex items-center gap-1.5" title={`${item.installs} installs`}>
+                    <Download className="h-4 w-4" />
+                    {formatCount(item.installs)}
+                  </span>
+                </div>
+              </div>
+
+              {item.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {item.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border">
-          <div className="flex items-center gap-1 border-b bg-muted/30 px-2 py-1.5">
+        {/* Tabs */}
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+          <div className="flex items-center gap-1 border-b border-border/70 bg-muted/30 px-3 py-2">
             {(
               [
                 { id: "preview", label: "Preview", icon: Eye },
                 { id: "code", label: "Code", icon: Copy },
                 { id: "install", label: "Install", icon: Terminal },
               ] as const
-            ).map((itemTab) => {
-              const Icon = itemTab.icon;
+            ).map((t) => {
+              const Icon = t.icon;
               return (
                 <button
-                  key={itemTab.id}
-                  onClick={() => setTab(itemTab.id)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                    tab === itemTab.id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition ${
+                    tab === t.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  {itemTab.label}
+                  {t.label}
                 </button>
               );
             })}
@@ -253,7 +307,7 @@ export default function ComponentDetailPage() {
 
           {tab === "preview" && (
             <div className="bg-background">
-              <BundledPreview slug={item.slug} height={520} />
+              <BundledPreview slug={item.slug} height={560} />
             </div>
           )}
 
@@ -275,17 +329,22 @@ export default function ComponentDetailPage() {
           )}
 
           {tab === "install" && (
-            <div className="space-y-4 p-5">
+            <div className="space-y-5 p-5 sm:p-6">
               <InstallTabs
                 slug={item.slug}
                 dependencies={item.dependencies}
                 registryDependencies={item.registryDependencies}
               />
-
-              <div className="flex items-center justify-between border-t pt-4">
-                <div className="text-sm text-muted-foreground">
-                  Published by <span className="font-medium text-foreground">@{item.author.username}</span>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Published by{" "}
+                  <Link
+                    href={`/u/${item.author.username}`}
+                    className="font-medium text-foreground hover:underline"
+                  >
+                    @{item.author.username}
+                  </Link>
+                </p>
                 <Button variant="outline" size="sm" onClick={() => router.push("/studio")}>
                   Remix in studio
                 </Button>
@@ -297,4 +356,3 @@ export default function ComponentDetailPage() {
     </main>
   );
 }
-
