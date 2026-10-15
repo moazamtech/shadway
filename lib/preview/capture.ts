@@ -58,6 +58,12 @@ export async function capturePreview(
     const htmlUrl = `data:text/html;charset=utf-8,${encodeURIComponent(bundleHtml)}`;
     await page.goto(htmlUrl, { waitUntil: "networkidle2", timeout: 45000 });
 
+    // Force dark mode so covers match the dark-themed feed.
+    await page.evaluate(() => {
+      document.documentElement.classList.add("dark");
+      document.documentElement.style.colorScheme = "dark";
+    });
+
     // Give React + Tailwind CDN a moment to paint.
     await new Promise((resolve) => setTimeout(resolve, 2200));
 

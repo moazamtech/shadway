@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bookmark, Check, Copy, Download, Eye, Heart, Play, Video } from "lucide-react";
+import { Bookmark, Check, Copy, Download, Eye, Heart, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MarketplaceCardItem = {
@@ -76,16 +76,12 @@ export function ComponentCard({
   }
 
   return (
-    <article
-      className="group flex flex-col"
-      onMouseEnter={() => setShowVideo(true)}
-      onMouseLeave={() => setShowVideo(false)}
-    >
-      {/* Cover — reserved 16:10 box keeps the grid from shifting while covers load. */}
-      <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/60 bg-muted/30 transition-all duration-300 group-hover:border-foreground/15 group-hover:shadow-lg group-hover:shadow-black/20 group-focus-within:border-foreground/15">
+    <article className="group flex flex-col">
+      {/* Cover — framed preview with border so it looks intentional on dark. */}
+      <div className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-all duration-200 group-hover:border-foreground/20 group-hover:shadow-lg group-hover:shadow-black/20">
         <Link
           href={`/c/${item.slug}`}
-          className="absolute inset-0 block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="absolute inset-0 block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label={`View ${item.title}`}
         >
           {showVideo && item.videoUrl ? (
@@ -108,42 +104,29 @@ export function ComponentCard({
               loading="lazy"
               decoding="async"
               onError={() => setCoverFailed(true)}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.01]"
             />
           ) : (
-            <FallbackPreview title={item.title} tags={item.tags} />
+            <FallbackPreview title={item.title} tags={item.tags} category={item.category} />
           )}
         </Link>
 
-        {/* Bottom gradient for legibility of overlaid stats. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
-
         {/* Category badge — top left. */}
         {item.category && (
-          <span className="absolute left-2.5 top-2.5 z-10 rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/90 backdrop-blur-sm">
+          <span className="absolute left-1.5 top-1.5 z-10 rounded bg-background/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground/70 backdrop-blur-sm">
             {item.category}
           </span>
         )}
 
         {/* Video indicator. */}
         {item.videoUrl && (
-          <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-md bg-black/50 px-1.5 py-1 text-white/90 backdrop-blur-sm">
-            <Play className="h-3 w-3 fill-current" aria-hidden="true" />
-            <span className="sr-only">Has a demo video</span>
+          <span className="absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded bg-background/80 text-foreground/70 backdrop-blur-sm">
+            <Play className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
           </span>
         )}
 
-        {/* View count — bottom right on the cover. */}
-        {item.views > 0 && (
-          <span className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1 rounded-md bg-black/50 px-1.5 py-0.5 text-[11px] font-medium text-white/90 backdrop-blur-sm">
-            <Eye className="h-3 w-3" aria-hidden="true" />
-            {formatCount(item.views)}
-          </span>
-        )}
-
-        {/* Actions sit outside the link so they are never nested interactives.
-            Always visible on touch, revealed on hover/focus elsewhere. */}
-        <div className="pointer-events-none absolute bottom-2.5 left-2.5 z-10 flex gap-1.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+        {/* Hover actions — bottom right. */}
+        <div className="absolute bottom-1.5 right-1.5 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           {onSave && (
             <button
               type="button"
@@ -151,12 +134,9 @@ export function ComponentCard({
               aria-label={saved ? "Remove from saved" : "Save for later"}
               aria-pressed={saved}
               onClick={() => onSave(item.slug)}
-              className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-lg bg-black/50 text-white/90 backdrop-blur-sm transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground/70 backdrop-blur-sm transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Bookmark
-                className={cn("h-3.5 w-3.5", saved && "fill-current")}
-                aria-hidden="true"
-              />
+              <Bookmark className={cn("h-3 w-3", saved && "fill-current")} aria-hidden="true" />
             </button>
           )}
           <button
@@ -164,21 +144,21 @@ export function ComponentCard({
             title={copied ? "Copied" : "Copy install command"}
             aria-label={copied ? "Install command copied" : "Copy install command"}
             onClick={() => void copyInstall()}
-            className="pointer-events-auto flex h-7 w-7 items-center justify-center rounded-lg bg-black/50 text-white/90 backdrop-blur-sm transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground/70 backdrop-blur-sm transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+              <Check className="h-3 w-3 text-emerald-600" aria-hidden="true" />
             ) : (
-              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              <Copy className="h-3 w-3" aria-hidden="true" />
             )}
           </button>
         </div>
       </div>
 
-      {/* Meta row — avatar, title, author, stats. */}
-      <div className="mt-3 flex items-start gap-3">
+      {/* Meta row */}
+      <div className="mt-2 flex items-start gap-2">
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-gradient-to-br from-muted to-muted/50 text-[11px] font-bold uppercase text-muted-foreground"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/40 bg-muted/40 text-[9px] font-bold uppercase text-muted-foreground"
           aria-hidden="true"
         >
           {item.author.avatar ? (
@@ -186,7 +166,7 @@ export function ComponentCard({
             <img
               src={item.author.avatar}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full rounded-full object-cover"
               loading="lazy"
             />
           ) : (
@@ -197,14 +177,14 @@ export function ComponentCard({
         <div className="min-w-0 flex-1">
           <Link
             href={`/c/${item.slug}`}
-            className="block truncate rounded-sm text-sm font-semibold leading-snug outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="block truncate rounded-sm text-[13px] font-medium leading-tight outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
             {item.title}
           </Link>
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
             <Link
               href={`/u/${item.author.username}`}
-              className="truncate rounded-sm outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="truncate rounded-sm outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             >
               {item.author.name}
             </Link>
@@ -216,43 +196,55 @@ export function ComponentCard({
             )}
           </div>
         </div>
+      </div>
 
-        <div className="flex shrink-0 items-center gap-2.5 text-[11px] text-muted-foreground">
-          {item.likes > 0 && (
-            <span className="flex items-center gap-0.5" title={`${item.likes} likes`}>
-              <Heart className="h-3 w-3" aria-hidden="true" />
-              {formatCount(item.likes)}
-            </span>
-          )}
-          <span className="flex items-center gap-0.5" title={`${item.installs} installs`}>
-            <Download className="h-3 w-3" aria-hidden="true" />
-            {formatCount(item.installs)}
-          </span>
-        </div>
+      {/* Stats row */}
+      <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1" title={`${item.views} views`}>
+          <Eye className="h-3 w-3" aria-hidden="true" />
+          {formatCount(item.views)}
+        </span>
+        <span className="flex items-center gap-1" title={`${item.likes} likes`}>
+          <Heart className="h-3 w-3" aria-hidden="true" />
+          {formatCount(item.likes)}
+        </span>
+        <span className="flex items-center gap-1" title={`${item.installs} installs`}>
+          <Download className="h-3 w-3" aria-hidden="true" />
+          {formatCount(item.installs)}
+        </span>
       </div>
     </article>
   );
 }
 
-function FallbackPreview({ title, tags }: { title: string; tags: string[] }) {
+function FallbackPreview({
+  title,
+  tags,
+  category,
+}: {
+  title: string;
+  tags: string[];
+  category?: string;
+}) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-muted/60 to-background p-6 text-center">
-      <div className="max-w-full rounded-xl border border-border/60 bg-background/60 px-4 py-3 shadow-sm">
-        <p className="line-clamp-2 text-sm font-medium">{title}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">Preview pending</p>
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-muted/30 to-background p-4 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/40 bg-background/50">
+        <svg
+          className="h-5 w-5 text-muted-foreground"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v13.5A1.5 1.5 0 003.75 21z"
+          />
+        </svg>
       </div>
-      {tags.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <p className="line-clamp-2 text-xs font-medium text-muted-foreground">{title}</p>
     </div>
   );
 }
