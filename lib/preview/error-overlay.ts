@@ -1,31 +1,28 @@
 /**
- * The error surface shared by every preview engine (studio iframe and
- * published component pages).
+ * The error surface shared by every preview engine (the studio's browser-side
+ * iframe and the published preview bundle).
  *
- * The overlay itself is Vite's own `vite-error-overlay` custom element
- * (vendored into `public/preview/vite-overlay.js`), so a crash here looks
- * exactly like a crash in a Vite + React dev server: the red window, the
- * message, the code frame, the stack, click-away or Esc to dismiss.
- *
- * This script only *routes* errors into it:
+ * The panel itself is the `preview-error-overlay` custom element served from
+ * `public/preview/overlay.js`; this script only *routes* errors into it:
  *   - `window.onerror` / unhandled rejections
- *   - module resolution failures, rewritten into Vite's wording
- *     ("Failed to resolve import "@/x" from "src/y.tsx". Does the file exist?")
+ *   - module resolution failures, worded the way a Next.js dev server words
+ *     them ("Module not found: Can't resolve '@/components/ui/select'")
  *   - build errors handed over as `window.__shadwayBuildError`
  * Blob URLs inside stack traces are mapped back to the project file paths.
  */
 
 export const PREVIEW_ERROR_CSS = `
-.twp-fallback{position:fixed;top:0;left:0;right:0;z-index:2147483647;margin:0;padding:12px 14px;max-height:60%;overflow:auto;background:#18181b;border-bottom:1px solid #ef4444;color:#fda4af;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
+.shadway-preview-error{position:fixed;top:0;left:0;right:0;z-index:2147483647;margin:0;padding:12px 14px;max-height:60%;overflow:auto;background:#18181b;border-bottom:1px solid #ef4444;color:#fda4af;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}
 `;
 
 export const PREVIEW_ERROR_SCRIPT = `
 (function () {
+  var OVERLAY = "preview-error-overlay";
   var lastMessage = null;
 
   function fallback(message, stack) {
     var el = document.createElement("pre");
-    el.className = "twp-fallback";
+    el.className = "shadway-preview-error";
     el.textContent = message + (stack ? "\\n\\n" + stack : "");
     (document.body || document.documentElement).appendChild(el);
   }
@@ -43,7 +40,7 @@ export const PREVIEW_ERROR_SCRIPT = `
 
   /**
    * The browser reports a bare "Failed to resolve module specifier" TypeError;
-   * a Vite dev server reports the import and the importing file instead.
+   * the dev server reports the import and the file that wanted it.
    */
   function asImportError(message) {
     var match = /Failed to (?:resolve module specifier|fetch dynamically imported module)[^"']*["']([^"']+)["']/.exec(message);
@@ -61,11 +58,12 @@ export const PREVIEW_ERROR_SCRIPT = `
     lastMessage = options.message || "";
 
     function mount() {
-      var Overlay = customElements.get("vite-error-overlay");
+      var Overlay = customElements.get(OVERLAY);
       if (!Overlay) return false;
-      var existing = document.querySelectorAll("vite-error-overlay");
+      var existing = document.querySelectorAll(OVERLAY);
       for (var i = 0; i < existing.length; i += 1) existing[i].remove();
       var payload = {
+        title: options.title || "Unhandled error",
         message: options.message || "Unknown error",
         stack: prettyStack(options.stack),
         id: options.file || undefined,
@@ -80,9 +78,9 @@ export const PREVIEW_ERROR_SCRIPT = `
     if (mount()) return;
     // The overlay module may still be loading — give it a moment, then fall
     // back to a plain panel so the error is never swallowed.
-    customElements.whenDefined("vite-error-overlay").then(mount);
+    customElements.whenDefined(OVERLAY).then(mount);
     setTimeout(function () {
-      if (!customElements.get("vite-error-overlay")) {
+      if (!customElements.get(OVERLAY)) {
         fallback(options.message, options.stack);
       }
     }, 2500);
@@ -94,7 +92,10 @@ export const PREVIEW_ERROR_SCRIPT = `
     var target = event.target;
     if (target && target !== window && target.tagName) {
       var url = target.src || target.href || "(unknown source)";
-      show({ message: "Failed to load " + target.tagName.toLowerCase() + ": " + url });
+      show({
+        title: "Failed to load resource",
+        message: "Failed to load " + target.tagName.toLowerCase() + ": " + url,
+      });
       return;
     }
 
@@ -102,15 +103,15 @@ export const PREVIEW_ERROR_SCRIPT = `
     var import_ = asImportError(message);
     if (import_) {
       show({
-        message:
-          'Failed to resolve import "' + import_.specifier + '" from "' +
-          (import_.from || "your project") + '". Does the file exist?',
+        title: "Module not found",
+        message: "Module not found: Can't resolve '" + import_.specifier + "'",
         file: import_.from || undefined,
       });
       return;
     }
 
     show({
+      title: "Unhandled Runtime Error",
       message: message,
       stack: event.error && event.error.stack ? event.error.stack : "",
     });
@@ -119,6 +120,7 @@ export const PREVIEW_ERROR_SCRIPT = `
   window.addEventListener("unhandledrejection", function (event) {
     var reason = event.reason;
     show({
+      title: "Unhandled Runtime Error",
       message: reason && reason.message ? reason.message : String(reason),
       stack: reason && reason.stack ? reason.stack : "",
     });
@@ -128,6 +130,7 @@ export const PREVIEW_ERROR_SCRIPT = `
     var error = window.__shadwayBuildError;
     if (!error) return;
     show({
+      title: error.title || "Failed to compile",
       message: error.message || "Build failed",
       stack: "",
       file: error.file || undefined,

@@ -23,11 +23,11 @@ type Props = {
 
 const REACT_IMPORT_MAP = {
   imports: {
-    react: "https://esm.sh/react@18.3.1",
-    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
-    "react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    react: "https://esm.sh/react@19.1.2",
+    "react/jsx-runtime": "https://esm.sh/react@19.1.2/jsx-runtime",
+    "react/jsx-dev-runtime": "https://esm.sh/react@19.1.2/jsx-dev-runtime",
+    "react-dom": "https://esm.sh/react-dom@19.1.2",
+    "react-dom/client": "https://esm.sh/react-dom@19.1.2/client",
   },
 };
 
@@ -112,8 +112,8 @@ async function transpileCached(
 }
 
 /**
- * A broken build still renders a page: the Vite error overlay sits on top of
- * it with the message, the file and the code frame, so the preview pane never
+ * A broken build still renders a page: the error overlay sits on top of it
+ * with the message, the file and the code frame, so the preview pane never
  * goes silently blank.
  */
 function errorDocument(
@@ -124,6 +124,7 @@ function errorDocument(
 ): string {
   const payload = buildError
     ? {
+        title: "Failed to compile",
         message: buildError.message,
         file: buildError.file,
         frame: buildError.frame,
@@ -136,9 +137,8 @@ function errorDocument(
           : undefined,
       }
     : {
-        message: `Failed to resolve import "${unresolved?.specifier ?? ""}" from "${
-          unresolved?.from ?? "your project"
-        }". Does the file exist?`,
+        title: "Module not found",
+        message: `Module not found: Can't resolve '${unresolved?.specifier ?? ""}'`,
         file: unresolved?.from,
       };
 
@@ -150,7 +150,7 @@ function errorDocument(
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'" />
 <style>${BASE_CSS}</style>
 <script>window.__shadwayBuildError = ${JSON.stringify(payload).replace(/</g, "\\u003c")};</script>
-<script type="module" src="${origin}/preview/vite-overlay.js"></script>
+<script type="module" src="${origin}/preview/overlay.js"></script>
 <script>${PREVIEW_ERROR_SCRIPT}</script>
 </head>
 <body></body>
@@ -263,7 +263,7 @@ ${PREVIEW_THEME_CSS}
 <script type="importmap">${JSON.stringify(REACT_IMPORT_MAP)}</script>
 <script>window.__shadwayBlobMap = ${JSON.stringify(blobMap)};</script>
 <script>window.__shadwayUnresolved = ${JSON.stringify(unresolved)};</script>
-<script type="module" src="${origin}/preview/vite-overlay.js"></script>
+<script type="module" src="${origin}/preview/overlay.js"></script>
 <script>${PREVIEW_ERROR_SCRIPT}</script>
 </head>
 <body>

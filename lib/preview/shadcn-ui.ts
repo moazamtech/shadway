@@ -16,15 +16,15 @@ const IMPORT_RE = /(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g;
 const EXTENSIONS = [".tsx", ".ts"];
 
 /**
- * Where a vendored file is installed inside the preview's `/src` tree:
+ * Where a vendored file is installed inside the project tree:
  *
- *   ui/button.tsx        -> /src/components/ui/button.tsx
- *   hooks/use-mobile.ts  -> /src/hooks/use-mobile.ts
- *   lib/utils.ts         -> /src/lib/utils.ts
+ *   ui/button.tsx        -> /components/ui/button.tsx
+ *   hooks/use-mobile.ts  -> /hooks/use-mobile.ts
+ *   lib/utils.ts         -> /lib/utils.ts
  */
 export function installedPathFor(vendored: string): string {
-  if (vendored.startsWith("ui/")) return `/src/components/${vendored}`;
-  return `/src/${vendored}`;
+  if (vendored.startsWith("ui/")) return `/components/${vendored}`;
+  return `/${vendored}`;
 }
 
 /**

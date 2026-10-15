@@ -4,7 +4,18 @@
  */
 
 const IMPORT_RE = /(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g;
-const IMPORT_FAILURE_RE = /Failed to resolve import "([^"]+)" from/;
+
+/**
+ * How dev servers word a missing import:
+ *
+ *   Next.js: Module not found: Can't resolve '@/components/ui/select'
+ *   Node:    Cannot find module './foo'
+ */
+const IMPORT_FAILURE_RES = [
+  /Failed to resolve import "([^"]+)" from/,
+  /Can't resolve ['"]([^'"]+)['"]/,
+  /Cannot find module ['"]([^'"]+)['"]/,
+];
 
 /** Node's own modules never belong in package.json. */
 const NODE_BUILTINS = new Set([
@@ -59,9 +70,13 @@ export function collectNpmDependencies(files: { path: string; content: string }[
   return [...found].sort();
 }
 
-/** The specifier out of Vite's `Failed to resolve import "x" from ...` error. */
+/** The specifier out of a dev-server "module not found" error. */
 export function missingImportFromLog(message: string): string | null {
-  return message.match(IMPORT_FAILURE_RE)?.[1] ?? null;
+  for (const pattern of IMPORT_FAILURE_RES) {
+    const found = message.match(pattern)?.[1];
+    if (found) return found;
+  }
+  return null;
 }
 
 export type MissingDependencyInfo = { packageName: string; latestVersion: string };

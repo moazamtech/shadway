@@ -50,7 +50,7 @@ function baseName(path: string): string {
   return name.replace(/\.(tsx|ts|jsx|js)$/, "");
 }
 
-/** Turn `@/lib/utils` or `./utils` into a concrete `/src/lib/utils.tsx` path. */
+/** Turn `@/lib/utils` or `./utils` into a concrete `/lib/utils.tsx` path. */
 function resolveLocalPath(
   specifier: string,
   fromPath: string,
@@ -60,16 +60,25 @@ function resolveLocalPath(
 
   if (specifier.startsWith("@/")) {
     const rest = specifier.slice(2);
+    // "@/..." resolves from the project root — the layout of an App Router
+    // project. Projects written before that layout kept a src/ prefix.
+    candidates.push(normalize(`/${rest}`));
     candidates.push(normalize(`/src/${rest}`));
 
     // Alias drift: projects (and pasted code) move between a `ui/` folder and
     // `components/` — try the sibling spelling before giving up.
     if (rest.startsWith("components/ui/")) {
-      candidates.push(normalize(`/src/components/${rest.slice("components/ui/".length)}`));
+      const tail = rest.slice("components/ui/".length);
+      candidates.push(normalize(`/components/${tail}`));
+      candidates.push(normalize(`/src/components/${tail}`));
     } else if (rest.startsWith("components/")) {
-      candidates.push(normalize(`/src/components/ui/${rest.slice("components/".length)}`));
+      const tail = rest.slice("components/".length);
+      candidates.push(normalize(`/components/ui/${tail}`));
+      candidates.push(normalize(`/src/components/ui/${tail}`));
     } else if (rest.startsWith("ui/")) {
-      candidates.push(normalize(`/src/components/ui/${rest.slice("ui/".length)}`));
+      const tail = rest.slice("ui/".length);
+      candidates.push(normalize(`/components/ui/${tail}`));
+      candidates.push(normalize(`/src/components/ui/${tail}`));
     }
   } else if (specifier.startsWith(".")) {
     const fromDir = normalize(fromPath).split("/").slice(0, -1).join("/");
@@ -106,14 +115,16 @@ function resolveLocalPath(
 
   // Last resort for aliases: match the file by name inside the folders a
   // component project actually uses, so `@/components/ui/component` still
-  // finds `src/components/component.tsx`.
+  // finds `components/component.tsx`.
   if (specifier.startsWith("@/")) {
     const name = specifier.split("/").pop()?.replace(/\.(tsx?|jsx?)$/, "");
     if (name) {
       for (const dir of ["components", "components/ui", "ui", "hooks", "lib"]) {
         for (const ext of EXTENSIONS) {
-          const candidate = `/src/${dir}/${name}${ext}`;
-          if (files.includes(candidate)) return candidate;
+          for (const root of ["", "/src"]) {
+            const candidate = `${root}/${dir}/${name}${ext}`;
+            if (files.includes(candidate)) return candidate;
+          }
         }
       }
     }
@@ -304,10 +315,12 @@ export function orderModules(modules: TranspiledModule[]): TranspiledModule[] {
 
 export const previewEntryFor = (files: PreviewFile[]): string => {
   const has = (p: string) => files.some((f) => normalize(f.path) === p);
+  if (has("/app/page.tsx")) return "/app/page.tsx";
+  // Layouts from before the app folder kept their demo at src/App.tsx.
   if (has("/src/App.tsx")) return "/src/App.tsx";
   if (has("/App.tsx")) return "/App.tsx";
   const first = files.find((f) => f.path.endsWith(".tsx"));
-  return first ? normalize(first.path) : "/src/index.tsx";
+  return first ? normalize(first.path) : "/app/page.tsx";
 };
 
 export { baseName };

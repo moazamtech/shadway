@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 export type StudioItem = {
   slug: string;
   title: string;
-  status: "draft" | "published" | "hidden" | "flagged";
+  status: "draft" | "pending" | "published" | "hidden" | "flagged";
   visibility: "public" | "unlisted" | "private";
   views: number;
   likes: number;
@@ -44,6 +44,7 @@ export type StudioItem = {
 
 const STATUS_STYLES: Record<StudioItem["status"], string> = {
   draft: "bg-muted text-muted-foreground",
+  pending: "bg-amber-500/10 text-amber-600",
   published: "bg-primary/10 text-primary",
   hidden: "bg-destructive/10 text-destructive",
   flagged: "bg-destructive/10 text-destructive",
@@ -51,6 +52,7 @@ const STATUS_STYLES: Record<StudioItem["status"], string> = {
 
 const STATUS_LABELS: Record<StudioItem["status"], string> = {
   draft: "Draft",
+  pending: "Pending",
   published: "Published",
   hidden: "Hidden",
   flagged: "Flagged",

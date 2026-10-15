@@ -60,8 +60,6 @@ const getFileIcon = (name: string) => {
     return <FileJson className="h-4 w-4 text-[#e8ab53]" />;
   if (fileName === "tsconfig.json")
     return <FileJson className="h-4 w-4 text-[#519aba]" />;
-  if (fileName === "vite.config.ts")
-    return <FileCode2 className="h-4 w-4 text-[#41b883]" />;
   if (fileName === ".gitignore")
     return <FileText className="h-4 w-4 text-[#f05032]" />;
   if (fileName === "readme.md")

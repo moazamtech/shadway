@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
-import { SandpackRuntimePreview } from "@/components/sandpack-preview";
+import { DevServerPreview } from "@/components/preview/dev-server-preview";
 import { MetalButton } from "@/components/ui/MetalButton";
 import { Badge } from "@/components/ui/badge";
 import { VibecodeComponent } from "@/lib/types";
@@ -58,7 +58,7 @@ export default function VibecodePreviewClient({ item }: PreviewClientProps) {
 
       <div className="relative h-[70vh] min-h-[500px] border rounded-2xl overflow-hidden bg-background">
         <div className="absolute inset-0 origin-top-left scale-[0.8] w-[125%] h-[125%]">
-          <SandpackRuntimePreview
+          <DevServerPreview
             code={item.code || ""}
             files={files}
             entryFile={entryFile}

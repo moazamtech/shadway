@@ -1,47 +1,83 @@
 "use client";
 
-import React from "react";
-import dynamic from "next/dynamic";
-import { Terminal, Package } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const PREVIEW_REGISTRY: Record<string, React.ComponentType> = {
-  "hero": dynamic(() => import("@/registry/hero/hero").then(m => ({ default: m.Hero }))),
-  "contact": dynamic(() => import("@/registry/contact/contact").then(m => ({ default: m.Contact }))),
-  "footer": dynamic(() => import("@/registry/footer/footer").then(m => ({ default: m.Footer }))),
-  "about": dynamic(() => import("@/registry/about/about").then(m => ({ default: m.About }))),
-  "features-bento": dynamic(() => import("@/registry/features-bento/features-bento").then(m => ({ default: m.FeaturesBento }))),
-  "cta-particles": dynamic(() => import("@/registry/cta-particles/cta-particles").then(m => ({ default: m.CtaParticles }))),
-};
+import { DevServerPreview } from "@/components/preview/dev-server-preview";
+import { buildPreviewFiles, type PreviewFiles } from "@/lib/preview/files";
 
-interface ComponentPreviewProps {
-  name: string;
-}
+export { buildPreviewFiles };
+export type { PreviewFiles };
 
-export function ComponentPreview({ name }: ComponentPreviewProps) {
-  const PreviewComponent = PREVIEW_REGISTRY[name.toLowerCase()];
+/**
+ * Inline preview of a component that is still being written.
+ *
+ * It runs on the same real Next.js dev server as every other preview on the
+ * site — nothing is emulated — and it waits until it scrolls into view, so a
+ * page full of previews does not boot a server for every card at once.
+ */
+export function ComponentPreview({
+  code,
+  title,
+  files,
+  entryFile,
+  height = 200,
+  isDarkTheme = true,
+}: {
+  code?: string;
+  title: string;
+  files?: PreviewFiles;
+  entryFile?: string;
+  height?: number;
+  isDarkTheme?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
 
-  if (!PreviewComponent) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4 border-2 border-dashed rounded-xl bg-muted/30">
-        <Package className="w-10 h-10 text-muted-foreground/40" />
-        <div>
-          <h3 className="text-lg font-semibold">No Native Preview Available</h3>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            A native demo hasn't been implemented for "{name}" yet. 
-            Check the code tab for implementation details.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-background border rounded-full text-[10px] font-mono shadow-sm">
-          <Terminal className="w-3 h-3" />
-          registry:{name}
-        </div>
-      </div>
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "160px" }
     );
-  }
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const projectFiles = useMemo<Record<string, string> | null>(() => {
+    const source = files ?? code;
+    if (!source) return null;
+    return Object.fromEntries(
+      buildPreviewFiles(source).map((file) => [file.path, file.content])
+    );
+  }, [files, code]);
 
   return (
-    <div className="w-full">
-      <PreviewComponent />
+    <div
+      ref={ref}
+      className="overflow-hidden rounded-lg border bg-background"
+      style={{ height }}
+    >
+      {visible && projectFiles ? (
+        <DevServerPreview
+          code={code}
+          files={projectFiles}
+          entryFile={entryFile}
+          isDarkTheme={isDarkTheme}
+          className="h-full w-full"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+          {title} preview
+        </div>
+      )}
     </div>
   );
 }

@@ -3,27 +3,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SandboxSession } from "@codesandbox/sdk";
 import { connectToSandbox } from "@codesandbox/sdk/browser";
+import { DEFAULT_STYLE_PATH } from "@/lib/studio/starter";
 import {
   getLatestPackageVersionFromError,
   missingImportFromLog,
 } from "@/lib/studio/sandbox/deps";
 
 /**
- * Connects the studio to the draft's dev-server sandbox.
+ * Connects the studio to the draft's dev server.
  *
- * This is the studio's real preview: a Vite dev server inside a CodeSandbox
- * VM — the same machinery the reference studio runs on. The hook seeds a
- * fresh VM with the project, runs install + dev in a named shell, resolves
- * the preview URL for port 5173, and keeps the VM in sync with the editor.
- * While it boots — or when no CodeSandbox token is configured — the caller
- * falls back to the browser-side preview it always had.
+ * The preview is always a real Next.js dev server. Two engines can host it:
+ * `local` — a `next dev` process on this host, started by the API route, which
+ * is the default and needs no third-party token; `codesandbox` — the same
+ * project in a VM, used when CSB_API_KEY is configured. While it boots, and if
+ * neither engine is available, the caller falls back to the browser-side preview.
  */
 
 // Mirrors lib/studio/sandbox/config.ts — a plain local copy so no env
 // module ends up in the client bundle.
 const SANDBOX_ROOT = "/project/sandbox";
-const DEV_PORT = 5173;
+const DEV_PORT = 3000;
 const SHELL_NAME = "shadway install-and-dev";
+
+/** Files the seed owns. A file sync never writes or removes them. */
+const SCAFFOLD_PATHS = new Set([
+  "/package.json",
+  "/next.config.ts",
+  "/postcss.config.mjs",
+  "/tsconfig.json",
+  "/app/layout.tsx",
+  "/app/theme-sync.tsx",
+]);
 
 /** npm resolves peers more strictly than pnpm — retry without them once. */
 const INSTALL_AND_DEV =
@@ -33,8 +43,8 @@ const INSTALL_ONE = (name: string) =>
   `(npm install ${name} --no-audit --no-fund || npm install ${name} --no-audit --no-fund --legacy-peer-deps)`;
 
 export type SandboxStatus =
-  | "idle" // no draft to open a sandbox for
-  | "unavailable" // CSB_API_KEY is not configured — local preview is used
+  | "idle" // no draft to open a dev server for
+  | "unavailable" // no engine available — the browser-side preview is used
   | "connecting"
   | "seeding"
   | "installing"
@@ -43,14 +53,24 @@ export type SandboxStatus =
 
 type SeedFile = { path: string; content: string };
 
+type DevServerStatus = "installing" | "starting" | "ready" | "error" | "stopped";
+
 type ConnectResponse = {
   configured: boolean;
   reason?: string;
+  engine?: "local" | "codesandbox";
   sandboxId?: string;
   startData?: unknown;
   isNew?: boolean;
   seedFiles?: SeedFile[];
-  indexCssPrefix?: string;
+  stylePrefix?: string;
+  /** Local engine only. */
+  slug?: string;
+  port?: number;
+  url?: string;
+  status?: DevServerStatus;
+  detail?: string | null;
+  logs?: string[];
 };
 
 /** Structural stand-in for the SDK's (unexported) ShellInstance. */
@@ -61,19 +81,25 @@ type SandboxShell = {
   onOutput: (callback: (data: string) => void) => unknown;
 };
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function useStudioSandbox({ slug }: { slug?: string }) {
   const sandboxRef = useRef<SandboxSession | null>(null);
   const mounted = useRef(false);
   const starting = useRef(false);
   const subscribedShells = useRef<Set<string>>(new Set());
   const handled = useRef<Set<string>>(new Set());
+  /** Which engine is behind the preview. */
+  const transport = useRef<"local" | "codesandbox" | null>(null);
   /** The last content written for every file the studio owns. */
   const synced = useRef<Record<string, string>>({});
   /** Paths the studio had a moment ago — removals are diffed against this. */
   const clientPaths = useRef<Set<string>>(new Set());
   /** Seed-owned files (package.json, configs) are never removed by a sync. */
   const scaffoldPaths = useRef<Set<string>>(new Set());
-  const cssPrefix = useRef("");
+  const stylePrefix = useRef("");
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   const [status, setStatus] = useState<SandboxStatus>("idle");
@@ -91,14 +117,52 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
     setLogs((prev) => [...prev, ...lines].slice(-140));
   }, []);
 
-  const writeNow = useCallback(async (path: string, content: string) => {
-    const session = sandboxRef.current;
-    if (!session) return;
-    const final =
-      path === "/src/index.css" ? `${cssPrefix.current}${content}` : content;
-    await session.fs.writeTextFile(`${SANDBOX_ROOT}${path}`, final);
-    synced.current[path] = content;
+  const setServerLogs = useCallback((next: string[] | undefined) => {
+    if (!next) return;
+    setLogs(
+      next
+        .map((line) => line.trimEnd())
+        .filter(Boolean)
+        .slice(-140)
+    );
   }, []);
+
+  /** Writes project files into the local dev server's workspace. */
+  const postLocalFiles = useCallback(
+    async (files: Record<string, string>, remove: string[] = []) => {
+      if (!slug) return;
+      const response = await fetch("/api/studio/sandbox/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, files, remove }),
+      });
+      if (!response.ok) {
+        throw new Error(`Could not sync files (${response.status}).`);
+      }
+    },
+    [slug]
+  );
+
+  const writeNow = useCallback(
+    async (path: string, content: string) => {
+      if (transport.current === "local") {
+        // The route prefixes the stylesheet itself.
+        await postLocalFiles({ [path]: content });
+        synced.current[path] = content;
+        return;
+      }
+
+      const session = sandboxRef.current;
+      if (!session) return;
+      // The project stylesheet is written with the Tailwind import and the
+      // shared shadcn theme in front, so what lands on disk is complete.
+      const final =
+        path === DEFAULT_STYLE_PATH ? `${stylePrefix.current}${content}` : content;
+      await session.fs.writeTextFile(`${SANDBOX_ROOT}${path}`, final);
+      synced.current[path] = content;
+    },
+    [postLocalFiles]
+  );
 
   const enqueueWrite = useCallback(
     (path: string, content: string) => {
@@ -110,12 +174,21 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
     [writeNow]
   );
 
-  const enqueueRemove = useCallback((path: string) => {
-    queue.current = queue.current
-      .then(() => sandboxRef.current?.fs.remove(`${SANDBOX_ROOT}${path}`))
-      .catch(() => {});
-    return queue.current;
-  }, []);
+  const enqueueRemove = useCallback(
+    (path: string) => {
+      queue.current = queue.current
+        .then(async () => {
+          if (transport.current === "local") {
+            await postLocalFiles({}, [path]);
+            return;
+          }
+          await sandboxRef.current?.fs.remove(`${SANDBOX_ROOT}${path}`);
+        })
+        .catch(() => {});
+      return queue.current;
+    },
+    [postLocalFiles]
+  );
 
   /** Adds the vendored file behind an unresolved `@/...` import. */
   const restoreVendoredFile = useCallback(
@@ -245,7 +318,7 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
   const seed = useCallback(
     async (session: SandboxSession, files: SeedFile[]) => {
       for (const file of files) {
-        if (!file.path.startsWith("/src/")) scaffoldPaths.current.add(file.path);
+        if (SCAFFOLD_PATHS.has(file.path)) scaffoldPaths.current.add(file.path);
       }
 
       const directories = new Set<string>();
@@ -290,10 +363,58 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
     setStatus("error");
     setDetail(
       portReady
-        ? "The preview URL could not be created for port 5173."
-        : "The dev server did not open port 5173 in time — see the log below."
+        ? "The preview URL could not be created for the dev server port."
+        : "The dev server did not open its port in time — see the log below."
     );
   }, []);
+
+  /** Follows the local dev server while it installs, boots and goes ready. */
+  const followLocalDevServer = useCallback(
+    async (first: ConnectResponse) => {
+      let view: ConnectResponse | null = first;
+      const deadline = Date.now() + 25 * 60_000;
+
+      while (mounted.current && Date.now() < deadline) {
+        if (!view) break;
+
+        setServerLogs(view.logs);
+
+        if (view.status === "ready" && view.url) {
+          setPreviewURL(view.url);
+          setStatus("ready");
+          setDetail(null);
+          return;
+        }
+
+        if (view.status === "error") {
+          setStatus("error");
+          setDetail(view.detail ?? "The dev server failed to start — see the log below.");
+          return;
+        }
+
+        setStatus(view.status === "installing" ? "installing" : "connecting");
+
+        await sleep(1200);
+        if (!mounted.current) return;
+
+        try {
+          const response = await fetch(
+            `/api/studio/sandbox?slug=${encodeURIComponent(slug ?? "")}`,
+            { cache: "no-store" }
+          );
+          view = response.ok ? ((await response.json()) as ConnectResponse) : null;
+        } catch {
+          /* keep polling */
+        }
+      }
+
+      if (mounted.current) {
+        setStatus("error");
+        setDetail("The dev server did not start in time — see the log below.");
+      }
+    },
+    [setServerLogs, slug]
+  );
 
   const start = useCallback(async () => {
     if (!slug || starting.current) return;
@@ -308,17 +429,25 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
       });
-      if (!response.ok) throw new Error(`Sandbox request failed (${response.status}).`);
+      if (!response.ok) throw new Error(`Preview request failed (${response.status}).`);
 
       const data = (await response.json()) as ConnectResponse;
 
+      if (data.engine === "local") {
+        transport.current = "local";
+        await followLocalDevServer(data);
+        return;
+      }
+
       if (!data.configured || !data.startData) {
+        transport.current = null;
         setStatus("unavailable");
         setDetail(data.reason ?? null);
         return;
       }
 
-      if (data.indexCssPrefix) cssPrefix.current = data.indexCssPrefix;
+      transport.current = "codesandbox";
+      if (data.stylePrefix) stylePrefix.current = data.stylePrefix;
 
       const session = await connectToSandbox(
         data.startData as Parameters<typeof connectToSandbox>[0]
@@ -335,46 +464,78 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
       void checkShells();
       await waitForDevServer(session);
     } catch (error) {
-      console.error("[studio] Sandbox connect failed:", error);
+      console.error("[studio] Dev server connect failed:", error);
       setStatus("error");
-      setDetail(error instanceof Error ? error.message : "Could not open the sandbox.");
+      setDetail(error instanceof Error ? error.message : "Could not open the dev server.");
     } finally {
       starting.current = false;
     }
-  }, [slug, seed, ensureDevShell, checkShells, waitForDevServer]);
+  }, [slug, seed, ensureDevShell, checkShells, waitForDevServer, followLocalDevServer]);
 
   const reconnect = useCallback(() => {
+    starting.current = false;
+    setPreviewURL(null);
+    setDetail(null);
+    setLogs([]);
+    handled.current.clear();
+
+    if (transport.current === "local") {
+      void fetch(`/api/studio/sandbox?slug=${encodeURIComponent(slug ?? "")}`, {
+        method: "DELETE",
+      })
+        .catch(() => undefined)
+        .finally(() => {
+          transport.current = null;
+          void start();
+        });
+      return;
+    }
+
     sandboxRef.current?.disconnect();
     sandboxRef.current = null;
     subscribedShells.current.clear();
-    starting.current = false;
-    setPreviewURL(null);
     void start();
-  }, [start]);
+  }, [start, slug]);
 
-  /** Mirrors the editor's project into the VM: writes changed files, deletes
-   * removed ones. Called (debounced) by the studio while the user types. */
+  /** Mirrors the editor's project into the dev server: writes changed files,
+   * deletes removed ones. Called (debounced) by the studio while the user types
+   * — `next dev` hot-reloads the preview. */
   const syncFiles = useCallback(
     async (files: Record<string, string>) => {
-      const session = sandboxRef.current;
-      if (!session) return;
+      const local = transport.current === "local";
+      if (!local && !sandboxRef.current) return;
 
       const next = new Set(Object.keys(files));
-      const removals = [...clientPaths.current].filter((path) => !next.has(path));
+      const removals = [...clientPaths.current].filter(
+        (path) => !next.has(path) && !scaffoldPaths.current.has(path)
+      );
+      const changed = Object.entries(files).filter(
+        ([path, content]) => synced.current[path] !== content
+      );
       clientPaths.current = next;
 
+      if (local) {
+        if (!changed.length && !removals.length) return;
+        for (const [path] of changed) delete synced.current[path];
+        for (const [path, content] of changed) synced.current[path] = content;
+        for (const path of removals) delete synced.current[path];
+        try {
+          await postLocalFiles(Object.fromEntries(changed), removals);
+        } catch (error) {
+          console.warn("[studio] Could not sync files:", error);
+        }
+        return;
+      }
+
       for (const path of removals) {
-        if (scaffoldPaths.current.has(path)) continue;
         delete synced.current[path];
         await enqueueRemove(path);
       }
 
-      const writes = Object.entries(files)
-        .filter(([path, content]) => synced.current[path] !== content)
-        .map(([path, content]) => enqueueWrite(path, content));
+      const writes = changed.map(([path, content]) => enqueueWrite(path, content));
       await Promise.all(writes);
     },
-    [enqueueWrite, enqueueRemove]
+    [enqueueRemove, enqueueWrite, postLocalFiles]
   );
 
   useEffect(() => {
@@ -385,8 +546,8 @@ export function useStudioSandbox({ slug }: { slug?: string }) {
     return () => {
       mounted.current = false;
       // StrictMode remounts run right after a cleanup — only tear the
-      // session down when this was a real unmount. The VM itself stays
-      // alive; CodeSandbox hibernates it after its idle timeout.
+      // session down when this was a real unmount. A local dev server keeps
+      // running (it is reaped when idle); a VM hibernates on its own.
       window.setTimeout(() => {
         if (mounted.current) return;
         sandboxRef.current?.disconnect();

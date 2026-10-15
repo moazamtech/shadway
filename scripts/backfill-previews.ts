@@ -4,6 +4,7 @@ import { buildPreviewBundle } from "../lib/preview/bundle";
 import { componentPreviewFiles } from "../lib/preview/server-files";
 import { capturePreview } from "../lib/preview/capture";
 import { uploadBufferToCloudinary } from "../lib/cloudinary";
+import { DEFAULT_DEMO_PATH } from "../lib/studio/starter";
 
 async function main() {
   const collection = await getComponentsCollection();
@@ -13,8 +14,8 @@ async function main() {
     process.stdout.write(`- ${item.slug} ... `);
 
     const bundle = await buildPreviewBundle(
-      componentPreviewFiles({ code: item.code, demoCode: item.demoCode, files: item.files }),
-      { entry: "/src/App.tsx", title: item.title }
+      componentPreviewFiles({ code: item.code, demoCode: item.demoCode, styleCode: item.styleCode, files: item.files }),
+      { entry: DEFAULT_DEMO_PATH, title: item.title }
     );
 
     const capture = await capturePreview(bundle.html, { width: 1200, height: 900 });

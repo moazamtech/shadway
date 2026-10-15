@@ -1,21 +1,9 @@
-export const SANDPACK_BASE_FILES = {
-  "/vite.config.ts": `import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
-
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./"),
-    },
-  },
-  optimizeDeps: {
-    exclude: ["lucide-react"],
-  },
-});
-`,
+/**
+ * The files a generated project starts from: the stylesheet it themes through,
+ * and the shadcn/ui sources its imports resolve against. The editor shows this
+ * whole tree, so it is the full set — not only what the current code imports.
+ */
+export const BASE_PROJECT_FILES = {
   "/index.css": `@import "tailwindcss";
 @import "tw-animate-css";
 
@@ -146,7 +134,7 @@ export default defineConfig({
 `,
 };
 
-export const SANDPACK_SHADCN_FILES = {
+export const SHADCN_PROJECT_FILES = {
   "/lib/utils.ts": `import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 

@@ -12,6 +12,7 @@ import { withShadcnFiles, type PreviewFileInput } from "./shadcn-ui";
 export function componentPreviewFiles(component: {
   code: string;
   demoCode?: string;
+  styleCode?: string;
   files?: { path: string; content: string }[];
 }): PreviewFileInput[] {
   return withShadcnFiles(componentSourceFiles(component));

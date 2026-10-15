@@ -7,16 +7,20 @@ import {
   DEFAULT_DEMO_CODE,
   DEFAULT_DEMO_PATH,
   DEFAULT_STYLE_CODE,
+  DEFAULT_STYLE_PATH,
+  storedProjectPath,
 } from "@/lib/studio/starter";
 import { collectNpmDependencies } from "./deps";
 
 /**
  * The project a sandbox boots with.
  *
- * A stock Vite + React + Tailwind v4 project whose `@/` alias points at
- * `src/` — the layout every shadcn project has. The author's files and the
- * vendored shadcn/ui sources are written on top, so imports resolve on disk
- * exactly the way the browser-side preview only emulated.
+ * A real Next.js App Router project — `app/` for the page, `components/` for
+ * the component, `@/*` resolving from the project root — so the dev server
+ * the studio runs inside the VM is the same stack this site is built on. The
+ * author's files and the vendored shadcn/ui sources are written on top, so
+ * imports resolve on disk exactly the way the browser-side preview only
+ * emulated.
  */
 
 export type SandboxSeedFile = { path: string; content: string };
@@ -24,116 +28,153 @@ export type SandboxSeedFile = { path: string; content: string };
 export type SandboxDraft = {
   code?: string;
   demoCode?: string;
+  styleCode?: string;
   dependencies?: string[];
   files?: ComponentFile[];
 };
 
 /**
  * The stylesheet every sandbox starts with: Tailwind, then the shared shadcn
- * theme (tokens + animations), then whatever the author wrote. The dev
- * server compiles it for real — the same CSS the preview palette defines.
+ * theme (tokens + animations), then whatever the author wrote. The dev server
+ * compiles it for real — the same CSS the preview palette defines.
  */
-export const SANDBOX_INDEX_CSS_PREFIX = `@import "tailwindcss";\n\n${PREVIEW_THEME_CSS}\n\n`;
+export const SANDBOX_STYLE_PREFIX = `@import "tailwindcss";\n\n${PREVIEW_THEME_CSS}\n\n`;
 
-const SANDBOX_VITE_CONFIG = `import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+const SANDBOX_NEXT_CONFIG = `import type { NextConfig } from "next";
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    // "@/..." resolves to "src/..." — the alias every shadcn project uses.
-    alias: {
-      "@": path.resolve(path.dirname(fileURLToPath(import.meta.url)), "src"),
-    },
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  // The preview shows the component, not the dev server's own chrome.
+  devIndicators: false,
+  // Generated components reach for stock photography and avatars by URL.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "plus.unsplash.com" },
+      { protocol: "https", hostname: "i.pravatar.cc" },
+      { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "images.pexels.com" },
+      { protocol: "https", hostname: "cdn.jsdelivr.net" },
+    ],
   },
-  server: {
-    host: true,
-    port: 5173,
-    strictPort: true,
-    // The preview is opened through CodeSandbox's proxy domain.
-    allowedHosts: true,
-  },
-});
+  // The preview is opened from the studio's own origin — this host for a local
+  // dev server, CodeSandbox's proxy domain for a VM — so it has to accept
+  // cross-origin requests coming from both.
+  allowedDevOrigins: [
+    "localhost",
+    "127.0.0.1",
+    "*.csb.app",
+    "*.codesandbox.io",
+    "*.csb.dev",
+  ],
+};
+
+export default nextConfig;
+`;
+
+const SANDBOX_POSTCSS_CONFIG = `const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+
+export default config;
 `;
 
 const SANDBOX_TSCONFIG = `{
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": false,
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
     "skipLibCheck": true,
+    "strict": false,
     "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./*"] }
   },
-  "include": ["src"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }
 `;
 
-const SANDBOX_INDEX_HTML = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Component preview</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+/**
+ * The layout the preview page renders inside — the same shape as this site's
+ * own root layout: it imports the project stylesheet and hands the page to the
+ * root element.
+ */
+const SANDBOX_LAYOUT_TSX = `import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import "./globals.css";
+import { ThemeSync } from "./theme-sync";
+
+export const metadata: Metadata = {
+  title: "Component preview",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeSync />
+        {children}
+      </body>
+    </html>
+  );
+}
 `;
 
-const SANDBOX_MAIN_TSX = `import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
-
 /**
- * The studio renders this project in an iframe and forwards its theme, so
- * the preview always wears the same colors as the editor around it.
+ * The studio renders this project in an iframe and forwards its theme, so the
+ * preview always wears the same colors as the editor around it.
  */
+const SANDBOX_THEME_SYNC_TSX = `"use client";
+
+import { useEffect } from "react";
+
 function applyTheme(theme: string) {
   const dark = theme === "dark";
   document.documentElement.classList.toggle("dark", dark);
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
 }
 
-const media = window.matchMedia("(prefers-color-scheme: dark)");
-const params = new URLSearchParams(window.location.search);
-applyTheme(params.get("theme") || (media.matches ? "dark" : "light"));
+export function ThemeSync() {
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const params = new URLSearchParams(window.location.search);
+    applyTheme(params.get("theme") || (media.matches ? "dark" : "light"));
 
-window.addEventListener("message", (event) => {
-  const data = event.data as { type?: string; theme?: string } | null;
-  if (data?.type === "shadway:theme" && data.theme) applyTheme(data.theme);
-});
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; theme?: string } | null;
+      if (data?.type === "shadway:theme" && data.theme) applyTheme(data.theme);
+    };
 
-const container = document.getElementById("root");
-if (container) {
-  createRoot(container).render(
-    <StrictMode>
-      <App />
-    </StrictMode>
-  );
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  return null;
 }
 `;
 
 const BASE_DEPENDENCIES: Record<string, string> = {
-  react: "^18.3.1",
-  "react-dom": "^18.3.1",
+  next: "^15.5.15",
+  react: "^19.1.2",
+  "react-dom": "^19.1.2",
 };
 
 const BASE_DEV_DEPENDENCIES: Record<string, string> = {
-  vite: "latest",
-  "@vitejs/plugin-react": "latest",
-  tailwindcss: "latest",
-  "@tailwindcss/vite": "latest",
+  "@tailwindcss/postcss": "^4",
+  "@types/node": "^22",
+  "@types/react": "^19",
+  "@types/react-dom": "^19",
+  tailwindcss: "^4",
+  typescript: "^5",
 };
 
 /** The generated package.json, with every imported package preinstalled. */
@@ -148,11 +189,10 @@ export function sandboxPackageJson(npmPackages: string[]): string {
       name: "shadway-component",
       private: true,
       version: "0.0.0",
-      type: "module",
       scripts: {
-        dev: "vite",
-        build: "vite build",
-        preview: "vite preview",
+        dev: "next dev -p 3000",
+        build: "next build",
+        start: "next start -p 3000",
       },
       dependencies,
       devDependencies: BASE_DEV_DEPENDENCIES,
@@ -162,25 +202,26 @@ export function sandboxPackageJson(npmPackages: string[]): string {
   )}\n`;
 }
 
-/** The draft's own files, as project paths (`/src/...`). */
+/** The draft's own files, as project paths (`/app/...`, `/components/...`). */
 export function componentProjectFiles(component: SandboxDraft): Record<string, string> {
-  const files: Record<string, string> = {
-    [DEFAULT_COMPONENT_PATH]: component.code?.trim() ? component.code : DEFAULT_COMPONENT_CODE,
-    [DEFAULT_DEMO_PATH]: component.demoCode?.trim() ? component.demoCode : DEFAULT_DEMO_CODE,
-    "/src/index.css": DEFAULT_STYLE_CODE,
-  };
+  const files: Record<string, string> = {};
 
   for (const file of component.files ?? []) {
-    const path = file.path.startsWith("/") ? file.path : `/${file.path}`;
-    const projectPath = path.startsWith("/src/") ? path : `/src/${path}`;
-    files[projectPath] = file.content;
+    if (!file?.content) continue;
+    files[storedProjectPath(file.path)] = file.content;
   }
+
+  files[DEFAULT_COMPONENT_PATH] = component.code?.trim() ? component.code : DEFAULT_COMPONENT_CODE;
+  files[DEFAULT_DEMO_PATH] = component.demoCode?.trim() ? component.demoCode : DEFAULT_DEMO_CODE;
+  files[DEFAULT_STYLE_PATH] = component.styleCode?.trim()
+    ? component.styleCode
+    : DEFAULT_STYLE_CODE;
 
   return files;
 }
 
 /**
- * Everything a fresh sandbox needs on disk: the Vite scaffold, the author's
+ * Everything a fresh sandbox needs on disk: the Next.js scaffold, the author's
  * files, and the vendored shadcn/ui sources their imports resolve against.
  * Only used when a sandbox is created — resuming one keeps whatever it has.
  */
@@ -197,16 +238,21 @@ export function sandboxSeedFiles(component: SandboxDraft): SandboxSeedFile[] {
 
   const scaffold: SandboxSeedFile[] = [
     { path: "/package.json", content: sandboxPackageJson(npmPackages) },
-    { path: "/vite.config.ts", content: SANDBOX_VITE_CONFIG },
+    { path: "/next.config.ts", content: SANDBOX_NEXT_CONFIG },
+    { path: "/postcss.config.mjs", content: SANDBOX_POSTCSS_CONFIG },
     { path: "/tsconfig.json", content: SANDBOX_TSCONFIG },
-    { path: "/index.html", content: SANDBOX_INDEX_HTML },
-    { path: "/src/main.tsx", content: SANDBOX_MAIN_TSX },
+    { path: "/app/layout.tsx", content: SANDBOX_LAYOUT_TSX },
+    { path: "/app/theme-sync.tsx", content: SANDBOX_THEME_SYNC_TSX },
   ];
 
-  // index.css is sent as the author wrote it — the client prefixes the
-  // Tailwind import + theme before writing it into the VM, so live edits
-  // keep the theme too.
-  const rest = resolved.filter((file) => file.path !== "/src/index.css");
+  // The stylesheet goes out exactly as the client would write it — Tailwind
+  // import and theme in front — so the project boots complete even before the
+  // editor's first sync, and live edits keep the theme too.
+  const rest = resolved.map((file) =>
+    file.path === DEFAULT_STYLE_PATH
+      ? { path: file.path, content: `${SANDBOX_STYLE_PREFIX}${file.content}` }
+      : file
+  );
 
   return [...scaffold, ...rest];
 }

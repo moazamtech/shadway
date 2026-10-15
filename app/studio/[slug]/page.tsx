@@ -9,6 +9,9 @@ import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_CODE,
   DEFAULT_DEMO_PATH,
+  DEFAULT_STYLE_CODE,
+  DEFAULT_STYLE_PATH,
+  storedProjectPath,
 } from "@/lib/studio/starter";
 
 export const dynamic = "force-dynamic";
@@ -54,13 +57,15 @@ export default async function StudioProjectPage({
   const files: Record<string, string> = {};
   for (const file of component.files ?? []) {
     if (!file?.content) continue;
-    const path = file.path.startsWith("/") ? file.path : `/src/${file.path}`;
-    files[path] = file.content;
+    files[storedProjectPath(file.path)] = file.content;
   }
   files[DEFAULT_COMPONENT_PATH] = component.code;
   files[DEFAULT_DEMO_PATH] = component.demoCode?.trim()
     ? component.demoCode
     : DEFAULT_DEMO_CODE;
+  files[DEFAULT_STYLE_PATH] = component.styleCode?.trim()
+    ? component.styleCode
+    : DEFAULT_STYLE_CODE;
 
   return (
     <ComponentStudio

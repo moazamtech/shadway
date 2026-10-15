@@ -6,7 +6,7 @@ import { generateSEOMetadata } from "@/lib/seo";
 export const metadata: Metadata = generateSEOMetadata({
   title: "Shadway | shadcn Component Exchange",
   description:
-    "A live registry of installable shadcn-compatible React components, with Sandpack previews, dependency-aware installs, and publisher profiles.",
+    "A live registry of installable shadcn-compatible React components, with real previews, dependency-aware installs, and publisher profiles.",
   keywords: [
     "shadcn registry",
     "shadcn components",

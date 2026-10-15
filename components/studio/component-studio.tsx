@@ -8,16 +8,23 @@ import {
   Blocks,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
+  Code2,
   FileCode2,
   FileJson,
   FilePlus2,
   FileText,
   Folder,
   Loader2,
+  Maximize2,
+  Minimize2,
   Monitor,
   Moon,
   Package,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -38,9 +45,11 @@ import {
   SHADCN_FILE_PATHS,
   SHADCN_UI_COMPONENTS,
 } from "@/lib/preview/template/names";
+import { collectNpmDependencies } from "@/lib/studio/sandbox/deps";
 import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_PATH,
+  DEFAULT_STYLE_PATH,
   starterFiles,
 } from "@/lib/studio/starter";
 
@@ -50,7 +59,9 @@ export type StudioInitial = {
   tags: string[];
   category: string;
   visibility: "public" | "unlisted";
-  status: "draft" | "published" | "hidden" | "flagged";
+  /** `pending` is included because a published component can be re-published
+   *  as pending review while its draft is being edited. */
+  status: "draft" | "pending" | "published" | "hidden" | "flagged";
   files: PreviewFiles;
   dependencies?: string[];
 };
@@ -59,7 +70,7 @@ export type StudioInitial = {
 
 /** Where a vendored file lives in the project: `ui/button.tsx` -> `components/ui/button.tsx`. */
 function projectPathFor(vendored: string) {
-  return vendored.startsWith("ui/") ? `/src/components/${vendored}` : `/src/${vendored}`;
+  return vendored.startsWith("ui/") ? `/components/${vendored}` : `/${vendored}`;
 }
 
 /** The reverse: a project path back to its vendored file. */
@@ -85,10 +96,10 @@ function loadRegistryFiles(): Promise<Record<string, string>> {
 
 /** How a project file is classified in the published registry item. */
 function fileTypeFor(path: string) {
-  if (path.startsWith("/src/components/ui/")) return "registry:ui";
-  if (path.startsWith("/src/hooks/")) return "registry:hook";
-  if (path.startsWith("/src/lib/")) return "registry:lib";
-  if (path.startsWith("/src/components/")) return "registry:component";
+  if (path.startsWith("/components/ui/")) return "registry:ui";
+  if (path.startsWith("/hooks/")) return "registry:hook";
+  if (path.startsWith("/lib/")) return "registry:lib";
+  if (path.startsWith("/components/")) return "registry:component";
   return "registry:file";
 }
 
@@ -155,10 +166,10 @@ function projectPayload(files: PreviewFiles, title: string, dependencies: string
       ([path]) =>
         path !== DEFAULT_COMPONENT_PATH &&
         path !== DEFAULT_DEMO_PATH &&
-        path !== "/src/index.css"
+        path !== DEFAULT_STYLE_PATH
     )
     .map(([path, content]) => ({
-      path: path.replace(/^\/src\//, ""),
+      path: path.replace(/^\//, ""),
       content,
       type: fileTypeFor(path),
     }));
@@ -167,6 +178,7 @@ function projectPayload(files: PreviewFiles, title: string, dependencies: string
     title,
     code: files[DEFAULT_COMPONENT_PATH] || "",
     demoCode: files[DEFAULT_DEMO_PATH] || "",
+    styleCode: files[DEFAULT_STYLE_PATH] ?? "",
     files: extraFiles,
     dependencies,
   };
@@ -174,14 +186,14 @@ function projectPayload(files: PreviewFiles, title: string, dependencies: string
 
 /* ------------------------------------------------- sandbox status cards -- */
 
-/** Shown while the VM boots: connect → seed → install → dev server. */
+/** Shown while the dev server installs and boots. */
 function SandboxBootCard({ status, logs }: { status: SandboxStatus; logs: string[] }) {
   const label =
     status === "connecting"
-      ? "Connecting to the dev-server sandbox…"
+      ? "Starting your Next.js dev server…"
       : status === "seeding"
-        ? "Writing your project into the sandbox…"
-        : "Installing dependencies and starting Vite…";
+        ? "Writing your project to the dev server…"
+        : "Installing dependencies and starting the Next.js dev server…";
   const tail = logs.slice(-7);
 
   return (
@@ -197,7 +209,7 @@ function SandboxBootCard({ status, logs }: { status: SandboxStatus; logs: string
   );
 }
 
-/** Shown when the VM could not be reached — retry, or stay local. */
+/** Shown when the dev server could not be started — retry, or stay local. */
 function SandboxErrorCard({
   detail,
   logs,
@@ -261,19 +273,61 @@ export function ComponentStudio({
   const [debouncedFiles, setDebouncedFiles] = useState<PreviewFiles>(initialFiles);
   const [newFileName, setNewFileName] = useState("");
   const [showNewFile, setShowNewFile] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+    "/components/ui": true,
+  });
+  const [showExplorer, setShowExplorer] = useState(true);
+  const [showEditor, setShowEditor] = useState(true);
   const [packageInput, setPackageInput] = useState("");
   const [installedPackages, setInstalledPackages] = useState<Record<string, string>>(() =>
     Object.fromEntries((initial?.dependencies ?? []).map((name) => [name, ""]))
   );
   const [resolving, setResolving] = useState(false);
   const [showPackages, setShowPackages] = useState(true);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [libraryQuery, setLibraryQuery] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [registryFiles, setRegistryFiles] = useState<Record<string, string> | null>(null);
   const [openingPath, setOpeningPath] = useState<string | null>(null);
+
+  // Auto-detect newly imported packages from debouncedFiles
+  useEffect(() => {
+    const fileList = Object.entries(debouncedFiles).map(([p, content]) => ({ path: p, content }));
+    const detected = collectNpmDependencies(fileList);
+    const missing = detected.filter(
+      (pkg) =>
+        !installedPackages[pkg] &&
+        pkg !== "next" &&
+        pkg !== "react" &&
+        pkg !== "react-dom" &&
+        pkg !== "react/jsx-runtime"
+    );
+
+    if (missing.length === 0) return;
+
+    for (const pkg of missing) {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/registry/resolve-package?name=${encodeURIComponent(pkg)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setInstalledPackages((prev) => ({ ...prev, [pkg]: data.version || "latest" }));
+          } else {
+            setInstalledPackages((prev) => ({ ...prev, [pkg]: "latest" }));
+          }
+        } catch {
+          setInstalledPackages((prev) => ({ ...prev, [pkg]: "latest" }));
+        }
+      })();
+    }
+  }, [debouncedFiles, installedPackages]);
+
+  function removePackage(name: string) {
+    setInstalledPackages((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  }
 
   const { resolvedTheme } = useTheme();
   const previewThemeSynced = useRef(false);
@@ -320,8 +374,8 @@ export function ComponentStudio({
     return () => window.clearTimeout(id);
   }, [files]);
 
-  // Mirror the project into the dev-server sandbox — its Vite dev server
-  // hot-reloads from these writes.
+  // Mirror the project into the dev-server sandbox — its Next.js dev server
+  // recompiles from these writes.
   useEffect(() => {
     if (sandboxStatus !== "installing" && sandboxStatus !== "ready") return;
     void syncSandboxFiles(debouncedFiles);
@@ -426,12 +480,6 @@ export function ComponentStudio({
     setFiles((prev) => ({ ...prev, [path]: content }));
   }
 
-  const library = useMemo(() => {
-    const query = libraryQuery.trim().toLowerCase();
-    if (!query) return SHADCN_UI_COMPONENTS;
-    return SHADCN_UI_COMPONENTS.filter((item) => item.name.includes(query));
-  }, [libraryQuery]);
-
   const updateActive = useCallback(
     (value: string) => {
       setFiles((prev) => ({ ...prev, [activePath]: value }));
@@ -443,11 +491,9 @@ export function ComponentStudio({
     const raw = newFileName.trim();
     if (!raw) return;
 
-    let path = raw.startsWith("/")
-      ? raw
-      : raw.startsWith("src/")
-        ? `/${raw}`
-        : `/src/${raw}`;
+    let path = raw.startsWith("/") ? raw : `/${raw}`;
+    // Legacy projects nested everything under src/; keep writing at the root.
+    path = path.replace(/^\/src\//, "/");
     if (!/\.(tsx?|jsx?|css)$/.test(path)) path += ".tsx";
     if (files[path]) return;
 
@@ -465,7 +511,12 @@ export function ComponentStudio({
   }
 
   function deleteFile(path: string) {
-    if (path === DEFAULT_COMPONENT_PATH || path === DEFAULT_DEMO_PATH) return;
+    if (
+      path === DEFAULT_COMPONENT_PATH ||
+      path === DEFAULT_DEMO_PATH ||
+      path === DEFAULT_STYLE_PATH
+    )
+      return;
     setFiles((prev) => {
       const next = { ...prev };
       delete next[path];
@@ -674,22 +725,29 @@ export function ComponentStudio({
                 )}
               </span>
             )}
+            <div className="hidden items-center gap-1 border-l pl-2 sm:flex">
+              <Button
+                variant={showExplorer ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setShowExplorer((v) => !v)}
+                title={showExplorer ? "Hide file tree" : "Show file tree"}
+              >
+                {showExplorer ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant={showEditor ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => setShowEditor((v) => !v)}
+                title={showEditor ? "Hide code editor" : "Show code editor"}
+              >
+                <Code2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full"
-              onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
-              title="Toggle preview theme"
-            >
-              {previewTheme === "light" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -715,240 +773,230 @@ export function ComponentStudio({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[248px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Explorer */}
-        <aside className="hidden min-h-0 flex-col bg-muted/20 lg:flex">
-          <div className="flex h-10 shrink-0 items-center justify-between px-3">
-            <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-              Explorer
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
-              onClick={() => setShowNewFile((v) => !v)}
-              title="New file"
-            >
-              <FilePlus2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {showNewFile && (
-            <div className="px-3 pb-3">
-              <input
-                autoFocus
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") createFile();
-                  if (e.key === "Escape") setShowNewFile(false);
-                }}
-                placeholder="hooks/use-thing.ts"
-                className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
-              />
-              <Button size="sm" className="mt-2 h-7 w-full rounded-md text-xs" onClick={createFile}>
-                Create file
-              </Button>
-            </div>
-          )}
-
-          <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
-            {renderTree(tree)}
-          </div>
-
-          {/* shadcn/ui library */}
-          <div className="border-t border-border/70">
-            <button
-              onClick={() => setShowLibrary((v) => !v)}
-              className="flex w-full items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-            >
-              {showLibrary ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              <Blocks className="h-3 w-3" />
-              shadcn/ui
-              <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                {SHADCN_UI_COMPONENTS.length}
+        {showExplorer && (
+          <aside className="relative flex w-60 shrink-0 flex-col border-r bg-muted/20">
+            <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-3">
+              <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+                Explorer
               </span>
-            </button>
-
-            {showLibrary && (
-              <div className="px-3 pb-3">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={libraryQuery}
-                    onChange={(event) => setLibraryQuery(event.target.value)}
-                    placeholder="Search components"
-                    className="h-8 w-full rounded-md border bg-background pr-2.5 pl-7 text-xs outline-none focus:border-primary"
-                  />
-                </div>
-                <ul className="mt-2 max-h-44 space-y-0.5 overflow-auto">
-                  {library.map((item) => {
-                    const projectPath = `${item.path.replace("@/", "/src/")}.tsx`;
-                    return (
-                      <li key={item.name} className="group/lib relative flex items-center">
-                        <button
-                          onClick={() => void openFile(projectPath)}
-                          title={`Open ${projectPath}`}
-                          className="flex w-full items-center gap-2 rounded-md py-1.5 pr-8 pl-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-                        >
-                          <span className="truncate font-mono">{item.exports[0]}</span>
-                          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
-                            {item.name}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => insertImport(item.name)}
-                          title={`Add ${item.exports[0]} import to component.tsx`}
-                          className="absolute right-1.5 opacity-0 transition group-hover/lib:opacity-100"
-                        >
-                          <Plus className="h-3 w-3 text-muted-foreground hover:text-primary" />
-                        </button>
-                      </li>
-                    );
-                  })}
-                  {library.length === 0 && (
-                    <li className="px-1.5 py-2 text-xs text-muted-foreground">
-                      Nothing matches “{libraryQuery}”
-                    </li>
-                  )}
-                </ul>
-                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/80">
-                  The whole shadcn/ui folder ships with your project — open any
-                  file to read it, or use + to drop its import into your
-                  component.
-                </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowNewFile((v) => !v)}
+                  title="New file"
+                >
+                  <FilePlus2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowExplorer(false)}
+                  title="Close file tree"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Packages */}
-          <div className="border-t border-border/70">
-            <button
-              onClick={() => setShowPackages((v) => !v)}
-              className="flex w-full items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-            >
-              {showPackages ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              <Package className="h-3 w-3" />
-              Packages
-              {packageCount > 0 && (
-                <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                  {packageCount}
-                </span>
-              )}
-            </button>
-
-            {showPackages && (
+            {showNewFile && (
               <div className="px-3 pb-3">
                 <input
-                  value={packageInput}
-                  onChange={(e) => setPackageInput(e.target.value)}
+                  autoFocus
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") void installPackage();
+                    if (e.key === "Enter") createFile();
+                    if (e.key === "Escape") setShowNewFile(false);
                   }}
-                  placeholder="Add npm package"
+                  placeholder="hooks/use-thing.ts"
                   className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
                 />
-                <Button
-                  size="sm"
-                  className="mt-2 h-7 w-full rounded-md text-xs"
-                  disabled={resolving || !packageInput.trim()}
-                  onClick={() => void installPackage()}
-                >
-                  {resolving ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    "Install"
-                  )}
+                <Button size="sm" className="mt-2 h-7 w-full rounded-md text-xs" onClick={createFile}>
+                  Create file
                 </Button>
-
-                {packageCount > 0 && (
-                  <ul className="mt-2.5 space-y-1">
-                    {Object.entries(installedPackages).map(([name, version]) => (
-                      <li
-                        key={name}
-                        className="flex items-center justify-between gap-2 text-[11px]"
-                      >
-                        <code className="truncate text-foreground">{name}</code>
-                        <span className="shrink-0 text-muted-foreground">{version}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             )}
-          </div>
-        </aside>
+
+            <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
+              {renderTree(tree)}
+            </div>
+
+            {/* Packages */}
+            <div className="border-t border-border/70">
+              <button
+                onClick={() => setShowPackages((v) => !v)}
+                className="flex w-full items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+              >
+                {showPackages ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+                <Package className="h-3 w-3" />
+                Packages
+                {packageCount > 0 && (
+                  <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                    {packageCount}
+                  </span>
+                )}
+              </button>
+
+              {showPackages && (
+                <div className="px-3 pb-3">
+                  <input
+                    value={packageInput}
+                    onChange={(e) => setPackageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void installPackage();
+                    }}
+                    placeholder="Add npm package"
+                    className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-2 h-7 w-full rounded-md text-xs"
+                    disabled={resolving || !packageInput.trim()}
+                    onClick={() => void installPackage()}
+                  >
+                    {resolving ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      "Install"
+                    )}
+                  </Button>
+
+                  {packageCount > 0 && (
+                    <ul className="mt-2.5 max-h-40 space-y-1 overflow-auto">
+                      {Object.entries(installedPackages).map(([name, version]) => (
+                        <li
+                          key={name}
+                          className="group flex items-center justify-between gap-2 text-[11px]"
+                        >
+                          <code className="truncate font-mono text-foreground">{name}</code>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-muted-foreground/70">{version || "latest"}</span>
+                            <button
+                              onClick={() => removePackage(name)}
+                              className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                              title={`Remove ${name}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
 
         {/* Editor */}
-        <section className="relative flex min-h-0 flex-col">
-          <div className="flex h-10 shrink-0 items-center gap-2 px-4">
-            {(() => {
-              const { Icon, tone } = iconFor(activePath);
-              return <Icon className={`h-3.5 w-3.5 ${tone}`} />;
-            })()}
-            <span className="truncate font-mono text-[11px] text-muted-foreground">
-              {activePath}
-            </span>
-            {vendoredActive && (
-              <>
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  shadcn/ui
+        {showEditor && (
+          <section className="relative flex min-w-0 flex-1 flex-col border-r">
+            <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-3">
+              <div className="flex min-w-0 items-center gap-2">
+                {(() => {
+                  const { Icon, tone } = iconFor(activePath);
+                  return <Icon className={`h-3.5 w-3.5 ${tone}`} />;
+                })()}
+                <span className="truncate font-mono text-[11px] text-muted-foreground">
+                  {activePath}
                 </span>
+                {vendoredActive && (
+                  <>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      shadcn/ui
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 rounded-full px-2 text-[11px]"
+                      onClick={() => void materialize(activePath)}
+                      title="Editing already copies it in — this does it in one click"
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Copy into project
+                    </Button>
+                  </>
+                )}
+                {openingPath && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                onClick={() => setShowEditor(false)}
+                title="Collapse code editor"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1">
+              {openingPath ? (
+                <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading shadcn/ui file…
+                </div>
+              ) : (
+                <StudioEditor
+                  path={activePath}
+                  value={activeCode}
+                  language={languageFor(activePath)}
+                  onChange={updateActive}
+                  projectFiles={files}
+                  packages={Object.keys(installedPackages)}
+                />
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Preview */}
+        <section className="relative flex min-w-0 flex-1 flex-col">
+          <div className="flex h-10 shrink-0 items-center justify-between border-b px-3">
+            <div className="flex items-center gap-2">
+              {!showExplorer && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 rounded-full px-2 text-[11px]"
-                  onClick={() => void materialize(activePath)}
-                  title="Editing already copies it in — this does it in one click"
+                  className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                  onClick={() => setShowExplorer(true)}
+                  title="Show file explorer"
                 >
-                  <Plus className="mr-1 h-3 w-3" />
-                  Copy into project
+                  <PanelLeft className="h-3 w-3" />
+                  <span>Files</span>
                 </Button>
-              </>
-            )}
-            {openingPath && (
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          <div className="min-h-0 flex-1 border-t border-border/70">
-            {openingPath ? (
-              <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading shadcn/ui file…
-              </div>
-            ) : (
-              <StudioEditor
-                path={activePath}
-                value={activeCode}
-                language={languageFor(activePath)}
-                onChange={updateActive}
-                projectFiles={files}
-                packages={Object.keys(installedPackages)}
-              />
-            )}
-          </div>
-        </section>
-
-        {/* Preview */}
-        <section className="relative flex min-h-0 flex-col">
-          <div className="flex h-10 shrink-0 items-center justify-between px-4">
-            <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-              Preview
-            </span>
-            <div className="flex items-center gap-2">
+              )}
+              {!showEditor && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                  onClick={() => setShowEditor(true)}
+                  title="Show code editor"
+                >
+                  <Code2 className="h-3 w-3" />
+                  <span>Code</span>
+                </Button>
+              )}
+              <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+                Preview
+              </span>
               <span
                 className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
                 title={
                   previewMode === "sandbox"
-                    ? "Running on a Vite dev server inside a sandbox VM"
+                    ? "Running on a real Next.js dev server"
                     : "Browser-side preview"
                 }
               >
@@ -959,32 +1007,101 @@ export function ComponentStudio({
                 />
                 {previewMode === "sandbox" ? "dev server" : "local preview"}
               </span>
-              <div className="flex items-center gap-0.5 rounded-full border p-0.5">
-              <Button
-                variant={viewport === "desktop" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-6 w-6 rounded-full"
-                onClick={() => setViewport("desktop")}
-                title="Desktop"
-              >
-                <Monitor className="h-3 w-3" />
-              </Button>
-              <Button
-                variant={viewport === "mobile" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-6 w-6 rounded-full"
-                onClick={() => setViewport("mobile")}
-                title="Mobile"
-              >
-                <Smartphone className="h-3 w-3" />
-              </Button>
+            </div>
+
+            {/* Combined Toolbar: Reloader, Theme Switcher, Resize Icons */}
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5 rounded-full border bg-background/80 p-0.5 shadow-2xs backdrop-blur-xs">
+                {/* Sandbox Reloader */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
+                  onClick={() => {
+                    setForceLocalPreview(false);
+                    reconnectSandbox();
+                  }}
+                  title="Reload preview"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+
+                {/* Theme Switcher */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
+                  onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
+                  title={`Switch to ${previewTheme === "light" ? "dark" : "light"} theme`}
+                >
+                  {previewTheme === "light" ? (
+                    <Sun className="h-3 w-3 text-amber-500" />
+                  ) : (
+                    <Moon className="h-3 w-3 text-sky-400" />
+                  )}
+                </Button>
+
+                <span className="mx-0.5 h-3 w-px bg-border/80" />
+
+                {/* Responsive Viewport Resize Icons */}
+                <Button
+                  variant={viewport === "desktop" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
+                  onClick={() => setViewport("desktop")}
+                  title="Desktop (full view)"
+                >
+                  <Monitor className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant={viewport === "mobile" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
+                  onClick={() => setViewport("mobile")}
+                  title="Mobile (390px)"
+                >
+                  <Smartphone className="h-3 w-3" />
+                </Button>
+
+                <span className="mx-0.5 h-3 w-px bg-border/80" />
+
+                {/* Fullscreen Toggle (collapses explorer & editor) */}
+                <Button
+                  variant={!showExplorer && !showEditor ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
+                  onClick={() => {
+                    if (!showExplorer && !showEditor) {
+                      setShowExplorer(true);
+                      setShowEditor(true);
+                    } else {
+                      setShowExplorer(false);
+                      setShowEditor(false);
+                    }
+                  }}
+                  title={!showExplorer && !showEditor ? "Exit full screen preview" : "Full screen preview"}
+                >
+                  {!showExplorer && !showEditor ? (
+                    <Minimize2 className="h-3 w-3" />
+                  ) : (
+                    <Maximize2 className="h-3 w-3" />
+                  )}
+                </Button>
               </div>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 justify-center overflow-auto bg-muted/20 p-4">
+
+          {/* Preview Canvas: Edge-to-edge full width and height, NO rounding */}
+          <div
+            className={`flex min-h-0 flex-1 justify-center overflow-auto bg-background ${
+              viewport === "mobile" ? "items-center bg-muted/20 p-4" : "p-0"
+            }`}
+          >
             <div
-              className={`h-full overflow-hidden rounded-xl border bg-background shadow-sm transition-all ${
-                viewport === "mobile" ? "w-[390px]" : "w-full"
+              className={`h-full w-full overflow-hidden transition-all ${
+                viewport === "mobile"
+                  ? "w-[390px] max-h-[844px] rounded-2xl border bg-background shadow-xl"
+                  : "rounded-none border-0"
               }`}
             >
               {previewMode === "sandbox" && sandboxPreviewURL ? (
@@ -1012,7 +1129,7 @@ export function ComponentStudio({
               ) : (
                 <LocalPreview
                   files={previewFiles}
-                  entry="/src/App.tsx"
+                  entry={DEFAULT_DEMO_PATH}
                   theme={previewTheme}
                   height="100%"
                 />

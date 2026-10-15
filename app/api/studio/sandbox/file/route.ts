@@ -9,7 +9,7 @@ export const runtime = "nodejs";
  * Hands the studio a vendored shadcn/ui file on demand, addressed by its
  * import specifier (`@/components/ui/dialog`).
  *
- * The sandbox preview calls this when Vite reports an import the VM does not
+ * The sandbox preview calls this when the dev server reports an import the VM does not
  * have on disk yet, so a newly typed `import { Dialog } from
  * "@/components/ui/dialog"` heals itself — the same way the browser-side
  * preview resolves it, but for real this time.

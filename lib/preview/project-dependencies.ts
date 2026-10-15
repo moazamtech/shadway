@@ -1,4 +1,10 @@
-export const BASE_SANDBOX_DEPENDENCIES: Record<string, string> = {
+/**
+ * The packages a generated project is considered to already have: the scaffold
+ * (`next`, `react`, `tailwindcss`), the shadcn/ui runtime, and the libraries
+ * the generator reaches for by default. An import of anything else counts as a
+ * package the component adds, which is what gets installed and published.
+ */
+export const BASE_PROJECT_DEPENDENCIES: Record<string, string> = {
   react: "latest",
   "react-dom": "latest",
   "react-is": "latest",
@@ -7,9 +13,6 @@ export const BASE_SANDBOX_DEPENDENCIES: Record<string, string> = {
   "class-variance-authority": "latest",
   "tailwind-merge": "latest",
   tailwindcss: "^4.0.0",
-  "@tailwindcss/vite": "^4.0.0",
-  vite: "^5.4.0",
-  "@vitejs/plugin-react": "^4.3.0",
   "@radix-ui/react-slot": "latest",
   "@radix-ui/react-separator": "latest",
   "@radix-ui/react-avatar": "latest",
@@ -67,7 +70,7 @@ function extractPackageJsonDependencies(source: string) {
 
 export function extractPackageDependencies(
   sources: Array<string | undefined | null>,
-  baseDeps: Record<string, string> = BASE_SANDBOX_DEPENDENCIES,
+  baseDeps: Record<string, string> = BASE_PROJECT_DEPENDENCIES,
 ) {
   const importRegex =
     /import\s+(?:[^"']+from\s+)?["']([^"']+)["']|require\(\s*["']([^"']+)["']\s*\)/g;
@@ -97,7 +100,7 @@ export function extractPackageDependencies(
 
 export function listAddedPackages(
   sources: Array<string | undefined | null>,
-  baseDeps: Record<string, string> = BASE_SANDBOX_DEPENDENCIES,
+  baseDeps: Record<string, string> = BASE_PROJECT_DEPENDENCIES,
 ) {
   return Object.keys(extractPackageDependencies(sources, baseDeps)).sort();
 }

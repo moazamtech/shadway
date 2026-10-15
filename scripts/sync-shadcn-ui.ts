@@ -91,7 +91,7 @@ function themeCss(
 /**
  * Rewrites the pieces of a vendored file that assume the shadcn CLI's own
  * project layout, so the same source compiles against the preview's
- * `/src/components/ui/*` tree.
+ * `components/ui/*` tree.
  */
 function normalize(content: string, name: string): string {
   let result = content

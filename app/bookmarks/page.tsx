@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { Bookmark, Layers, Search } from "lucide-react";
+import { Bookmark, Search } from "lucide-react";
+import Image from "next/image";
 import { authOptions } from "@/lib/auth";
 import { getUserBookmarks } from "@/lib/db/marketplace";
 import { getComponentsCollection } from "@/lib/db/components";
@@ -35,7 +36,13 @@ export default async function BookmarksPage() {
       <header className="border-b">
         <div className="mx-auto flex max-w-[1500px] items-center gap-4 px-4 py-3 lg:px-6">
           <Link href="/" className="flex items-center gap-2">
-            <Layers className="h-5 w-5" />
+            <Image
+              src="/logo.png"
+              width={20}
+              height={20}
+              alt="Shadway"
+              className="h-5 w-5 object-contain"
+            />
             <span className="text-sm font-semibold tracking-tight">Shadway</span>
           </Link>
           <Link
@@ -105,5 +112,7 @@ async function loadItems(slugs: string[]) {
       installs: doc.installs,
       views: doc.views,
       likes: doc.likes,
+      // The card shows a relative age; a raw `Date` cannot cross the boundary.
+      createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : undefined,
     }));
 }

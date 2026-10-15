@@ -49,7 +49,7 @@ export function PublishPanel({
   extraFiles: { path: string; content: string; type: string }[];
   dependencies: string[];
   initialMeta?: Partial<PublishMeta>;
-  status?: "draft" | "published" | "hidden" | "flagged";
+  status?: "draft" | "pending" | "published" | "hidden" | "flagged";
   onBack?: () => void;
 }) {
   const router = useRouter();

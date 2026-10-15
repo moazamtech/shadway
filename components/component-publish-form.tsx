@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ComponentSandpackPreview } from "@/components/component-sandpack-preview";
+import { ComponentPreview } from "@/components/component-preview";
 
 export function ComponentPublishForm() {
   const router = useRouter();
@@ -197,10 +197,10 @@ export function ComponentPublishForm() {
         <div className="rounded-2xl border p-3">
           <h2 className="mb-3 text-sm font-semibold">Live preview</h2>
           {code.trim() ? (
-            <ComponentSandpackPreview
+            <ComponentPreview
               code={code}
               title={title || "New component"}
-              dependencies={dependencies.split(",").map((dep) => dep.trim()).filter(Boolean)}
+              height={240}
             />
           ) : (
             <div className="flex h-44 items-center justify-center rounded-lg border text-sm text-muted-foreground">

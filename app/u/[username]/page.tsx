@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { sessionUsername } from "@/lib/session";
 import { resolveProfile } from "@/lib/db/users";
 import { listComponents } from "@/lib/db/components";
+import { serializeComponent } from "@/lib/serialize";
 import { ComponentCard } from "@/components/marketplace/component-card";
 import { AppShell } from "@/components/marketplace/app-shell";
 import { UserMenu } from "@/components/user-menu";
@@ -16,11 +17,14 @@ export const dynamic = "force-dynamic";
 
 type ComponentListItem = Awaited<ReturnType<typeof listComponents>>[number];
 
+/**
+ * `listComponents` returns raw Mongo documents. The card is a client component
+ * and takes a serialized `createdAt`; a `Date` (and the `_id` ObjectId) cannot
+ * cross the server/client boundary, so normalize here rather than loosening
+ * the card's type.
+ */
 function toCardItem(item: ComponentListItem) {
-  return {
-    ...item,
-    createdAt: item.createdAt ? item.createdAt.toISOString() : undefined,
-  };
+  return serializeComponent(item);
 }
 
 export async function generateMetadata({

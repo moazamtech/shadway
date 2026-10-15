@@ -1,9 +1,22 @@
+import {
+  DEFAULT_COMPONENT_PATH,
+  DEFAULT_DEMO_PATH,
+  DEFAULT_STYLE_PATH,
+  storedProjectPath,
+} from "@/lib/studio/starter";
+
 export type PreviewFileInput = { path: string; content: string };
 export type PreviewFiles = Record<string, string>;
+
+/** The page a preview boots from: the author's component, rendered. */
+const DEMO_SOURCE = `import Component from "@/components/component";\nexport default function Page() {\n  return <Component />;\n}\n`;
 
 /**
  * Accepts either a single component string (published component) or a full
  * file map (studio project) and returns a complete, previewable file set.
+ *
+ * The project is laid out like this site: the component in `components/` and
+ * a page in `app/` that renders it, with `@/` resolving from the project root.
  *
  * The shadcn `components/ui` folder is not listed here: every preview is
  * handed the vendored registry files it imports (`withShadcnFiles`), the same
@@ -18,48 +31,51 @@ export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInpu
   }
 
   return [
-    { path: "/src/components/component.tsx", content: input },
-    {
-      path: "/src/App.tsx",
-      content: `import Component from "./components/component";\nexport default function App() {\n  return <Component />;\n}\n`,
-    },
+    { path: DEFAULT_COMPONENT_PATH, content: input },
+    { path: DEFAULT_DEMO_PATH, content: DEMO_SOURCE },
   ];
 }
 
 /**
  * Builds the complete previewable file set for a stored component.
- * Always guarantees a runnable `/src/App.tsx` entry, uses the author's demo
+ * Always guarantees a runnable `app/page.tsx` entry, uses the author's demo
  * when present, and appends any lib/hook support files.
  */
 export function componentSourceFiles(component: {
   code: string;
   demoCode?: string;
+  styleCode?: string;
   files?: { path: string; content: string }[];
 }): PreviewFileInput[] {
   const base = buildPreviewFiles(component.code);
 
   if (component.demoCode?.trim()) {
     const demo: PreviewFileInput = {
-      path: "/src/App.tsx",
+      path: DEFAULT_DEMO_PATH,
       content: component.demoCode,
     };
-    const existing = base.findIndex((file) => file.path === "/src/App.tsx");
+    const existing = base.findIndex((file) => file.path === DEFAULT_DEMO_PATH);
     if (existing >= 0) base[existing] = demo;
     else base.push(demo);
   }
 
   for (const support of component.files ?? []) {
     if (!support?.content) continue;
-    const path = support.path.startsWith("/") ? support.path : `/src/${support.path}`;
+    const path = storedProjectPath(support.path);
     if (base.some((file) => file.path === path)) continue;
     base.push({ path, content: support.content });
   }
 
-  if (!base.some((file) => file.path === "/src/App.tsx")) {
-    base.push({
-      path: "/src/App.tsx",
-      content: `import Component from "./components/component";\nexport default function App() {\n  return <Component />;\n}\n`,
-    });
+  // The project stylesheet, when the author has one of their own.
+  if (
+    component.styleCode?.trim() &&
+    !base.some((file) => file.path === DEFAULT_STYLE_PATH)
+  ) {
+    base.push({ path: DEFAULT_STYLE_PATH, content: component.styleCode });
+  }
+
+  if (!base.some((file) => file.path === DEFAULT_DEMO_PATH)) {
+    base.push({ path: DEFAULT_DEMO_PATH, content: DEMO_SOURCE });
   }
 
   return base;

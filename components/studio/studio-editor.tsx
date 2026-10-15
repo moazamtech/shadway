@@ -93,7 +93,7 @@ function defineTheme(monaco: typeof Monaco) {
  * The studio edits one file at a time with no tsconfig behind it, so semantic
  * checking only ever produces "cannot find module" noise. Both semantic and
  * syntax diagnostics are off — the way the studio's editor works — and real
- * errors surface in the preview through the Vite error overlay instead.
+ * errors surface in the preview's error overlay instead.
  */
 function configureLanguageService(monaco: MonacoWithTs) {
   const ts = monaco.languages.typescript;

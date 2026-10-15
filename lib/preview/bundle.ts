@@ -31,16 +31,25 @@ function resolveLocal(specifier: string, fromPath: string, known: string[]): str
 
   if (specifier.startsWith("@/")) {
     const rest = specifier.slice(2);
+    // "@/..." resolves from the project root — the layout of an App Router
+    // project. Projects written before that layout kept a src/ prefix.
+    candidates.push(normalize(`/${rest}`));
     candidates.push(normalize(`/src/${rest}`));
 
     // Alias drift: projects (and pasted code) move between a `ui/` folder and
     // `components/` — try the sibling spelling before giving up.
     if (rest.startsWith("components/ui/")) {
-      candidates.push(normalize(`/src/components/${rest.slice("components/ui/".length)}`));
+      const tail = rest.slice("components/ui/".length);
+      candidates.push(normalize(`/components/${tail}`));
+      candidates.push(normalize(`/src/components/${tail}`));
     } else if (rest.startsWith("components/")) {
-      candidates.push(normalize(`/src/components/ui/${rest.slice("components/".length)}`));
+      const tail = rest.slice("components/".length);
+      candidates.push(normalize(`/components/ui/${tail}`));
+      candidates.push(normalize(`/src/components/ui/${tail}`));
     } else if (rest.startsWith("ui/")) {
-      candidates.push(normalize(`/src/components/ui/${rest.slice("ui/".length)}`));
+      const tail = rest.slice("ui/".length);
+      candidates.push(normalize(`/components/ui/${tail}`));
+      candidates.push(normalize(`/src/components/ui/${tail}`));
     }
   } else if (specifier.startsWith(".")) {
     const stack = normalize(fromPath).split("/").slice(0, -1);
@@ -50,6 +59,12 @@ function resolveLocal(specifier: string, fromPath: string, known: string[]): str
       else stack.push(segment);
     }
     candidates.push(normalize(stack.join("/")));
+
+    // Demos written before the app folder lived beside the component and
+    // dotted into it (`./components/component`); read those from the root.
+    if (specifier.startsWith("./")) {
+      candidates.push(normalize(specifier.slice(1)));
+    }
   } else {
     return null;
   }
@@ -84,7 +99,12 @@ function resolveLocal(specifier: string, fromPath: string, known: string[]): str
 const IMPORT_RE =
   /(\bimport\s+(?:[\s\S]*?\sfrom\s*)?|\bexport\s+(?:[\s\S]*?\sfrom\s*)|\bimport\s*\(\s*|\brequire\s*\(\s*)(["'])([^"']+)\2/g;
 
-const MAIN_COMPONENT_PATHS = ["/src/components/component.tsx", "/src/component.tsx"];
+const MAIN_COMPONENT_PATHS = [
+  "/components/component.tsx",
+  "/src/components/component.tsx",
+  "/src/component.tsx",
+  "/component.tsx",
+];
 
 /** The canonical module that represents the published component. */
 function componentModuleId(known: string[]): string | null {
@@ -92,7 +112,11 @@ function componentModuleId(known: string[]): string | null {
     if (known.includes(candidate)) return candidate;
   }
   const firstTsx = known.find(
-    (path) => path.endsWith(".tsx") && !path.includes("/ui/") && !path.endsWith("/App.tsx")
+    (path) =>
+      path.endsWith(".tsx") &&
+      !path.includes("/ui/") &&
+      !path.startsWith("/app/") &&
+      !path.endsWith("/App.tsx")
   );
   return firstTsx ?? null;
 }
@@ -185,9 +209,11 @@ export async function buildPreviewBundle(
 
   const entryId = normalize(
     options.entry ??
-      (known.includes("/src/App.tsx")
-        ? "/src/App.tsx"
-        : known.find((p) => p.endsWith(".tsx")) ?? "/src/index.tsx")
+      (known.includes("/app/page.tsx")
+        ? "/app/page.tsx"
+        : known.includes("/src/App.tsx")
+          ? "/src/App.tsx"
+          : known.find((p) => p.endsWith(".tsx")) ?? "/app/page.tsx")
   );
 
   const externalList = Array.from(externals);
@@ -228,16 +254,16 @@ ${PREVIEW_THEME_CSS}
 <script type="importmap">
 ${JSON.stringify({
   imports: {
-    react: "https://esm.sh/react@18.3.1",
-    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
-    "react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    react: "https://esm.sh/react@19.1.2",
+    "react/jsx-runtime": "https://esm.sh/react@19.1.2/jsx-runtime",
+    "react/jsx-dev-runtime": "https://esm.sh/react@19.1.2/jsx-dev-runtime",
+    "react-dom": "https://esm.sh/react-dom@19.1.2",
+    "react-dom/client": "https://esm.sh/react-dom@19.1.2/client",
   },
 })}
 </script>
 <script>window.__shadwayUnresolved = ${JSON.stringify(unresolved).replace(/</g, "\\u003c")};</script>
-<script type="module" src="/preview/vite-overlay.js"></script>
+<script type="module" src="/preview/overlay.js"></script>
 <script>${PREVIEW_ERROR_SCRIPT}</script>
 </head>
 <body>
@@ -254,7 +280,7 @@ function __req(id) {
   if (id.startsWith("@vfs/")) {
     const target = id.slice(4);
     const factory = __modules[target];
-    if (!factory) throw new Error("Module not found: " + target);
+    if (!factory) throw new Error("Module not found: Can't resolve '" + target + "'");
     const module = { exports: {} };
     __cache[id] = module;
     factory(module, module.exports, __req);
@@ -287,6 +313,7 @@ try {
   const message = String(error && error.message ? error.message : error);
   if (typeof window.__shadwayPreviewError === "function") {
     window.__shadwayPreviewError({
+      title: "Unhandled Runtime Error",
       message: message,
       stack: error && error.stack ? error.stack : "",
     });

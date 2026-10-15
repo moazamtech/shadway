@@ -16,7 +16,6 @@
     "@babel/plugin-transform-modules-commonjs": "7.29.7",
     "@babel/preset-react": "7.28.5",
     "@babel/preset-typescript": "7.28.5",
-    "@codesandbox/sandpack-react": "^2.20.0",
     "@codesandbox/sdk": "^0.11.2",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.2.2",
@@ -107,8 +106,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@codesandbox/sandpack-react": "latest",
-    "@codesandbox/sandpack-themes": "latest",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",

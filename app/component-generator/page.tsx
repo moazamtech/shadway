@@ -1,7 +1,7 @@
 "use client";
 
 import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
-import { SandpackRuntimePreview } from "@/components/sandpack-preview";
+import { DevServerPreview } from "@/components/preview/dev-server-preview";
 import { FileTree } from "@/app/component-generator/components/file-tree";
 import { SuggestionsGrid } from "@/app/component-generator/components/suggestions-grid";
 import Image from "next/image";
@@ -71,10 +71,10 @@ import {
 } from "@/components/ui/dialog";
 import { StickToBottom } from "use-stick-to-bottom";
 import {
-  SANDPACK_BASE_FILES,
-  SANDPACK_SHADCN_FILES,
-} from "@/lib/sandpack-files";
-import { listAddedPackages } from "@/lib/sandpack-dependencies";
+  BASE_PROJECT_FILES,
+  SHADCN_PROJECT_FILES,
+} from "@/lib/preview/project-files";
+import { listAddedPackages } from "@/lib/preview/project-dependencies";
 
 type GeneratorMessage = {
   id: string;
@@ -400,8 +400,8 @@ export default function ComponentGeneratorPage() {
   const isAdmin = session?.user?.role === "admin";
   const baseSandboxFiles = useMemo(
     () => ({
-      ...SANDPACK_BASE_FILES,
-      ...SANDPACK_SHADCN_FILES,
+      ...BASE_PROJECT_FILES,
+      ...SHADCN_PROJECT_FILES,
     }),
     [],
   );
@@ -853,8 +853,8 @@ export default function ComponentGeneratorPage() {
   const handleFileCopy = useCallback(
     (path: string) => {
       const allFiles: Record<string, string> = {
-        ...SANDPACK_BASE_FILES,
-        ...SANDPACK_SHADCN_FILES,
+        ...BASE_PROJECT_FILES,
+        ...SHADCN_PROJECT_FILES,
         ...(generatedComponent?.files || {}),
       };
 
@@ -889,8 +889,8 @@ export default function ComponentGeneratorPage() {
       let counter = 1;
 
       const allFiles: Record<string, string> = {
-        ...SANDPACK_BASE_FILES,
-        ...SANDPACK_SHADCN_FILES,
+        ...BASE_PROJECT_FILES,
+        ...SHADCN_PROJECT_FILES,
         ...(generatedComponent?.files || {}),
       };
 
@@ -1173,8 +1173,8 @@ export default function ComponentGeneratorPage() {
         const buildProjectContext = () => {
           const baseFiles: Record<string, string> | null = generatedComponent?.files
             ? {
-                ...SANDPACK_BASE_FILES,
-                ...SANDPACK_SHADCN_FILES,
+                ...BASE_PROJECT_FILES,
+                ...SHADCN_PROJECT_FILES,
                 ...generatedComponent.files,
                 ...editedFiles,
               }
@@ -2171,11 +2171,11 @@ export default function ComponentGeneratorPage() {
                       : "opacity-0 z-0 invisible scale-[0.98]",
                   )}
                 >
-                  <SandpackRuntimePreview
+                  <DevServerPreview
                     key={`preview-${previewReloadKey}`}
                     showConsole
                     code={generatedComponent.code || ""}
-                    files={mergedUserFiles}
+                    files={mergedProjectFiles}
                     entryFile={generatedComponent.entryFile}
                     className="flex-1 min-h-0 h-full"
                     isDarkTheme={isPreviewDark}
