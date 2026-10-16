@@ -1,7 +1,7 @@
 "use client";
 
 import { GeneratorHeader } from "@/app/component-generator/components/generator-header";
-import { DevServerPreview } from "@/components/preview/dev-server-preview";
+import { BrowserPreview } from "@/components/preview/browser-preview";
 import { FileTree } from "@/app/component-generator/components/file-tree";
 import { SuggestionsGrid } from "@/app/component-generator/components/suggestions-grid";
 import Image from "next/image";
@@ -2171,9 +2171,8 @@ export default function ComponentGeneratorPage() {
                       : "opacity-0 z-0 invisible scale-[0.98]",
                   )}
                 >
-                  <DevServerPreview
+                  <BrowserPreview
                     key={`preview-${previewReloadKey}`}
-                    showConsole
                     code={generatedComponent.code || ""}
                     files={mergedProjectFiles}
                     entryFile={generatedComponent.entryFile}

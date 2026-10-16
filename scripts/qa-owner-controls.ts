@@ -7,7 +7,7 @@ import "dotenv/config";
  *   - signed-in owner PATCH  -> 200 (title/visibility)
  *   - non-owner PATCH        -> 403
  *   - signed-in owner DELETE -> 200
- *   - /dashboard renders for a signed-in user
+ *   - /studio renders for a signed-in user
  *
  * Run with a dev server up:
  *   npx tsx scripts/qa-owner-controls.ts
@@ -253,9 +253,9 @@ async function main() {
     log("owner DELETE succeeds", res.status === 200, `status=${res.status}`);
     slug = null; // cleaned up
 
-    // ------------------------------------------------------------ dashboard --
-    res = await request("/dashboard");
-    log("dashboard renders for authed user", res.status === 200, `status=${res.status}`);
+    // ---------------------------------------------------------------- studio --
+    res = await request("/studio");
+    log("studio renders for authed user", res.status === 200, `status=${res.status}`);
 
     // ------------------------------------------------------------- anon gate
     // Clear jar to simulate signed out: direct fetch without cookies.

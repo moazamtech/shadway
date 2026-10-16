@@ -4,7 +4,7 @@
  * LLM output is usually valid but occasionally broken in small, mechanical
  * ways: a JSX string prop split across lines, a component used without its
  * import, the same import listed twice. These passes fix those before the file
- * reaches the dev server, so the preview shows the design rather than a parse
+ * reaches the bundler, so the preview shows the design rather than a parse
  * error. Imports keep their `@/...` specifiers — the project resolves them.
  */
 

@@ -9,6 +9,7 @@ import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
+  ClipboardCheck,
   CreditCard,
   LogOut,
   Sparkles,
@@ -77,6 +78,11 @@ const data = {
       badge: true,
     },
     {
+      title: "Review Queue",
+      url: "/admin/review",
+      icon: ClipboardCheck,
+    },
+    {
       title: "Components Admin",
       url: "/admin/components",
       icon: Code,
@@ -120,10 +126,24 @@ export function AppSidebar({
 }: AppSidebarProps & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const [pendingSubmissions, setPendingSubmissions] = useState(0);
+  const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
     fetchPendingSubmissions();
+    fetchPendingReviews();
   }, []);
+
+  const fetchPendingReviews = async () => {
+    try {
+      const response = await fetch("/api/admin/review", { cache: "no-store" });
+      if (response.ok) {
+        const data = await response.json();
+        setPendingReviews(typeof data.count === "number" ? data.count : 0);
+      }
+    } catch (error) {
+      console.error("Error fetching pending reviews:", error);
+    }
+  };
 
   const fetchPendingSubmissions = async () => {
     try {
@@ -171,7 +191,12 @@ export function AppSidebar({
             <SidebarMenu>
               {data.navMain.map((item) => {
                 const isActive = pathname === item.url;
-                const showBadge = item.badge && pendingSubmissions > 0;
+                const showBadge =
+                  item.url === "/admin/review"
+                    ? pendingReviews > 0
+                    : item.badge && pendingSubmissions > 0;
+                const badgeCount =
+                  item.url === "/admin/review" ? pendingReviews : pendingSubmissions;
 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -183,7 +208,7 @@ export function AppSidebar({
                     </SidebarMenuButton>
                     {showBadge && (
                       <SidebarMenuBadge className="bg-red-500 text-white">
-                        {pendingSubmissions}
+                        {badgeCount}
                       </SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>

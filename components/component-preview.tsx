@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { DevServerPreview } from "@/components/preview/dev-server-preview";
+import { BrowserPreview } from "@/components/preview/browser-preview";
 import { buildPreviewFiles, type PreviewFiles } from "@/lib/preview/files";
 
 export { buildPreviewFiles };
@@ -11,9 +11,9 @@ export type { PreviewFiles };
 /**
  * Inline preview of a component that is still being written.
  *
- * It runs on the same real Next.js dev server as every other preview on the
- * site — nothing is emulated — and it waits until it scrolls into view, so a
- * page full of previews does not boot a server for every card at once.
+ * The preview is bundled in the browser by Sandpack — the host runs nothing —
+ * and it waits until it scrolls into view, so a page full of previews does not
+ * boot a sandbox for every card at once.
  */
 export function ComponentPreview({
   code,
@@ -66,7 +66,7 @@ export function ComponentPreview({
       style={{ height }}
     >
       {visible && projectFiles ? (
-        <DevServerPreview
+        <BrowserPreview
           code={code}
           files={projectFiles}
           entryFile={entryFile}

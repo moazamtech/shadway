@@ -24,7 +24,9 @@ export async function buildRegistryItem(
   if (!parsed) return null;
 
   const component = await getComponentBySlug(parsed.slug);
-  if (!component || (component.status !== "published" && component.status !== "pending") || component.visibility !== "public") {
+  // getComponentBySlug already filters to status: "published"; the public
+  // visibility check keeps unlisted copies link-only.
+  if (!component || component.visibility !== "public") {
     return null;
   }
 

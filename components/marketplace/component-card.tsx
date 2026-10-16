@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bookmark, Check, Copy, Download, Play } from "lucide-react";
+import { Bookmark, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type MarketplaceCardItem = {
@@ -38,16 +38,13 @@ function timeAgo(dateStr?: string): string {
 }
 
 /**
- * Static, lightweight marketplace card.
+ * 21st-style marketplace card.
  *
- * Uses the cover image captured at publish time so the feed never boots a
- * bundler per card. Hovering a video plays it inline.
- *
- * Deliberately carries no view or like counts on its face: the feed is a
- * catalogue, and a number under every thumbnail trains visitors to scroll past
- * anything that has not been liked yet. Installs stay, styled as a quiet
- * secondary detail, because they are the one signal that says a component is
- * actually used.
+ * The cover is the author's uploaded thumbnail; hovering swaps in the uploaded
+ * video, and the video src is only assigned on hover so a page of thirty
+ * cards streams nothing until it is actually under the cursor. Install
+ * commands and metrics stay off the card face — the card is a catalogue
+ * image; the detail page is where evaluation happens.
  */
 export function ComponentCard({
   item,
@@ -65,8 +62,8 @@ export function ComponentCard({
   /** Opens the detail dialog. When absent the card links straight to the page. */
   onOpen?: (slug: string) => void;
 }) {
-  const [showVideo, setShowVideo] = useState(false);
-  const [copied, setCopied] = useState(false);
+  /** The video src is assigned only on hover — nothing fetches otherwise. */
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [optimisticLike, setOptimisticLike] = useState(false);
 
@@ -74,28 +71,9 @@ export function ComponentCard({
   const liked = Boolean(likedSlugs?.[item.slug]) || optimisticLike;
   const hasCover = Boolean(item.thumbnailUrl) && !coverFailed;
 
-  async function copyInstall() {
-    try {
-      const origin =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://shadway.online";
-      await navigator.clipboard.writeText(
-        `npx shadcn@latest add ${origin}/r/${item.slug}`
-      );
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {}
-  }
-
-  function handleLike() {
-    setOptimisticLike((v) => !v);
-    onLike?.(item.slug);
-  }
-
   const cover = (
     <>
-      {showVideo && item.videoUrl ? (
+      {videoLoaded && item.videoUrl ? (
         <video
           src={item.videoUrl}
           className="h-full w-full object-cover"
@@ -127,10 +105,22 @@ export function ComponentCard({
     </>
   );
 
+  function handleLike() {
+    setOptimisticLike((v) => !v);
+    onLike?.(item.slug);
+  }
+
   return (
     <article className="group relative flex flex-col">
-      {/* Cover */}
-      <div className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-all duration-300 group-hover:border-foreground/15 group-hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]">
+      {/* Cover — the video only mounts while the pointer is over the card,
+          exactly like a card catalogue that never streams off-screen. */}
+      <div
+        className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-all duration-300 group-hover:border-foreground/15 group-hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]"
+        onMouseEnter={() => item.videoUrl && setVideoLoaded(true)}
+        onMouseLeave={() => setVideoLoaded(false)}
+        onTouchStart={() => item.videoUrl && setVideoLoaded(true)}
+        onTouchEnd={() => setVideoLoaded(false)}
+      >
         {onOpen ? (
           <>
             {cover}
@@ -200,19 +190,6 @@ export function ComponentCard({
               />
             </button>
           ) : null}
-          <button
-            type="button"
-            title={copied ? "Copied" : "Copy install command"}
-            aria-label={copied ? "Install command copied" : "Copy install command"}
-            onClick={() => void copyInstall()}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-background/85 text-foreground/70 backdrop-blur-sm transition hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-          </button>
         </div>
       </div>
 
@@ -269,13 +246,6 @@ export function ComponentCard({
             ) : null}
           </div>
         </div>
-      </div>
-
-      {/* Installs — the only metric on the card face. */}
-      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Download className="h-3 w-3" aria-hidden="true" />
-        <span className="tabular-nums">{item.installs}</span>
-        <span>installs</span>
       </div>
     </article>
   );

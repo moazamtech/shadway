@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronDown, LayoutDashboard, LogOut, Sparkles } from "lucide-react";
+import { ChevronDown, LogOut, Sparkles } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -159,12 +159,6 @@ function UserMenuContent({ name, email }: { name: string; email: string }) {
         ) : null}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <Link href="/dashboard" className="cursor-pointer">
-          <LayoutDashboard className="h-4 w-4" />
-          Dashboard
-        </Link>
-      </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/studio" className="cursor-pointer">
           <Sparkles className="h-4 w-4" />

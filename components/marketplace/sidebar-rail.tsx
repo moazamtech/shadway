@@ -7,12 +7,13 @@ import {
   Bookmark,
   FolderOpen,
   Home,
-  LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
   Settings,
+  Sparkles,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -73,7 +74,8 @@ const NAV: RailNavItem[] = [
   { title: "Home", href: "/", icon: Home, exact: true },
   { title: "Collections", href: "/collections", icon: FolderOpen },
   { title: "Bookmarks", href: "/bookmarks", icon: Bookmark },
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Studio", href: "/studio", icon: Sparkles },
+  { title: "Profile", href: "/profile", icon: User },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -56,12 +56,11 @@ export function ComponentDetailDialog({
   onToggleSave: (slug: string) => void;
   onToggleLike: (slug: string) => void;
 }) {
-  // The hooks below close over `item`, and TypeScript cannot carry the
-  // narrowing across those closures — so bail out here with a binding whose
-  // type is narrowed by construction.
-  if (!item) return null;
-  const current: MarketplaceCardItem = item;
-
+  // Rules of Hooks: the hooks below must run on every render, so they live
+  // above the early return instead of after it. TypeScript cannot carry the
+  // `item` narrowing across those hook closures — the optional chaining in
+  // the hooks handles that, and `current` (re-declared after the bail-out)
+  // is narrowed by construction.
   const router = useRouter();
   const origin = useOrigin();
   const [tab, setTab] = useState<Tab>("preview");
@@ -98,6 +97,10 @@ export function ComponentDetailDialog({
       cancelled = true;
     };
   }, [open, tab, activeSlug, code]);
+
+  // The dialog renders nothing when there is no component to show.
+  if (!item) return null;
+  const current: MarketplaceCardItem = item;
 
   const installCommand = `npx shadcn@latest add ${origin}/r/${current.slug}`;
   const pageUrl = `${origin}/c/${current.slug}`;

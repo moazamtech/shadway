@@ -50,6 +50,8 @@ type Item = {
   bookmarks?: number;
   category?: string;
   createdAt?: string;
+  /** Present (and not "published") only for the owner or an admin. */
+  status?: "draft" | "pending" | "published" | "hidden" | "flagged";
 };
 
 type Tab = "preview" | "code" | "install";
@@ -83,30 +85,35 @@ function SegmentedTabs({
   tab,
   onChange,
   className,
+  tabs,
 }: {
   tab: Tab;
   onChange: (tab: Tab) => void;
   className?: string;
+  /** Shown tabs — the Install tab stays off until it is approved. */
+  tabs: typeof TABS;
 }) {
-  const index = TABS.findIndex((t) => t.id === tab);
+  const index = tabs.findIndex((t) => t.id === tab);
+  const cols = Math.max(tabs.length, 1);
   return (
     <div
       role="tablist"
       aria-label="Component view"
       className={cn(
-        "relative grid h-8 grid-cols-3 rounded-lg bg-muted p-0.5",
+        "relative grid h-8 rounded-lg bg-muted p-0.5",
         className
       )}
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       <span
         aria-hidden
         className="absolute inset-y-0.5 rounded-md bg-background shadow-sm transition-[left] duration-200 ease-out"
         style={{
-          width: "calc((100% - 4px) / 3)",
-          left: `calc(2px + ${index} * ((100% - 4px) / 3))`,
+          width: `calc((100% - 4px) / ${cols})`,
+          left: index >= 0 ? `calc(2px + ${index} * ((100% - 4px) / ${cols}))` : "-9999px",
         }}
       />
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const Icon = t.icon;
         const active = tab === t.id;
         return (
@@ -239,6 +246,32 @@ export default function ComponentDetailPage() {
     [item]
   );
 
+  // Install stays offline until the admin approves: /r serves published
+  // components only, so the UI never offers a command that would 404.
+  const isPublished = !item?.status || item.status === "published";
+  const visibleTabs = useMemo(
+    () => (isPublished ? TABS : TABS.filter((t) => t.id !== "install")),
+    [isPublished]
+  );
+
+  const statusNotice: { title: string; body: string } | null = isPublished
+    ? null
+    : item?.status === "pending"
+      ? {
+          title: "In review",
+          body:
+            "Only you and the reviewers can see this page right now. An admin approves it — then the install command turns on and it appears in the feed.",
+        }
+      : item?.status === "draft"
+        ? {
+            title: "Draft",
+            body: "This component is not submitted. Open the studio and send it for review.",
+          }
+        : {
+            title: "Not public",
+            body: "This component is not available publicly. It stays visible to you and the admins only.",
+          };
+
   if (loading) {
     return (
       <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -318,7 +351,7 @@ export default function ComponentDetailPage() {
         ) : null}
 
         <div className="ml-auto flex items-center gap-1">
-          <SegmentedTabs tab={tab} onChange={setTab} className="hidden md:grid" />
+          <SegmentedTabs tab={tab} onChange={setTab} className="hidden md:grid" tabs={visibleTabs} />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -335,7 +368,7 @@ export default function ComponentDetailPage() {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy link</TooltipContent>
+            <TooltipContent>{isPublished ? "Copy link" : "Copy private link"}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -354,26 +387,48 @@ export default function ComponentDetailPage() {
             <TooltipContent>{saved ? "Remove bookmark" : "Bookmark"}</TooltipContent>
           </Tooltip>
 
-          <Button
-            size="sm"
-            onClick={() => copy(installCommand, "install")}
-            className="ml-1"
-          >
-            {copied === "install" ? (
-              <Check className="h-3.5 w-3.5" />
-            ) : (
-              <Download className="h-3.5 w-3.5" />
-            )}
-            <span className="hidden sm:inline">
-              {copied === "install" ? "Copied" : "Install"}
-            </span>
-          </Button>
+          {isPublished ? (
+            <Button
+              size="sm"
+              onClick={() => copy(installCommand, "install")}
+              className="ml-1"
+            >
+              {copied === "install" ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {copied === "install" ? "Copied" : "Install"}
+              </span>
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="ml-1" asChild>
+              <Link href="/studio">Open studio</Link>
+            </Button>
+          )}
         </div>
       </header>
 
+      {statusNotice && (
+        <div
+          className={
+            item?.status === "pending"
+              ? "shrink-0 bg-amber-500/10 px-4 py-2.5 text-sm md:px-6 md:py-3"
+              : "shrink-0 bg-muted/60 px-4 py-2.5 text-sm md:px-6 md:py-3"
+          }
+          role="status"
+        >
+          <span className="font-semibold">{statusNotice.title}.</span>{" "}
+          <span className="text-muted-foreground">
+            {statusNotice.body} Anyone else visiting this address sees "component not found".
+          </span>
+        </div>
+      )}
+
       {/* Mobile view switcher */}
       <div className="border-b border-border px-3 py-2 md:hidden">
-        <SegmentedTabs tab={tab} onChange={setTab} className="w-full" />
+        <SegmentedTabs tab={tab} onChange={setTab} className="w-full" tabs={visibleTabs} />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -541,28 +596,30 @@ export default function ComponentDetailPage() {
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Install
-            </h2>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-well p-1.5 pl-3">
-              <code className="min-w-0 flex-1 truncate font-mono text-xs">
-                {installCommand}
-              </code>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Copy install command"
-                onClick={() => copy(installCommand, "install-rail")}
-              >
-                {copied === "install-rail" ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </Button>
+          {isPublished ? (
+            <div className="space-y-2">
+              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Install
+              </h2>
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-well p-1.5 pl-3">
+                <code className="min-w-0 flex-1 truncate font-mono text-xs">
+                  {installCommand}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Copy install command"
+                  onClick={() => copy(installCommand, "install-rail")}
+                >
+                  {copied === "install-rail" ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {npmDeps.length || item.registryDependencies.length ? (
             <div className="space-y-2">

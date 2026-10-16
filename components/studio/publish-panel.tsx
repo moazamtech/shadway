@@ -6,22 +6,30 @@ import Link from "next/link";
 import {
   ChevronRight,
   ChevronDown,
+  CircleCheck,
   FileCode2,
   FileJson,
   FileText,
   Folder,
   Loader2,
   Rocket,
+  TriangleAlert,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type PublishMeta = {
   title: string;
   description: string;
   tags: string;
   category: string;
-  visibility: "public" | "unlisted";
   thumbnailUrl: string;
   videoUrl: string;
 };
@@ -58,7 +66,6 @@ export function PublishPanel({
     description: "",
     tags: "",
     category: "ui",
-    visibility: "public",
     thumbnailUrl: "",
     videoUrl: "",
     ...initialMeta,
@@ -66,6 +73,16 @@ export function PublishPanel({
   const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // The submission dialog: it reports the real pipeline phases, and a real
+  // failure message lets the author go fix the code instead of guessing.
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [phase, setPhase] = useState<
+    "building" | "submitting" | "done" | "failed"
+  >("building");
+  const [phaseMessage, setPhaseMessage] = useState("");
+  const [buildError, setBuildError] = useState<string | null>(null);
+  const [buildWarning, setBuildWarning] = useState<string | null>(null);
 
   const preview = useMemo(() => code.slice(0, 1400), [code]);
   const isUpdate = status === "published";
@@ -101,12 +118,48 @@ export function PublishPanel({
     }
   }
 
+  /**
+   * The submission pipeline, mirroring how 21st.dev builds a block before it
+   * can enter review: bundle -> verify -> submit. Each message the dialog
+   * shows names what the pipeline is actually doing at that moment; a build
+   * failure is the real compiler error, not a generic toast.
+   */
   async function publish() {
     setPublishing(true);
+    setBuildError(null);
+    setBuildWarning(null);
     setError(null);
+    setDialogOpen(true);
+    setPhase("building");
+    setPhaseMessage("Bundling component...");
+
     try {
       if (!code.trim()) throw new Error("Write your component before publishing.");
       if (!meta.title.trim()) throw new Error("Give your component a title.");
+
+      // Build + screenshot: the component is compiled with the same bundler
+      // customers will run, then rendered once in a headless browser so the
+      // queue (and the marketplace card) shows a real capture.
+      const buildResponse = await fetch("/api/studio/build-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: meta.title,
+          code,
+          demoCode,
+          files: extraFiles,
+        }),
+      });
+      const buildData = await buildResponse.json();
+      if (!buildResponse.ok) {
+        throw new Error(buildData.error || "The component failed to build.");
+      }
+      if (buildData.warning) setBuildWarning(buildData.warning);
+
+      setPhase("submitting");
+      setPhaseMessage(
+        meta.thumbnailUrl ? "Submitting for review..." : "Attaching preview and submitting..."
+      );
 
       const response = await fetch("/api/components", {
         method: "POST",
@@ -118,8 +171,8 @@ export function PublishPanel({
           tags: meta.tags.split(",").map((t) => t.trim()).filter(Boolean),
           dependencies,
           category: meta.category,
-          visibility: meta.visibility,
-          thumbnailUrl: meta.thumbnailUrl,
+          // A cover the author uploaded wins; otherwise the captured shot.
+          thumbnailUrl: meta.thumbnailUrl || buildData.thumbnailUrl || "",
           videoUrl: meta.videoUrl,
           code,
           demoCode,
@@ -133,9 +186,25 @@ export function PublishPanel({
         throw new Error("Sign in to publish. Open the login page, then try again.");
       }
       if (!response.ok) throw new Error(data.error || "Failed to publish component");
-      router.push(`/c/${data.item.slug}`);
+
+      // The server decides the final state: user submissions go straight to
+      // the review queue, while an admin publish is live immediately.
+      setPhase("done");
+      setPhaseMessage("Done!");
+      setTimeout(() => {
+        if (data.item?.status === "published") {
+          router.push(`/c/${data.item.slug}`);
+        } else {
+          router.push("/studio?submitted=1");
+        }
+      }, 700);
+      return; // dialog self-closes on redirect; don't clobber the "done" state
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish component");
+      const message =
+        err instanceof Error ? err.message : "Submission failed. Please try again.";
+      setBuildError(message);
+      setPhase("failed");
+      setPhaseMessage("Submission failed");
     } finally {
       setPublishing(false);
     }
@@ -149,7 +218,7 @@ export function PublishPanel({
             Shadway
           </Link>
           <span className="text-sm text-muted-foreground">/</span>
-          <Badge variant="secondary">{isUpdate ? "Update" : "Publish"}</Badge>
+          <Badge variant="secondary">{isUpdate ? "Update" : "Submit"}</Badge>
           <Button variant="ghost" size="sm" className="ml-auto" asChild>
             <Link href="/studio">All components</Link>
           </Button>
@@ -169,7 +238,6 @@ export function PublishPanel({
               This becomes the card on the marketplace and the description agents read.
             </p>
           </div>
-
           <label className="block space-y-1 text-sm font-medium">
             Title
             <input
@@ -218,19 +286,11 @@ export function PublishPanel({
             </label>
           </div>
 
-          <label className="block space-y-1 text-sm font-medium">
-            Visibility
-            <select
-              className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
-              value={meta.visibility}
-              onChange={(e) =>
-                setMeta({ ...meta, visibility: e.target.value as "public" | "unlisted" })
-              }
-            >
-              <option value="public">Public — listed in the marketplace</option>
-              <option value="unlisted">Unlisted — installable by link only</option>
-            </select>
-          </label>
+          <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Submitting sends this component to the review queue. An admin approves
+            it and decides whether it appears publicly or as an unlisted link —
+            you'll find it under "In review" in your studio.
+          </p>
 
           <div className="space-y-2">
             <p className="text-sm font-medium">Media</p>
@@ -329,10 +389,87 @@ export function PublishPanel({
             ) : (
               <Rocket className="h-4 w-4" />
             )}
-            {isUpdate ? "Update component" : "Publish component"}
+            {isUpdate ? "Submit update for review" : "Submit for review"}
           </Button>
         </aside>
       </div>
+
+      {/* The submission dialog — every label reflects a phase that really ran;
+          nothing here is a fake timer. */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open && !publishing) { setDialogOpen(false); setPhase("building"); setPhaseMessage(""); } }}>
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-[420px]"
+          onInteractOutside={(event) => publishing && event.preventDefault()}
+          onEscapeKeyDown={(event) => publishing && event.preventDefault()}
+        >
+          <DialogTitle>
+            {phase === "failed"
+              ? "Submission failed"
+              : phase === "done"
+                ? "Submitted for review"
+                : "Building your project"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {phase === "failed"
+              ? "The component could not be submitted."
+              : "Your component is being built and submitted for review."}
+          </DialogDescription>
+
+          <div className="flex flex-col items-center gap-4 py-3 text-center">
+            {phase === "building" || phase === "submitting" ? (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">{phaseMessage}</p>
+                {phase === "building" && (
+                  <p className="text-xs text-muted-foreground/70">
+                    Compiling your project and capturing a preview — this takes a
+                    moment.
+                  </p>
+                )}
+              </>
+            ) : phase === "done" ? (
+              <>
+                <CircleCheck className="h-8 w-8 text-emerald-500" />
+                <p className="text-sm text-muted-foreground">{phaseMessage}</p>
+                {buildWarning && (
+                  <p className="max-w-[340px] rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-5 text-foreground">
+                    {buildWarning}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <TriangleAlert className="h-8 w-8 text-amber-500" />
+                <p className="text-sm font-medium">
+                  The build stopped so nothing broken enters the queue:
+                </p>
+                <p className="max-w-[340px] rounded-lg bg-muted/60 px-3 py-2 font-mono text-xs leading-5 text-foreground">
+                  {buildError}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDialogOpen(false);
+                      setPhase("building");
+                      setPhaseMessage("");
+                      onBack?.();
+                    }}
+                  >
+                    <Undo2 className="mr-1.5 h-3.5 w-3.5" />
+                    Back to editor
+                  </Button>
+                  <Button size="sm" onClick={() => void publish()}>
+                    Try again
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

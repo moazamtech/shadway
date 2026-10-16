@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getComponentBySlug, getComponentsCollection } from "@/lib/db/components";
-import { buildPreviewBundle } from "@/lib/preview/bundle";
+import { buildComponentBundle } from "@/lib/preview/build";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 
@@ -16,7 +16,7 @@ async function bundleForComponent(slug: string) {
   const component = await getComponentBySlug(slug);
   if (!component) return null;
 
-  const bundle = await buildPreviewBundle(
+  const bundle = await buildComponentBundle(
     componentPreviewFiles({
       code: component.code,
       demoCode: component.demoCode,

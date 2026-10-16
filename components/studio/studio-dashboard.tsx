@@ -2,14 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  BadgeCheck,
   ExternalLink,
   Eye,
   Heart,
   Loader2,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +54,7 @@ const STATUS_STYLES: Record<StudioItem["status"], string> = {
 
 const STATUS_LABELS: Record<StudioItem["status"], string> = {
   draft: "Draft",
-  pending: "Pending",
+  pending: "In review",
   published: "Published",
   hidden: "Hidden",
   flagged: "Flagged",
@@ -80,6 +82,9 @@ function formatCount(value: number) {
  */
 export function StudioDashboard({ items }: { items: StudioItem[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [submittedVisible, setSubmittedVisible] =
+    React.useState(searchParams.get("submitted") === "1");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -93,6 +98,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
   }, [items]);
 
   const drafts = rows.filter((item) => item.status === "draft").length;
+  const inReview = rows.filter((item) => item.status === "pending").length;
   const published = rows.filter((item) => item.status === "published").length;
 
   async function createDraft() {
@@ -152,8 +158,32 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
         </Button>
       </div>
 
+      {submittedVisible ? (
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
+          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Submitted for review</p>
+            <p className="text-xs text-muted-foreground">
+              Review usually takes 24 hours. Once an admin approves it, the row
+              turns "Published" and goes live — you can preview it before then
+              by opening the component page.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Dismiss"
+            onClick={() => setSubmittedVisible(false)}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <span>{drafts} draft{drafts === 1 ? "" : "s"}</span>
+        <span className="text-border">·</span>
+        <span>{inReview} in review</span>
         <span className="text-border">·</span>
         <span>{published} published</span>
       </div>
@@ -216,9 +246,11 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                   <TableCell className="text-xs text-muted-foreground">
                     {item.status === "draft"
                       ? "Private"
-                      : item.visibility === "public"
-                        ? "Public"
-                        : "Unlisted"}
+                      : item.status === "pending"
+                        ? "On approval"
+                        : item.visibility === "public"
+                          ? "Public"
+                          : "Unlisted"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {formatDate(item.updatedAt)}
@@ -240,7 +272,9 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                       className="flex items-center justify-end gap-1"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      {item.status === "published" && (
+                      {/* The page at /c/<slug> renders for the owner even
+                          while the component is in review, so the preview
+                          link is always offered. */}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -251,7 +285,6 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                             <ExternalLink className="h-3.5 w-3.5" />
                           </Link>
                         </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="icon-sm"

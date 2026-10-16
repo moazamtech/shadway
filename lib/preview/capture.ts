@@ -1,6 +1,5 @@
 import puppeteer, { type Browser } from "puppeteer";
 import fs from "fs";
-import { buildPreviewBundle, type BundleFile } from "@/lib/preview/bundle";
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -30,12 +29,13 @@ export type CaptureResult = {
 } | null;
 
 /**
- * Renders a built preview bundle once and captures it as a cover image.
+ * Renders a built component document once and captures it as a cover image.
+ *
  * This is what makes the marketplace feed fast: cards use a static image
  * instead of booting a bundler per visitor.
  */
 export async function capturePreview(
-  bundleHtml: string,
+  previewHtml: string,
   options: { width?: number; height?: number } = {}
 ): Promise<CaptureResult> {
   const executablePath = resolveChromePath();
@@ -55,7 +55,7 @@ export async function capturePreview(
     const page = await browser.newPage();
     await page.setViewport({ width: maxWidth, height: maxHeight, deviceScaleFactor: 1 });
 
-    const htmlUrl = `data:text/html;charset=utf-8,${encodeURIComponent(bundleHtml)}`;
+    const htmlUrl = `data:text/html;charset=utf-8,${encodeURIComponent(previewHtml)}`;
     await page.goto(htmlUrl, { waitUntil: "networkidle2", timeout: 45000 });
 
     // Force dark mode so covers match the dark-themed feed.
@@ -64,8 +64,8 @@ export async function capturePreview(
       document.documentElement.style.colorScheme = "dark";
     });
 
-    // Give React + Tailwind CDN a moment to paint.
-    await new Promise((resolve) => setTimeout(resolve, 2200));
+    // The document is self-contained, but React still needs a paint.
+    await new Promise((resolve) => setTimeout(resolve, 900));
 
     const hasContent = await page
       .evaluate(() => {
@@ -126,6 +126,3 @@ export async function capturePreview(
     await browser?.close().catch(() => {});
   }
 }
-
-export { buildPreviewBundle };
-export type { BundleFile };

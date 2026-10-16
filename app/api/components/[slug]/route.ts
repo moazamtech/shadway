@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import {
-  getComponentBySlug,
+  getComponentBySlugAnyStatus,
   incrementComponentMetric,
   getComponentsCollection,
 } from "@/lib/db/components";
@@ -48,12 +48,27 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   try {
-    const component = await getComponentBySlug(decoded);
+    // Any-status fetch: an owner can always preview their own component, even
+    // while it sits in the review queue — the same page customers will get,
+    // minus the install endpoint, which stays published-only.
+    const component = await getComponentBySlugAnyStatus(decoded);
     if (!component) {
       return NextResponse.json({ error: "Component not found" }, { status: 404 });
     }
 
-    void incrementComponentMetric(component.slug, "views").catch(() => {});
+    const isPublished = component.status === "published";
+
+    if (!isPublished) {
+      const { session } = await requireSession();
+      const isOwner = Boolean(session?.user.id && component.author.userId === session.user.id);
+      const isAdmin = session?.user.role === "admin";
+      if (!isOwner && !isAdmin) {
+        // Indistinguishable from "does not exist" — no leak of pending slugs.
+        return NextResponse.json({ error: "Component not found" }, { status: 404 });
+      }
+    } else {
+      void incrementComponentMetric(component.slug, "views").catch(() => {});
+    }
 
     return NextResponse.json({ item: component });
   } catch (error) {
@@ -101,16 +116,32 @@ export async function PATCH(
       updates.thumbnailUrl = body.thumbnailUrl || undefined;
     if (body.videoUrl === null || typeof body.videoUrl === "string")
       updates.videoUrl = body.videoUrl || undefined;
-    if (body.visibility === "public" || body.visibility === "unlisted")
-      updates.visibility = body.visibility;
-    if (typeof body.featured === "boolean" && isAdmin) updates.featured = body.featured;
-    if (body.status === "hidden" || body.status === "published" || body.status === "draft" || body.status === "pending") {
-      if (isAdmin || isOwner) {
+
+    if (isAdmin) {
+      // Editorial fields are admin-only: users never choose their own
+      // visibility or approval state.
+      if (body.visibility === "public" || body.visibility === "unlisted")
+        updates.visibility = body.visibility;
+      if (body.featured !== undefined) updates.featured = Boolean(body.featured);
+      if (
+        body.status === "hidden" ||
+        body.status === "published" ||
+        body.status === "draft" ||
+        body.status === "pending" ||
+        body.status === "flagged"
+      ) {
         updates.status = body.status;
         if (body.status === "published" && component.status !== "published") {
           updates.publishedAt = new Date();
         }
         if (body.status === "draft") removals.publishedAt = "";
+      }
+    } else {
+      // Owners may only withdraw a pending submission back to a private
+      // draft; publishing and visibility remain admin decisions.
+      if (isOwner && body.status === "draft") {
+        updates.status = "draft";
+        removals.publishedAt = "";
       }
     }
 

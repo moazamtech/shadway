@@ -7,7 +7,8 @@ import {
   getComponentsCollection,
   type ComponentVisibility,
 } from "@/lib/db/components";
-import { buildPreviewBundle } from "@/lib/preview/bundle";
+import { buildComponentBundle } from "@/lib/preview/build";
+import { collectNpmDependencies } from "@/lib/studio/deps";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 
@@ -87,7 +88,18 @@ export async function POST(request: NextRequest) {
     }
 
     const author = await resolveAuthor(session);
+    const isAdmin = session.user.role === "admin";
     const collection = await getComponentsCollection();
+
+    // Visibility is an editorial decision: only admins set it. Everything a
+    // user submits stays public-by-default pending review; admins may mark a
+    // component unlisted at approval time.
+    const visibility = (isAdmin && body.visibility === "unlisted" ? "unlisted" : "public") as ComponentVisibility;
+
+    // User flow: publishing submits the component for review. A user-facing
+    // status is only ever "pending" — an admin has to approve it before it
+    // appears in the marketplace. Admins still publish their own directly.
+    const submissionStatus = isAdmin ? ("published" as const) : ("pending" as const);
 
     const publishFields = {
       name: String(body.name || title).replace(/\s+/g, "-"),
@@ -107,7 +119,7 @@ export async function POST(request: NextRequest) {
         ? body.registryDependencies
         : [],
       cssVars: body.cssVars,
-      visibility: (body.visibility === "unlisted" ? "unlisted" : "public") as ComponentVisibility,
+      visibility,
     };
 
     // Publishing an existing draft updates it in place, so the project keeps
@@ -119,7 +131,6 @@ export async function POST(request: NextRequest) {
     let item: Awaited<ReturnType<typeof createComponent>>;
     if (existing) {
       const isOwner = existing.author.userId === session.user.id;
-      const isAdmin = session.user.role === "admin";
       if (!isOwner && !isAdmin) {
         return NextResponse.json({ error: "Not allowed" }, { status: 403 });
       }
@@ -129,7 +140,7 @@ export async function POST(request: NextRequest) {
         featured: existing.featured,
         version: existing.version,
         license: existing.license,
-        status: "pending" as const,
+        status: submissionStatus,
         publishedAt: existing.publishedAt ?? new Date(),
         updatedAt: new Date(),
       };
@@ -144,28 +155,30 @@ export async function POST(request: NextRequest) {
         slug: requestedSlug && isValidSlug(requestedSlug) ? requestedSlug : undefined,
         ...publishFields,
         author,
-        status: "published",
+        status: submissionStatus,
         featured: false,
         version: String(body.version || "1.0.0"),
         license: String(body.license || "MIT"),
       });
     }
 
-    // Build the preview bundle once, at publish time. The feed then serves
-    // static HTML instead of bundling on every visit.
+    // Build the component once, at publish time. The marketplace then serves
+    // a finished document instead of building on every visit.
     let previewHtml: string | undefined;
     let previewHash: string | undefined;
 
     try {
-      const bundle = await buildPreviewBundle(
-        componentPreviewFiles({
-          code: item.code,
-          demoCode: item.demoCode,
-          styleCode: item.styleCode,
-          files: item.files,
-        }),
-        { entry: DEFAULT_DEMO_PATH, title: item.title }
-      );
+      const files = componentPreviewFiles({
+        code: item.code,
+        demoCode: item.demoCode,
+        styleCode: item.styleCode,
+        files: item.files,
+      });
+
+      const bundle = await buildComponentBundle(files, {
+        entry: DEFAULT_DEMO_PATH,
+        title: item.title,
+      });
 
       previewHtml = bundle.html;
       previewHash = bundle.hash;
@@ -173,7 +186,7 @@ export async function POST(request: NextRequest) {
       // Auto-detect npm packages actually imported by the component so
       // authors don't have to list them by hand.
       const declared = Array.isArray(body.dependencies) ? body.dependencies : [];
-      const detected = bundle.externals ?? [];
+      const detected = collectNpmDependencies(files);
       const merged = Array.from(
         new Set([
           ...detected.filter((name) => name !== "react" && name !== "react-dom"),

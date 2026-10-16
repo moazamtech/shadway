@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Babel must stay external so its runtime `require()` graph works on the server.
-  serverExternalPackages: ["@babel/core"],
+  // These ship native binaries (esbuild, Tailwind's oxide scanner, Chrome via
+  // puppeteer). They are build-time tools that run on the server, so they must
+  // stay external rather than be bundled into the route handlers.
+  serverExternalPackages: ["esbuild", "tailwindcss", "puppeteer"],
 
   // Next 16 blocks cross-origin requests to dev resources (including HMR)
   // unless the host is listed here. Serving on 127.0.0.1 while the app is
