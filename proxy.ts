@@ -14,9 +14,12 @@ import { NextResponse } from "next/server";
  * `withAuth` verifies the JWT with NEXTAUTH_SECRET. It deliberately does not
  * import `authOptions`, which would pull bcrypt and the MongoDB driver into the
  * edge runtime.
+ *
+ * Note on naming: Next.js 16 deprecated the `middleware` file convention and
+ * renamed it to `proxy` — same behavior, only the file/function names change.
  */
 export default withAuth(
-  function middleware(request) {
+  function proxy(request) {
     const token = request.nextauth.token;
     const { pathname, search } = request.nextUrl;
 
