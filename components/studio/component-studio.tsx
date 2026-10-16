@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
@@ -23,8 +24,6 @@ import {
   Moon,
   Package,
   PanelLeft,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -36,16 +35,18 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LocalPreview, type PreviewFileInput } from "@/components/preview/local-preview";
 import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
 import { PublishPanel } from "@/components/studio/publish-panel";
-import { useStudioSandbox, type SandboxStatus } from "@/components/studio/use-sandbox";
-import { buildPreviewFiles, type PreviewFiles } from "@/lib/preview/files";
+import type { SandpackApi } from "@/components/studio/sandpack-preview";
+import type { PreviewFiles } from "@/lib/preview/files";
+import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
 import {
   SHADCN_FILE_PATHS,
   SHADCN_UI_COMPONENTS,
 } from "@/lib/preview/template/names";
-import { collectNpmDependencies } from "@/lib/studio/sandbox/deps";
+import { collectNpmDependencies } from "@/lib/studio/deps";
+import { projectPathFor } from "@/lib/studio/sandpack";
+import { usePreviewCss } from "@/lib/studio/use-preview-css";
 import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_PATH,
@@ -68,12 +69,7 @@ export type StudioInitial = {
 
 /* ------------------------------------------------------- shadcn/ui files -- */
 
-/** Where a vendored file lives in the project: `ui/button.tsx` -> `components/ui/button.tsx`. */
-function projectPathFor(vendored: string) {
-  return vendored.startsWith("ui/") ? `/components/${vendored}` : `/${vendored}`;
-}
-
-/** The reverse: a project path back to its vendored file. */
+/** The reverse of `projectPathFor`: a project path back to its vendored file. */
 const VENDORED_BY_PROJECT_PATH = new Map(
   SHADCN_FILE_PATHS.map((vendored) => [projectPathFor(vendored), vendored])
 );
@@ -159,6 +155,20 @@ function buildTree(files: Record<string, string>): TreeNode[] {
   return sort(root.children!);
 }
 
+/** A block the studio can insert, as served by /api/studio/blocks. */
+type StudioBlock = {
+  name: string;
+  title: string;
+  description: string;
+  category: string;
+  /** Primary exported component, e.g. `Hero`. */
+  component: string;
+  /** Project paths, ready to write into the workspace. */
+  files: { path: string; content: string }[];
+  /** The demo page that renders the block. */
+  demo: string;
+};
+
 /** The shape both autosave and publish send to the server. */
 function projectPayload(files: PreviewFiles, title: string, dependencies: string[] = []) {
   const extraFiles = Object.entries(files)
@@ -184,85 +194,29 @@ function projectPayload(files: PreviewFiles, title: string, dependencies: string
   };
 }
 
-/* ------------------------------------------------- sandbox status cards -- */
+/* --------------------------------------------------------- the preview -- */
 
-/** Shown while the dev server installs and boots. */
-function SandboxBootCard({ status, logs }: { status: SandboxStatus; logs: string[] }) {
-  const label =
-    status === "connecting"
-      ? "Starting your Next.js dev server…"
-      : status === "seeding"
-        ? "Writing your project to the dev server…"
-        : "Installing dependencies and starting the Next.js dev server…";
-  const tail = logs.slice(-7);
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {tail.length > 0 && (
-        <pre className="max-h-40 w-full max-w-md overflow-hidden rounded-lg border bg-muted/30 p-3 text-left font-mono text-[10px] leading-relaxed text-muted-foreground">
-          {tail.join("\n")}
-        </pre>
-      )}
-    </div>
-  );
-}
-
-/** Shown when the dev server could not be started — retry, or stay local. */
-function SandboxErrorCard({
-  detail,
-  logs,
-  onRetry,
-  onUseLocal,
-}: {
-  detail: string | null;
-  logs: string[];
-  onRetry: () => void;
-  onUseLocal: () => void;
-}) {
-  const tail = logs.slice(-7);
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <TriangleAlert className="h-5 w-5 text-amber-500" />
-      <p className="max-w-sm text-xs text-muted-foreground">
-        {detail ?? "The dev-server sandbox could not be started."}
-      </p>
-      {tail.length > 0 && (
-        <pre className="max-h-40 w-full max-w-md overflow-hidden rounded-lg border bg-muted/30 p-3 text-left font-mono text-[10px] leading-relaxed text-muted-foreground">
-          {tail.join("\n")}
-        </pre>
-      )}
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 rounded-full px-3 text-xs"
-          onClick={onRetry}
-        >
-          <RefreshCw className="mr-1.5 h-3 w-3" />
-          Retry
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 rounded-full px-3 text-xs"
-          onClick={onUseLocal}
-        >
-          Use local preview
-        </Button>
-      </div>
-    </div>
-  );
-}
+/**
+ * Sandpack is a large client-only dependency, so it is code-split and never
+ * rendered on the server — the studio still loads from HTML alone.
+ */
+const SandpackPreviewPane = dynamic(
+  () => import("@/components/studio/sandpack-preview").then((mod) => mod.SandpackPreviewPane),
+  { ssr: false }
+);
 
 export function ComponentStudio({
   slug,
   initial,
+  initialCss,
+  initialVendoredFiles,
 }: {
   slug?: string;
   initial?: StudioInitial;
+  /** The initial project's stylesheet, compiled by the server. */
+  initialCss?: string;
+  /** The vendored shadcn/ui sources the initial project reaches. */
+  initialVendoredFiles?: PreviewFileInput[];
 }) {
   const initialFiles = useMemo(() => initial?.files ?? starterFiles(), [initial]);
   const [files, setFiles] = useState<PreviewFiles>(initialFiles);
@@ -272,22 +226,31 @@ export function ComponentStudio({
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
   const [debouncedFiles, setDebouncedFiles] = useState<PreviewFiles>(initialFiles);
   const [newFileName, setNewFileName] = useState("");
+  /** The folder a new file is being created in — null means the project root. */
+  const [newFileParent, setNewFileParent] = useState<string | null>(null);
   const [showNewFile, setShowNewFile] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     "/components/ui": true,
   });
   const [showExplorer, setShowExplorer] = useState(true);
   const [showEditor, setShowEditor] = useState(true);
-  const [packageInput, setPackageInput] = useState("");
   const [installedPackages, setInstalledPackages] = useState<Record<string, string>>(() =>
     Object.fromEntries((initial?.dependencies ?? []).map((name) => [name, ""]))
   );
-  const [resolving, setResolving] = useState(false);
-  const [showPackages, setShowPackages] = useState(true);
+  /** Which panel sits under the file tree. */
+  const [panelTab, setPanelTab] = useState<"blocks" | "packages">("blocks");
+  const [blockQuery, setBlockQuery] = useState("");
+  const [blocks, setBlocks] = useState<StudioBlock[] | null>(null);
+  const [insertingBlock, setInsertingBlock] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const savingRef = useRef(false);
   const [registryFiles, setRegistryFiles] = useState<Record<string, string> | null>(null);
   const [openingPath, setOpeningPath] = useState<string | null>(null);
+
+  /** The live sandbox, and the project it was last handed. */
+  const sandpackRef = useRef<SandpackApi | null>(null);
+  const pushedRef = useRef<PreviewFiles | null>(null);
 
   // Auto-detect newly imported packages from debouncedFiles
   useEffect(() => {
@@ -331,17 +294,8 @@ export function ComponentStudio({
 
   const { resolvedTheme } = useTheme();
   const previewThemeSynced = useRef(false);
-  const previewFrame = useRef<HTMLIFrameElement | null>(null);
-  const [forceLocalPreview, setForceLocalPreview] = useState(false);
-  const {
-    status: sandboxStatus,
-    previewURL: sandboxPreviewURL,
-    logs: sandboxLogs,
-    detail: sandboxDetail,
-    reloadKey: sandboxReloadKey,
-    syncFiles: syncSandboxFiles,
-    reconnect: reconnectSandbox,
-  } = useStudioSandbox({ slug });
+  /** Bumping this remounts the sandbox from scratch. */
+  const [previewKey, setPreviewKey] = useState(0);
 
   // The preview opens on whatever theme the studio itself is wearing; the
   // toggle in its header still switches it by hand afterwards.
@@ -351,68 +305,149 @@ export function ComponentStudio({
     setPreviewTheme(resolvedTheme === "dark" ? "dark" : "light");
   }, [resolvedTheme]);
 
-  // The dev server renders in an iframe; the theme rides over as a message
-  // (and is re-sent whenever the iframe reloads).
-  const sendPreviewTheme = useCallback(() => {
-    if (!sandboxPreviewURL) return;
-    previewFrame.current?.contentWindow?.postMessage(
-      { type: "shadway:theme", theme: previewTheme },
-      "*"
-    );
-  }, [previewTheme, sandboxPreviewURL]);
-
-  useEffect(() => {
-    sendPreviewTheme();
-  }, [sendPreviewTheme]);
-
   const lastSaved = useRef(
     JSON.stringify(projectPayload(initialFiles, initial?.title ?? ""))
   );
+
+  /** Serializes the live project; every save path (auto, manual, Ctrl+S)
+   *  shares this one snapshot so none of them can save a stale copy. */
+  const snapshot = useMemo(
+    () => JSON.stringify(projectPayload(files, title, Object.keys(installedPackages))),
+    [files, title, installedPackages]
+  );
+  const snapshotRef = useRef(snapshot);
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  const saveProject = useCallback(
+    async (next: string) => {
+      if (!slug || savingRef.current) return;
+      if (next === lastSaved.current) return;
+
+      savingRef.current = true;
+      setSaveState("saving");
+      try {
+        const response = await fetch(`/api/components/${slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(JSON.parse(next)),
+        });
+        if (!response.ok) throw new Error("save failed");
+        lastSaved.current = next;
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      } finally {
+        savingRef.current = false;
+      }
+    },
+    [slug]
+  );
+
+  const saveClick = useCallback(() => {
+    void saveProject(snapshotRef.current);
+  }, [saveProject]);
+
+  // Ctrl/Cmd+S saves immediately, like any editor muscle memory expects.
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (!slug) return;
+        void saveProject(snapshotRef.current);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [slug, saveProject]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedFiles(files), 450);
     return () => window.clearTimeout(id);
   }, [files]);
 
-  // Mirror the project into the dev-server sandbox — its Next.js dev server
-  // recompiles from these writes.
-  useEffect(() => {
-    if (sandboxStatus !== "installing" && sandboxStatus !== "ready") return;
-    void syncSandboxFiles(debouncedFiles);
-  }, [sandboxStatus, syncSandboxFiles, debouncedFiles]);
-
   // Drafts save themselves: after a quiet moment the project is written back,
   // so leaving the studio never loses work.
   useEffect(() => {
     if (!slug) return;
-
-    const payload = projectPayload(files, title, Object.keys(installedPackages));
-    const snapshot = JSON.stringify(payload);
     if (snapshot === lastSaved.current) return;
 
-    const id = window.setTimeout(async () => {
-      setSaveState("saving");
-      try {
-        const response = await fetch(`/api/components/${slug}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) throw new Error("save failed");
-        lastSaved.current = snapshot;
-        setSaveState("saved");
-      } catch {
-        setSaveState("error");
-      }
-    }, 1200);
-
+    const id = window.setTimeout(() => void saveProject(snapshot), 1200);
     return () => window.clearTimeout(id);
-  }, [files, title, slug, installedPackages]);
+  }, [snapshot, slug, saveProject]);
 
-  const previewFiles: PreviewFileInput[] = useMemo(
-    () => buildPreviewFiles(debouncedFiles),
-    [debouncedFiles]
+  const dirty = snapshot !== lastSaved.current;
+
+  /**
+   * The project the sandbox builds: the author's own files.
+   *
+   * The vendored shadcn/ui sources are not merged in here — the sandbox adds
+   * them itself (`SandpackPreviewPane`), so this stays small enough to send to
+   * the stylesheet compiler on every edit.
+   */
+  const previewFiles = debouncedFiles;
+
+  // Styles are compiled on the server — Sandpack builds the JavaScript, and
+  // the stylesheet it cannot produce itself is handed to it as `/styles.css`.
+  // The project's own stylesheet arrives with the first render, so the sandbox
+  // is built once, correctly styled.
+  //
+  // The same request reports the vendored shadcn/ui files the project reaches,
+  // which is how the sandbox gets `@/components/ui/*` without the browser ever
+  // downloading the registry.
+  const { css: previewCss, vendored: previewVendored } = usePreviewCss(
+    previewFiles,
+    debouncedFiles[DEFAULT_STYLE_PATH],
+    { initialCss, initialVendored: initialVendoredFiles }
   );
+
+  /* -------------------------------------------- the sandbox, kept in step -- */
+
+  /**
+   * Mirrors a project change into the running sandbox.
+   *
+   * The editor, the explorer and the blocks panel all end up here: the sandbox
+   * is the live project, so an edit shows up in the preview as it is typed
+   * instead of after the save debounce. Only what actually changed is sent.
+   */
+  const syncSandbox = useCallback(
+    (next: PreviewFiles, sandpack: SandpackApi) => {
+      const previous = pushedRef.current ?? {};
+
+      for (const [path, content] of Object.entries(next)) {
+        if (previous[path] !== content) sandpack.updateFile(path, content);
+      }
+      for (const path of Object.keys(previous)) {
+        if (!(path in next)) sandpack.deleteFile(path);
+      }
+
+      pushedRef.current = { ...next };
+    },
+    []
+  );
+
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
+  const handleSandpackReady = useCallback(
+    (sandpack: SandpackApi) => {
+      // `useSandpack()` is not guaranteed to be referentially stable, so the
+      // bridge can report the same sandbox more than once.
+      if (sandpackRef.current === sandpack) return;
+      sandpackRef.current = sandpack;
+      // A fresh sandbox already holds the project it was built from; re-send
+      // it so anything typed while it was booting is not lost.
+      pushedRef.current = null;
+      syncSandbox(filesRef.current, sandpack);
+    },
+    [syncSandbox]
+  );
+
+  useEffect(() => {
+    const sandpack = sandpackRef.current;
+    if (sandpack) syncSandbox(files, sandpack);
+  }, [files, syncSandbox]);
 
   // The explorer shows the whole shadcn/ui folder beside the author's files,
   // the way an installed shadcn project looks — vendored files are marked
@@ -436,23 +471,17 @@ export function ComponentStudio({
     (vendoredActive && registryFiles ? registryFiles[vendoredActive] ?? "" : "");
   const packageCount = Object.keys(installedPackages).length;
 
-  /** Which pane the preview area shows right now. */
-  const previewMode: "sandbox" | "boot" | "error" | "local" = forceLocalPreview
-    ? "local"
-    : sandboxPreviewURL
-      ? "sandbox"
-      : sandboxStatus === "connecting" ||
-          sandboxStatus === "seeding" ||
-          sandboxStatus === "installing"
-        ? "boot"
-        : sandboxStatus === "error"
-          ? "error"
-          : "local";
+  const filteredBlocks = useMemo(() => {
+    if (!blocks) return [];
+    const query = blockQuery.trim().toLowerCase();
+    if (!query) return blocks;
+    return blocks.filter((block) =>
+      `${block.title} ${block.name} ${block.category}`.toLowerCase().includes(query)
+    );
+  }, [blocks, blockQuery]);
 
-  const handleSandboxRetry = useCallback(() => {
-    setForceLocalPreview(false);
-    reconnectSandbox();
-  }, [reconnectSandbox]);
+  /** Reload — throws the sandbox away and builds the project again. */
+  const reloadPreview = useCallback(() => setPreviewKey((value) => value + 1), []);
 
   /** Opens a file — vendored ones load the registry chunk on first access. */
   async function openFile(path: string) {
@@ -480,6 +509,47 @@ export function ComponentStudio({
     setFiles((prev) => ({ ...prev, [path]: content }));
   }
 
+  // The block library is small and only fetched once, so the panel is ready
+  // the moment it is opened.
+  useEffect(() => {
+    if (blocks) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/studio/blocks");
+        const data = (await response.json()) as { blocks?: StudioBlock[] };
+        if (alive) setBlocks(data.blocks ?? []);
+      } catch {
+        if (alive) setBlocks([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [blocks]);
+
+  /**
+   * 21st-style block insert: the block's files land under
+   * /components/blocks/ (never colliding with the author's own code) and the
+   * demo page is swapped to render the block, so the preview immediately
+   * shows the composed result.
+   */
+  function insertBlock(block: StudioBlock) {
+    if (insertingBlock) return;
+    setInsertingBlock(block.name);
+    try {
+      setFiles((prev) => {
+        const next = { ...prev };
+        for (const file of block.files) next[file.path] = file.content;
+        next[DEFAULT_DEMO_PATH] = block.demo;
+        return next;
+      });
+      setActivePath(block.files[0]?.path ?? DEFAULT_DEMO_PATH);
+    } finally {
+      setInsertingBlock(null);
+    }
+  }
+
   const updateActive = useCallback(
     (value: string) => {
       setFiles((prev) => ({ ...prev, [activePath]: value }));
@@ -487,13 +557,22 @@ export function ComponentStudio({
     [activePath]
   );
 
+  /** Opens the new-file field, optionally inside a folder. */
+  function startNewFile(parent: string | null) {
+    setNewFileParent(parent);
+    setNewFileName("");
+    setShowNewFile(true);
+    // A file you just asked for should be visible, not hidden in a closed folder.
+    if (parent) setCollapsed((prev) => ({ ...prev, [parent]: false }));
+  }
+
   function createFile() {
     const raw = newFileName.trim();
     if (!raw) return;
 
-    let path = raw.startsWith("/") ? raw : `/${raw}`;
+    let path = raw.startsWith("/") ? raw : `${newFileParent ?? ""}/${raw}`;
     // Legacy projects nested everything under src/; keep writing at the root.
-    path = path.replace(/^\/src\//, "/");
+    path = path.replace(/^\/src\//, "/").replace(/\/{2,}/g, "/");
     if (!/\.(tsx?|jsx?|css)$/.test(path)) path += ".tsx";
     if (files[path]) return;
 
@@ -507,6 +586,7 @@ export function ComponentStudio({
     }));
     setActivePath(path);
     setNewFileName("");
+    setNewFileParent(null);
     setShowNewFile(false);
   }
 
@@ -547,26 +627,34 @@ export function ComponentStudio({
     setActivePath(DEFAULT_COMPONENT_PATH);
   }
 
-  async function installPackage() {
-    const raw = packageInput.trim().replace(/^["']|["']$/g, "");
-    if (!raw) return;
-    const pkgName = raw.split("@")[0];
-    if (!pkgName) return;
+  /**
+   * The inline "new file" field — shown at the project root, or inside the
+   * folder whose `+` was clicked.
+   */
+  function renderNewFileField(parent: string | null, depth: number) {
+    if (!showNewFile || newFileParent !== parent) return null;
 
-    setResolving(true);
-    try {
-      const res = await fetch(
-        `/api/registry/resolve-package?name=${encodeURIComponent(pkgName)}`
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      setInstalledPackages((prev) => ({ ...prev, [pkgName]: data.version }));
-      setPackageInput("");
-    } catch {
-      /* offline */
-    } finally {
-      setResolving(false);
-    }
+    return (
+      <div className="pt-2 pr-2 pb-1.5" style={{ paddingLeft: `${depth * 12 + 6}px` }}>
+        <input
+          autoFocus
+          value={newFileName}
+          onChange={(event) => setNewFileName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") createFile();
+            if (event.key === "Escape") {
+              setShowNewFile(false);
+              setNewFileParent(null);
+            }
+          }}
+          placeholder={parent ? "use-thing.ts" : "components/hero.tsx"}
+          className="h-7 w-full rounded-md border bg-background px-2 font-mono text-[11px] outline-none focus:border-primary"
+        />
+        <p className="mt-1 text-[10px] text-muted-foreground/70">
+          {parent ? `in ${parent}` : "project root"} · Enter to create · Esc to cancel
+        </p>
+      </div>
+    );
   }
 
   function renderTree(nodes: TreeNode[], depth = 0) {
@@ -575,21 +663,33 @@ export function ComponentStudio({
         const isCollapsed = collapsed[node.path];
         return (
           <div key={node.path}>
-            <button
-              onClick={() =>
-                setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
-              }
-              className="group flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-              style={{ paddingLeft: `${depth * 12 + 6}px` }}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
-              ) : (
-                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-              )}
-              <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-              <span className="truncate font-medium">{node.name}</span>
-            </button>
+            <div className="group/dir relative flex items-center">
+              <button
+                onClick={() =>
+                  setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
+                }
+                className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1.5 pr-1 text-left text-[13px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                style={{ paddingLeft: `${depth * 12 + 6}px` }}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+                )}
+                <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                <span className="truncate font-medium">{node.name}</span>
+              </button>
+              <button
+                onClick={() => startNewFile(node.path)}
+                className="mr-1.5 shrink-0 opacity-0 transition group-hover/dir:opacity-100 focus-visible:opacity-100"
+                title={`New file in ${node.name}`}
+              >
+                <FilePlus2 className="h-3 w-3 text-muted-foreground hover:text-primary" />
+              </button>
+            </div>
+
+            {renderNewFileField(node.path, depth + 1)}
+
             {!isCollapsed && node.children && renderTree(node.children, depth + 1)}
           </div>
         );
@@ -670,7 +770,6 @@ export function ComponentStudio({
                 description: initial.description,
                 tags: initial.tags.join(", "),
                 category: initial.category,
-                visibility: initial.visibility,
               }
             : { title }
         }
@@ -706,48 +805,36 @@ export function ComponentStudio({
               placeholder="Untitled component"
               className="h-8 w-full min-w-0 max-w-[280px] rounded-md border border-transparent bg-transparent px-2 text-sm font-medium outline-none transition-colors hover:border-border focus:border-border focus:bg-background"
             />
-            {slug && saveState !== "idle" && (
-              <span className="hidden items-center gap-1 text-[11px] text-muted-foreground md:flex">
-                {saveState === "saving" && (
-                  <>
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Saving…
-                  </>
-                )}
-                {saveState === "saved" && (
-                  <>
-                    <Check className="h-3 w-3 text-primary" />
-                    Saved
-                  </>
-                )}
-                {saveState === "error" && (
-                  <span className="text-destructive">Save failed</span>
-                )}
-              </span>
-            )}
-            <div className="hidden items-center gap-1 border-l pl-2 sm:flex">
-              <Button
-                variant={showExplorer ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => setShowExplorer((v) => !v)}
-                title={showExplorer ? "Hide file tree" : "Show file tree"}
-              >
-                {showExplorer ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-              </Button>
-              <Button
-                variant={showEditor ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => setShowEditor((v) => !v)}
-                title={showEditor ? "Hide code editor" : "Show code editor"}
-              >
-                <Code2 className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {slug ? (
+              <Button
+                variant={saveState === "error" ? "destructive" : "outline"}
+                size="sm"
+                className="rounded-full"
+                disabled={saveState === "saving" || !dirty}
+                onClick={saveClick}
+                title="Save (Ctrl+S)"
+              >
+                {saveState === "saving" ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : saveState === "error" ? (
+                  <TriangleAlert className="mr-1.5 h-3.5 w-3.5" />
+                ) : saveState === "saved" && !dirty ? (
+                  <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <FileCode2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                {saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "error"
+                    ? "Retry save"
+                    : saveState === "saved" && !dirty
+                      ? "Saved"
+                      : "Save"}
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -786,8 +873,8 @@ export function ComponentStudio({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowNewFile((v) => !v)}
-                  title="New file"
+                  onClick={() => startNewFile(null)}
+                  title="New file at the project root"
                 >
                   <FilePlus2 className="h-3.5 w-3.5" />
                 </Button>
@@ -803,82 +890,115 @@ export function ComponentStudio({
               </div>
             </div>
 
-            {showNewFile && (
-              <div className="px-3 pb-3">
-                <input
-                  autoFocus
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") createFile();
-                    if (e.key === "Escape") setShowNewFile(false);
-                  }}
-                  placeholder="hooks/use-thing.ts"
-                  className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
-                />
-                <Button size="sm" className="mt-2 h-7 w-full rounded-md text-xs" onClick={createFile}>
-                  Create file
-                </Button>
-              </div>
-            )}
+            {renderNewFileField(null, 0)}
 
             <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
               {renderTree(tree)}
             </div>
 
-            {/* Packages */}
-            <div className="border-t border-border/70">
-              <button
-                onClick={() => setShowPackages((v) => !v)}
-                className="flex w-full items-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-              >
-                {showPackages ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
-                <Package className="h-3 w-3" />
-                Packages
-                {packageCount > 0 && (
-                  <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                    {packageCount}
-                  </span>
-                )}
-              </button>
+            {/* One panel at the foot of the tree, split into two tabs. */}
+            <div className="flex shrink-0 flex-col border-t border-border/70">
+              <div className="flex items-center gap-1 px-2 pt-2 pb-1.5">
+                <button
+                  onClick={() => setPanelTab("blocks")}
+                  className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors ${
+                    panelTab === "blocks"
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Blocks className="h-3 w-3" />
+                  Blocks
+                  {blocks && blocks.length > 0 && (
+                    <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
+                      {blocks.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setPanelTab("packages")}
+                  className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors ${
+                    panelTab === "packages"
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Package className="h-3 w-3" />
+                  Packages
+                  {packageCount > 0 && (
+                    <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
+                      {packageCount}
+                    </span>
+                  )}
+                </button>
+              </div>
 
-              {showPackages && (
+              {panelTab === "blocks" ? (
                 <div className="px-3 pb-3">
                   <input
-                    value={packageInput}
-                    onChange={(e) => setPackageInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void installPackage();
-                    }}
-                    placeholder="Add npm package"
-                    className="h-8 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus:border-primary"
+                    value={blockQuery}
+                    onChange={(event) => setBlockQuery(event.target.value)}
+                    placeholder="Search blocks"
+                    className="mb-2 h-7 w-full rounded-md border bg-background px-2 text-[11px] outline-none focus:border-primary"
                   />
-                  <Button
-                    size="sm"
-                    className="mt-2 h-7 w-full rounded-md text-xs"
-                    disabled={resolving || !packageInput.trim()}
-                    onClick={() => void installPackage()}
-                  >
-                    {resolving ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      "Install"
-                    )}
-                  </Button>
-
-                  {packageCount > 0 && (
-                    <ul className="mt-2.5 max-h-40 space-y-1 overflow-auto">
+                  {!blocks ? (
+                    <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading blocks…
+                    </div>
+                  ) : filteredBlocks.length === 0 ? (
+                    <p className="py-2 text-xs text-muted-foreground">
+                      {blocks.length === 0 ? "No blocks available." : "No blocks match."}
+                    </p>
+                  ) : (
+                    <ul className="max-h-56 space-y-0.5 overflow-auto">
+                      {filteredBlocks.map((block) => (
+                        <li key={block.name}>
+                          <button
+                            onClick={() => insertBlock(block)}
+                            disabled={Boolean(insertingBlock)}
+                            title={block.description || block.name}
+                            className="group/block flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/50 disabled:opacity-50"
+                          >
+                            <Blocks className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[12px] font-medium">
+                                {block.title}
+                              </span>
+                              <span className="block truncate font-mono text-[10px] text-muted-foreground/70">
+                                {block.name}
+                              </span>
+                            </span>
+                            {insertingBlock === block.name ? (
+                              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+                            ) : (
+                              <Plus className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover/block:opacity-100" />
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground/70">
+                    Inserting swaps the demo page for the block. Its files land in
+                    components/blocks/ and save with your project.
+                  </p>
+                </div>
+              ) : (
+                <div className="px-3 pb-3">
+                  {packageCount === 0 ? (
+                    <p className="py-1 text-[11px] leading-4 text-muted-foreground">
+                      Nothing yet. Packages appear the moment your code imports them.
+                    </p>
+                  ) : (
+                    <ul className="max-h-56 space-y-1 overflow-auto">
                       {Object.entries(installedPackages).map(([name, version]) => (
                         <li
                           key={name}
                           className="group flex items-center justify-between gap-2 text-[11px]"
                         >
                           <code className="truncate font-mono text-foreground">{name}</code>
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex shrink-0 items-center gap-1.5">
                             <span className="text-muted-foreground/70">{version || "latest"}</span>
                             <button
                               onClick={() => removePackage(name)}
@@ -892,6 +1012,10 @@ export function ComponentStudio({
                       ))}
                     </ul>
                   )}
+                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground/70">
+                    Imports are detected and installed automatically — there is nothing to add by
+                    hand.
+                  </p>
                 </div>
               )}
             </div>
@@ -994,33 +1118,22 @@ export function ComponentStudio({
               </span>
               <span
                 className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
-                title={
-                  previewMode === "sandbox"
-                    ? "Running on a real Next.js dev server"
-                    : "Browser-side preview"
-                }
+                title="Bundled in your browser by Sandpack — nothing runs on the server"
               >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    previewMode === "sandbox" ? "bg-emerald-500" : "bg-muted-foreground/40"
-                  }`}
-                />
-                {previewMode === "sandbox" ? "dev server" : "local preview"}
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                browser sandbox
               </span>
             </div>
 
             {/* Combined Toolbar: Reloader, Theme Switcher, Resize Icons */}
             <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-0.5 rounded-full border bg-background/80 p-0.5 shadow-2xs backdrop-blur-xs">
-                {/* Sandbox Reloader */}
+                {/* Preview Reloader — rebuilds the sandbox from scratch. */}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 rounded-full"
-                  onClick={() => {
-                    setForceLocalPreview(false);
-                    reconnectSandbox();
-                  }}
+                  onClick={reloadPreview}
                   title="Reload preview"
                 >
                   <RefreshCw className="h-3 w-3" />
@@ -1091,9 +1204,10 @@ export function ComponentStudio({
             </div>
           </div>
 
-          {/* Preview Canvas: Edge-to-edge full width and height, NO rounding */}
+          {/* Preview Canvas: edge to edge, no rounding — the sandbox owns the
+              whole surface, including its own loading state. */}
           <div
-            className={`flex min-h-0 flex-1 justify-center overflow-auto bg-background ${
+            className={`flex min-h-0 flex-1 justify-center overflow-auto ${
               viewport === "mobile" ? "items-center bg-muted/20 p-4" : "p-0"
             }`}
           >
@@ -1104,36 +1218,16 @@ export function ComponentStudio({
                   : "rounded-none border-0"
               }`}
             >
-              {previewMode === "sandbox" && sandboxPreviewURL ? (
-                <iframe
-                  key={sandboxReloadKey}
-                  ref={previewFrame}
-                  src={sandboxPreviewURL}
-                  onLoad={sendPreviewTheme}
-                  title="Component preview"
-                  className="h-full w-full border-0 bg-background"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-                />
-              ) : previewMode === "boot" &&
-                (sandboxStatus === "connecting" ||
-                  sandboxStatus === "seeding" ||
-                  sandboxStatus === "installing") ? (
-                <SandboxBootCard status={sandboxStatus} logs={sandboxLogs} />
-              ) : previewMode === "error" ? (
-                <SandboxErrorCard
-                  detail={sandboxDetail}
-                  logs={sandboxLogs}
-                  onRetry={handleSandboxRetry}
-                  onUseLocal={() => setForceLocalPreview(true)}
-                />
-              ) : (
-                <LocalPreview
-                  files={previewFiles}
-                  entry={DEFAULT_DEMO_PATH}
-                  theme={previewTheme}
-                  height="100%"
-                />
-              )}
+              <SandpackPreviewPane
+                key={previewKey}
+                className="h-full w-full"
+                files={previewFiles}
+                vendoredFiles={previewVendored}
+                compiledCss={previewCss ?? undefined}
+                dependencies={Object.keys(installedPackages)}
+                theme={previewTheme}
+                onReady={handleSandpackReady}
+              />
             </div>
           </div>
         </section>
