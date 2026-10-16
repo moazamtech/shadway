@@ -4,17 +4,14 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ChevronRight,
-  ChevronDown,
+  ArrowLeft,
   CircleCheck,
-  FileCode2,
-  FileJson,
-  FileText,
-  Folder,
+  ImagePlus,
   Loader2,
   Rocket,
   TriangleAlert,
   Undo2,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -212,19 +209,35 @@ export function PublishPanel({
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-[1100px] items-center gap-4 px-4 py-3 lg:px-6">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-[1100px] items-center gap-2 px-4 lg:px-6">
+          <Link
+            href="/studio"
+            className="text-sm font-semibold tracking-tight transition-colors hover:text-primary"
+          >
             Shadway
           </Link>
-          <span className="text-sm text-muted-foreground">/</span>
-          <Badge variant="secondary">{isUpdate ? "Update" : "Submit"}</Badge>
-          <Button variant="ghost" size="sm" className="ml-auto" asChild>
-            <Link href="/studio">All components</Link>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            Back to editor
-          </Button>
+          <span className="text-muted-foreground/40" aria-hidden="true">
+            /
+          </span>
+          <span className="text-sm text-muted-foreground">Studio</span>
+          <Badge variant="secondary" className="ml-1 rounded-md px-1.5 text-[10px]">
+            {isUpdate ? "Update" : "Submit"}
+          </Badge>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" asChild>
+              <Link href="/studio">All components</Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 rounded-lg text-xs"
+              onClick={onBack}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              Back to editor
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -241,7 +254,7 @@ export function PublishPanel({
           <label className="block space-y-1 text-sm font-medium">
             Title
             <input
-              className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
+              className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
               value={meta.title}
               onChange={(e) => setMeta({ ...meta, title: e.target.value })}
               placeholder="Animated gradient button"
@@ -251,7 +264,7 @@ export function PublishPanel({
           <label className="block space-y-1 text-sm font-medium">
             Description
             <textarea
-              className="min-h-24 w-full rounded-lg border bg-background p-3 text-sm"
+              className="min-h-24 w-full rounded-lg border border-border/60 bg-background p-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
               value={meta.description}
               onChange={(e) => setMeta({ ...meta, description: e.target.value })}
               placeholder="A button with an animated gradient border and loading state."
@@ -262,7 +275,7 @@ export function PublishPanel({
             <label className="block space-y-1 text-sm font-medium">
               Category
               <select
-                className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
                 value={meta.category}
                 onChange={(e) => setMeta({ ...meta, category: e.target.value })}
               >
@@ -278,7 +291,7 @@ export function PublishPanel({
             <label className="block space-y-1 text-sm font-medium">
               Tags
               <input
-                className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
                 value={meta.tags}
                 onChange={(e) => setMeta({ ...meta, tags: e.target.value })}
                 placeholder="button, animation"
@@ -294,12 +307,16 @@ export function PublishPanel({
 
           <div className="space-y-2">
             <p className="text-sm font-medium">Media</p>
-            <div className="flex flex-wrap gap-3">
-              <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-4 text-sm">
+            <p className="text-xs text-muted-foreground">
+              The cover is what the marketplace card shows. Skip it and the frame
+              captured at publish time is used instead.
+            </p>
+            <div className="flex flex-wrap gap-2.5">
+              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 text-xs font-medium transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
                 {uploading === "image" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Rocket className="h-4 w-4" />
+                  <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
                 {meta.thumbnailUrl ? "Cover ready" : "Upload cover"}
                 <input
@@ -313,11 +330,11 @@ export function PublishPanel({
                 />
               </label>
 
-              <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border px-4 text-sm">
+              <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 text-xs font-medium transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
                 {uploading === "video" ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Rocket className="h-4 w-4" />
+                  <Video className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
                 {meta.videoUrl ? "Video ready" : "Upload demo video"}
                 <input
@@ -331,34 +348,34 @@ export function PublishPanel({
                 />
               </label>
             </div>
-            {meta.thumbnailUrl && (
+            {meta.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={meta.thumbnailUrl}
-                alt="cover preview"
-                className="h-32 w-52 rounded-lg object-cover"
+                alt="Cover preview"
+                className="mt-1 h-32 w-52 rounded-lg border border-border/60 object-cover"
               />
-            )}
+            ) : null}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
-        <aside className="space-y-3">
-          <div className="rounded-xl border">
-            <div className="border-b px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+          <div className="overflow-hidden rounded-xl border border-border/60">
+            <div className="border-b border-border/60 bg-muted/40 px-4 py-2.5 text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
               What gets published
             </div>
-            <div className="space-y-3 p-4 text-xs">
+            <div className="space-y-3.5 p-4 text-xs">
               <div>
                 <p className="text-muted-foreground">Registry item</p>
-                <code className="mt-1 block break-all rounded bg-muted p-2">
+                <code className="mt-1 block rounded-md bg-muted px-2 py-1.5 font-mono break-all">
                   /r/{registrySlug}
                 </code>
               </div>
               <div>
                 <p className="text-muted-foreground">Dependencies</p>
-                <p className="mt-1">
+                <p className="mt-1 font-mono">
                   {dependencies.length ? dependencies.join(", ") : "None detected"}
                 </p>
               </div>
@@ -371,7 +388,7 @@ export function PublishPanel({
               </div>
               <div>
                 <p className="text-muted-foreground">Source preview</p>
-                <pre className="mt-1 max-h-40 overflow-auto rounded bg-muted p-2 text-[11px] leading-4">
+                <pre className="mt-1 max-h-40 overflow-auto rounded-md bg-muted p-2 font-mono text-[11px] leading-4">
                   {preview}
                 </pre>
               </div>
@@ -379,7 +396,7 @@ export function PublishPanel({
           </div>
 
           <Button
-            className="w-full"
+            className="w-full rounded-lg"
             size="lg"
             disabled={publishing || !meta.title.trim()}
             onClick={publish}
@@ -473,11 +490,3 @@ export function PublishPanel({
     </main>
   );
 }
-
-export function FileIcon({ path }: { path: string }) {
-  if (path.endsWith(".css")) return FileText;
-  if (path.endsWith(".json")) return FileJson;
-  return FileCode2;
-}
-
-export { Folder, ChevronRight, ChevronDown };

@@ -339,21 +339,28 @@ export function buildSandpackProject({
 
   const demoPath = known.has(page) ? page : null;
 
-  const themeClass = `if (typeof document !== "undefined") {
-  document.documentElement.classList.toggle("dark", ${theme === "dark"});
+  // The sandbox does not apply `index.html`'s `<html>` attributes, so the theme
+  // class is set from the entry module: once at module scope, before React
+  // renders (so there is no flash of the wrong theme), and again on every
+  // render, so a theme change that only re-renders the tree still lands.
+  const themeSync = `const __shadwayDark = ${theme === "dark"};
+function __shadwaySyncTheme() {
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle("dark", __shadwayDark);
+  }
 }
+__shadwaySyncTheme();
 `;
 
-  // The sandbox ignores the `<html class>` of `index.html`, so the theme class
-  // is applied at module scope — before React renders, with no flash.
   const appEntry = `import "./styles.css";
 ${
   demoPath
     ? `import Demo from "${relativeImport("/App.tsx", demoPath)}";\n`
     : `const Demo = () => <div style={{ padding: 24 }}>Nothing to preview yet.</div>;\n`
 }
-${themeClass}
+${themeSync}
 export default function App() {
+  __shadwaySyncTheme();
   return <Demo />;
 }
 `;

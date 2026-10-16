@@ -27,7 +27,8 @@ type Props = {
   packages: string[];
 };
 
-const THEME = "shadway-dark";
+const DARK_THEME = "shadway-dark";
+const LIGHT_THEME = "shadway-light";
 
 /**
  * The `monaco-editor` package types mark `languages.typescript` as deprecated
@@ -67,24 +68,86 @@ let completionContext = {
 };
 let completionsRegistered = false;
 
+/**
+ * Both editor themes, built from the app's own tokens.
+ *
+ * The editor is a surface *inside* the studio, not a separate app, so it sits
+ * on the same plane as the panel around it: `--background`, the studio shell's
+ * own colour, in light and in dark. Monaco needs literal colours and cannot
+ * read CSS custom properties, so the values below mirror `app/globals.css` —
+ * background, surface, foreground, muted, popover and border — rather than
+ * Monaco's stock black and white.
+ */
 function defineTheme(monaco: typeof Monaco) {
-  monaco.editor.defineTheme(THEME, {
+  monaco.editor.defineTheme(DARK_THEME, {
     base: "vs-dark",
     inherit: true,
     rules: [
-      { token: "comment", foreground: "6b7280", fontStyle: "italic" },
+      { token: "comment", foreground: "8a8a8a", fontStyle: "italic" },
       { token: "keyword", foreground: "c084fc" },
       { token: "string", foreground: "86efac" },
       { token: "type.identifier", foreground: "67e8f9" },
     ],
     colors: {
-      "editor.background": "#0d0d0d",
-      "editor.foreground": "#e4e4e7",
-      "editorLineNumber.foreground": "#52525b",
-      "editorLineNumber.activeForeground": "#a1a1aa",
-      "editor.selectionBackground": "#3f3f46",
-      "editor.lineHighlightBackground": "#171717",
-      "editorCursor.foreground": "#e4e4e7",
+      "editor.background": "#202020", // --background
+      "editor.foreground": "#f0f0f0", // --foreground
+      "editorGutter.background": "#202020", // --background
+      "editorLineNumber.foreground": "#5f5f5f",
+      "editorLineNumber.activeForeground": "#b0b0b0", // --muted-foreground
+      "editor.lineHighlightBackground": "#242424", // --well
+      "editor.selectionBackground": "#303030", // --muted
+      "editor.inactiveSelectionBackground": "#262626",
+      "editorCursor.foreground": "#f0f0f0",
+      "editorIndentGuide.background1": "#2b2b2b",
+      "editorIndentGuide.activeBackground1": "#3d3d3d",
+      "editorBracketMatch.background": "#303030",
+      "editorBracketMatch.border": "#4a4a4a",
+      "editorWidget.background": "#262626", // --popover
+      "editorWidget.border": "#303030",
+      "editorSuggestWidget.background": "#262626",
+      "editorSuggestWidget.border": "#303030",
+      "editorSuggestWidget.selectedBackground": "#303030",
+      "editorHoverWidget.background": "#262626",
+      "editorHoverWidget.border": "#303030",
+      "scrollbarSlider.background": "#3a3a3a80",
+      "scrollbarSlider.hoverBackground": "#4a4a4aa0",
+      "scrollbarSlider.activeBackground": "#5a5a5ac0",
+    },
+  });
+
+  monaco.editor.defineTheme(LIGHT_THEME, {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "comment", foreground: "767676", fontStyle: "italic" },
+      { token: "keyword", foreground: "8250df" },
+      { token: "string", foreground: "0a7f4f" },
+      { token: "type.identifier", foreground: "0b7bc9" },
+    ],
+    colors: {
+      "editor.background": "#f3f3f3", // --background
+      "editor.foreground": "#141414", // --foreground
+      "editorGutter.background": "#f3f3f3", // --background
+      "editorLineNumber.foreground": "#b0b0b0",
+      "editorLineNumber.activeForeground": "#7c7c7c", // --muted-foreground
+      "editor.lineHighlightBackground": "#ffffff", // --surface
+      "editor.selectionBackground": "#e5e5e5", // --muted
+      "editor.inactiveSelectionBackground": "#ededed",
+      "editorCursor.foreground": "#141414",
+      "editorIndentGuide.background1": "#e7e7e7",
+      "editorIndentGuide.activeBackground1": "#d4d4d4",
+      "editorBracketMatch.background": "#e5e5e5",
+      "editorBracketMatch.border": "#b4b4b4",
+      "editorWidget.background": "#ffffff",
+      "editorWidget.border": "#e5e5e5",
+      "editorSuggestWidget.background": "#ffffff",
+      "editorSuggestWidget.border": "#e5e5e5",
+      "editorSuggestWidget.selectedBackground": "#f3f3f3",
+      "editorHoverWidget.background": "#ffffff",
+      "editorHoverWidget.border": "#e5e5e5",
+      "scrollbarSlider.background": "#0000001a",
+      "scrollbarSlider.hoverBackground": "#0000002e",
+      "scrollbarSlider.activeBackground": "#00000042",
     },
   });
 }
@@ -178,7 +241,7 @@ export function StudioEditor({
   const { resolvedTheme } = useTheme();
   // The editor follows the app theme, exactly like the rest of the studio.
   const isDark = resolvedTheme !== "light";
-  const activeTheme = isDark ? THEME : "vs";
+  const activeTheme = isDark ? DARK_THEME : LIGHT_THEME;
   const uri = useMemo(() => `file:///shadway${path}`, [path]);
 
   // Keep the shared completion provider pointed at the latest render.
@@ -203,18 +266,41 @@ export function StudioEditor({
       onMount={(editor, monaco) => {
         monaco.editor.setTheme(activeTheme);
 
+        // Ctrl/Cmd+S — save. Declared here as well as on the window so the
+        // shortcut works with the cursor anywhere in the studio.
         editor.addAction({
           id: "shadway.save",
-          label: "Save file",
+          label: "Save",
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
           run: () => onSave?.(),
         });
 
+        // Ctrl/Cmd+Enter — rebuild the preview sandbox from scratch.
         editor.addAction({
-          id: "shadway.publish",
-          label: "Publish component",
-          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyEnter],
+          id: "shadway.reload-preview",
+          label: "Reload preview",
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
           run: () => onRun?.(),
+        });
+
+        // Undo/redo. Monaco binds these already, but declaring them makes the
+        // set explicit — Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z — and guarantees they
+        // survive the controlled `value` round-trip.
+        editor.addAction({
+          id: "shadway.undo",
+          label: "Undo",
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ],
+          run: (instance) => instance.trigger("keyboard", "undo", null),
+        });
+
+        editor.addAction({
+          id: "shadway.redo",
+          label: "Redo",
+          keybindings: [
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyY,
+            monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ,
+          ],
+          run: (instance) => instance.trigger("keyboard", "redo", null),
         });
       }}
       options={{

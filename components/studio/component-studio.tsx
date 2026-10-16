@@ -6,9 +6,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   ArrowLeft,
-  Blocks,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Code2,
@@ -28,7 +26,6 @@ import {
   RefreshCw,
   RotateCcw,
   Rocket,
-  Search,
   Smartphone,
   Sun,
   Trash2,
@@ -37,13 +34,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
 import { PublishPanel } from "@/components/studio/publish-panel";
-import type { SandpackApi } from "@/components/studio/sandpack-preview";
 import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
-import {
-  SHADCN_FILE_PATHS,
-  SHADCN_UI_COMPONENTS,
-} from "@/lib/preview/template/names";
+import { SHADCN_FILE_PATHS } from "@/lib/preview/template/names";
 import { collectNpmDependencies } from "@/lib/studio/deps";
 import { projectPathFor } from "@/lib/studio/sandpack";
 import { usePreviewCss } from "@/lib/studio/use-preview-css";
@@ -68,6 +61,15 @@ export type StudioInitial = {
 };
 
 /* ------------------------------------------------------- shadcn/ui files -- */
+
+/**
+ * The small square icon button used throughout the studio chrome.
+ *
+ * One definition keeps every control in the header, the explorer and the
+ * preview toolbar the same size, radius and hover treatment.
+ */
+const ICON_BUTTON =
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40";
 
 /** The reverse of `projectPathFor`: a project path back to its vendored file. */
 const VENDORED_BY_PROJECT_PATH = new Map(
@@ -155,20 +157,6 @@ function buildTree(files: Record<string, string>): TreeNode[] {
   return sort(root.children!);
 }
 
-/** A block the studio can insert, as served by /api/studio/blocks. */
-type StudioBlock = {
-  name: string;
-  title: string;
-  description: string;
-  category: string;
-  /** Primary exported component, e.g. `Hero`. */
-  component: string;
-  /** Project paths, ready to write into the workspace. */
-  files: { path: string; content: string }[];
-  /** The demo page that renders the block. */
-  demo: string;
-};
-
 /** The shape both autosave and publish send to the server. */
 function projectPayload(files: PreviewFiles, title: string, dependencies: string[] = []) {
   const extraFiles = Object.entries(files)
@@ -237,20 +225,13 @@ export function ComponentStudio({
   const [installedPackages, setInstalledPackages] = useState<Record<string, string>>(() =>
     Object.fromEntries((initial?.dependencies ?? []).map((name) => [name, ""]))
   );
-  /** Which panel sits under the file tree. */
-  const [panelTab, setPanelTab] = useState<"blocks" | "packages">("blocks");
-  const [blockQuery, setBlockQuery] = useState("");
-  const [blocks, setBlocks] = useState<StudioBlock[] | null>(null);
-  const [insertingBlock, setInsertingBlock] = useState<string | null>(null);
+  /** The detected-packages panel at the foot of the tree. */
+  const [showPackages, setShowPackages] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const savingRef = useRef(false);
   const [registryFiles, setRegistryFiles] = useState<Record<string, string> | null>(null);
   const [openingPath, setOpeningPath] = useState<string | null>(null);
-
-  /** The live sandbox, and the project it was last handed. */
-  const sandpackRef = useRef<SandpackApi | null>(null);
-  const pushedRef = useRef<PreviewFiles | null>(null);
 
   // Auto-detect newly imported packages from debouncedFiles
   useEffect(() => {
@@ -349,15 +330,33 @@ export function ComponentStudio({
     void saveProject(snapshotRef.current);
   }, [saveProject]);
 
-  // Ctrl/Cmd+S saves immediately, like any editor muscle memory expects.
+  /**
+   * Editor-wide shortcuts.
+   *
+   * - Ctrl/Cmd+S — save now, the muscle memory every editor shares.
+   * - Ctrl/Cmd+Enter — rebuild the preview sandbox from scratch.
+   *
+   * Undo and redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z) are Monaco's own bindings and
+   * are deliberately left alone; they act on the active file's model, which is
+   * what the author expects.
+   */
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+
+      if (key === "s") {
         event.preventDefault();
-        if (!slug) return;
-        void saveProject(snapshotRef.current);
+        if (slug) void saveProject(snapshotRef.current);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        setPreviewKey((value) => value + 1);
       }
     };
+
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [slug, saveProject]);
@@ -380,13 +379,16 @@ export function ComponentStudio({
   const dirty = snapshot !== lastSaved.current;
 
   /**
-   * The project the sandbox builds: the author's own files.
+   * The project the stylesheet is compiled from.
+   *
+   * Debounced, because the compile is a round trip to the real Tailwind
+   * compiler. The sandbox itself is fed the *live* project instead, so typing
+   * lands in the preview immediately while the stylesheet follows behind.
    *
    * The vendored shadcn/ui sources are not merged in here — the sandbox adds
    * them itself (`SandpackPreviewPane`), so this stays small enough to send to
    * the stylesheet compiler on every edit.
    */
-  const previewFiles = debouncedFiles;
 
   // Styles are compiled on the server — Sandpack builds the JavaScript, and
   // the stylesheet it cannot produce itself is handed to it as `/styles.css`.
@@ -397,7 +399,7 @@ export function ComponentStudio({
   // which is how the sandbox gets `@/components/ui/*` without the browser ever
   // downloading the registry.
   const { css: previewCss, vendored: previewVendored } = usePreviewCss(
-    previewFiles,
+    debouncedFiles,
     debouncedFiles[DEFAULT_STYLE_PATH],
     { initialCss, initialVendored: initialVendoredFiles }
   );
@@ -405,49 +407,17 @@ export function ComponentStudio({
   /* -------------------------------------------- the sandbox, kept in step -- */
 
   /**
-   * Mirrors a project change into the running sandbox.
+   * The preview is driven from here, not from a callback.
    *
-   * The editor, the explorer and the blocks panel all end up here: the sandbox
-   * is the live project, so an edit shows up in the preview as it is typed
-   * instead of after the save debounce. Only what actually changed is sent.
+   * `SandpackPreviewPane` is given the live project and writes whatever changed
+   * into the running sandbox itself — see the note there on why the project can
+   * never be handed over as a prop. That is what makes an edit show up as it is
+   * typed rather than after the save debounce.
    */
-  const syncSandbox = useCallback(
-    (next: PreviewFiles, sandpack: SandpackApi) => {
-      const previous = pushedRef.current ?? {};
-
-      for (const [path, content] of Object.entries(next)) {
-        if (previous[path] !== content) sandpack.updateFile(path, content);
-      }
-      for (const path of Object.keys(previous)) {
-        if (!(path in next)) sandpack.deleteFile(path);
-      }
-
-      pushedRef.current = { ...next };
-    },
-    []
+  const installedNames = useMemo(
+    () => Object.keys(installedPackages),
+    [installedPackages]
   );
-
-  const filesRef = useRef(files);
-  filesRef.current = files;
-
-  const handleSandpackReady = useCallback(
-    (sandpack: SandpackApi) => {
-      // `useSandpack()` is not guaranteed to be referentially stable, so the
-      // bridge can report the same sandbox more than once.
-      if (sandpackRef.current === sandpack) return;
-      sandpackRef.current = sandpack;
-      // A fresh sandbox already holds the project it was built from; re-send
-      // it so anything typed while it was booting is not lost.
-      pushedRef.current = null;
-      syncSandbox(filesRef.current, sandpack);
-    },
-    [syncSandbox]
-  );
-
-  useEffect(() => {
-    const sandpack = sandpackRef.current;
-    if (sandpack) syncSandbox(files, sandpack);
-  }, [files, syncSandbox]);
 
   // The explorer shows the whole shadcn/ui folder beside the author's files,
   // the way an installed shadcn project looks — vendored files are marked
@@ -470,15 +440,6 @@ export function ComponentStudio({
     files[activePath] ??
     (vendoredActive && registryFiles ? registryFiles[vendoredActive] ?? "" : "");
   const packageCount = Object.keys(installedPackages).length;
-
-  const filteredBlocks = useMemo(() => {
-    if (!blocks) return [];
-    const query = blockQuery.trim().toLowerCase();
-    if (!query) return blocks;
-    return blocks.filter((block) =>
-      `${block.title} ${block.name} ${block.category}`.toLowerCase().includes(query)
-    );
-  }, [blocks, blockQuery]);
 
   /** Reload — throws the sandbox away and builds the project again. */
   const reloadPreview = useCallback(() => setPreviewKey((value) => value + 1), []);
@@ -507,47 +468,6 @@ export function ComponentStudio({
     const content = sources[vendored];
     if (content === undefined) return;
     setFiles((prev) => ({ ...prev, [path]: content }));
-  }
-
-  // The block library is small and only fetched once, so the panel is ready
-  // the moment it is opened.
-  useEffect(() => {
-    if (blocks) return;
-    let alive = true;
-    void (async () => {
-      try {
-        const response = await fetch("/api/studio/blocks");
-        const data = (await response.json()) as { blocks?: StudioBlock[] };
-        if (alive) setBlocks(data.blocks ?? []);
-      } catch {
-        if (alive) setBlocks([]);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [blocks]);
-
-  /**
-   * 21st-style block insert: the block's files land under
-   * /components/blocks/ (never colliding with the author's own code) and the
-   * demo page is swapped to render the block, so the preview immediately
-   * shows the composed result.
-   */
-  function insertBlock(block: StudioBlock) {
-    if (insertingBlock) return;
-    setInsertingBlock(block.name);
-    try {
-      setFiles((prev) => {
-        const next = { ...prev };
-        for (const file of block.files) next[file.path] = file.content;
-        next[DEFAULT_DEMO_PATH] = block.demo;
-        return next;
-      });
-      setActivePath(block.files[0]?.path ?? DEFAULT_DEMO_PATH);
-    } finally {
-      setInsertingBlock(null);
-    }
   }
 
   const updateActive = useCallback(
@@ -605,28 +525,6 @@ export function ComponentStudio({
     if (activePath === path) setActivePath(DEFAULT_COMPONENT_PATH);
   }
 
-  /** Writes a ready-to-use import for a shadcn/ui component into the source. */
-  function insertImport(name: string) {
-    const item = SHADCN_UI_COMPONENTS.find((entry) => entry.name === name);
-    if (!item) return;
-    const primary = item.exports[0];
-    const line = `import { ${primary} } from "${item.path}";`;
-
-    setFiles((prev) => {
-      const current = prev[DEFAULT_COMPONENT_PATH] ?? "";
-      if (current.includes(`from "${item.path}"`)) return prev;
-
-      const lines = current.split("\n");
-      let index = 0;
-      if (/^\s*["']use (client|server)["'];?\s*$/.test(lines[0] ?? "")) index = 1;
-      while (index < lines.length && lines[index].startsWith("import ")) index++;
-
-      const next = [...lines.slice(0, index), line, ...lines.slice(index)];
-      return { ...prev, [DEFAULT_COMPONENT_PATH]: next.join("\n") };
-    });
-    setActivePath(DEFAULT_COMPONENT_PATH);
-  }
-
   /**
    * The inline "new file" field — shown at the project root, or inside the
    * folder whose `+` was clicked.
@@ -635,7 +533,7 @@ export function ComponentStudio({
     if (!showNewFile || newFileParent !== parent) return null;
 
     return (
-      <div className="pt-2 pr-2 pb-1.5" style={{ paddingLeft: `${depth * 12 + 6}px` }}>
+      <div className="pt-1.5 pr-2 pb-1" style={{ paddingLeft: `${depth * 12 + 6}px` }}>
         <input
           autoFocus
           value={newFileName}
@@ -648,10 +546,11 @@ export function ComponentStudio({
             }
           }}
           placeholder={parent ? "use-thing.ts" : "components/hero.tsx"}
-          className="h-7 w-full rounded-md border bg-background px-2 font-mono text-[11px] outline-none focus:border-primary"
+          spellCheck={false}
+          className="h-7 w-full rounded-md border border-primary/60 bg-background px-2 font-mono text-[11px] outline-none ring-2 ring-primary/15"
         />
-        <p className="mt-1 text-[10px] text-muted-foreground/70">
-          {parent ? `in ${parent}` : "project root"} · Enter to create · Esc to cancel
+        <p className="mt-1 text-[10px] text-muted-foreground/60">
+          {parent ? `in ${parent}` : "project root"} · ↵ create · esc cancel
         </p>
       </div>
     );
@@ -668,23 +567,23 @@ export function ComponentStudio({
                 onClick={() =>
                   setCollapsed((prev) => ({ ...prev, [node.path]: !prev[node.path] }))
                 }
-                className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md py-1.5 pr-1 text-left text-[13px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md pr-1 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                 style={{ paddingLeft: `${depth * 12 + 6}px` }}
               >
-                {isCollapsed ? (
-                  <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
-                ) : (
-                  <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-                )}
+                <ChevronRight
+                  className={`h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform ${
+                    isCollapsed ? "" : "rotate-90"
+                  }`}
+                />
                 <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                <span className="truncate font-medium">{node.name}</span>
+                <span className="truncate">{node.name}</span>
               </button>
               <button
                 onClick={() => startNewFile(node.path)}
-                className="mr-1.5 shrink-0 opacity-0 transition group-hover/dir:opacity-100 focus-visible:opacity-100"
+                className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-primary group-hover/dir:opacity-100 focus-visible:opacity-100"
                 title={`New file in ${node.name}`}
               >
-                <FilePlus2 className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                <FilePlus2 className="h-3 w-3" />
               </button>
             </div>
 
@@ -706,16 +605,13 @@ export function ComponentStudio({
 
       return (
         <div key={node.path} className="group/file relative flex items-center">
-          {isActive && (
-            <span className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary" />
-          )}
           <button
             onClick={() => void openFile(node.path)}
-            className={`flex flex-1 items-center gap-2 rounded-md py-1.5 pr-2 text-left text-[13px] transition-colors ${
+            className={`flex h-7 flex-1 items-center gap-2 rounded-md pr-2 text-left text-[13px] transition-colors ${
               isActive
-                ? "bg-primary/10 text-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            } ${isVendored ? "opacity-80" : ""}`}
+                ? "bg-accent font-medium text-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
             style={{ paddingLeft: `${depth * 12 + 22}px` }}
             title={
               isVendored
@@ -723,10 +619,10 @@ export function ComponentStudio({
                 : undefined
             }
           >
-            <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
+            <Icon className={`h-3.5 w-3.5 shrink-0 ${isVendored ? "opacity-60" : tone}`} />
             <span className="truncate">{node.name}</span>
             {isVendored && (
-              <span className="ml-auto shrink-0 text-[9px] tracking-wider text-muted-foreground/60 uppercase">
+              <span className="ml-auto shrink-0 text-[9px] tracking-wider text-muted-foreground/50 uppercase">
                 ui
               </span>
             )}
@@ -734,19 +630,19 @@ export function ComponentStudio({
           {isVendored ? (
             <button
               onClick={() => void materialize(node.path)}
-              className="mr-1.5 opacity-0 transition group-hover/file:opacity-100"
+              className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-primary group-hover/file:opacity-100 focus-visible:opacity-100"
               title="Copy into project"
             >
-              <Plus className="h-3 w-3 text-muted-foreground hover:text-primary" />
+              <Plus className="h-3 w-3" />
             </button>
           ) : (
             removable && (
               <button
                 onClick={() => deleteFile(node.path)}
-                className="mr-1.5 opacity-0 transition group-hover/file:opacity-100"
+                className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-destructive group-hover/file:opacity-100 focus-visible:opacity-100"
                 title="Delete file"
               >
-                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                <Trash2 className="h-3 w-3" />
               </button>
             )
           )}
@@ -781,289 +677,236 @@ export function ComponentStudio({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="relative shrink-0">
-        <div className="flex h-12 items-center justify-between gap-3 px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 rounded-full"
-              asChild
-              title="All components"
-            >
-              <Link href="/studio">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <span className="hidden h-3 w-px bg-border sm:block" />
-            <span className="hidden text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase sm:inline">
-              Studio
-            </span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Untitled component"
-              className="h-8 w-full min-w-0 max-w-[280px] rounded-md border border-transparent bg-transparent px-2 text-sm font-medium outline-none transition-colors hover:border-border focus:border-border focus:bg-background"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {slug ? (
-              <Button
-                variant={saveState === "error" ? "destructive" : "outline"}
-                size="sm"
-                className="rounded-full"
-                disabled={saveState === "saving" || !dirty}
-                onClick={saveClick}
-                title="Save (Ctrl+S)"
-              >
-                {saveState === "saving" ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : saveState === "error" ? (
-                  <TriangleAlert className="mr-1.5 h-3.5 w-3.5" />
-                ) : saveState === "saved" && !dirty ? (
-                  <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                ) : (
-                  <FileCode2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                )}
-                {saveState === "saving"
-                  ? "Saving…"
-                  : saveState === "error"
-                    ? "Retry save"
-                    : saveState === "saved" && !dirty
-                      ? "Saved"
-                      : "Save"}
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full"
-              onClick={() => {
-                setFiles(initialFiles);
-                if (initial) setTitle(initial.title);
-              }}
-              title="Reset files"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              className="rounded-full pl-3"
-              onClick={() => setPublishing(true)}
-            >
-              <Rocket className="mr-1.5 h-3.5 w-3.5" />
-              {initial?.status === "published" ? "Update" : "Publish"}
-            </Button>
-          </div>
+      {/* Header — breadcrumb on the left, project actions on the right. */}
+      <header className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-3 backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+            asChild
+            title="All components"
+          >
+            <Link href="/studio">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <span className="ml-1 hidden text-[11px] font-medium tracking-[0.16em] text-muted-foreground/70 uppercase sm:inline">
+            Studio
+          </span>
+          <ChevronRight className="hidden h-3 w-3 shrink-0 text-muted-foreground/40 sm:inline" />
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Untitled component"
+            spellCheck={false}
+            className="h-7 w-full min-w-0 max-w-[300px] rounded-lg border border-transparent bg-transparent px-2 text-[13px] font-medium outline-none transition-colors hover:border-border/70 focus:border-border focus:bg-accent/40"
+          />
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent" />
+
+        <div className="flex items-center gap-1.5">
+          {/* Save state — a quiet status pill, click to save now. */}
+          {slug ? (
+            <button
+              onClick={saveClick}
+              disabled={saveState === "saving" || !dirty}
+              title="Save (Ctrl+S)"
+              className={`flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-colors ${
+                saveState === "error"
+                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                  : dirty
+                    ? "border-border bg-background text-foreground hover:bg-accent"
+                    : "border-transparent text-muted-foreground"
+              }`}
+            >
+              {saveState === "saving" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : saveState === "error" ? (
+                <TriangleAlert className="h-3 w-3" />
+              ) : dirty ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              ) : (
+                <Check className="h-3 w-3 text-emerald-500" />
+              )}
+              {saveState === "saving"
+                ? "Saving"
+                : saveState === "error"
+                  ? "Retry"
+                  : dirty
+                    ? "Save"
+                    : "Saved"}
+            </button>
+          ) : null}
+
+          <span className="mx-0.5 hidden h-4 w-px bg-border/60 sm:block" />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={() => {
+              setFiles(initialFiles);
+              if (initial) setTitle(initial.title);
+            }}
+            title="Reset files"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            className="h-7 gap-1.5 rounded-lg px-3 text-[12px] shadow-xs"
+            onClick={() => setPublishing(true)}
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            {initial?.status === "published" ? "Update" : "Publish"}
+          </Button>
+        </div>
       </header>
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        {/* Explorer */}
+        {/* File explorer — the project plus the shadcn/ui sources it can
+            reach, marked until they are copied into the project. */}
         {showExplorer && (
-          <aside className="relative flex w-60 shrink-0 flex-col border-r bg-muted/20">
-            <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-3">
-              <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-                Explorer
+          <aside className="relative flex w-60 shrink-0 flex-col border-r border-border/60 bg-muted/20">
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-2.5">
+              <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                Files
               </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">
+                {Object.keys(files).length}
+              </span>
+              <div className="ml-auto flex items-center gap-0.5">
+                <button
+                  className={ICON_BUTTON}
                   onClick={() => startNewFile(null)}
-                  title="New file at the project root"
+                  title="New file"
                 >
                   <FilePlus2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                </button>
+                <button
+                  className={ICON_BUTTON}
                   onClick={() => setShowExplorer(false)}
-                  title="Close file tree"
+                  title="Hide files"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
+                </button>
               </div>
             </div>
 
             {renderNewFileField(null, 0)}
 
-            <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
+            <div className="min-h-0 flex-1 overflow-auto px-1.5 py-1.5">
               {renderTree(tree)}
             </div>
 
-            {/* One panel at the foot of the tree, split into two tabs. */}
-            <div className="flex shrink-0 flex-col border-t border-border/70">
-              <div className="flex items-center gap-1 px-2 pt-2 pb-1.5">
-                <button
-                  onClick={() => setPanelTab("blocks")}
-                  className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors ${
-                    panelTab === "blocks"
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+            {/* Detected packages — the sandbox installs what the code imports,
+                so this is a read-only view of what is actually running. */}
+            <div className="shrink-0 border-t border-border/60">
+              <button
+                onClick={() => setShowPackages((value) => !value)}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:text-foreground"
+              >
+                <ChevronRight
+                  className={`h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform ${
+                    showPackages ? "rotate-90" : ""
                   }`}
-                >
-                  <Blocks className="h-3 w-3" />
-                  Blocks
-                  {blocks && blocks.length > 0 && (
-                    <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-                      {blocks.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setPanelTab("packages")}
-                  className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase transition-colors ${
-                    panelTab === "packages"
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Package className="h-3 w-3" />
+                />
+                <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                <span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
                   Packages
-                  {packageCount > 0 && (
-                    <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-                      {packageCount}
-                    </span>
-                  )}
-                </button>
-              </div>
+                </span>
+                {packageCount > 0 && (
+                  <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">
+                    {packageCount}
+                  </span>
+                )}
+              </button>
 
-              {panelTab === "blocks" ? (
+              {showPackages && (
                 <div className="px-3 pb-3">
-                  <input
-                    value={blockQuery}
-                    onChange={(event) => setBlockQuery(event.target.value)}
-                    placeholder="Search blocks"
-                    className="mb-2 h-7 w-full rounded-md border bg-background px-2 text-[11px] outline-none focus:border-primary"
-                  />
-                  {!blocks ? (
-                    <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Loading blocks…
-                    </div>
-                  ) : filteredBlocks.length === 0 ? (
-                    <p className="py-2 text-xs text-muted-foreground">
-                      {blocks.length === 0 ? "No blocks available." : "No blocks match."}
+                  {packageCount === 0 ? (
+                    <p className="text-[11px] leading-4 text-muted-foreground/80">
+                      Nothing yet — packages appear here the moment your code imports them.
                     </p>
                   ) : (
-                    <ul className="max-h-56 space-y-0.5 overflow-auto">
-                      {filteredBlocks.map((block) => (
-                        <li key={block.name}>
+                    <ul className="max-h-52 space-y-0.5 overflow-auto">
+                      {Object.entries(installedPackages).map(([name, version]) => (
+                        <li
+                          key={name}
+                          className="group flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-accent/50"
+                        >
+                          <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
+                            {name}
+                          </code>
+                          <span className="shrink-0 font-mono text-[10px] text-muted-foreground/60 tabular-nums">
+                            {version || "latest"}
+                          </span>
                           <button
-                            onClick={() => insertBlock(block)}
-                            disabled={Boolean(insertingBlock)}
-                            title={block.description || block.name}
-                            className="group/block flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent/50 disabled:opacity-50"
+                            onClick={() => removePackage(name)}
+                            className="shrink-0 text-muted-foreground/50 opacity-0 transition group-hover:opacity-100 hover:text-destructive"
+                            title={`Remove ${name}`}
                           >
-                            <Blocks className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[12px] font-medium">
-                                {block.title}
-                              </span>
-                              <span className="block truncate font-mono text-[10px] text-muted-foreground/70">
-                                {block.name}
-                              </span>
-                            </span>
-                            {insertingBlock === block.name ? (
-                              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-                            ) : (
-                              <Plus className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover/block:opacity-100" />
-                            )}
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </li>
                       ))}
                     </ul>
                   )}
-                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground/70">
-                    Inserting swaps the demo page for the block. Its files land in
-                    components/blocks/ and save with your project.
-                  </p>
-                </div>
-              ) : (
-                <div className="px-3 pb-3">
-                  {packageCount === 0 ? (
-                    <p className="py-1 text-[11px] leading-4 text-muted-foreground">
-                      Nothing yet. Packages appear the moment your code imports them.
-                    </p>
-                  ) : (
-                    <ul className="max-h-56 space-y-1 overflow-auto">
-                      {Object.entries(installedPackages).map(([name, version]) => (
-                        <li
-                          key={name}
-                          className="group flex items-center justify-between gap-2 text-[11px]"
-                        >
-                          <code className="truncate font-mono text-foreground">{name}</code>
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            <span className="text-muted-foreground/70">{version || "latest"}</span>
-                            <button
-                              onClick={() => removePackage(name)}
-                              className="opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                              title={`Remove ${name}`}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground/70">
-                    Imports are detected and installed automatically — there is nothing to add by
-                    hand.
-                  </p>
                 </div>
               )}
             </div>
           </aside>
         )}
 
-        {/* Editor */}
+        {/* Code editor */}
         {showEditor && (
-          <section className="relative flex min-w-0 flex-1 flex-col border-r">
-            <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-3">
-              <div className="flex min-w-0 items-center gap-2">
-                {(() => {
-                  const { Icon, tone } = iconFor(activePath);
-                  return <Icon className={`h-3.5 w-3.5 ${tone}`} />;
-                })()}
-                <span className="truncate font-mono text-[11px] text-muted-foreground">
-                  {activePath}
-                </span>
-                {vendoredActive && (
+          <section className="relative flex min-w-0 flex-1 flex-col border-r border-border/60">
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-2.5">
+              {(() => {
+                const { Icon, tone } = iconFor(activePath);
+                const segments = activePath.split("/").filter(Boolean);
+                const filename = segments.pop() ?? activePath;
+                return (
                   <>
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      shadcn/ui
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
+                    <span className="flex min-w-0 items-baseline gap-1 font-mono text-[11px]">
+                      {segments.length > 0 && (
+                        <span className="truncate text-muted-foreground/60">
+                          /{segments.join("/")}/
+                        </span>
+                      )}
+                      <span className="shrink-0 text-foreground">{filename}</span>
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 rounded-full px-2 text-[11px]"
-                      onClick={() => void materialize(activePath)}
-                      title="Editing already copies it in — this does it in one click"
-                    >
-                      <Plus className="mr-1 h-3 w-3" />
-                      Copy into project
-                    </Button>
                   </>
-                )}
-                {openingPath && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                );
+              })()}
+
+              {vendoredActive && (
+                <>
+                  <span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    shadcn/ui
+                  </span>
+                  <button
+                    onClick={() => void materialize(activePath)}
+                    className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-border/70 px-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    title="Editing already copies it in — this does it in one click"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Copy in
+                  </button>
+                </>
+              )}
+              {openingPath && (
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+              )}
+
+              <button
+                className={`${ICON_BUTTON} ml-auto`}
                 onClick={() => setShowEditor(false)}
-                title="Collapse code editor"
+                title="Hide editor"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
+              </button>
             </div>
             <div className="min-h-0 flex-1">
               {openingPath ? (
@@ -1077,6 +920,8 @@ export function ComponentStudio({
                   value={activeCode}
                   language={languageFor(activePath)}
                   onChange={updateActive}
+                  onSave={saveClick}
+                  onRun={reloadPreview}
                   projectFiles={files}
                   packages={Object.keys(installedPackages)}
                 />
@@ -1087,146 +932,136 @@ export function ComponentStudio({
 
         {/* Preview */}
         <section className="relative flex min-w-0 flex-1 flex-col">
-          <div className="flex h-10 shrink-0 items-center justify-between border-b px-3">
-            <div className="flex items-center gap-2">
+          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-2.5">
+            <div className="flex min-w-0 items-center gap-2">
               {!showExplorer && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                <button
+                  className="flex h-6 items-center gap-1 rounded-md border border-border/70 px-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   onClick={() => setShowExplorer(true)}
-                  title="Show file explorer"
+                  title="Show files"
                 >
                   <PanelLeft className="h-3 w-3" />
-                  <span>Files</span>
-                </Button>
+                  Files
+                </button>
               )}
               {!showEditor && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 gap-1 rounded-md px-2 text-[11px]"
+                <button
+                  className="flex h-6 items-center gap-1 rounded-md border border-border/70 px-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   onClick={() => setShowEditor(true)}
-                  title="Show code editor"
+                  title="Show code"
                 >
                   <Code2 className="h-3 w-3" />
-                  <span>Code</span>
-                </Button>
+                  Code
+                </button>
               )}
-              <span className="text-[11px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+              <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
                 Preview
               </span>
               <span
-                className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                className="hidden items-center gap-1.5 text-[10px] text-muted-foreground/80 sm:flex"
                 title="Bundled in your browser by Sandpack — nothing runs on the server"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                browser sandbox
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_2px] shadow-emerald-500/20" />
+                live
               </span>
             </div>
 
-            {/* Combined Toolbar: Reloader, Theme Switcher, Resize Icons */}
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-0.5 rounded-full border bg-background/80 p-0.5 shadow-2xs backdrop-blur-xs">
-                {/* Preview Reloader — rebuilds the sandbox from scratch. */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-full"
-                  onClick={reloadPreview}
-                  title="Reload preview"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                </Button>
+            {/* Preview controls — one segmented control, hairline dividers. */}
+            <div className="ml-auto flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
+              <button
+                className={ICON_BUTTON}
+                onClick={reloadPreview}
+                title="Reload preview (Ctrl+Enter)"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className={ICON_BUTTON}
+                onClick={() =>
+                  setPreviewTheme(previewTheme === "light" ? "dark" : "light")
+                }
+                title={`Switch to ${previewTheme === "light" ? "dark" : "light"} theme`}
+              >
+                {previewTheme === "light" ? (
+                  <Sun className="h-3.5 w-3.5 text-amber-500" />
+                ) : (
+                  <Moon className="h-3.5 w-3.5 text-sky-400" />
+                )}
+              </button>
 
-                {/* Theme Switcher */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-full"
-                  onClick={() => setPreviewTheme(previewTheme === "light" ? "dark" : "light")}
-                  title={`Switch to ${previewTheme === "light" ? "dark" : "light"} theme`}
-                >
-                  {previewTheme === "light" ? (
-                    <Sun className="h-3 w-3 text-amber-500" />
-                  ) : (
-                    <Moon className="h-3 w-3 text-sky-400" />
-                  )}
-                </Button>
+              <span className="mx-0.5 h-3.5 w-px bg-border/60" />
 
-                <span className="mx-0.5 h-3 w-px bg-border/80" />
+              <button
+                className={`${ICON_BUTTON} ${
+                  viewport === "desktop" ? "bg-accent text-foreground" : ""
+                }`}
+                onClick={() => setViewport("desktop")}
+                title="Desktop"
+              >
+                <Monitor className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className={`${ICON_BUTTON} ${
+                  viewport === "mobile" ? "bg-accent text-foreground" : ""
+                }`}
+                onClick={() => setViewport("mobile")}
+                title="Mobile (390px)"
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+              </button>
 
-                {/* Responsive Viewport Resize Icons */}
-                <Button
-                  variant={viewport === "desktop" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-6 w-6 rounded-full"
-                  onClick={() => setViewport("desktop")}
-                  title="Desktop (full view)"
-                >
-                  <Monitor className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant={viewport === "mobile" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-6 w-6 rounded-full"
-                  onClick={() => setViewport("mobile")}
-                  title="Mobile (390px)"
-                >
-                  <Smartphone className="h-3 w-3" />
-                </Button>
+              <span className="mx-0.5 h-3.5 w-px bg-border/60" />
 
-                <span className="mx-0.5 h-3 w-px bg-border/80" />
-
-                {/* Fullscreen Toggle (collapses explorer & editor) */}
-                <Button
-                  variant={!showExplorer && !showEditor ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-6 w-6 rounded-full"
-                  onClick={() => {
-                    if (!showExplorer && !showEditor) {
-                      setShowExplorer(true);
-                      setShowEditor(true);
-                    } else {
-                      setShowExplorer(false);
-                      setShowEditor(false);
-                    }
-                  }}
-                  title={!showExplorer && !showEditor ? "Exit full screen preview" : "Full screen preview"}
-                >
-                  {!showExplorer && !showEditor ? (
-                    <Minimize2 className="h-3 w-3" />
-                  ) : (
-                    <Maximize2 className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
+              <button
+                className={`${ICON_BUTTON} ${
+                  !showExplorer && !showEditor ? "bg-accent text-foreground" : ""
+                }`}
+                onClick={() => {
+                  if (!showExplorer && !showEditor) {
+                    setShowExplorer(true);
+                    setShowEditor(true);
+                  } else {
+                    setShowExplorer(false);
+                    setShowEditor(false);
+                  }
+                }}
+                title={
+                  !showExplorer && !showEditor
+                    ? "Exit full screen preview"
+                    : "Full screen preview"
+                }
+              >
+                {!showExplorer && !showEditor ? (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Preview Canvas: edge to edge, no rounding — the sandbox owns the
-              whole surface, including its own loading state. */}
+          {/* Preview canvas — the sandbox owns the whole surface, including its
+              own loading state. */}
           <div
             className={`flex min-h-0 flex-1 justify-center overflow-auto ${
               viewport === "mobile" ? "items-center bg-muted/20 p-4" : "p-0"
             }`}
           >
             <div
-              className={`h-full w-full overflow-hidden transition-all ${
+              className={`overflow-hidden transition-[width,max-height,border-radius,box-shadow] duration-200 ease-out ${
                 viewport === "mobile"
-                  ? "w-[390px] max-h-[844px] rounded-2xl border bg-background shadow-xl"
-                  : "rounded-none border-0"
+                  ? "h-full max-h-[844px] w-[390px] rounded-2xl border border-border/60 bg-background shadow-xl"
+                  : "h-full w-full"
               }`}
             >
               <SandpackPreviewPane
                 key={previewKey}
                 className="h-full w-full"
-                files={previewFiles}
+                files={files}
                 vendoredFiles={previewVendored}
                 compiledCss={previewCss ?? undefined}
-                dependencies={Object.keys(installedPackages)}
+                dependencies={installedNames}
                 theme={previewTheme}
-                onReady={handleSandpackReady}
               />
             </div>
           </div>

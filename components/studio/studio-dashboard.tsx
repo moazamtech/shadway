@@ -9,7 +9,9 @@ import {
   Eye,
   Heart,
   Loader2,
+  Package,
   Plus,
+  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -60,6 +62,19 @@ const STATUS_LABELS: Record<StudioItem["status"], string> = {
   flagged: "Flagged",
 };
 
+type Filter = "all" | "draft" | "pending" | "published";
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "draft", label: "Drafts" },
+  { id: "pending", label: "In review" },
+  { id: "published", label: "Published" },
+];
+
+/** The segmented control used for the status filter. */
+const SEGMENT =
+  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color] duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
@@ -83,8 +98,9 @@ function formatCount(value: number) {
 export function StudioDashboard({ items }: { items: StudioItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [submittedVisible, setSubmittedVisible] =
-    React.useState(searchParams.get("submitted") === "1");
+  const [submittedVisible, setSubmittedVisible] = React.useState(
+    searchParams.get("submitted") === "1"
+  );
   const [createOpen, setCreateOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -92,14 +108,26 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
   const [deleting, setDeleting] = React.useState<StudioItem | null>(null);
   const [deletingBusy, setDeletingBusy] = React.useState(false);
   const [rows, setRows] = React.useState(items);
+  const [filter, setFilter] = React.useState<Filter>("all");
+  const [query, setQuery] = React.useState("");
 
   React.useEffect(() => {
     setRows(items);
   }, [items]);
 
-  const drafts = rows.filter((item) => item.status === "draft").length;
-  const inReview = rows.filter((item) => item.status === "pending").length;
-  const published = rows.filter((item) => item.status === "published").length;
+  const counts: Record<Filter, number> = {
+    all: rows.length,
+    draft: rows.filter((item) => item.status === "draft").length,
+    pending: rows.filter((item) => item.status === "pending").length,
+    published: rows.filter((item) => item.status === "published").length,
+  };
+
+  const needle = query.trim().toLowerCase();
+  const visible = rows.filter((item) => {
+    if (filter !== "all" && item.status !== filter) return false;
+    if (!needle) return true;
+    return `${item.title} ${item.slug}`.toLowerCase().includes(needle);
+  });
 
   async function createDraft() {
     setCreating(true);
@@ -144,7 +172,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-6">
+    <div className="mx-auto w-full max-w-5xl px-4 py-10 lg:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Components</h1>
@@ -152,60 +180,88 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
             Create and manage the components you publish to Shadway.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
+        <Button size="sm" className="h-8 gap-1.5 rounded-lg px-3 text-[12px]" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           Create
         </Button>
       </div>
 
       {submittedVisible ? (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
-          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+        <div className="mt-5 flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
+          <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Submitted for review</p>
-            <p className="text-xs text-muted-foreground">
-              Review usually takes 24 hours. Once an admin approves it, the row
-              turns "Published" and goes live — you can preview it before then
-              by opening the component page.
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Review usually takes 24 hours. Once an admin approves it, the row turns
+              &ldquo;Published&rdquo; and goes live — you can preview it before then by opening
+              the component page.
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <button
+            type="button"
             aria-label="Dismiss"
             onClick={() => setSubmittedVisible(false)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{drafts} draft{drafts === 1 ? "" : "s"}</span>
-        <span className="text-border">·</span>
-        <span>{inReview} in review</span>
-        <span className="text-border">·</span>
-        <span>{published} published</span>
+      {/* Toolbar — the status filter and search, both scoped to the table. */}
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+          {FILTERS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={filter === option.id}
+              onClick={() => setFilter(option.id)}
+              className={cn(
+                SEGMENT,
+                filter === option.id
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {option.label}
+              <span className="text-[10px] tabular-nums opacity-60">{counts[option.id]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="relative ml-auto">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search components"
+            className="h-8 w-full rounded-lg border border-border/60 bg-background pr-3 pl-8 text-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60 sm:w-56"
+          />
+        </div>
       </div>
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-lg border">
+      <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[45%]">Component</TableHead>
+              <TableHead className="w-[42%]">Component</TableHead>
               <TableHead className="w-[110px]">Status</TableHead>
-              <TableHead className="w-[110px]">Visibility</TableHead>
-              <TableHead className="w-[120px]">Updated</TableHead>
-              <TableHead className="w-[90px] text-right">Views</TableHead>
-              <TableHead className="w-[90px] text-right">Likes</TableHead>
+              <TableHead className="hidden w-[110px] sm:table-cell">Visibility</TableHead>
+              <TableHead className="hidden w-[120px] md:table-cell">Updated</TableHead>
+              <TableHead className="w-[80px] text-right">Views</TableHead>
+              <TableHead className="hidden w-[80px] text-right sm:table-cell">Likes</TableHead>
               <TableHead className="w-[90px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length ? (
-              rows.map((item) => (
+            {visible.length ? (
+              visible.map((item) => (
                 <TableRow
                   key={item.slug}
                   className="cursor-pointer"
@@ -213,7 +269,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+                      <div className="h-10 w-16 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
                         {item.thumbnailUrl ? (
                           <span
                             className="block h-full w-full bg-cover bg-center"
@@ -236,14 +292,14 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                   <TableCell>
                     <span
                       className={cn(
-                        "rounded px-2 py-1 text-[11px] font-medium",
+                        "inline-block rounded-md px-2 py-1 text-[11px] font-medium",
                         STATUS_STYLES[item.status]
                       )}
                     >
                       {STATUS_LABELS[item.status]}
                     </span>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="hidden text-xs text-muted-foreground sm:table-cell">
                     {item.status === "draft"
                       ? "Private"
                       : item.status === "pending"
@@ -252,62 +308,73 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                           ? "Public"
                           : "Unlisted"}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
                     {formatDate(item.updatedAt)}
                   </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {formatCount(item.views)}
-                    </span>
+                  <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                    {formatCount(item.views)}
                   </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Heart className="h-3 w-3" />
-                      {formatCount(item.likes)}
-                    </span>
+                  <TableCell className="hidden text-right text-xs text-muted-foreground tabular-nums sm:table-cell">
+                    {formatCount(item.likes)}
                   </TableCell>
                   <TableCell>
                     <div
-                      className="flex items-center justify-end gap-1"
+                      className="flex items-center justify-end gap-0.5"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {/* The page at /c/<slug> renders for the owner even
                           while the component is in review, so the preview
                           link is always offered. */}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          title="Open component page"
-                          asChild
-                        >
-                          <Link href={`/c/${item.slug}`}>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
-                        </Button>
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground"
+                        title="Open component page"
+                        asChild
+                      >
+                        <Link href={`/c/${item.slug}`}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7 rounded-md text-muted-foreground hover:text-destructive"
                         title="Delete project"
                         onClick={() => setDeleting(item)}
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center">
-                  <p className="text-sm font-medium">No components yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Create your first component — it stays a private draft until you publish it.
-                  </p>
-                  <Button size="sm" className="mt-4" onClick={() => setCreateOpen(true)}>
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Create component
-                  </Button>
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={7} className="p-0">
+                  <div className="flex flex-col items-center px-6 py-14 text-center">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+                      <Package className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                    </span>
+                    <p className="mt-4 text-sm font-medium">
+                      {rows.length ? "Nothing matches" : "No components yet"}
+                    </p>
+                    <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                      {rows.length
+                        ? "Try a different filter or search term."
+                        : "Create your first component — it stays a private draft until you publish it."}
+                    </p>
+                    {!rows.length ? (
+                      <Button
+                        size="sm"
+                        className="mt-5 h-8 gap-1.5 rounded-lg px-3 text-[12px]"
+                        onClick={() => setCreateOpen(true)}
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Create component
+                      </Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -331,7 +398,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
               if (event.key === "Enter" && !creating) void createDraft();
             }}
             placeholder="Animated gradient button"
-            className="h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:border-primary"
+            className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-primary/60"
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <DialogFooter>
@@ -349,7 +416,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
       <Dialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Delete “{deleting?.title}”?</DialogTitle>
+            <DialogTitle>Delete &ldquo;{deleting?.title}&rdquo;?</DialogTitle>
             <DialogDescription>
               {deleting?.status === "published"
                 ? "The component page and its registry item stop working immediately."
