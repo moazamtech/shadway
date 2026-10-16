@@ -1,4 +1,5 @@
-import { addRefParameter } from '../url';
+import { describe, expect, test } from "vitest";
+import { addRefParameter } from "../url";
 
 describe('addRefParameter', () => {
   test('adds ref parameter to URL without existing parameters', () => {
