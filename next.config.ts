@@ -3,12 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Babel must stay external so its runtime `require()` graph works on the server.
   serverExternalPackages: ["@babel/core"],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // `eslint` and `typescript` config blocks were removed in Next 16. Build-time
+  // type and lint failures are now caught by `next lint` / `tsc --noEmit` in CI
+  // rather than silenced here, so a real error cannot hide behind a flag.
   images: {
     remotePatterns: [
       {

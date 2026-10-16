@@ -4,3 +4,25 @@ allowBuilds:
   msw: true
   puppeteer: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@next/env@16.4.2'
+  - '@next/eslint-plugin-next@16.4.2'
+  - '@next/swc-darwin-arm64@16.4.2'
+  - '@next/swc-darwin-x64@16.4.2'
+  - '@next/swc-linux-arm64-gnu@16.4.2'
+  - '@next/swc-linux-arm64-musl@16.4.2'
+  - '@next/swc-linux-x64-gnu@16.4.2'
+  - '@next/swc-linux-x64-musl@16.4.2'
+  - '@next/swc-win32-arm64-msvc@16.4.2'
+  - '@next/swc-win32-x64-msvc@16.4.2'
+  - eslint-config-next@16.4.2
+  - next@16.4.2
+
+overrides:
+  # The modern markdown stack (react-markdown 10, remark-rehype 11, rehype-katex 7,
+  # rehype-raw 7) all depend on vfile@6; remark-math@5 still declares ^5. Pinning
+  # the whole chain to vfile@6 keeps a single VFile type in the build, otherwise
+  # two incompatible VFile definitions collide inside the unified plugin list.
+  vfile: 6.0.3
+  vfile-message: 4.0.3
+  unified: 11.0.5

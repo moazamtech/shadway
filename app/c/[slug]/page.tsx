@@ -132,21 +132,6 @@ function SegmentedTabs({
   );
 }
 
-function Stat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-lg leading-6 font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
 export default function ComponentDetailPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
@@ -532,14 +517,16 @@ export default function ComponentDetailPage() {
             </p>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Views" value={formatCount(item.views)} />
-            <Stat label="Installs" value={formatCount(item.installs)} />
-            <Stat label="Likes" value={formatCount(item.likes)} />
-            <Stat
-              label="Bookmarks"
-              value={formatCount(item.bookmarks ?? 0)}
-            />
+          {/* Installs only. Views and likes are deliberately absent from the
+              public surface: they nudge visitors away from components that have
+              not been liked yet, which is the opposite of what a catalogue is
+              for. The owner's own studio dashboard still shows the full set. */}
+          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2.5">
+            <Download className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <span className="text-sm font-medium tabular-nums">
+              {formatCount(item.installs)}
+            </span>
+            <span className="text-sm text-muted-foreground">installs</span>
           </div>
 
           {item.tags.length ? (
