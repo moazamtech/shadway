@@ -93,7 +93,7 @@ export function ComponentCard({
           loading="lazy"
           decoding="async"
           onError={() => setCoverFailed(true)}
-          className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
+          className="h-full w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.2,0,0,1)] group-hover:scale-[1.03]"
         />
       ) : (
         <FallbackPreview
@@ -115,7 +115,7 @@ export function ComponentCard({
       {/* Cover — the video only mounts while the pointer is over the card,
           exactly like a card catalogue that never streams off-screen. */}
       <div
-        className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-all duration-300 group-hover:border-foreground/15 group-hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]"
+        className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/15 group-hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]"
         onMouseEnter={() => item.videoUrl && setVideoLoaded(true)}
         onMouseLeave={() => setVideoLoaded(false)}
         onTouchStart={() => item.videoUrl && setVideoLoaded(true)}
@@ -156,7 +156,7 @@ export function ComponentCard({
         ) : null}
 
         {/* Hover actions */}
-        <div className="absolute right-2 bottom-2 z-20 flex translate-y-1 gap-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+        <div className="absolute right-2 bottom-2 z-20 flex translate-y-1 gap-1 opacity-0 transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.2,0,0,1)] group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
           {onSave ? (
             <button
               type="button"
@@ -164,7 +164,7 @@ export function ComponentCard({
               aria-label={saved ? "Remove from saved" : "Save for later"}
               aria-pressed={saved}
               onClick={() => onSave(item.slug)}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-background/85 text-foreground/70 backdrop-blur-sm transition hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-background/85 text-foreground/70 backdrop-blur-sm transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.96]"
             >
               <Bookmark
                 className={cn("h-3.5 w-3.5", saved && "fill-current")}
@@ -180,7 +180,7 @@ export function ComponentCard({
               aria-pressed={liked}
               onClick={handleLike}
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full bg-background/85 backdrop-blur-sm transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                "flex h-7 w-7 items-center justify-center rounded-full bg-background/85 backdrop-blur-sm transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.96]",
                 liked ? "text-rose-500" : "text-foreground/70 hover:text-foreground"
               )}
             >
