@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdmin as sessionIsAdmin } from "@/lib/session";
 import { getComponentBySlugAnyStatus } from "@/lib/db/components";
+import { compileProjectCssCached } from "@/lib/preview/tailwind";
 import { ComponentStudio } from "@/components/studio/component-studio";
 import {
   DEFAULT_COMPONENT_PATH,
@@ -67,9 +68,27 @@ export default async function StudioProjectPage({
     ? component.styleCode
     : DEFAULT_STYLE_CODE;
 
+  // The stylesheet is compiled here, before the editor is handed the project.
+  // The sandbox then builds the project once — with its styles — instead of
+  // building it unstyled and patching the stylesheet in afterwards, which the
+  // sandbox does not reliably re-read.
+  //
+  // The same call reports which vendored shadcn/ui files the project reaches,
+  // so the browser never has to download the registry to find out.
+  const projectFiles = Object.entries(files).map(([path, content]) => ({
+    path,
+    content,
+  }));
+  const compiled = await compileProjectCssCached(
+    projectFiles,
+    files[DEFAULT_STYLE_PATH]
+  ).catch(() => undefined);
+
   return (
     <ComponentStudio
       slug={component.slug}
+      initialCss={compiled?.css}
+      initialVendoredFiles={compiled?.vendored}
       initial={{
         title: component.title,
         description: component.description || "",
