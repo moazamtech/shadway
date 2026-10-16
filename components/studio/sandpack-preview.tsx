@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   SandpackPreview,
   SandpackProvider,
@@ -12,7 +12,7 @@ import {
   collectNpmDependencies,
   sandboxPackageVersion,
 } from "@/lib/studio/deps";
-import { buildSandpackProject } from "@/lib/studio/sandpack";
+import { buildSandpackProject, type SandpackFiles } from "@/lib/studio/sandpack";
 
 /**
  * The one place a project is turned into a running sandbox.
@@ -36,8 +36,55 @@ import { buildSandpackProject } from "@/lib/studio/sandpack";
  *   arrives the sandbox is not mounted at all, so the first build is the styled
  *   one.
  *
- * The styled entry point is used on purpose: it is what sizes the iframe and
- * draws the bundler's own progress and error overlays.
+ * ## Why the project is pushed, never passed
+ *
+ * Sandpack's provider resets *its entire state* — files, dependencies and the
+ * bundler client with them — whenever the identity of its `files`, `customSetup`
+ * or `template` prop changes. A caller who rebuilds those objects on every
+ * render therefore tears the sandbox down on every render: the bundler restarts
+ * forever, the loading screen never clears, and edits never land.
+ *
+ * So the provider is given a project exactly once, frozen for the life of the
+ * mount, and every later change is delivered as a compile sent straight to the
+ * running client. Remounting is the only way to change the boot project, which
+ * is the semantics a "reload the preview" button actually wants — and it is
+ * also what happens when the dependency set changes, since a new package has to
+ * be installed before it can be imported.
+ *
+ * ## Why the compile is sent by hand
+ *
+ * Sandpack's own editor hot-loads by writing into provider state with
+ * `updateFile`; an effect inside the provider then forwards the provider's file
+ * map to the bundler as a compile. Our editor is Monaco, outside Sandpack, so
+ * nothing does that writing for us — the pane has to send the compile itself.
+ *
+ * It sends the same call that effect sends, `client.updateSandbox`, and the same
+ * payload: the provider's *complete* file map with the current project overlaid.
+ * That matters, because `updateSandbox` merges at the top level — `files` is
+ * replaced wholesale, not merged per path. A compile carrying only the author's
+ * files would drop the template's `/index.tsx`, and the frame would go blank on
+ * the first keystroke. Seeding from the provider's own map keeps the entry
+ * module, the injected `/package.json` and the template's `index.html` in place.
+ *
+ * The upside over `updateFile` is that a whole project is one compile rather
+ * than one per file, and it does not depend on the client's `status` flag —
+ * which is what makes it robust when a bundler is still coming up.
+ *
+ * ## Why the compile names a channel it was not given
+ *
+ * A compile is addressed to a channel id, and the bundler answers on the id it
+ * last saw registered. React runs effects twice on mount in development, and
+ * Sandpack builds a bundler client from an effect, so two clients are
+ * constructed over the one iframe — each with its own random id, each
+ * registering on the same `initialized`. The bundler keeps the last
+ * registration; `sandpack.clients` keeps whichever `await` settled last. They
+ * are frequently not the same client.
+ *
+ * A compile sent on the other id is dropped without a word: no error, no reply,
+ * no recompile, and the client's status never leaves `initializing`. So the
+ * pane listens to the bundler's own replies, learns the id it is answering on,
+ * and adopts it before compiling. The reply then matches the client's channel
+ * and the compile is a normal one.
  */
 
 /**
@@ -50,44 +97,91 @@ import { buildSandpackProject } from "@/lib/studio/sandpack";
  */
 const SANDBOX_PROVIDED = new Set(["react", "react-dom", "next"]);
 
-/** The live sandbox, as handed to the studio. */
-export type SandpackApi = ReturnType<typeof useSandpack>["sandpack"];
+/** The template the sandbox runs. Also what a manual compile has to name. */
+const SANDBOX_TEMPLATE = "react-ts";
+
+/** Stable for the life of the page — a new object would reset the provider. */
+const PROVIDER_STYLE = { height: "100%" } as const;
 
 /**
- * Hands the running sandbox to the studio.
+ * Start the bundler as soon as the provider mounts.
  *
- * The file explorer and the code editor write through this rather than waiting
- * for a prop round-trip, so an edit reaches the preview as it is typed. The
- * sandbox is the live project; the studio's state stays the document that gets
- * saved and published.
+ * The default (`lazy`) waits for the preview to scroll into view. In the studio
+ * it is always on screen, so the wait only delays the first build.
  */
-function SandboxBridge({
-  onReady,
-}: {
-  onReady?: (sandpack: SandpackApi) => void;
-}) {
+const PROVIDER_OPTIONS = { autorun: true, initMode: "immediate" } as const;
+
+const PREVIEW_STYLE = {
+  height: "100%",
+  width: "100%",
+  background: "transparent",
+} as const;
+
+/** The live sandbox, as handed to the bridge that drives it. */
+type SandpackApi = ReturnType<typeof useSandpack>["sandpack"];
+
+/**
+ * The running bundler client, as far as this file is concerned.
+ *
+ * `sandpack.clients` is public — it is what `useSandpackClient` hands out — but
+ * only these two members are used here.
+ */
+type SandboxClient = {
+  updateSandbox: (setup: {
+    files: Record<string, { code: string }>;
+    template?: string;
+  }) => void;
+  /** The channel this client's messages carry. See `pushProject`. */
+  iframeProtocol?: { channelId: number };
+};
+
+function clientsOf(api: SandpackApi): SandboxClient[] {
+  const clients = (api as unknown as { clients?: Record<string, SandboxClient> })
+    .clients;
+  return clients ? Object.values(clients) : [];
+}
+
+/**
+ * The provider's own file map, normalized to the shape a compile wants.
+ *
+ * `sandpack.files` is the project as Sandpack sees it — the template's files,
+ * the `/package.json` it injects from `customSetup.dependencies`, and this
+ * pane's boot project — keyed by path, with each value either a plain string or
+ * a `{ code }` entry.
+ */
+function providerEntries(api: SandpackApi): Record<string, { code: string }> {
+  const source = (api as unknown as { files?: Record<string, unknown> }).files;
+  const entries: Record<string, { code: string }> = {};
+
+  for (const [path, value] of Object.entries(source ?? {})) {
+    if (typeof value === "string") entries[path] = { code: value };
+    else if (value && typeof value === "object") {
+      const code = (value as { code?: unknown }).code;
+      if (typeof code === "string") entries[path] = { code };
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * Reports the running sandbox after every render.
+ *
+ * `useSandpack()` returns a brand-new wrapper object on every render, so the
+ * sync is deliberately unkeyed: it has to run whenever the provider re-renders,
+ * because that is also when a client may have appeared for the first time. The
+ * sync itself is a no-op unless something actually changed.
+ */
+function SandboxBridge({ onSync }: { onSync: (sandpack: SandpackApi) => void }) {
   const { sandpack } = useSandpack();
 
-  // Keep the newest callback without making the effect depend on it — the
-  // studio passes a fresh closure often enough to matter.
-  const latest = useRef(onReady);
-  latest.current = onReady;
-
-  /**
-   * `useSandpack()` returns a brand-new wrapper object on every render, so an
-   * effect keyed on `sandpack` fires on every render — and since reporting the
-   * sandbox writes files into it, that is an infinite loop.
-   *
-   * What actually means "a new sandbox" is a new provider, and the provider is
-   * remounted through `key`. So one report per mount is exactly right.
-   */
-  const reported = useRef(false);
+  // Keep the newest callback without making the effect depend on it.
+  const latest = useRef(onSync);
+  latest.current = onSync;
 
   useEffect(() => {
-    if (reported.current || !latest.current) return;
-    reported.current = true;
     latest.current(sandpack);
-  }, [sandpack]);
+  });
 
   return null;
 }
@@ -118,12 +212,23 @@ type Props = {
   page?: string;
   /** Bumping this remounts the sandbox from scratch. */
   reloadKey?: number;
-  /** Called with the live sandbox once it is running. */
-  onReady?: (sandpack: SandpackApi) => void;
   className?: string;
 };
 
-export function SandpackPreviewPane({
+/**
+ * Gates on the stylesheet.
+ *
+ * The sandbox is not mounted until the compiled CSS exists, so its first build
+ * is the styled one. Splitting the gate into a hook-free wrapper keeps the
+ * sandbox's boot project free to be frozen on the render that actually mounts
+ * it, rather than on an earlier, unstyled one.
+ */
+export function SandpackPreviewPane(props: Props) {
+  if (props.compiledCss === undefined) return null;
+  return <Sandbox {...props} compiledCss={props.compiledCss} />;
+}
+
+function Sandbox({
   files,
   vendoredFiles,
   compiledCss,
@@ -131,9 +236,8 @@ export function SandpackPreviewPane({
   theme,
   page,
   reloadKey = 0,
-  onReady,
   className,
-}: Props) {
+}: Props & { compiledCss: string }) {
   /**
    * The author's files plus the vendored shadcn/ui sources they import.
    *
@@ -145,21 +249,18 @@ export function SandpackPreviewPane({
     const byPath = new Map<string, PreviewFileInput>();
 
     for (const file of vendoredFiles ?? []) {
-      byPath.set(file.path, {
-        path: file.path.startsWith("/") ? file.path : `/${file.path}`,
-        content: file.content,
-      });
+      const path = file.path.startsWith("/") ? file.path : `/${file.path}`;
+      byPath.set(path, { path, content: file.content });
     }
-    for (const [path, content] of Object.entries(files)) {
-      byPath.set(path.startsWith("/") ? path : `/${path}`, {
-        path: path.startsWith("/") ? path : `/${path}`,
-        content,
-      });
+    for (const [raw, content] of Object.entries(files)) {
+      const path = raw.startsWith("/") ? raw : `/${raw}`;
+      byPath.set(path, { path, content });
     }
 
     return [...byPath.values()];
   }, [files, vendoredFiles]);
 
+  /** The project, rewritten and ready for the sandbox bundler. */
   const project = useMemo(
     () =>
       buildSandpackProject({
@@ -174,42 +275,213 @@ export function SandpackPreviewPane({
   );
 
   /**
+   * The dependency *set*, as a primitive — so the setup object is stable.
+   *
+   * `dependencies` is an array a caller rebuilds freely, and `sources` is
+   * rebuilt from the caller's file map, which they may also rebuild freely. A
+   * setup object keyed on either would therefore be new on every render, and
+   * Sandpack resets its whole state — including the files just written into it
+   * — whenever that object's identity changes. Joined names change only when
+   * the set genuinely changes.
+   */
+  const dependencyKey = useMemo(
+    () => [...new Set(dependencies ?? [])].filter(Boolean).sort().join("\n"),
+    [dependencies]
+  );
+
+  /** The packages the project's own sources import, as the same primitive. */
+  const sourceDependencyKey = useMemo(
+    () => collectNpmDependencies(sources).join("\n"),
+    [sources]
+  );
+
+  /**
    * Every package the sandbox must install — including the ones only the
    * vendored shadcn/ui sources import (`radix-ui`, `lucide-react`), which the
    * author's own files never mention.
    */
   const customSetup = useMemo(() => {
     const names = [
-      ...new Set([...collectNpmDependencies(sources), ...(dependencies ?? [])]),
-    ].sort();
+      ...new Set([
+        ...sourceDependencyKey.split("\n"),
+        ...dependencyKey.split("\n"),
+      ]),
+    ]
+      .filter((name) => name && !SANDBOX_PROVIDED.has(name))
+      .sort();
 
     return {
       dependencies: Object.fromEntries(
-        names
-          .filter((name) => name && !SANDBOX_PROVIDED.has(name))
-          .map((name) => [name, sandboxPackageVersion(name)])
+        names.map((name) => [name, sandboxPackageVersion(name)])
       ),
     };
-  }, [sources, dependencies]);
+  }, [sourceDependencyKey, dependencyKey]);
 
-  // No stylesheet yet: rendering the sandbox now would build it without one,
-  // and the sandbox does not re-read a stylesheet that was empty at boot.
-  if (compiledCss === undefined) return null;
+  /**
+   * What the sandbox boots from.
+   *
+   * A new package cannot be added to a running bundler, so a change to the
+   * dependency set remounts the sandbox — and the boot project is latched per
+   * mount, so the rebuild starts from the current project rather than from
+   * whatever it booted with the first time.
+   */
+  const bootKey = `${reloadKey}|${sourceDependencyKey}|${dependencyKey}`;
+
+  /**
+   * The project the sandbox boots with, frozen for the life of this mount.
+   *
+   * Assigning during render is deliberate: it is a one-shot latch, not derived
+   * state, and it has to be in place before the provider below is rendered.
+   */
+  const bootRef = useRef<SandpackFiles | null>(null);
+  if (bootRef.current === null) bootRef.current = project.files;
+
+  /** The project as last written into the sandbox. */
+  const pushedRef = useRef<SandpackFiles>(bootRef.current);
+
+  /**
+   * The channel the bundler is actually answering on.
+   *
+   * Read from the bundler's own replies: every message it sends carries the
+   * `$id` of the frame registration it accepted. See `pushProject` for why this
+   * is needed rather than using the client's own id.
+   *
+   * The studio mounts one preview, so the page carries one sandbox
+   * conversation; a second would need this keyed by message source.
+   */
+  const liveChannelRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { codesandbox?: unknown; $id?: unknown };
+      if (!data || !data.codesandbox) return;
+      if (typeof data.$id === "number") liveChannelRef.current = data.$id;
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  /** The newest project, for the sync that runs after every render. */
+  const projectRef = useRef(project);
+  projectRef.current = project;
+
+  const pushProject = useCallback((api: SandpackApi, next: SandpackFiles) => {
+    const previous = pushedRef.current;
+
+    let changed = false;
+    for (const [path, content] of Object.entries(next)) {
+      if (previous[path] !== content) {
+        changed = true;
+        break;
+      }
+    }
+    if (!changed) {
+      for (const path of Object.keys(previous)) {
+        if (!(path in next)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (!changed) return;
+
+    /**
+     * Nothing to compile into yet. Leaving `pushedRef` alone means the change
+     * is still outstanding and the next sync — the one that runs once the
+     * client exists — will deliver it.
+     */
+    const clients = clientsOf(api);
+    if (clients.length === 0) return;
+
+    /**
+     * The compile payload starts as the provider's own map.
+     *
+     * A compile replaces the file map wholesale, so this is what keeps the
+     * template's `/index.tsx` — the module that actually mounts `/App.tsx` —
+     * along with the injected `/package.json` and the template's `index.html`.
+     * Sandpack's own hot-reload effect sends exactly this map for the same
+     * reason.
+     */
+    const files = providerEntries(api);
+
+    // A file the project no longer has must be dropped explicitly, or the
+    // bundler keeps serving the last version of it.
+    for (const path of Object.keys(previous)) {
+      if (!(path in next)) delete files[path];
+    }
+
+    // Then the current project goes on top, whole.
+    for (const [path, content] of Object.entries(next)) {
+      files[path] = { code: content };
+    }
+
+    /**
+     * A compile is only legal with a manifest.
+     *
+     * The bundler client is constructed without a `dependencies` list —
+     * Sandpack bakes the packages into `/package.json` before the client ever
+     * sees the project — so `getFiles()` throws rather than build when that
+     * file is missing. It is always present in the provider's map; leaving the
+     * change outstanding if it is not means the next sync retries, instead of
+     * the edit being dropped.
+     */
+    if (files["/package.json"] === undefined) return;
+
+    let compiled = false;
+    for (const client of clients) {
+      try {
+        /**
+         * Speak on the channel the bundler is listening to.
+         *
+         * React runs effects twice on mount in development, and Sandpack builds
+         * a bundler client from an effect — so two clients are constructed over
+         * the same iframe, each with its own random channel id. The bundler
+         * keeps the last frame registration it sees, which is not necessarily
+         * the client `sandpack.clients` ends up holding.
+         *
+         * A compile sent on the wrong id is simply dropped: no error, no reply,
+         * no recompile — the client's status never leaves `initializing`.
+         * Adopting the id the bundler is already answering on makes the compile
+         * land, and the reply with it.
+         */
+        const live = liveChannelRef.current;
+        if (live !== null && client.iframeProtocol) {
+          client.iframeProtocol.channelId = live;
+        }
+
+        client.updateSandbox({ files, template: SANDBOX_TEMPLATE });
+        compiled = true;
+      } catch (error) {
+        // A dead bundler must never take the studio down with it: the preview
+        // is one pane, and the editor beside it has unsaved work in it.
+        console.error("[sandpack] compile failed", error);
+      }
+    }
+
+    // Nothing took the write, so leave it outstanding: the next sync — once a
+    // live client exists — will deliver it.
+    if (!compiled) return;
+
+    pushedRef.current = { ...next };
+  }, []);
+
+  const handleSync = useCallback(
+    (api: SandpackApi) => {
+      pushProject(api, projectRef.current.files);
+    },
+    [pushProject]
+  );
 
   return (
     <SandpackProvider
-      key={reloadKey}
-      template="react-ts"
-      files={project.files}
+      key={bootKey}
+      template={SANDBOX_TEMPLATE}
+      files={bootRef.current}
       customSetup={customSetup}
       theme={theme}
-      options={{
-        recompileMode: "delayed",
-        recompileDelay: 400,
-        autorun: true,
-        autoReload: true,
-      }}
-      style={{ height: "100%" }}
+      options={PROVIDER_OPTIONS}
+      style={PROVIDER_STYLE}
     >
       {/* `entry` is deliberately left alone. Sandpack's `react-ts` template
           boots from its own `/index.tsx`, which mounts `/App.tsx` into
@@ -217,13 +489,13 @@ export function SandpackPreviewPane({
           that only exports a component, and the frame stays empty. */}
       <SandpackPreview
         className={className}
-        style={{ height: "100%", width: "100%", background: "transparent" }}
+        style={PREVIEW_STYLE}
         showOpenInCodeSandbox={false}
         showRefreshButton={false}
         showNavigator={false}
       />
 
-      <SandboxBridge onReady={onReady} />
+      <SandboxBridge onSync={handleSync} />
     </SandpackProvider>
   );
 }
