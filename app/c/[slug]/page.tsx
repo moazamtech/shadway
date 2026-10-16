@@ -204,11 +204,10 @@ export default function ComponentDetailPage() {
     const next = !voted;
     setVoted(next);
     try {
-      const res = await fetch("/api/components/vote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: item.slug }),
-      });
+      const res = await fetch(
+        `/api/components/${encodeURIComponent(item.slug)}/like`,
+        { method: voted ? "DELETE" : "POST" }
+      );
       const data = await res.json().catch(() => ({}));
       if (typeof data.voted === "boolean") setVoted(data.voted);
     } catch {
@@ -495,9 +494,9 @@ export default function ComponentDetailPage() {
               title="Upvote this component"
             >
               <Heart
-                className={cn("h-3.5 w-3.5", voted && "fill-current text-destructive")}
+                className={cn("h-3.5 w-3.5", voted && "fill-current text-rose-500")}
               />
-              {formatCount(item.likes + (voted ? 1 : 0))}
+              {voted ? "Liked" : "Like"}
             </Button>
             <Button
               variant={saved ? "secondary" : "outline"}
