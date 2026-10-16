@@ -8,7 +8,7 @@ const CHROME = [
 
 async function main() {
   const browser = await puppeteer.launch({
-    headless: "new" as const,
+    headless: true,
     executablePath: CHROME,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
@@ -78,7 +78,7 @@ export default function StatusPill() {
         (i) => (i as HTMLInputElement).placeholder === ph
       );
     }, placeholder);
-    const el = handle.asElement();
+    const el = handle.asElement() as import("puppeteer").ElementHandle<Element> | null;
     if (!el) return false;
     await el.click({ clickCount: 3 });
     await el.type(value);

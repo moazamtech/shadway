@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Download, Terminal, Sparkles, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useOrigin } from "@/hooks/use-origin";
 
 type Props = {
   slug: string;
@@ -20,8 +21,7 @@ export function InstallTabs({ slug, dependencies, registryDependencies }: Props)
   const [tab, setTab] = useState<"cli" | "v0" | "lovable" | "bolt">("cli");
   const [copied, setCopied] = useState<string | null>(null);
 
-  const siteOrigin =
-    typeof window !== "undefined" ? window.location.origin : "https://shadway.com";
+  const siteOrigin = useOrigin();
   const registryUrl = `${siteOrigin}/r/${slug}`;
   const cliCommand = `npx shadcn@latest add ${registryUrl}`;
 

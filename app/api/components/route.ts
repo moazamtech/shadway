@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/components";
 import { buildPreviewBundle } from "@/lib/preview/bundle";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
+import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 
 export const runtime = "nodejs";
 
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
       description,
       code,
       demoCode: body.demoCode ? String(body.demoCode) : undefined,
+      styleCode: body.styleCode ? String(body.styleCode) : undefined,
       files: Array.isArray(body.files) ? body.files : undefined,
       thumbnailUrl: body.thumbnailUrl ? String(body.thumbnailUrl) : undefined,
       videoUrl: body.videoUrl ? String(body.videoUrl) : undefined,
@@ -127,7 +129,7 @@ export async function POST(request: NextRequest) {
         featured: existing.featured,
         version: existing.version,
         license: existing.license,
-        status: "published" as const,
+        status: "pending" as const,
         publishedAt: existing.publishedAt ?? new Date(),
         updatedAt: new Date(),
       };
@@ -159,9 +161,10 @@ export async function POST(request: NextRequest) {
         componentPreviewFiles({
           code: item.code,
           demoCode: item.demoCode,
+          styleCode: item.styleCode,
           files: item.files,
         }),
-        { entry: "/src/App.tsx", title: item.title }
+        { entry: DEFAULT_DEMO_PATH, title: item.title }
       );
 
       previewHtml = bundle.html;

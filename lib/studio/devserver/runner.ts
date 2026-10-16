@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import net from "net";
 import path from "path";
 
+import { collectNpmDependencies } from "@/lib/studio/sandbox/deps";
 import type { SandboxDraft } from "@/lib/studio/sandbox/project";
 import { workspaceDir, workspaceRoot, writeProject, writeProjectFiles } from "./workspace";
 
@@ -154,10 +155,13 @@ async function allocatePort(skip?: Iterable<number>): Promise<number> {
  * that, because Turbopack refuses the linked dependency tree it boots from.
  */
 function childEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env, NEXT_TELEMETRY_DISABLED: "1" };
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    NEXT_TELEMETRY_DISABLED: "1",
+  };
   delete env.TURBOPACK;
   delete env.IS_TURBOPACK_TEST;
-  return env;
+  return env as NodeJS.ProcessEnv;
 }
 
 function nextBinary(dir: string): string {
@@ -531,6 +535,42 @@ export function getDevServer(slug: string): LocalDevServerView | null {
   return toView(server);
 }
 
+/** Detects newly imported npm packages in the project files and adds them to package.json. */
+async function updateWorkspacePackageJson(
+  server: LocalDevServer,
+  files: Record<string, string>
+): Promise<void> {
+  const pkgPath = path.join(server.dir, "package.json");
+  let parsed: {
+    dependencies?: Record<string, string>;
+  };
+  try {
+    parsed = JSON.parse(await fs.readFile(pkgPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+    };
+  } catch {
+    return;
+  }
+
+  const existing = parsed.dependencies ?? {};
+  const fileList = Object.entries(files).map(([p, content]) => ({ path: p, content }));
+  const detected = collectNpmDependencies(fileList);
+  let changed = false;
+
+  for (const pkg of detected) {
+    if (!existing[pkg]) {
+      existing[pkg] = "latest";
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    parsed.dependencies = existing;
+    await fs.writeFile(pkgPath, JSON.stringify(parsed, null, 2) + "\n", "utf8");
+    log(server, `[shadway] Auto-detected newly imported package(s): ${detected.join(", ")}`);
+  }
+}
+
 /** Mirrors an editor change into the running project — the dev server reloads. */
 export async function syncDevServerFiles(
   slug: string,
@@ -541,6 +581,9 @@ export async function syncDevServerFiles(
   if (!server) return false;
   server.lastUsed = Date.now();
   await writeProjectFiles(slug, files, remove);
+
+  // Auto-detect newly imported dependencies and update package.json
+  await updateWorkspacePackageJson(server, files).catch(() => undefined);
 
   // A file that imports a package the shared tree lacks (the editor just added
   // one) is topped up in the background; the dev server picks it up after.

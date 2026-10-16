@@ -10,99 +10,65 @@ import type { PreviewFiles } from "@/lib/preview/files";
  * (`@/components/ui/button`), exactly like an installed shadcn project, so the
  * tree stays focused on what the author writes.
  */
-export const DEFAULT_COMPONENT_CODE = `import { ArrowRight, Sparkles, Star } from "lucide-react";
+export const DEFAULT_COMPONENT_CODE = `import { ArrowRight, Code2, Layers, Sparkles } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-
-const builders = ["AR", "JD", "MK", "SO"];
-
-const stats = [
-  { label: "Components", value: "180+" },
-  { label: "Weekly installs", value: "12.4k" },
-  { label: "Satisfaction", value: "98%" },
-];
 
 export default function MyComponent() {
   return (
-    <section className="relative overflow-hidden px-6 py-20 sm:py-28">
+    <section className="relative w-full overflow-hidden px-6 py-20 sm:py-28">
       <div
         aria-hidden
-        className="pointer-events-none absolute top-[-180px] left-1/2 h-[420px] w-[760px] max-w-[130%] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
+        className="pointer-events-none absolute top-[-140px] left-1/2 h-[380px] w-[700px] max-w-[130%] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
       />
 
       <div className="relative mx-auto max-w-3xl text-center">
-        <Badge variant="outline" className="px-3 py-1 text-xs">
-          <Sparkles />
-          24 new blocks this week
+        <Badge variant="outline" className="gap-1.5 px-3 py-1 text-xs font-medium">
+          <Sparkles className="size-3.5 text-primary" />
+          Interactive Next.js Sandbox
         </Badge>
 
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-          Interfaces that feel{" "}
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/40 bg-clip-text text-transparent">
-            effortless
-          </span>
+          Interfaces that feel effortless
         </h1>
 
         <p className="mx-auto mt-5 max-w-xl text-pretty text-muted-foreground sm:text-lg">
-          This is the starter component. Rewrite it by hand, or describe what you
-          want — every shadcn/ui primitive is one import away.
+          Welcome to your Next.js sandbox. Write or paste any React component here. Edit on the left, preview on the right with real Next.js hot-reload, auto package installs, and zero setup.
         </p>
 
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button size="lg" className="w-full rounded-full px-6 sm:w-auto">
-            Start building
-            <ArrowRight />
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Button size="lg" className="rounded-full px-6">
+            <Code2 className="mr-2 size-4" />
+            Edit component.tsx
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full rounded-full px-6 sm:w-auto"
-          >
-            Browse components
+          <Button size="lg" variant="outline" className="rounded-full px-6">
+            <Layers className="mr-2 size-4" />
+            Import UI primitives
           </Button>
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <div className="flex -space-x-2">
-            {builders.map((initials) => (
-              <Avatar key={initials} className="size-8 border-2 border-background">
-                <AvatarFallback className="text-[10px] font-medium">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            ))}
+        <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3 text-left">
+          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-foreground">1. Real Dev Server</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Powered by real Next.js App Router with instant HMR and error overlay.
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-0.5 text-amber-500">
-              {[0, 1, 2, 3, 4].map((star) => (
-                <Star key={star} className="size-3.5 fill-current" />
-              ))}
-            </span>
-            Loved by 12,400 builders
+          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-foreground">2. Auto Dependencies</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Import any npm package or shadcn primitive — they resolve automatically.
+            </p>
+          </div>
+          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
+            <div className="text-xs font-semibold text-foreground">3. Full Screen Preview</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Toggle the file tree and code editor to test full-bleed layouts.
+            </p>
           </div>
         </div>
       </div>
-
-      <Separator className="relative mx-auto mt-16 max-w-4xl" />
-
-      <dl className="relative mx-auto mt-10 grid max-w-3xl gap-4 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border bg-card p-5 text-center shadow-xs"
-          >
-            <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {stat.label}
-            </dt>
-            <dd className="mt-1 text-2xl font-semibold tracking-tight">
-              {stat.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }
@@ -112,15 +78,91 @@ export const DEFAULT_DEMO_CODE = `import MyComponent from "@/components/componen
 
 export default function Page() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6">
+    <main className="min-h-screen w-full bg-background text-foreground">
       <MyComponent />
     </main>
   );
 }
 `;
 
-export const DEFAULT_STYLE_CODE = `/* The preview already runs Tailwind v4 with the shadcn theme.
-   Add project-specific styles here — they load after the theme. */
+export const DEFAULT_STYLE_CODE = `@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
 `;
 
 /** The component the author publishes. */

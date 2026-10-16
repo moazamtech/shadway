@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/auth/user-menu";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -224,6 +225,11 @@ export function Navbar() {
                     <div className="hover:scale-105 transition-transform">
                       <ThemeToggle />
                     </div>
+
+                    {/* Auth - session aware */}
+                    <div className="hover:scale-105 transition-transform">
+                      <UserMenu variant="desktop" isScrolled={isScrolled} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -278,6 +284,11 @@ export function Navbar() {
                     </div>
 
                     <ThemeToggle />
+
+                    {/* Auth - session aware */}
+                    <div className="hover:scale-105 transition-transform">
+                      <UserMenu variant="mobile" isScrolled={isScrolled} />
+                    </div>
 
                     {/* Mobile Menu Toggle */}
                     <div className="hover:scale-105 transition-transform">

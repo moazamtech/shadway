@@ -1,4 +1,4 @@
-﻿import puppeteer from "puppeteer";
+import puppeteer from "puppeteer";
 import fs from "fs";
 const CHROME="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 async function main(){

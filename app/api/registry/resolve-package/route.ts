@@ -53,11 +53,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Provide a package name or names[]" }, { status: 400 });
     }
 
-    const results: PackageInfo[] = [];
-    for (const name of names.slice(0, 25)) {
-      const info = await fetchPackage(name);
-      if (info) results.push({ name, ...info });
-    }
+    // Resolve concurrently. These are independent npm requests, so a serial
+    // loop made the endpoint's latency the sum of up to 25 round trips.
+    const results = (
+      await Promise.all(
+        names.slice(0, 25).map(async (name): Promise<PackageInfo | null> => {
+          const info = await fetchPackage(name);
+          return info ? { name, ...info } : null;
+        })
+      )
+    ).filter((result): result is PackageInfo => result !== null);
 
     return NextResponse.json({ results });
   } catch (error) {

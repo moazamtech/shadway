@@ -8,7 +8,7 @@ const CHROME = [
 
 async function main() {
   const browser = await puppeteer.launch({
-    headless: "new" as const,
+    headless: true,
     executablePath: CHROME,
     args: ["--no-sandbox"],
   });

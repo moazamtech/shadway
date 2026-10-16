@@ -72,7 +72,9 @@ export async function writeProjectFiles(
   for (const [filePath, content] of Object.entries(files)) {
     const final =
       filePath === DEFAULT_STYLE_PATH
-        ? `${SANDBOX_STYLE_PREFIX}${content}`
+        ? content.startsWith('@import "tailwindcss"')
+          ? content
+          : `${SANDBOX_STYLE_PREFIX}${content}`
         : content;
     await writeFile(dir, filePath, final);
     written.push(filePath);

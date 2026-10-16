@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, resolveAuthor } from "@/lib/auth/require-session";
 import { createComponent, slugify } from "@/lib/db/components";
-import { STARTER_FILES, DEFAULT_COMPONENT_PATH, DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
+import { STARTER_FILES, DEFAULT_COMPONENT_PATH, DEFAULT_DEMO_PATH, DEFAULT_STYLE_PATH } from "@/lib/studio/starter";
 
 export const runtime = "nodejs";
 
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       description: "",
       code: STARTER_FILES[DEFAULT_COMPONENT_PATH],
       demoCode: STARTER_FILES[DEFAULT_DEMO_PATH],
+      styleCode: STARTER_FILES[DEFAULT_STYLE_PATH],
       files: [],
       category: "ui",
       tags: [],

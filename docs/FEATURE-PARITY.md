@@ -39,7 +39,7 @@
 | Bookmarks / favorites | `bookmarks` | Present | `lib/db/marketplace.ts`, `components/marketplace/...` | — | — |
 | Votes / likes count (atomic $inc) | upvotes | Present | marketplace data layer | — | — |
 | Author pages (`/u/<username>`) | `[username]` | Present | `app/u/[username]/page.tsx` | — | — |
-| Bundles (groups of components, free/paid) | templates | Present (ours) | `app/bundles/**`, `lib/db/bundles.ts`, `app/r/bundle/[slug]` | — | — |
+| Bundles (groups of components, free/paid) | templates | Present (ours) | `app/bundles/**`, `lib/db/bundles.ts`, `app/r/[...slug]` (`/r/bundle/<slug>`) | — | — |
 | Studio dashboard (owner) | public-dashboard | Present | `components/marketplace/studio-dashboard.tsx`, `app/dashboard/page.tsx` | — | — |
 | Multiple demos per component | `demos/*` | Missing | — | M | P2 |
 | Component reviews / comments | threads | Missing | — | M | P2 |
@@ -83,7 +83,7 @@
 | Sitemaps + feeds + robots | yes | Partial→improved | `app/sitemap-*`, `app/feed.*`, `app/robots.ts` (SEO agent in progress) | — | P1 |
 
 ## Highest-leverage next steps
-1. **AI chat ("magic") for component generation** — biggest 21st differentiator; build an iterative chat over the existing generator.
+1. **AI chat for component generation** - build an iterative chat over the existing generator.
 2. **Multiple demos per component** — media loop (video.mp4 / preview.png) already captures a single cover; extend to N.
 3. **Component review/comment thread** + status workflow (review queue).
 4. **User settings + public developer dashboard** parity.

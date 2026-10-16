@@ -1,11 +1,22 @@
 import Link from "next/link";
 import { Layers, Library } from "lucide-react";
+import type { Metadata } from "next";
+import { generateSEOMetadata } from "@/lib/seo";
 import { listCollections, ensureStarterCollections } from "@/lib/db/marketplace";
 import { listComponents } from "@/lib/db/components";
 import { ComponentCard } from "@/components/marketplace/component-card";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = generateSEOMetadata({
+  title: "Collections",
+  description:
+    "Curated shelves of shadcn/ui components for the job you are doing — essentials, marketing blocks, animation and more, ready to install.",
+  url: "/collections",
+  keywords: ["shadcn collections", "shadcn component collections", "ui component shelves"],
+  type: "website",
+});
 
 export default async function CollectionsPage() {
   await ensureStarterCollections().catch(() => {});

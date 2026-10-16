@@ -52,7 +52,7 @@ export default function PreviewPage({ params }: { params: Promise<{ name: string
 
   return (
     <div ref={containerRef} data-preview-root className="w-full bg-background">
-      <ComponentPreview name={name} />
+      <ComponentPreview title={name} />
     </div>
   );
 }

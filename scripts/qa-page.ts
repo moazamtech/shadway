@@ -12,7 +12,7 @@ async function main() {
   const needle = process.argv[4] || "";
 
   const browser = await puppeteer.launch({
-    headless: "new" as const,
+    headless: true,
     executablePath: CHROME,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });

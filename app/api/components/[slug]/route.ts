@@ -104,7 +104,7 @@ export async function PATCH(
     if (body.visibility === "public" || body.visibility === "unlisted")
       updates.visibility = body.visibility;
     if (typeof body.featured === "boolean" && isAdmin) updates.featured = body.featured;
-    if (body.status === "hidden" || body.status === "published" || body.status === "draft") {
+    if (body.status === "hidden" || body.status === "published" || body.status === "draft" || body.status === "pending") {
       if (isAdmin || isOwner) {
         updates.status = body.status;
         if (body.status === "published" && component.status !== "published") {
@@ -120,9 +120,11 @@ export async function PATCH(
     const contentTouched =
       typeof body.code === "string" ||
       typeof body.demoCode === "string" ||
+      typeof body.styleCode === "string" ||
       Array.isArray(body.files);
     if (typeof body.code === "string" && body.code.trim()) updates.code = body.code;
     if (typeof body.demoCode === "string") updates.demoCode = body.demoCode;
+    if (typeof body.styleCode === "string") updates.styleCode = body.styleCode;
     if (Array.isArray(body.files)) {
       const rawFiles: unknown[] = body.files;
       updates.files = rawFiles

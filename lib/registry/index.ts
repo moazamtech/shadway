@@ -24,7 +24,7 @@ export async function buildRegistryItem(
   if (!parsed) return null;
 
   const component = await getComponentBySlug(parsed.slug);
-  if (!component || component.status !== "published" || component.visibility !== "public") {
+  if (!component || (component.status !== "published" && component.status !== "pending") || component.visibility !== "public") {
     return null;
   }
 

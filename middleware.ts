@@ -32,7 +32,11 @@ export default withAuth(
       return NextResponse.redirect(url);
     }
 
-    if (pathname.startsWith("/admin") && token.role !== "admin") {
+    const isAdmin =
+      token.role === "admin" ||
+      (typeof token.email === "string" && token.email.toLowerCase().trim() === "moazamdevw@gmail.com");
+
+    if (pathname.startsWith("/admin") && !isAdmin) {
       return NextResponse.redirect(new URL("/profile", request.url));
     }
 

@@ -250,7 +250,12 @@ export function sandboxSeedFiles(component: SandboxDraft): SandboxSeedFile[] {
   // editor's first sync, and live edits keep the theme too.
   const rest = resolved.map((file) =>
     file.path === DEFAULT_STYLE_PATH
-      ? { path: file.path, content: `${SANDBOX_STYLE_PREFIX}${file.content}` }
+      ? {
+          path: file.path,
+          content: file.content.startsWith('@import "tailwindcss"')
+            ? file.content
+            : `${SANDBOX_STYLE_PREFIX}${file.content}`,
+        }
       : file
   );
 

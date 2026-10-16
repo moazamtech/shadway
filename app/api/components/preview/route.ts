@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getComponentBySlug, getComponentsCollection } from "@/lib/db/components";
 import { buildPreviewBundle } from "@/lib/preview/bundle";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
+import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,9 +20,10 @@ async function bundleForComponent(slug: string) {
     componentPreviewFiles({
       code: component.code,
       demoCode: component.demoCode,
+      styleCode: component.styleCode,
       files: component.files,
     }),
-    { entry: "/src/App.tsx", title: component.title }
+    { entry: DEFAULT_DEMO_PATH, title: component.title }
   );
 
   return { component, bundle };

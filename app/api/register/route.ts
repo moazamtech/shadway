@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { connectToDatabase } from "@/lib/mongodb";
 import { authRateLimiter, getClientIP } from "@/lib/rate-limit";
 import { planUsername } from "@/lib/db/users";
+import { isAdminEmail } from "@/lib/auth";
 import { User as DbUser } from "@/lib/types";
 
 /** Users are keyed by ObjectId in Mongo even though the shared type says string. */
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       password,
       name,
       username,
-      role: "user",
+      role: isAdminEmail(email) ? "admin" : "user",
       createdAt: now,
       updatedAt: now,
     });
