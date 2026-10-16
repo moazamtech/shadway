@@ -10,64 +10,19 @@ import type { PreviewFiles } from "@/lib/preview/files";
  * (`@/components/ui/button`), exactly like an installed shadcn project, so the
  * tree stays focused on what the author writes.
  */
-export const DEFAULT_COMPONENT_CODE = `import { ArrowRight, Code2, Layers, Sparkles } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-export default function MyComponent() {
+export const DEFAULT_COMPONENT_CODE = `export default function MyComponent() {
   return (
-    <section className="relative w-full overflow-hidden px-6 py-20 sm:py-28">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[-140px] left-1/2 h-[380px] w-[700px] max-w-[130%] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
-      />
-
-      <div className="relative mx-auto max-w-3xl text-center">
-        <Badge variant="outline" className="gap-1.5 px-3 py-1 text-xs font-medium">
-          <Sparkles className="size-3.5 text-primary" />
-          Interactive Next.js Sandbox
-        </Badge>
-
-        <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-          Interfaces that feel effortless
+    <section className="w-full bg-background px-6 py-16 text-foreground">
+      <div className="mx-auto max-w-xl text-center">
+        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          Shadway Starter
         </h1>
 
-        <p className="mx-auto mt-5 max-w-xl text-pretty text-muted-foreground sm:text-lg">
-          Welcome to your Next.js sandbox. Write or paste any React component here. Edit on the left, preview on the right with real Next.js hot-reload, auto package installs, and zero setup.
+        <p className="mt-4 text-pretty leading-relaxed text-muted-foreground">
+          A small starting point for your component, styled with the shadcn/ui theme tokens — so
+          it follows the palette in light and dark mode. Edit this file and the preview rebuilds
+          as you type.
         </p>
-
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" className="rounded-full px-6">
-            <Code2 className="mr-2 size-4" />
-            Edit component.tsx
-          </Button>
-          <Button size="lg" variant="outline" className="rounded-full px-6">
-            <Layers className="mr-2 size-4" />
-            Import UI primitives
-          </Button>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3 text-left">
-          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
-            <div className="text-xs font-semibold text-foreground">1. Real Dev Server</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Powered by real Next.js App Router with instant HMR and error overlay.
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
-            <div className="text-xs font-semibold text-foreground">2. Auto Dependencies</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Import any npm package or shadcn primitive — they resolve automatically.
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card/60 p-4 backdrop-blur-xs">
-            <div className="text-xs font-semibold text-foreground">3. Full Screen Preview</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Toggle the file tree and code editor to test full-bleed layouts.
-            </p>
-          </div>
-        </div>
       </div>
     </section>
   );

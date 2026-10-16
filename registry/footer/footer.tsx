@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Github, Twitter, Linkedin } from "lucide-react";
+import { ArrowUpRight, AtSign, Globe, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -12,10 +12,13 @@ const links = {
   Company: ["About", "Careers", "Contact", "Press"],
 };
 
+// Brand icons were removed from lucide in v1 — anything reaching for
+// `Github`/`Twitter` renders `undefined`. These are core icons that exist in
+// every release.
 const socials = [
-  { icon: Twitter, label: "Twitter" },
-  { icon: Github, label: "GitHub" },
-  { icon: Linkedin, label: "LinkedIn" },
+  { icon: AtSign, label: "X" },
+  { icon: Globe, label: "Website" },
+  { icon: Mail, label: "Email" },
 ];
 
 export function Footer() {
