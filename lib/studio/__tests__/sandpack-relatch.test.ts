@@ -21,6 +21,8 @@ import { createRoot, type Root } from "react-dom/client";
 const h = vi.hoisted(() => ({
   /** Every render's `files`/`customSetup` props, oldest first. */
   renders: [] as Array<{ files: Record<string, string>; customSetup: unknown }>,
+  /** How many times the provider has mounted — i.e. how often it remounted. */
+  mounts: 0,
   /** The provider's live file map, as `useSandpack()` would report it. */
   bootFiles: {} as Record<string, string>,
   updateCalls: [] as unknown[],
@@ -38,6 +40,9 @@ vi.mock("@codesandbox/sandpack-react", async () => {
       // any client sees the project; a compile without it is rejected.
       h.bootFiles = { ...props.files, "/package.json": '{"name":"sandbox"}' };
       h.renders.push({ files: props.files, customSetup: props.customSetup });
+      react.useEffect(() => {
+        h.mounts++;
+      }, []);
       return react.createElement(react.Fragment, null, props.children);
     },
     SandpackPreview: () => null,
@@ -87,6 +92,7 @@ describe("SandpackPreviewPane boot latch", () => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     h.renders.length = 0;
     h.updateCalls.length = 0;
+    h.mounts = 0;
     h.bootFiles = {};
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -137,5 +143,42 @@ describe("SandpackPreviewPane boot latch", () => {
     // Re-latching treats the fresh boot as already current, so the first sync
     // afterwards is a no-op rather than a redundant recompile.
     expect(h.updateCalls).toHaveLength(1);
+  });
+
+  /**
+   * The dependency set only grows, so a deleted import is not a remount.
+   *
+   * The set is derived from the sources, which means it loses a name the moment
+   * an author deletes the `import` line that introduced it. Remounting for that
+   * reinstalls every package in the project to be rid of one that costs nothing
+   * to leave where it is.
+   */
+  it("keeps the sandbox running when a dependency is dropped", () => {
+    const render = (dependencies: string[]) =>
+      act(() =>
+        root.render(
+          React.createElement(SandpackPreviewPane, {
+            files: project("A"),
+            compiledCss: ":root{--x:1}",
+            dependencies,
+            theme: "light",
+          })
+        )
+      );
+
+    render(["motion", "lucide-react"]);
+    expect(h.mounts).toBe(1);
+
+    // The author deletes the only import of both packages.
+    render([]);
+    expect(h.mounts).toBe(1);
+
+    // Both are still installed, and the deletion asked the bundler for nothing.
+    expect(h.renders.at(-1)!.customSetup).toEqual({
+      dependencies: {
+        motion: sandboxPackageVersion("motion"),
+        "lucide-react": sandboxPackageVersion("lucide-react"),
+      },
+    });
   });
 });

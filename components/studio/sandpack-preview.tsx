@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SandpackPreview,
   SandpackProvider,
@@ -100,6 +100,22 @@ const SANDBOX_PROVIDED = new Set(["react", "react-dom", "next"]);
 /** The template the sandbox runs. Also what a manual compile has to name. */
 const SANDBOX_TEMPLATE = "react-ts";
 
+/**
+ * The shortest gap between two compiles, in milliseconds.
+ *
+ * The project is pushed from an effect that runs after every render, and a
+ * render is a keystroke — so without this, typing a word asks the bundler for
+ * one full build per character. The bundler obliges, and the preview falls
+ * seconds behind the cursor while every one of those builds is thrown away by
+ * the next one.
+ *
+ * This is a throttle rather than a debounce on purpose: the preview keeps up
+ * while the author types, at a fixed rate, instead of going dark until they
+ * pause — which is also what makes the first edit land immediately, since the
+ * window is empty when it arrives.
+ */
+const COMPILE_INTERVAL = 300;
+
 /** Stable for the life of the page — a new object would reset the provider. */
 const PROVIDER_STYLE = { height: "100%" } as const;
 
@@ -108,8 +124,17 @@ const PROVIDER_STYLE = { height: "100%" } as const;
  *
  * The default (`lazy`) waits for the preview to scroll into view. In the studio
  * it is always on screen, so the wait only delays the first build.
+ *
+ * `recompileMode` is set even though this pane compiles by hand: it governs the
+ * provider's own effect, which would otherwise send a second, unthrottled
+ * compile whenever a file is written through `sandpack.updateFile`.
  */
-const PROVIDER_OPTIONS = { autorun: true, initMode: "immediate" } as const;
+const PROVIDER_OPTIONS = {
+  autorun: true,
+  initMode: "immediate",
+  recompileMode: "delayed",
+  recompileDelay: COMPILE_INTERVAL,
+} as const;
 
 const PREVIEW_STYLE = {
   height: "100%",
@@ -165,22 +190,41 @@ function providerEntries(api: SandpackApi): Record<string, { code: string }> {
 }
 
 /**
+ * Whether two projects differ at any path — added, changed or removed.
+ *
+ * The push path asks this twice: once to decide whether anything is worth
+ * compiling at all, and once to decide whether it is worth *scheduling* a
+ * compile for. Both are the same question, and a whole-project string compare
+ * would answer it more slowly than walking the paths.
+ */
+function differs(previous: SandpackFiles, next: SandpackFiles): boolean {
+  for (const [path, content] of Object.entries(next)) {
+    if (previous[path] !== content) return true;
+  }
+  for (const path of Object.keys(previous)) {
+    if (!(path in next)) return true;
+  }
+  return false;
+}
+
+/**
  * Reports the running sandbox after every render.
  *
  * `useSandpack()` returns a brand-new wrapper object on every render, so the
  * sync is deliberately unkeyed: it has to run whenever the provider re-renders,
  * because that is also when a client may have appeared for the first time. The
  * sync itself is a no-op unless something actually changed.
+ *
+ * There is no ref holding the callback. An effect with no dependency list runs
+ * after every render and closes over *this* render's props, so it is already
+ * the newest one — and keeping a copy in a ref written during render is both
+ * redundant and what `react-hooks/refs` forbids.
  */
 function SandboxBridge({ onSync }: { onSync: (sandpack: SandpackApi) => void }) {
   const { sandpack } = useSandpack();
 
-  // Keep the newest callback without making the effect depend on it.
-  const latest = useRef(onSync);
-  latest.current = onSync;
-
   useEffect(() => {
-    latest.current(sandpack);
+    onSync(sandpack);
   });
 
   return null;
@@ -300,32 +344,60 @@ function Sandbox({
    * vendored shadcn/ui sources import (`radix-ui`, `lucide-react`), which the
    * author's own files never mention.
    */
-  const customSetup = useMemo(() => {
-    const names = [
-      ...new Set([
-        ...sourceDependencyKey.split("\n"),
-        ...dependencyKey.split("\n"),
-      ]),
-    ]
-      .filter((name) => name && !SANDBOX_PROVIDED.has(name))
-      .sort();
-
-    return {
-      dependencies: Object.fromEntries(
-        names.map((name) => [name, sandboxPackageVersion(name)])
-      ),
-    };
+  const requestedDependencies = useMemo(() => {
+    const names = new Set<string>();
+    for (const name of sourceDependencyKey.split("\n")) if (name) names.add(name);
+    for (const name of dependencyKey.split("\n")) if (name) names.add(name);
+    return [...names].filter((name) => !SANDBOX_PROVIDED.has(name)).sort();
   }, [sourceDependencyKey, dependencyKey]);
+
+  /**
+   * The packages installed, which only ever grows while the pane is mounted.
+   *
+   * A new package cannot be added to a running bundler — Sandpack bakes the
+   * dependency list into `/package.json` before the client is built — so a
+   * dependency the sandbox does not have remounts it and installs the set from
+   * scratch. The mirror of that is a dependency the sandbox *gains* while the
+   * list also *loses* one: the derived set changes identity, the provider
+   * remounts, and the author pays a full reinstall for deleting an `import`
+   * line.
+   *
+   * So the derived set is only ever added to. Removing an import leaves the
+   * package installed and unimported, which costs a few kilobytes the bundler
+   * never reads, and the sandbox is never torn down for a deletion. A manual
+   * reload keeps it too: it is the same bundler, and the packages are already
+   * in it.
+   *
+   * This is React's own "adjust state during render when a prop changes"
+   * pattern: setting the state here re-renders before anything commits, so the
+   * provider below is only ever rendered with the set it should boot from.
+   */
+  const [installedNames, setInstalledNames] = useState<string[]>([]);
+
+  if (!requestedDependencies.every((name) => installedNames.includes(name))) {
+    setInstalledNames([...new Set([...installedNames, ...requestedDependencies])].sort());
+  }
+
+  const installedKey = installedNames.join("\n");
+
+  const customSetup = useMemo(
+    () => ({
+      dependencies: Object.fromEntries(
+        installedNames.map((name) => [name, sandboxPackageVersion(name)])
+      ),
+    }),
+    [installedNames]
+  );
 
   /**
    * What the sandbox boots from.
    *
-   * A new package cannot be added to a running bundler, so a change to the
+   * A new package cannot be added to a running bundler, so *growing* the
    * dependency set remounts the sandbox — and the boot project is latched per
    * mount, so the rebuild starts from the current project rather than from
    * whatever it booted with the first time.
    */
-  const bootKey = `${reloadKey}|${sourceDependencyKey}|${dependencyKey}`;
+  const bootKey = `${reloadKey}|${installedKey}`;
 
   /**
    * The project the sandbox boots with, latched per mount.
@@ -391,24 +463,7 @@ function Sandbox({
   projectRef.current = project;
 
   const pushProject = useCallback((api: SandpackApi, next: SandpackFiles) => {
-    const previous = pushedRef.current;
-
-    let changed = false;
-    for (const [path, content] of Object.entries(next)) {
-      if (previous[path] !== content) {
-        changed = true;
-        break;
-      }
-    }
-    if (!changed) {
-      for (const path of Object.keys(previous)) {
-        if (!(path in next)) {
-          changed = true;
-          break;
-        }
-      }
-    }
-    if (!changed) return;
+    if (!differs(pushedRef.current, next)) return;
 
     /**
      * Nothing to compile into yet. Leaving `pushedRef` alone means the change
@@ -431,7 +486,7 @@ function Sandbox({
 
     // A file the project no longer has must be dropped explicitly, or the
     // bundler keeps serving the last version of it.
-    for (const path of Object.keys(previous)) {
+    for (const path of Object.keys(pushedRef.current)) {
       if (!(path in next)) delete files[path];
     }
 
@@ -490,11 +545,58 @@ function Sandbox({
     pushedRef.current = { ...next };
   }, []);
 
+  /**
+   * The compile window.
+   *
+   * `pendingRef` holds the sandbox the next compile should go to; the timer
+   * holds the window open. A compile that arrives when the window has passed is
+   * sent at once, which is why the first keystroke after a pause feels
+   * immediate, and one that arrives inside the window is held — the project it
+   * will compile is read fresh when the timer fires, so a burst of keystrokes
+   * collapses into a single build of the final state.
+   */
+  const pendingRef = useRef<SandpackApi | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const lastCompileRef = useRef(0);
+
+  const flushCompile = useCallback(() => {
+    const api = pendingRef.current;
+    if (!api) return;
+    lastCompileRef.current = Date.now();
+    pushProject(api, projectRef.current.files);
+  }, [pushProject]);
+
+  // A queued compile must not outlive the pane: the client it names will be
+  // gone, and the timer would then fire against a torn-down bundler.
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    },
+    []
+  );
+
   const handleSync = useCallback(
     (api: SandpackApi) => {
-      pushProject(api, projectRef.current.files);
+      pendingRef.current = api;
+
+      // Nothing to compile is nothing to schedule.
+      if (!differs(pushedRef.current, projectRef.current.files)) return;
+
+      // A window is already open, and it will pick this up.
+      if (timerRef.current !== null) return;
+
+      const open = Date.now() - lastCompileRef.current;
+      if (open >= COMPILE_INTERVAL) {
+        flushCompile();
+        return;
+      }
+
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        flushCompile();
+      }, COMPILE_INTERVAL - open);
     },
-    [pushProject]
+    [flushCompile]
   );
 
   return (
