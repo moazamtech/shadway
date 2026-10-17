@@ -22,6 +22,7 @@ import {
   Moon,
   Package,
   PanelLeft,
+  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -41,11 +42,15 @@ import { collectNpmDependencies } from "@/lib/studio/deps";
 import { projectPathFor } from "@/lib/studio/sandpack";
 import { usePreviewCss } from "@/lib/studio/use-preview-css";
 import {
-  DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_PATH,
   DEFAULT_STYLE_PATH,
   starterFiles,
 } from "@/lib/studio/starter";
+import {
+  projectPayload,
+  resolveComponentPath,
+  retargetImports,
+} from "@/lib/studio/project";
 
 export type StudioInitial = {
   title: string;
@@ -57,6 +62,8 @@ export type StudioInitial = {
    *  as pending review while its draft is being edited. */
   status: "draft" | "pending" | "published" | "hidden" | "flagged";
   files: PreviewFiles;
+  /** Where the author keeps the component inside `files`. */
+  componentPath?: string;
   dependencies?: string[];
 };
 
@@ -90,15 +97,6 @@ function loadRegistryFiles(): Promise<Record<string, string>> {
     (module) => module.SHADCN_FILES
   );
   return registryFilesPromise;
-}
-
-/** How a project file is classified in the published registry item. */
-function fileTypeFor(path: string) {
-  if (path.startsWith("/components/ui/")) return "registry:ui";
-  if (path.startsWith("/hooks/")) return "registry:hook";
-  if (path.startsWith("/lib/")) return "registry:lib";
-  if (path.startsWith("/components/")) return "registry:component";
-  return "registry:file";
 }
 
 function iconFor(path: string) {
@@ -157,31 +155,6 @@ function buildTree(files: Record<string, string>): TreeNode[] {
   return sort(root.children!);
 }
 
-/** The shape both autosave and publish send to the server. */
-function projectPayload(files: PreviewFiles, title: string, dependencies: string[] = []) {
-  const extraFiles = Object.entries(files)
-    .filter(
-      ([path]) =>
-        path !== DEFAULT_COMPONENT_PATH &&
-        path !== DEFAULT_DEMO_PATH &&
-        path !== DEFAULT_STYLE_PATH
-    )
-    .map(([path, content]) => ({
-      path: path.replace(/^\//, ""),
-      content,
-      type: fileTypeFor(path),
-    }));
-
-  return {
-    title,
-    code: files[DEFAULT_COMPONENT_PATH] || "",
-    demoCode: files[DEFAULT_DEMO_PATH] || "",
-    styleCode: files[DEFAULT_STYLE_PATH] ?? "",
-    files: extraFiles,
-    dependencies,
-  };
-}
-
 /* --------------------------------------------------------- the preview -- */
 
 /**
@@ -209,7 +182,12 @@ export function ComponentStudio({
   const initialFiles = useMemo(() => initial?.files ?? starterFiles(), [initial]);
   const [files, setFiles] = useState<PreviewFiles>(initialFiles);
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [activePath, setActivePath] = useState(DEFAULT_COMPONENT_PATH);
+  // Open the component the author actually keeps — they may have renamed it.
+  const [activePath, setActivePath] = useState(() =>
+    initial?.componentPath && initialFiles[initial.componentPath] !== undefined
+      ? initial.componentPath
+      : resolveComponentPath(initialFiles)
+  );
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
   const [debouncedFiles, setDebouncedFiles] = useState<PreviewFiles>(initialFiles);
@@ -217,6 +195,9 @@ export function ComponentStudio({
   /** The folder a new file is being created in — null means the project root. */
   const [newFileParent, setNewFileParent] = useState<string | null>(null);
   const [showNewFile, setShowNewFile] = useState(false);
+  /** The file whose name is being edited in the tree, if any. */
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     "/components/ui": true,
   });
@@ -419,6 +400,19 @@ export function ComponentStudio({
     [installedPackages]
   );
 
+  /**
+   * The page the preview renders.
+   *
+   * Normally the author's `app/page.tsx`. If they deleted it, the component is
+   * rendered directly rather than leaving the pane blank — the demo is a
+   * convenience, and losing it should not cost the preview.
+   */
+  const previewPage = useMemo(() => {
+    if (files[DEFAULT_DEMO_PATH] !== undefined) return DEFAULT_DEMO_PATH;
+    const component = resolveComponentPath(files);
+    return files[component] !== undefined ? component : DEFAULT_DEMO_PATH;
+  }, [files]);
+
   // The explorer shows the whole shadcn/ui folder beside the author's files,
   // the way an installed shadcn project looks — vendored files are marked
   // until they are copied into the project.
@@ -510,19 +504,60 @@ export function ComponentStudio({
     setShowNewFile(false);
   }
 
+  function startRename(path: string) {
+    setRenamingPath(path);
+    setRenameValue(path.slice(path.lastIndexOf("/") + 1));
+  }
+
+  /**
+   * Renames — or moves — a file, and takes its importers with it.
+   *
+   * The value is a file name, or a path from the project root when it contains
+   * a `/`. Imports that resolved to the old path are rewritten to the new one,
+   * so renaming the component cannot leave the demo pointing at a file that no
+   * longer exists.
+   */
+  function commitRename(from: string) {
+    const raw = renameValue.trim();
+    setRenamingPath(null);
+    setRenameValue("");
+    if (!raw || files[from] === undefined) return;
+
+    const directory = from.slice(0, from.lastIndexOf("/"));
+    let to = raw.includes("/")
+      ? `/${raw.replace(/^\/+/, "")}`
+      : `${directory}/${raw}`;
+    to = to.replace(/^\/src\//, "/").replace(/\/{2,}/g, "/");
+    if (!/\.[a-z0-9]+$/i.test(to)) to += from.slice(from.lastIndexOf("."));
+
+    if (to === from || files[to] !== undefined) return;
+
+    // Retarget against the map as it was, so the old path still resolves.
+    const retargeted = retargetImports(files, from, to);
+    const content = retargeted[from];
+    const next = { ...retargeted };
+    delete next[from];
+    next[to] = content;
+
+    setFiles(next);
+    if (activePath === from) setActivePath(to);
+  }
+
   function deleteFile(path: string) {
-    if (
-      path === DEFAULT_COMPONENT_PATH ||
-      path === DEFAULT_DEMO_PATH ||
-      path === DEFAULT_STYLE_PATH
-    )
-      return;
-    setFiles((prev) => {
-      const next = { ...prev };
-      delete next[path];
-      return next;
-    });
-    if (activePath === path) setActivePath(DEFAULT_COMPONENT_PATH);
+    // The stylesheet is the project's theme, not a component file: without it
+    // the preview is unstyled rather than simply empty.
+    if (path === DEFAULT_STYLE_PATH) return;
+
+    const next = { ...files };
+    delete next[path];
+    setFiles(next);
+
+    if (activePath === path) {
+      const fallback = resolveComponentPath(next);
+      setActivePath(
+        next[fallback] !== undefined ? fallback : Object.keys(next).sort()[0] ?? path
+      );
+    }
   }
 
   /**
@@ -598,10 +633,33 @@ export function ComponentStudio({
       const isActive = node.path === activePath;
       const isVendored =
         files[node.path] === undefined && VENDORED_BY_PROJECT_PATH.has(node.path);
-      const removable =
-        !isVendored &&
-        node.path !== DEFAULT_COMPONENT_PATH &&
-        node.path !== DEFAULT_DEMO_PATH;
+
+      if (renamingPath === node.path) {
+        return (
+          <div
+            key={node.path}
+            className="py-0.5 pr-1.5"
+            style={{ paddingLeft: `${depth * 12 + 22}px` }}
+          >
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              onBlur={() => commitRename(node.path)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") commitRename(node.path);
+                if (event.key === "Escape") {
+                  setRenamingPath(null);
+                  setRenameValue("");
+                }
+              }}
+              placeholder="name.tsx"
+              spellCheck={false}
+              className="h-7 w-full rounded-md border border-primary/60 bg-background px-2 font-mono text-[11px] outline-none ring-2 ring-primary/15"
+            />
+          </div>
+        );
+      }
 
       return (
         <div key={node.path} className="group/file relative flex items-center">
@@ -636,7 +694,14 @@ export function ComponentStudio({
               <Plus className="h-3 w-3" />
             </button>
           ) : (
-            removable && (
+            <>
+              <button
+                onClick={() => startRename(node.path)}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-foreground group-hover/file:opacity-100 focus-visible:opacity-100"
+                title="Rename or move"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
               <button
                 onClick={() => deleteFile(node.path)}
                 className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-destructive group-hover/file:opacity-100 focus-visible:opacity-100"
@@ -644,7 +709,7 @@ export function ComponentStudio({
               >
                 <Trash2 className="h-3 w-3" />
               </button>
-            )
+            </>
           )}
         </div>
       );
@@ -655,10 +720,11 @@ export function ComponentStudio({
     return (
       <PublishPanel
         slug={slug}
-        code={files[DEFAULT_COMPONENT_PATH] || ""}
-        demoCode={files[DEFAULT_DEMO_PATH] || ""}
-        extraFiles={projectPayload(files, title).files}
+        files={files}
+        compiledCss={previewCss ?? undefined}
+        vendoredFiles={previewVendored}
         dependencies={Object.keys(installedPackages)}
+        theme={previewTheme}
         initialMeta={
           initial
             ? {
@@ -1062,6 +1128,7 @@ export function ComponentStudio({
                 compiledCss={previewCss ?? undefined}
                 dependencies={installedNames}
                 theme={previewTheme}
+                page={previewPage}
               />
             </div>
           </div>

@@ -25,11 +25,15 @@ export type ComponentDocument = {
   title: string;
   description: string;
   code: string;
+  /** Where the author keeps the component. Defaults to `components/component.tsx`. */
+  componentPath?: string;
   demoCode?: string;
   /** The project stylesheet (`app/globals.css`) the author edited. */
   styleCode?: string;
   previewHtml?: string;
   previewHash?: string;
+  /** The build version `previewHtml` came from — see `PREVIEW_BUILD_VERSION`. */
+  previewVersion?: number;
   thumbnailUrl?: string;
   videoUrl?: string;
   assets?: { url: string; type: string }[];
@@ -399,6 +403,7 @@ export async function createComponent(input: ComponentInput) {
     title: input.title || input.name || baseSlug,
     description: input.description || "",
     code: input.code,
+    componentPath: input.componentPath,
     demoCode: input.demoCode,
     styleCode: input.styleCode,
     thumbnailUrl: input.thumbnailUrl,

@@ -150,10 +150,14 @@ export async function PATCH(
     // rebuilds it from the new source.
     const contentTouched =
       typeof body.code === "string" ||
+      typeof body.componentPath === "string" ||
       typeof body.demoCode === "string" ||
       typeof body.styleCode === "string" ||
       Array.isArray(body.files);
     if (typeof body.code === "string" && body.code.trim()) updates.code = body.code;
+    if (typeof body.componentPath === "string" && body.componentPath.startsWith("/")) {
+      updates.componentPath = body.componentPath;
+    }
     if (typeof body.demoCode === "string") updates.demoCode = body.demoCode;
     if (typeof body.styleCode === "string") updates.styleCode = body.styleCode;
     if (Array.isArray(body.files)) {

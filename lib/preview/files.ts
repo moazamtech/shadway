@@ -1,3 +1,4 @@
+import { importSpecifier } from "@/lib/studio/project";
 import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_PATH,
@@ -9,7 +10,9 @@ export type PreviewFileInput = { path: string; content: string };
 export type PreviewFiles = Record<string, string>;
 
 /** The page a preview boots from: the author's component, rendered. */
-const DEMO_SOURCE = `import Component from "@/components/component";\nexport default function Page() {\n  return <Component />;\n}\n`;
+function demoSourceFor(componentPath: string): string {
+  return `import Component from "${importSpecifier(componentPath)}";\nexport default function Page() {\n  return <Component />;\n}\n`;
+}
 
 /**
  * Accepts either a single component string (published component) or a full
@@ -17,12 +20,17 @@ const DEMO_SOURCE = `import Component from "@/components/component";\nexport def
  *
  * The project is laid out like this site: the component in `components/` and
  * a page in `app/` that renders it, with `@/` resolving from the project root.
+ * `componentPath` is where the component is written back — the author may have
+ * renamed it, and the demo imports it by that name.
  *
  * The shadcn `components/ui` folder is not listed here: every preview is
  * handed the vendored registry files it imports (`withShadcnFiles`), the same
  * way a shadcn project resolves `@/components/ui/*` from disk.
  */
-export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInput[] {
+export function buildPreviewFiles(
+  input: string | PreviewFiles,
+  componentPath: string = DEFAULT_COMPONENT_PATH
+): PreviewFileInput[] {
   if (typeof input !== "string") {
     return Object.entries(input).map(([path, content]) => ({
       path: path.startsWith("/") ? path : `/${path}`,
@@ -31,8 +39,8 @@ export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInpu
   }
 
   return [
-    { path: DEFAULT_COMPONENT_PATH, content: input },
-    { path: DEFAULT_DEMO_PATH, content: DEMO_SOURCE },
+    { path: componentPath, content: input },
+    { path: DEFAULT_DEMO_PATH, content: demoSourceFor(componentPath) },
   ];
 }
 
@@ -43,11 +51,13 @@ export function buildPreviewFiles(input: string | PreviewFiles): PreviewFileInpu
  */
 export function componentSourceFiles(component: {
   code: string;
+  componentPath?: string;
   demoCode?: string;
   styleCode?: string;
   files?: { path: string; content: string }[];
 }): PreviewFileInput[] {
-  const base = buildPreviewFiles(component.code);
+  const componentPath = component.componentPath || DEFAULT_COMPONENT_PATH;
+  const base = buildPreviewFiles(component.code, componentPath);
 
   if (component.demoCode?.trim()) {
     const demo: PreviewFileInput = {
@@ -75,7 +85,7 @@ export function componentSourceFiles(component: {
   }
 
   if (!base.some((file) => file.path === DEFAULT_DEMO_PATH)) {
-    base.push({ path: DEFAULT_DEMO_PATH, content: DEMO_SOURCE });
+    base.push({ path: DEFAULT_DEMO_PATH, content: demoSourceFor(componentPath) });
   }
 
   return base;

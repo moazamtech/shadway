@@ -7,7 +7,7 @@ import {
   getComponentsCollection,
   type ComponentVisibility,
 } from "@/lib/db/components";
-import { buildComponentBundle } from "@/lib/preview/build";
+import { PREVIEW_BUILD_VERSION, buildComponentBundle } from "@/lib/preview/build";
 import { collectNpmDependencies } from "@/lib/studio/deps";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       title,
       description,
       code,
+      componentPath: body.componentPath ? String(body.componentPath) : undefined,
       demoCode: body.demoCode ? String(body.demoCode) : undefined,
       styleCode: body.styleCode ? String(body.styleCode) : undefined,
       files: Array.isArray(body.files) ? body.files : undefined,
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
 
       await collection.updateOne(
         { slug: existing.slug },
-        { $set: updates, $unset: { previewHtml: "", previewHash: "" } }
+        { $set: updates, $unset: { previewHtml: "", previewHash: "", previewVersion: "" } }
       );
       item = { ...existing, ...updates };
     } else {
@@ -170,6 +171,7 @@ export async function POST(request: NextRequest) {
     try {
       const files = componentPreviewFiles({
         code: item.code,
+        componentPath: item.componentPath,
         demoCode: item.demoCode,
         styleCode: item.styleCode,
         files: item.files,
@@ -208,10 +210,11 @@ export async function POST(request: NextRequest) {
     if (previewHtml) {
       await collection.updateOne(
         { slug: item.slug },
-        { $set: { previewHtml, previewHash, updatedAt: new Date() } }
+        { $set: { previewHtml, previewHash, previewVersion: PREVIEW_BUILD_VERSION, updatedAt: new Date() } }
       );
       item.previewHtml = previewHtml;
       item.previewHash = previewHash;
+      item.previewVersion = PREVIEW_BUILD_VERSION;
 
       // Capture a static cover image once, so the feed never bundles per visitor.
       if (!item.thumbnailUrl) {

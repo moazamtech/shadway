@@ -100,7 +100,7 @@ export function resolveProjectImport(
 }
 
 /** `/components/button.tsx` imported from `/app/page.tsx` -> `../components/button`. */
-function relativeImport(fromPath: string, toPath: string): string {
+export function relativeImport(fromPath: string, toPath: string): string {
   const from = normalize(fromPath).split("/");
   from.pop();
   const to = normalize(toPath).split("/").filter(Boolean);

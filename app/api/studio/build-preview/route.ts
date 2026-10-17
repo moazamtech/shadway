@@ -28,6 +28,7 @@ export const maxDuration = 60;
 type BuildInput = {
   title?: string;
   code?: string;
+  componentPath?: string;
   demoCode?: string;
   styleCode?: string;
   files?: { path: string; content: string; type?: string }[];
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     const bundle = await buildComponentBundle(
       componentPreviewFiles({
         code: input.code ?? "",
+        componentPath: input.componentPath,
         demoCode: input.demoCode ?? "",
         styleCode: input.styleCode ?? "",
         files: input.files,

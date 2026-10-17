@@ -60,7 +60,15 @@ export default async function StudioProjectPage({
     if (!file?.content) continue;
     files[storedProjectPath(file.path)] = file.content;
   }
-  files[DEFAULT_COMPONENT_PATH] = component.code;
+
+  // The component is written back where the author keeps it — they may have
+  // renamed the file, and the demo imports it by that name.
+  const componentPath =
+    component.componentPath && component.componentPath.startsWith("/")
+      ? component.componentPath
+      : DEFAULT_COMPONENT_PATH;
+
+  files[componentPath] = component.code;
   files[DEFAULT_DEMO_PATH] = component.demoCode?.trim()
     ? component.demoCode
     : DEFAULT_DEMO_CODE;
@@ -97,6 +105,7 @@ export default async function StudioProjectPage({
         visibility: component.visibility === "unlisted" ? "unlisted" : "public",
         status: component.status,
         files,
+        componentPath,
         dependencies: component.dependencies ?? [],
       }}
     />
