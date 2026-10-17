@@ -209,7 +209,50 @@ describe("sandbox dependencies", () => {
 
   it("reads the corpus's package names the way npm does", () => {
     expect(packageNameForSpecifier("@base-ui/react")).toBe("@base-ui/react");
-    expect(packageNameForSpecifier("@shadcn/react")).toBe("@shadcn/react");
+    expect(packageNameForSpecifier("@radix-ui/react-dialog")).toBe("@radix-ui/react-dialog");
     expect(sandboxPackageVersion("@base-ui/react")).not.toBe("latest");
+  });
+
+  it("imports no primitive through the unified radix-ui barrel", () => {
+    /**
+     * `import { Dialog } from "radix-ui"` makes the bundler resolve and parse
+     * all 36 Radix packages to use one — 1565 ms against 44 ms for the same
+     * output. The generator splits the barrel at the source, so a barrel
+     * import reappearing here means either the registry changed shape or the
+     * split stopped covering a name; both should be answered before the
+     * corpus is committed, not discovered as a slow rebuild.
+     */
+    const barrel: string[] = [];
+    for (const [path, content] of Object.entries(SHADCN_FILES)) {
+      if (/from\s*["']radix-ui["']/.test(content)) barrel.push(path);
+    }
+    expect(barrel).toEqual([]);
+  });
+
+  it("binds every Radix package as a namespace", () => {
+    /**
+     * The barrel hands out namespaces (`import * as X from
+     * "@radix-ui/react-x"`, re-exported as `X`), and a shadcn source addresses
+     * the parts through them: `DialogPrimitive.Root`, `Slot.Root`,
+     * `TooltipPrimitive.Provider`. The split therefore has to bind a
+     * namespace too.
+     *
+     * It used to emit `import { Dialog as DialogPrimitive } from
+     * "@radix-ui/react-dialog"`, which binds that package's `Dialog`
+     * *component* — so `DialogPrimitive.Root` was `undefined`, and `label`,
+     * `dialog`, `sidebar` and every component built on them rendered React's
+     * "element type is invalid" instead of anything at all. Nothing catches
+     * that at build time: a namespace member access on a real object is
+     * perfectly valid JavaScript, right up until it is rendered.
+     */
+    const named: string[] = [];
+    for (const [path, content] of Object.entries(SHADCN_FILES)) {
+      for (const match of content.matchAll(
+        /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*["']@radix-ui\/[^"']+["']/g
+      )) {
+        named.push(`${path}: ${match[0].replace(/\s+/g, " ")}`);
+      }
+    }
+    expect(named).toEqual([]);
   });
 });

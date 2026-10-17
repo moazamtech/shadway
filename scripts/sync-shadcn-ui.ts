@@ -17,6 +17,8 @@ import "dotenv/config";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import { splitRadixImports } from "../lib/preview/radix";
+
 const REGISTRY = "https://ui.shadcn.com/r";
 const STYLE = "new-york-v4";
 const OUT_DIR = join("lib", "preview", "template");
@@ -103,6 +105,11 @@ function normalize(content: string, name: string): string {
     .replace(/from "@\/registry\/new-york-v4\/hooks\//g, 'from "@/hooks/')
     .replace(/from "@\/registry\/new-york-v4\/lib\//g, 'from "@/lib/');
 
+  // `import { Dialog } from "radix-ui"` drags all 36 Radix packages through the
+  // bundler to use one. The barrel is split at the source so both the sandbox
+  // and the publish build only ever see the primitive that is used.
+  result = splitRadixImports(result);
+
   if (name === "utils") {
     // The registry's copy only re-exports the `cn` package. The preview
     // builds the same helper from its two well-known parts so nothing in the
@@ -130,6 +137,124 @@ export function cn(...inputs: ClassValue[]) {
 
   return result;
 }
+
+/**
+ * Files the registry's own items import but the registry does not publish.
+ *
+ * `breadcrumb-responsive`, `combobox-responsive`, `drawer-dialog` and
+ * `input-group-button` all import a hook through a project alias —
+ * `@/hooks/use-media-query`, `@/hooks/use-copy-to-clipboard` — and declare no
+ * `registryDependencies` entry for it, because the hooks live in the docs app
+ * rather than in the registry. A project built by `shadcn add` therefore has a
+ * dangling import, and so did the sandbox: the preview stopped on a module the
+ * offline registry could not provide.
+ *
+ * They are the docs' own sources, kept verbatim, so the components that reach
+ * for them resolve here the way they resolve on ui.shadcn.com.
+ */
+const UNPUBLISHED_FILES: Record<string, string> = {
+  "hooks/use-media-query.tsx": `import * as React from "react"
+
+export function useMediaQuery(query: string) {
+  const [value, setValue] = React.useState(false)
+
+  React.useEffect(() => {
+    function onChange(event: MediaQueryListEvent) {
+      setValue(event.matches)
+    }
+
+    const result = matchMedia(query)
+    result.addEventListener("change", onChange)
+    setValue(result.matches)
+
+    return () => result.removeEventListener("change", onChange)
+  }, [query])
+
+  return value
+}
+`,
+  "hooks/use-copy-to-clipboard.ts": `"use client"
+
+import * as React from "react"
+
+function legacyCopyToClipboard(value: string) {
+  const textArea = document.createElement("textarea")
+  textArea.value = value
+  textArea.setAttribute("readonly", "")
+  textArea.style.position = "fixed"
+  textArea.style.opacity = "0"
+  textArea.style.pointerEvents = "none"
+
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+  textArea.setSelectionRange(0, value.length)
+
+  let hasCopied = false
+  try {
+    hasCopied = document.execCommand("copy")
+  } catch {
+    hasCopied = false
+  }
+
+  document.body.removeChild(textArea)
+  return hasCopied
+}
+
+export function useCopyToClipboard({
+  timeout = 2000,
+  onCopy,
+}: {
+  timeout?: number
+  onCopy?: () => void
+} = {}) {
+  const [isCopied, setIsCopied] = React.useState(false)
+
+  const copyToClipboard = async (value: string) => {
+    if (typeof window === "undefined") {
+      return false
+    }
+
+    if (!value) {
+      return false
+    }
+
+    let hasCopied = false
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value)
+        hasCopied = true
+      } catch {
+        hasCopied = legacyCopyToClipboard(value)
+      }
+    } else {
+      hasCopied = legacyCopyToClipboard(value)
+    }
+
+    if (!hasCopied) {
+      return false
+    }
+
+    setIsCopied(true)
+
+    if (onCopy) {
+      onCopy()
+    }
+
+    if (timeout !== 0) {
+      setTimeout(() => {
+        setIsCopied(false)
+      }, timeout)
+    }
+
+    return true
+  }
+
+  return { isCopied, copyToClipboard }
+}
+`,
+};
 
 /** `registry/new-york-v4/ui/button.tsx` -> `ui/button.tsx` */
 function aliasPath(file: RegistryFile): string | null {
@@ -224,12 +349,21 @@ async function main() {
     }
   }
 
+  // The registry's unpublished helpers, installed beside the published ones so
+  // an import of one resolves in the preview exactly as it does on the docs.
+  for (const [target, raw] of Object.entries(UNPUBLISHED_FILES)) {
+    const content = normalize(raw, target.replace(/^.*\//, "").replace(/\.[jt]sx?$/, ""));
+    const outPath = join(OUT_DIR, target);
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, `// @ts-nocheck\n${content}`, "utf8");
+    sources[target] = content;
+  }
+
   writeFileSync(
     join(OUT_DIR, "manifest.json"),
     JSON.stringify({ style: STYLE, items: manifest }, null, 2),
     "utf8",
   );
-
   // A single importable module, so the previews never touch the filesystem at
   // request time and bundlers can trace the data automatically.
   writeFileSync(

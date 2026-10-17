@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Direction } from "radix-ui"
+import * as Direction from "@radix-ui/react-direction"
 
 function DirectionProvider({
   dir,
