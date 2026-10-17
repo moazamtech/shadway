@@ -57,11 +57,10 @@ vi.mock("@codesandbox/sandpack-react", async () => {
   };
 });
 
-// eslint-disable-next-line import/first
+import { sandboxPackageVersion } from "@/lib/studio/deps";
 import { SandpackPreviewPane } from "@/components/studio/sandpack-preview";
 
 declare global {
-  // eslint-disable-next-line no-var
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 
@@ -132,7 +131,7 @@ describe("SandpackPreviewPane boot latch", () => {
     expect(lastBoot()[PAGE]).toContain(">B<");
     expect(lastBoot()[COMPONENT]).toContain(">B<");
     expect(h.renders.at(-1)!.customSetup).toEqual({
-      dependencies: { motion: "latest" },
+      dependencies: { motion: sandboxPackageVersion("motion") },
     });
 
     // Re-latching treats the fresh boot as already current, so the first sync

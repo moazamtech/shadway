@@ -21,20 +21,49 @@ import { withShadcnFiles, type PreviewFileInput } from "./shadcn-ui";
 
 export type CssSourceFile = { path: string; content: string };
 
-const CANDIDATE_SKIP = new Set(["{", "}", "(", ")", "[", "]", ",", ";", ":", "=", "+", "|"]);
+/** Characters a candidate never begins with. */
+const CANDIDATE_SKIP = new Set([
+  "{",
+  "}",
+  "(",
+  ")",
+  "[",
+  "]",
+  ",",
+  ";",
+  ":",
+  "=",
+  "+",
+  "|",
+  "<",
+  ">",
+  "`",
+  '"',
+  "'",
+]);
 
 /**
- * Tailwind's own extractor, reproduced: a candidate is a run of non-whitespace
- * text, but quoted strings and balanced `[]`/`()` may hold spaces (arbitrary
- * values like `grid-cols-[repeat(auto-fit,minmax(0,1fr))]`).
+ * Tailwind's own extractor, reproduced.
+ *
+ * A candidate is a run of text that ends at whitespace, except inside a `[...]`
+ * arbitrary value, where whitespace is part of it — that is where a value like
+ * `grid-cols-[repeat(auto-fit,minmax(0,1fr))]` lives.
+ *
+ * Quotes follow from that and are worth stating separately, because getting
+ * them wrong is silent. A quote belongs to a candidate only *inside* an
+ * arbitrary value (`content-['a b']`); anywhere else it ends one. Otherwise
+ * `className={cn("p-4")}` — the paren opens a region, the quote does not close
+ * it, and the extractor returns a single candidate running from `className`
+ * to the closing brace with every class in the call swallowed inside it. That
+ * is how `cn(...)` is written in every shadcn/ui component, so every one of
+ * them was compiled against a stylesheet that had none of their classes in it.
  */
 function extractCandidates(content: string, into: Set<string>) {
-  const isBreak = (c: string) =>
-    c === '"' || c === "'" || c === "<" || c === ">" || c === "`" || /\s/.test(c);
-
   let i = 0;
+
   while (i < content.length) {
-    if (isBreak(content[i]) || CANDIDATE_SKIP.has(content[i])) {
+    const start0 = content[i];
+    if (/\s/.test(start0) || CANDIDATE_SKIP.has(start0)) {
       i++;
       continue;
     }
@@ -44,11 +73,36 @@ function extractCandidates(content: string, into: Set<string>) {
 
     while (i < content.length) {
       const c = content[i];
-      if (c === "[" || c === "(") depth++;
-      else if (c === "]" || c === ")") {
-        depth--;
-        if (depth < 0) break;
-      } else if (depth === 0 && isBreak(c)) break;
+
+      if (c === "[") {
+        depth++;
+        i++;
+        continue;
+      }
+
+      if (c === "]") {
+        if (depth > 0) depth--;
+        i++;
+        continue;
+      }
+
+      if (c === "'" || c === '"' || c === "`") {
+        if (depth === 0) break;
+
+        // Inside an arbitrary value the quoted run is part of the candidate,
+        // spaces and all.
+        i++;
+        while (i < content.length && content[i] !== c) i++;
+        i++;
+        continue;
+      }
+
+      if (/\s/.test(c)) {
+        if (depth === 0) break;
+        i++;
+        continue;
+      }
+
       i++;
     }
 
@@ -70,19 +124,15 @@ export function collectCandidates(files: CssSourceFile[]): string[] {
 
 const TAILWIND_ENTRY = "tailwindcss/index.css";
 
-/** Resolves Tailwind's own imports (`tailwindcss`, `./theme.css`) from disk. */
-async function loadStylesheet(
-  id: string,
-  base: string
-): Promise<{ path: string; base: string; content: string }> {
-  const candidates: string[] = [];
+const NODE_MODULES = path.join(process.cwd(), "node_modules");
 
-  if (id === "tailwindcss") {
-    candidates.push(path.join(process.cwd(), "node_modules", TAILWIND_ENTRY));
-  } else if (id.startsWith(".") || path.isAbsolute(id)) {
-    candidates.push(path.resolve(base, id));
-  }
+/** The animation utilities every shadcn/ui component animates with. */
+const ANIMATIONS_IMPORT = '@import "tw-animate-css";';
 
+type Stylesheet = { path: string; base: string; content: string };
+
+/** The first of `candidates` that reads, with the usual spellings tried. */
+async function readStylesheet(candidates: string[]): Promise<Stylesheet | null> {
   for (const candidate of candidates) {
     for (const attempt of [candidate, `${candidate}.css`, path.join(candidate, "index.css")]) {
       try {
@@ -94,6 +144,107 @@ async function loadStylesheet(
     }
   }
 
+  return null;
+}
+
+/**
+ * The `style` a package advertises for its root export.
+ *
+ * A package that ships CSS points at it with the `style` export condition —
+ * `tw-animate-css` is exactly this, and so is the stylesheet half of most
+ * design systems. Node's own resolver does not implement that condition, and
+ * neither does Tailwind's importer, so it has to be read out of the manifest
+ * by hand. The shapes below are the ones packages actually ship:
+ *
+ *   { ".": { "style": "./dist/x.css" } }
+ *   { ".": { "style": { "default": "./dist/x.css" } } }
+ *   { "style": "./dist/x.css" }
+ *   "style" / "main" as plain fields
+ */
+function advertisedStylesheet(exportsField: unknown, manifest: Record<string, unknown>) {
+  const fromExports = (value: unknown): string | null => {
+    if (typeof value === "string") return value.endsWith(".css") ? value : null;
+    if (!value || typeof value !== "object") return null;
+
+    const record = value as Record<string, unknown>;
+    for (const key of ["style", "sass", "default", "import", "require", "browser"]) {
+      const found = fromExports(record[key]);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const root =
+    exportsField && typeof exportsField === "object" && "." in (exportsField as object)
+      ? (exportsField as Record<string, unknown>)["."]
+      : exportsField;
+
+  const candidates = [
+    fromExports(root),
+    fromExports(exportsField),
+    typeof manifest.style === "string" ? manifest.style : null,
+    typeof manifest.main === "string" ? manifest.main : null,
+  ];
+
+  return candidates.find((value) => typeof value === "string" && value.endsWith(".css")) ?? null;
+}
+
+/**
+ * A bare specifier that names an installed package's stylesheet.
+ *
+ *   "tw-animate-css"          -> node_modules/tw-animate-css/dist/tw-animate.css
+ *   "tailwindcss/theme.css"   -> node_modules/tailwindcss/theme.css
+ *   "@acme/theme/tokens.css"  -> node_modules/@acme/theme/tokens.css
+ */
+async function resolveInstalledStylesheet(id: string): Promise<Stylesheet | null> {
+  const segments = id.split("/");
+  const name = id.startsWith("@") ? segments.slice(0, 2).join("/") : segments[0];
+  const subpath = id.slice(name.length).replace(/^\//, "");
+  const root = path.join(NODE_MODULES, name);
+
+  if (subpath) return readStylesheet([path.join(root, subpath)]);
+
+  let advertised: string | null = null;
+  try {
+    const manifest = JSON.parse(
+      await fs.readFile(/*turbopackIgnore: true*/ path.join(root, "package.json"), "utf8")
+    ) as Record<string, unknown>;
+    advertised = advertisedStylesheet(manifest.exports, manifest);
+  } catch {
+    // No manifest, or one that does not parse: the plain file probes below
+    // still cover the common layouts.
+  }
+
+  return readStylesheet([
+    ...(advertised ? [path.join(root, advertised)] : []),
+    path.join(root, "index.css"),
+    path.join(root, "dist", "index.css"),
+  ]);
+}
+
+/** Resolves Tailwind's own imports and any installed package stylesheet. */
+async function loadStylesheet(id: string, base: string): Promise<Stylesheet> {
+  const resolved =
+    id.startsWith(".") || path.isAbsolute(id)
+      ? await readStylesheet([path.resolve(base, id)])
+      : id === "tailwindcss"
+        ? await readStylesheet([path.join(NODE_MODULES, TAILWIND_ENTRY)])
+        : await resolveInstalledStylesheet(id);
+
+  if (resolved) return resolved;
+
+  /**
+   * A bare specifier the host does not have is not worth failing the build
+   * over. `globals.css` is the one file authors paste wholesale, and the one
+   * every shadcn project starting point announces itself in — so a project can
+   * easily arrive importing a stylesheet this host has never heard of. An
+   * empty sheet costs the author those rules and nothing else; throwing here
+   * would cost them the entire preview.
+   */
+  if (!id.startsWith(".") && !path.isAbsolute(id)) {
+    return { path: id, base: process.cwd(), content: "" };
+  }
+
   throw new Error(`Cannot resolve stylesheet "${id}" from ${base}`);
 }
 
@@ -101,15 +252,31 @@ async function loadStylesheet(
  * Compiles the project stylesheet. `styleCode` is the project's own
  * `globals.css`; the platform baseline is appended so every preview has the
  * same custom variants and utilities regardless of what the author trimmed.
+ *
+ * The animation utilities are folded into the baseline rather than left to the
+ * project. They are not decoration for this platform — every shadcn/ui
+ * component animates with them (`data-[state=open]:animate-in`,
+ * `fade-in-0`, `slide-in-from-top-2`, `zoom-in-95`), so a stylesheet without
+ * them renders a dialog, dropdown or tooltip that snaps into place with no
+ * transition at all. A project that imports them itself keeps its own import;
+ * one that does not gets them anyway.
  */
 export async function compileProjectCss(
   files: CssSourceFile[],
   styleCode?: string
 ): Promise<string> {
   const trimmed = styleCode?.trim() ?? "";
-  const source = trimmed.includes("tailwindcss")
-    ? `${trimmed}\n${PREVIEW_THEME_CSS}`
-    : `@import "tailwindcss";\n${trimmed}\n${PREVIEW_THEME_CSS}`;
+  const importsTailwind = trimmed.includes("tailwindcss");
+  const importsAnimations = /@import\s+["']tw-animate-css["']/.test(trimmed);
+
+  const source = [
+    importsTailwind ? "" : `@import "tailwindcss";`,
+    importsAnimations ? "" : ANIMATIONS_IMPORT,
+    trimmed,
+    PREVIEW_THEME_CSS,
+  ]
+    .filter((part) => part.trim().length > 0)
+    .join("\n");
 
   const compiler = await compile(source, {
     base: process.cwd(),

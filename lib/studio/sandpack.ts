@@ -136,8 +136,12 @@ export function rewriteImports(
  *
  * The stylesheet is compiled by the real Tailwind compiler, which resolves
  * imports against the file system — so a remote sheet has to become a `<link>`
- * (React hoists it into `<head>`), and Tailwind's own entry is dropped because
- * the compiler is handed it directly.
+ * (React hoists it into `<head>`), and everything else is dropped and resolved
+ * by the compiler instead. Tailwind's own entry is dropped because the compiler
+ * is handed it directly, and `tw-animate-css` is dropped because
+ * `compileProjectCss` folds it into the baseline — loading it from a CDN
+ * instead would be a second copy of it, over the network, at a version pinned
+ * in two places.
  */
 export function splitStyleImports(css: string): { style: string; links: string[] } {
   const links: string[] = [];
@@ -150,14 +154,10 @@ export function splitStyleImports(css: string): { style: string; links: string[]
     }
   );
 
+  // The browser runtime already ships `tailwindcss`'s own stylesheet; asking
+  // it to `@import "tailwindcss"` would try to fetch a package that is not
+  // there and drop every rule behind it.
   const style = withoutRemote
-    .replace(/@import\s+["']tw-animate-css["']\s*;?/g, () => {
-      links.push("https://cdn.jsdelivr.net/npm/tw-animate-css@1.4.0/dist/tw-animate.css");
-      return "";
-    })
-    // The browser runtime already ships `tailwindcss`'s own stylesheet; asking
-    // it to `@import "tailwindcss"` would try to fetch a package that is not
-    // there and drop every rule behind it.
     .replace(/@import\s+["']tailwindcss["']\s*;?/g, "")
     .replace(/@import\s+["'][^"']+["']\s*;?/g, "")
     .trim();

@@ -68,7 +68,33 @@ describe("collectNpmDependencies", () => {
 describe("sandboxPackageVersion", () => {
   it("pins what the design system is built on and lets the rest float", () => {
     expect(sandboxPackageVersion("lucide-react")).toBe("^0.544.0");
-    expect(sandboxPackageVersion("motion")).toBe("latest");
     expect(sandboxPackageVersion("some-unlisted-pkg")).toBe("latest");
+  });
+
+  /**
+   * The sandbox compiles a component against the same package the published
+   * build uses. Anything `latest` has moved a major past is pinned, because a
+   * component written against the old major stops working the moment the
+   * sandbox installs the new one — which is what happened to every footer
+   * importing `Github` from `lucide-react`.
+   */
+  it("pins every package `latest` has moved a major past", () => {
+    for (const name of [
+      "lucide-react",
+      "recharts",
+      "react-resizable-panels",
+      "react-day-picker",
+      "motion",
+      "framer-motion",
+    ]) {
+      expect(sandboxPackageVersion(name), name).not.toBe("latest");
+    }
+  });
+
+  it("pins the packages only the vendored registry imports", () => {
+    // No author file ever mentions these, so nothing else can pull them in.
+    expect(sandboxPackageVersion("@base-ui/react")).not.toBe("latest");
+    expect(sandboxPackageVersion("@shadcn/react")).not.toBe("latest");
+    expect(sandboxPackageVersion("radix-ui")).not.toBe("latest");
   });
 });
