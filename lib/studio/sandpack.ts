@@ -17,6 +17,9 @@
  *   `/app/page.tsx`, so `/App.tsx` is written to render that page.
  */
 
+import { resolveEntryPage } from "@/lib/preview/entry";
+import { splitRadixImports } from "@/lib/preview/radix";
+
 export type SandpackFiles = Record<string, string>;
 
 /**
@@ -99,9 +102,16 @@ export function resolveProjectImport(
   return null;
 }
 
-/** `/components/button.tsx` imported from `/app/page.tsx` -> `../components/button`. */
+/** `/components/button.tsx` imported from `/app/page.tsx` -> `../components/button.tsx`. */
 export function relativeImport(fromPath: string, toPath: string): string {
-  const from = normalize(fromPath).split("/");
+  // Every path here is `/`-rooted, so the leading empty segment is not a
+  // directory. Keeping it counted the root as one, which made every result one
+  // `..` too high: `/app/page.tsx` resolved `@/components/ui/button` to
+  // `../../components/ui/button`. Sandpack clamps `..` at the root, so the
+  // extra hop was absorbed and the preview still worked — but the path it was
+  // handed was wrong, and anything resolving it against a real filesystem (a
+  // test, a CLI export) walks out of the project.
+  const from = normalize(fromPath).split("/").filter(Boolean);
   from.pop();
   const to = normalize(toPath).split("/").filter(Boolean);
 
@@ -120,7 +130,11 @@ export function rewriteImports(
   content: string,
   known: Set<string>
 ): string {
-  return content.replace(IMPORT_RE, (match, prefix, quote, specifier) => {
+  // The unified Radix barrel is split before anything else, so the sandbox
+  // installs and imports the one primitive that is used instead of all 36 —
+  // `import { Dialog } from "radix-ui"` otherwise makes every recompile walk
+  // the whole Radix suite. See `lib/preview/radix.ts`.
+  return splitRadixImports(content).replace(IMPORT_RE, (match, prefix, quote, specifier) => {
     const bare = specifier.trim();
     if (bare.startsWith("/") || bare.startsWith("node:")) return match;
 
@@ -171,8 +185,12 @@ export function splitStyleImports(css: string): { style: string; links: string[]
  * They live under `/node_modules` so the sandbox bundler resolves them like an
  * installed package, which keeps a preview rendering instead of stopping on a
  * module it cannot find.
+ *
+ * Exported so the coverage test can hold this list and the published
+ * document's (`lib/preview/build`) to the same set: `next/form` was missing
+ * from both, and nothing noticed until a registry example imported it.
  */
-const NEXT_SHIMS: Record<string, string> = {
+export const NEXT_SHIMS: Record<string, string> = {
   "/node_modules/next/package.json": `{
   "name": "next",
   "version": "15.0.0",
@@ -181,6 +199,7 @@ const NEXT_SHIMS: Record<string, string> = {
 `,
   "/node_modules/next/index.js": `export { default as Image } from "./image";
 export { default as Link } from "./link";
+export { default as Form } from "./form";
 export { default as Head } from "./head";
 export { default as Script } from "./script";
 export { default as dynamic } from "./dynamic";
@@ -219,6 +238,11 @@ export const RouterProvider = ({ children }) => (
 );
 `,
   "/node_modules/next/navigation.js": `export { useRouter, usePathname, useSearchParams, useParams } from "./router";
+`,
+  "/node_modules/next/form.js": `export function Form({ children, ...rest }) {
+  return <form {...rest}>{children}</form>;
+}
+export default Form;
 `,
   "/node_modules/next/head.js": `export default function Head({ children }) {
   return <>{children}</>;
@@ -323,7 +347,7 @@ export type SandpackProject = {
 export function buildSandpackProject({
   files,
   compiledCss,
-  page = "/app/page.tsx",
+  page,
   theme = "light",
 }: SandpackProjectInput): SandpackProject {
   const normalized: Record<string, string> = {};
@@ -337,7 +361,18 @@ export function buildSandpackProject({
     rewritten[path] = rewriteImports(path, content, known);
   }
 
-  const demoPath = known.has(page) ? page : null;
+  /**
+   * The page the sandbox mounts.
+   *
+   * `page` is a preference, not a requirement: a block installs its page at
+   * `app/<name>/page.tsx` rather than `/app/page.tsx`, and the sandbox used to
+   * render "Nothing to preview yet" over a project that had a perfectly good
+   * page in it. See `resolveEntryPage`.
+   */
+  const demoPath = resolveEntryPage(
+    Object.entries(normalized).map(([path, content]) => ({ path, content })),
+    page
+  );
 
   // The sandbox does not apply `index.html`'s `<html>` attributes, so the theme
   // class is set from the entry module: once at module scope, before React

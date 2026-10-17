@@ -6,6 +6,9 @@ import path from "node:path";
 import { build as esbuild, type Plugin } from "esbuild";
 
 import { compileProjectCss } from "./tailwind";
+import { resolveEntryPage } from "./entry";
+import { splitRadixImports } from "./radix";
+import { sandboxPackageVersion } from "../studio/deps";
 
 /**
  * The publish build.
@@ -28,6 +31,15 @@ export type BuildResult = {
   hash: string;
   /** Packages left to the import map because they are not installed here. */
   externals: string[];
+  /**
+   * The import map the document ships, specifier to CDN URL.
+   *
+   * Returned rather than left inside the HTML because it is the document's
+   * entire external network surface: a caller that wants to know whether the
+   * preview will actually load — or wants to warm it — needs the URLs, not the
+   * blob they are embedded in.
+   */
+  imports: Record<string, string>;
   /** The compiled stylesheet, for callers that want it separately. */
   css: string;
   /** The bundled JavaScript, for callers that want it separately. */
@@ -54,8 +66,12 @@ export class BuildError extends Error {
  * Next.js APIs a component may reach for. A published component renders in a
  * plain browser, so each one is replaced by the nearest equivalent instead of
  * failing the build.
+ *
+ * Exported so the coverage test can hold this list and the sandbox's
+ * (`lib/studio/sandpack`) to the same set: `next/form` was missing from both,
+ * and nothing noticed until a registry example imported it.
  */
-const NEXT_SHIMS: Record<string, string> = {
+export const NEXT_SHIMS: Record<string, string> = {
   "next/image": `import React from "react";
 const Image = ({ src, alt, width, height, fill, priority, className, style, ...rest }) =>
   React.createElement("img", {
@@ -78,6 +94,15 @@ const Link = ({ href, children, className, style, ...rest }) =>
     ...rest,
   }, children);
 export default Link;`,
+
+  // `next/form` is a `<form>` whose `action` may be a server action. React 19
+  // already runs a function `action` itself, so the shim is the element the
+  // component expected — dropping it instead made `<Form>` render as
+  // `undefined` and took the whole preview down with it.
+  "next/form": `import React from "react";
+const Form = ({ children, ...rest }) => React.createElement("form", rest, children);
+export { Form };
+export default Form;`,
 
   "next/navigation": `export function usePathname() { return "/"; }
 export function useSearchParams() { return new URLSearchParams(); }
@@ -273,9 +298,24 @@ const REACT_EXTERNALS = ["react", "react-dom"];
  * package also gets a trailing-slash entry so a subpath esbuild never saw
  * still resolves. `external=react,react-dom` keeps the CDN copies from
  * bundling a React of their own.
+ *
+ * Every specifier this platform has an opinion about carries that opinion into
+ * the URL. Without it there are two different previews of the same component:
+ * the studio installs what `SANDBOX_PACKAGE_VERSIONS` pins, and the published
+ * document loaded whatever esm.sh considered newest on the day it was viewed —
+ * so a package that shipped a breaking major in between would look fine while
+ * the author was editing and break for every reader afterwards. The pinned
+ * range is exactly what npm would install, so the CDN resolves to the same
+ * version the sandbox did. A package with no entry here was never pinned for
+ * the sandbox either, and both sides take `latest`.
  */
 function importMapFor(externals: string[]): Record<string, string> {
   if (externals.length === 0) return {};
+
+  const at = (name: string) => {
+    const version = sandboxPackageVersion(name);
+    return version === "latest" ? name : `${name}@${version.replace(/^\^/, "%5E").replace(/^~/, "%7E")}`;
+  };
 
   const imports: Record<string, string> = {
     react: `https://esm.sh/react@${REACT_VERSION}`,
@@ -289,9 +329,9 @@ function importMapFor(externals: string[]): Record<string, string> {
 
   for (const specifier of externals) {
     const root = packageRoot(specifier);
-    imports[specifier] ??= `https://esm.sh/${specifier}?external=react,react-dom`;
-    imports[root] ??= `https://esm.sh/${root}?external=react,react-dom`;
-    imports[`${root}/`] ??= `https://esm.sh/${root}/`;
+    imports[specifier] ??= `https://esm.sh/${at(specifier)}?external=react,react-dom`;
+    imports[root] ??= `https://esm.sh/${at(root)}?external=react,react-dom`;
+    imports[`${root}/`] ??= `https://esm.sh/${at(root)}/`;
   }
 
   return imports;
@@ -348,8 +388,7 @@ const ERROR_REPORT = `<div id="shadway-preview-error" hidden>
 })();
 </script>`;
 
-function documentShell(js: string, css: string, externals: string[], theme: "light" | "dark", title: string): string {
-  const imports = importMapFor(externals);
+function documentShell(js: string, css: string, imports: Record<string, string>, theme: "light" | "dark", title: string): string {
   const hasImports = Object.keys(imports).length > 0;
 
   return `<!DOCTYPE html>
@@ -386,14 +425,15 @@ export async function buildComponentBundle(
 ): Promise<BuildResult> {
   const project: BuildFile[] = files.map((file) => ({
     path: normalize(file.path),
-    content: file.content,
+    // `import { Dialog } from "radix-ui"` costs the whole Radix suite in
+    // resolve-and-parse before tree-shaking throws 35 of the 36 packages away
+    // again — see `lib/preview/radix.ts`. Splitting it here covers files that
+    // were written or stored before the transform existed; the vendored
+    // registry sources arrive already split.
+    content: splitRadixImports(file.content),
   }));
 
-  const demoPath =
-    options.entry ??
-    (project.some((file) => file.path === "/app/page.tsx")
-      ? "/app/page.tsx"
-      : project.find((file) => file.path.endsWith(".tsx"))?.path);
+  const demoPath = resolveEntryPage(project, options.entry);
 
   if (!demoPath || !project.some((file) => file.path === demoPath)) {
     throw new BuildError("This project has no page to build — add a demo file.");
@@ -494,15 +534,17 @@ export async function buildComponentBundle(
       .digest("hex")
       .slice(0, 16);
 
+    const imports = importMapFor(externalList);
+
     const html = documentShell(
       js,
       css,
-      externalList,
+      imports,
       options.theme ?? "light",
       options.title ?? "Component preview"
     );
 
-    return { html, hash, externals: externalList, css, js };
+    return { html, hash, externals: externalList, imports, css, js };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }

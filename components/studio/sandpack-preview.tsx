@@ -8,6 +8,7 @@ import {
 } from "@codesandbox/sandpack-react";
 
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
+import { splitRadixImports } from "@/lib/preview/radix";
 import {
   collectNpmDependencies,
   sandboxPackageVersion,
@@ -294,11 +295,11 @@ function Sandbox({
 
     for (const file of vendoredFiles ?? []) {
       const path = file.path.startsWith("/") ? file.path : `/${file.path}`;
-      byPath.set(path, { path, content: file.content });
+      byPath.set(path, { path, content: splitRadixImports(file.content) });
     }
     for (const [raw, content] of Object.entries(files)) {
       const path = raw.startsWith("/") ? raw : `/${raw}`;
-      byPath.set(path, { path, content });
+      byPath.set(path, { path, content: splitRadixImports(content) });
     }
 
     return [...byPath.values()];
