@@ -52,40 +52,27 @@ import { buildSandpackProject, type SandpackFiles } from "@/lib/studio/sandpack"
  * also what happens when the dependency set changes, since a new package has to
  * be installed before it can be imported.
  *
- * ## Why the compile is sent by hand
+ * ## Why edits go through the provider's own file state
  *
- * Sandpack's own editor hot-loads by writing into provider state with
- * `updateFile`; an effect inside the provider then forwards the provider's file
- * map to the bundler as a compile. Our editor is Monaco, outside Sandpack, so
- * nothing does that writing for us — the pane has to send the compile itself.
+ * Sandpack's editor hot-loads by writing into provider state with `updateFile`;
+ * an effect inside the provider then forwards that state to every bundler
+ * client as a compile, and a successful compile clears the error the failed
+ * one left on screen. Our editor is Monaco, outside Sandpack, so nothing does
+ * that writing for us — the pane writes the files itself and lets the provider
+ * own the compile.
  *
- * It sends the same call that effect sends, `client.updateSandbox`, and the same
- * payload: the provider's *complete* file map with the current project overlaid.
- * That matters, because `updateSandbox` merges at the top level — `files` is
- * replaced wholesale, not merged per path. A compile carrying only the author's
- * files would drop the template's `/index.tsx`, and the frame would go blank on
- * the first keystroke. Seeding from the provider's own map keeps the entry
- * module, the injected `/package.json` and the template's `index.html` in place.
+ * Writing state rather than driving a bundler client directly is what makes the
+ * preview tell the truth. A compile has to be addressed to the channel the
+ * bundler registered, and React builds two clients over one iframe in
+ * development; the provider knows which one the bundler answered on and drops
+ * the rest. Calling the client directly meant guessing, guessing wrong, and the
+ * write being dropped without a word — which is how the pane came to show an
+ * error for code that no longer exists, with nothing anywhere reporting it.
  *
- * The upside over `updateFile` is that a whole project is one compile rather
- * than one per file, and it does not depend on the client's `status` flag —
- * which is what makes it robust when a bundler is still coming up.
- *
- * ## Why the compile names a channel it was not given
- *
- * A compile is addressed to a channel id, and the bundler answers on the id it
- * last saw registered. React runs effects twice on mount in development, and
- * Sandpack builds a bundler client from an effect, so two clients are
- * constructed over the one iframe — each with its own random id, each
- * registering on the same `initialized`. The bundler keeps the last
- * registration; `sandpack.clients` keeps whichever `await` settled last. They
- * are frequently not the same client.
- *
- * A compile sent on the other id is dropped without a word: no error, no reply,
- * no recompile, and the client's status never leaves `initializing`. So the
- * pane listens to the bundler's own replies, learns the id it is answering on,
- * and adopts it before compiling. The reply then matches the client's channel
- * and the compile is a normal one.
+ * The payload is also the provider's to assemble. `updateFile` and `deleteFile`
+ * merge into a map that already holds the template's `/index.tsx` — the module
+ * that mounts `/App.tsx` — and the `/package.json` Sandpack injects, so a whole
+ * project cannot lose its entry module the way a hand-built payload can.
  */
 
 /**
@@ -145,50 +132,6 @@ const PREVIEW_STYLE = {
 
 /** The live sandbox, as handed to the bridge that drives it. */
 type SandpackApi = ReturnType<typeof useSandpack>["sandpack"];
-
-/**
- * The running bundler client, as far as this file is concerned.
- *
- * `sandpack.clients` is public — it is what `useSandpackClient` hands out — but
- * only these two members are used here.
- */
-type SandboxClient = {
-  updateSandbox: (setup: {
-    files: Record<string, { code: string }>;
-    template?: string;
-  }) => void;
-  /** The channel this client's messages carry. See `pushProject`. */
-  iframeProtocol?: { channelId: number };
-};
-
-function clientsOf(api: SandpackApi): SandboxClient[] {
-  const clients = (api as unknown as { clients?: Record<string, SandboxClient> })
-    .clients;
-  return clients ? Object.values(clients) : [];
-}
-
-/**
- * The provider's own file map, normalized to the shape a compile wants.
- *
- * `sandpack.files` is the project as Sandpack sees it — the template's files,
- * the `/package.json` it injects from `customSetup.dependencies`, and this
- * pane's boot project — keyed by path, with each value either a plain string or
- * a `{ code }` entry.
- */
-function providerEntries(api: SandpackApi): Record<string, { code: string }> {
-  const source = (api as unknown as { files?: Record<string, unknown> }).files;
-  const entries: Record<string, { code: string }> = {};
-
-  for (const [path, value] of Object.entries(source ?? {})) {
-    if (typeof value === "string") entries[path] = { code: value };
-    else if (value && typeof value === "object") {
-      const code = (value as { code?: unknown }).code;
-      if (typeof code === "string") entries[path] = { code };
-    }
-  }
-
-  return entries;
-}
 
 /**
  * Whether two projects differ at any path — added, changed or removed.
@@ -414,6 +357,24 @@ function Sandbox({
   /** The project as last written into the sandbox. */
   const pushedRef = useRef<SandpackFiles>(project.files);
 
+  /** The bundler client the sync currently hands work to, kept current. */
+  const apiRef = useRef<SandpackApi | null>(null);
+
+  /**
+   * The project the bundler has actually answered for.
+   *
+   * A write is not done when it is sent; it is done when the bundler replies. The
+   * two are normally the same compile apart, but a reply is the only evidence
+   * the project landed, and the watchdog below retries on the gap between them.
+   */
+  const ackedRef = useRef<SandpackFiles>(project.files);
+
+  /** The last moment the bundler said anything at all. */
+  const lastReplyRef = useRef(0);
+
+  /** How many times a silent write has been resent. */
+  const retryCountRef = useRef(0);
+
   /**
    * Re-latch whenever the boot key changes.
    *
@@ -434,117 +395,86 @@ function Sandbox({
     bootKeyRef.current = bootKey;
     bootRef.current = project.files;
     pushedRef.current = project.files;
+    ackedRef.current = project.files;
+    retryCountRef.current = 0;
   }
 
-  /**
-   * The channel the bundler is actually answering on.
-   *
-   * Read from the bundler's own replies: every message it sends carries the
-   * `$id` of the frame registration it accepted. See `pushProject` for why this
-   * is needed rather than using the client's own id.
-   *
-   * The studio mounts one preview, so the page carries one sandbox
-   * conversation; a second would need this keyed by message source.
-   */
-  const liveChannelRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as { codesandbox?: unknown; $id?: unknown };
-      if (!data || !data.codesandbox) return;
-      if (typeof data.$id === "number") liveChannelRef.current = data.$id;
-    };
-
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-
-  /** The newest project, for the sync that runs after every render. */
   const projectRef = useRef(project);
   projectRef.current = project;
 
   const pushProject = useCallback((api: SandpackApi, next: SandpackFiles) => {
     if (!differs(pushedRef.current, next)) return;
 
-    /**
-     * Nothing to compile into yet. Leaving `pushedRef` alone means the change
-     * is still outstanding and the next sync — the one that runs once the
-     * client exists — will deliver it.
-     */
-    const clients = clientsOf(api);
-    if (clients.length === 0) return;
-
-    /**
-     * The compile payload starts as the provider's own map.
-     *
-     * A compile replaces the file map wholesale, so this is what keeps the
-     * template's `/index.tsx` — the module that actually mounts `/App.tsx` —
-     * along with the injected `/package.json` and the template's `index.html`.
-     * Sandpack's own hot-reload effect sends exactly this map for the same
-     * reason.
-     */
-    const files = providerEntries(api);
-
-    // A file the project no longer has must be dropped explicitly, or the
-    // bundler keeps serving the last version of it.
     for (const path of Object.keys(pushedRef.current)) {
-      if (!(path in next)) delete files[path];
+      if (!(path in next)) api.deleteFile(path);
     }
-
-    // Then the current project goes on top, whole.
     for (const [path, content] of Object.entries(next)) {
-      files[path] = { code: content };
+      api.updateFile(path, content);
     }
-
-    /**
-     * A compile is only legal with a manifest.
-     *
-     * The bundler client is constructed without a `dependencies` list —
-     * Sandpack bakes the packages into `/package.json` before the client ever
-     * sees the project — so `getFiles()` throws rather than build when that
-     * file is missing. It is always present in the provider's map; leaving the
-     * change outstanding if it is not means the next sync retries, instead of
-     * the edit being dropped.
-     */
-    if (files["/package.json"] === undefined) return;
-
-    let compiled = false;
-    for (const client of clients) {
-      try {
-        /**
-         * Speak on the channel the bundler is listening to.
-         *
-         * React runs effects twice on mount in development, and Sandpack builds
-         * a bundler client from an effect — so two clients are constructed over
-         * the same iframe, each with its own random channel id. The bundler
-         * keeps the last frame registration it sees, which is not necessarily
-         * the client `sandpack.clients` ends up holding.
-         *
-         * A compile sent on the wrong id is simply dropped: no error, no reply,
-         * no recompile — the client's status never leaves `initializing`.
-         * Adopting the id the bundler is already answering on makes the compile
-         * land, and the reply with it.
-         */
-        const live = liveChannelRef.current;
-        if (live !== null && client.iframeProtocol) {
-          client.iframeProtocol.channelId = live;
-        }
-
-        client.updateSandbox({ files, template: SANDBOX_TEMPLATE });
-        compiled = true;
-      } catch (error) {
-        // A dead bundler must never take the studio down with it: the preview
-        // is one pane, and the editor beside it has unsaved work in it.
-        console.error("[sandpack] compile failed", error);
-      }
-    }
-
-    // Nothing took the write, so leave it outstanding: the next sync — once a
-    // live client exists — will deliver it.
-    if (!compiled) return;
 
     pushedRef.current = { ...next };
   }, []);
+
+  /**
+   * The bundler says something. A reply is the only evidence that a write landed.
+   *
+   * A successful compile clears the error the failed one left on screen, so a
+   * reply is recorded for every message the bundler sends, not only for the
+   * terminal ones. `ackedRef` advances only on a terminal reply, which is what
+   * the watchdog below compares against.
+   */
+  useEffect(() => {
+    const onReply = (event: MessageEvent) => {
+      const data = event.data as {
+        codesandbox?: unknown;
+        type?: unknown;
+        action?: unknown;
+      };
+      if (!data || !data.codesandbox) return;
+
+      lastReplyRef.current = Date.now();
+
+      const terminal =
+        data.type === "success" ||
+        data.type === "done" ||
+        (data.type === "action" &&
+          (data.action === "show-error" || data.action === "notification"));
+
+      if (terminal) {
+        ackedRef.current = pushedRef.current;
+        retryCountRef.current = 0;
+      }
+    };
+
+    window.addEventListener("message", onReply);
+    return () => window.removeEventListener("message", onReply);
+  }, []);
+
+  /**
+   * The write that never lands is retried.
+   *
+   * The supported compile path is the provider's own, and it is reliable when
+   * the bundler is listening. A write that still produces no reply after the
+   * silence below is the one the user reports as "the import is removed but the
+   * error is still there", so it is resent, up to three times, and the pane
+   * keeps going if the bundler is simply busy.
+   */
+  const ACK_TIMEOUT = 6000;
+  const ACK_RETRIES = 3;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastReplyRef.current < ACK_TIMEOUT) return;
+      if (retryCountRef.current >= ACK_RETRIES) return;
+      if (!differs(ackedRef.current, projectRef.current.files)) return;
+      if (!apiRef.current) return;
+
+      retryCountRef.current += 1;
+      console.warn("[sandpack] the bundler never answered; resending the project");
+      pushProject(apiRef.current, projectRef.current.files);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pushProject]);
 
   /**
    * The compile window.
@@ -578,6 +508,7 @@ function Sandbox({
 
   const handleSync = useCallback(
     (api: SandpackApi) => {
+      apiRef.current = api;
       pendingRef.current = api;
 
       // Nothing to compile is nothing to schedule.

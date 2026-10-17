@@ -25,7 +25,8 @@ const h = vi.hoisted(() => ({
   mounts: 0,
   /** The provider's live file map, as `useSandpack()` would report it. */
   bootFiles: {} as Record<string, string>,
-  updateCalls: [] as unknown[],
+  /** Files written into the sandbox through its supported API. */
+  writes: [] as Array<{ path: string; content?: string; deleted?: boolean }>,
 }));
 
 vi.mock("@codesandbox/sandpack-react", async () => {
@@ -52,10 +53,14 @@ vi.mock("@codesandbox/sandpack-react", async () => {
         clients: {
           c1: {
             iframeProtocol: {},
-            updateSandbox: (payload: unknown) => {
-              h.updateCalls.push(payload);
-            },
+            updateSandbox: () => {},
           },
+        },
+        updateFile: (path: string, content: string) => {
+          h.writes.push({ path, content });
+        },
+        deleteFile: (path: string) => {
+          h.writes.push({ path, deleted: true });
         },
       },
     }),
@@ -91,7 +96,7 @@ describe("SandpackPreviewPane boot latch", () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     h.renders.length = 0;
-    h.updateCalls.length = 0;
+    h.writes.length = 0;
     h.mounts = 0;
     h.bootFiles = {};
     container = document.createElement("div");
@@ -126,13 +131,13 @@ describe("SandpackPreviewPane boot latch", () => {
     //    keeps its original boot project and the edit is delivered imperatively.
     render(B, []);
     expect(lastBoot()[PAGE]).toContain(">A<");
-    expect(h.updateCalls).toHaveLength(1);
-    const compiled = h.updateCalls[0] as { files: Record<string, { code: string }> };
-    expect(compiled.files[PAGE].code).toContain(">B<");
+    expect(h.writes.length).toBeGreaterThan(0);
+    expect(h.writes.some((write) => write.path === PAGE && write.content?.includes(">B<"))).toBe(true);
 
     // 3. A new package: the boot key changes and the provider remounts. It must
     //    boot from the CURRENT project (B, plus the new dependency) — the bug was
     //    that it rebooted from A and the pending change was dropped.
+    const writesBeforeRemount = h.writes.length;
     render(B, deps);
     expect(lastBoot()[PAGE]).toContain(">B<");
     expect(lastBoot()[COMPONENT]).toContain(">B<");
@@ -142,7 +147,7 @@ describe("SandpackPreviewPane boot latch", () => {
 
     // Re-latching treats the fresh boot as already current, so the first sync
     // afterwards is a no-op rather than a redundant recompile.
-    expect(h.updateCalls).toHaveLength(1);
+    expect(h.writes.length).toBe(writesBeforeRemount);
   });
 
   /**
