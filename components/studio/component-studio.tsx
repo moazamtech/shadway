@@ -38,7 +38,7 @@ import { PublishPanel } from "@/components/studio/publish-panel";
 import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
 import { SHADCN_FILE_PATHS } from "@/lib/preview/template/names";
-import { collectNpmDependencies } from "@/lib/studio/deps";
+import { collectNpmDependencies, sandboxPackageVersion } from "@/lib/studio/deps";
 import { projectPathFor } from "@/lib/studio/sandpack";
 import { usePreviewCss } from "@/lib/studio/use-preview-css";
 import {
@@ -229,18 +229,30 @@ export function ComponentStudio({
 
     if (missing.length === 0) return;
 
+    // Add the package right away, so the sandbox reinstalls the moment the
+    // author's code mentions it rather than after the registry round trip.
+    // The version is refined in the background: `latest` for anything unknown,
+    // the pinned range for the packages this site is built against.
+    setInstalledPackages((prev) => {
+      const next = { ...prev };
+      for (const pkg of missing) {
+        if (!next[pkg]) next[pkg] = sandboxPackageVersion(pkg);
+      }
+      return next;
+    });
+
     for (const pkg of missing) {
       void (async () => {
         try {
           const res = await fetch(`/api/registry/resolve-package?name=${encodeURIComponent(pkg)}`);
           if (res.ok) {
             const data = await res.json();
-            setInstalledPackages((prev) => ({ ...prev, [pkg]: data.version || "latest" }));
-          } else {
-            setInstalledPackages((prev) => ({ ...prev, [pkg]: "latest" }));
+            if (data?.version) {
+              setInstalledPackages((prev) => ({ ...prev, [pkg]: data.version }));
+            }
           }
         } catch {
-          setInstalledPackages((prev) => ({ ...prev, [pkg]: "latest" }));
+          // Keep the optimistic version; the sandbox already installed it.
         }
       })();
     }
@@ -905,7 +917,7 @@ export function ComponentStudio({
                             {name}
                           </code>
                           <span className="shrink-0 font-mono text-[10px] text-muted-foreground/60 tabular-nums">
-                            {version || "latest"}
+                            {version || sandboxPackageVersion(name)}
                           </span>
                           <button
                             onClick={() => removePackage(name)}

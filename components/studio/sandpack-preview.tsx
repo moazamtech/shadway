@@ -362,6 +362,21 @@ function Sandbox({
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  /**
+   * Reset the "last written" cursor whenever the sandbox remounts.
+   *
+   * A remount (new dependency set, manual reload) boots from `bootRef.current`,
+   * which is latched to the first mount and never moves. If `pushedRef` is left
+   * holding the project as it was before the remount, the first sync afterwards
+   * sees no diff against it and returns without pushing — so the sandbox keeps
+   * showing the files from its first boot and every edit made since then is
+   * lost until the author types again. Clearing it back to the boot project
+   * makes that sync push the current project as a diff.
+   */
+  useEffect(() => {
+    pushedRef.current = bootRef.current ?? {};
+  }, [bootKey]);
+
   /** The newest project, for the sync that runs after every render. */
   const projectRef = useRef(project);
   projectRef.current = project;

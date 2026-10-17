@@ -6,7 +6,17 @@
  * exactly those.
  */
 
-const IMPORT_RE = /(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g;
+// Catches:
+//   import { x } from "pkg"            (named, default, namespace)
+//   import "pkg"                      (side-effect)
+//   import("pkg") / await import("pkg") (dynamic)
+//   require("pkg")                    (CommonJS)
+//   export { x } from "pkg"            (re-export)
+//   export * from "pkg"
+// Template-literal dynamic imports are not matched; they are rare in component
+// code and cannot be statically resolved anyway.
+const IMPORT_RE =
+  /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)(["'`])([^"'`]+)\1/g;
 
 /** Node's own modules never belong in package.json. */
 const NODE_BUILTINS = new Set([
@@ -42,7 +52,7 @@ export function packageNameForSpecifier(specifier: string): string | null {
   if (specifier.startsWith("@/")) return null;
   if (specifier.startsWith("node:")) return null;
 
-  const clean = specifier.split("?")[0];
+  const clean = specifier.trim().split("?")[0];
   const segments = clean.split("/");
   const name = clean.startsWith("@") ? segments.slice(0, 2).join("/") : segments[0];
   if (!name || NODE_BUILTINS.has(name)) return null;
@@ -54,7 +64,7 @@ export function collectNpmDependencies(files: { path: string; content: string }[
   const found = new Set<string>();
   for (const file of files) {
     for (const match of file.content.matchAll(IMPORT_RE)) {
-      const name = packageNameForSpecifier(match[1]);
+      const name = packageNameForSpecifier(match[2]);
       if (name) found.add(name);
     }
   }
