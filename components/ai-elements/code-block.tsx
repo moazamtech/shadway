@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -50,71 +51,67 @@ export const CodeBlock = ({
   className,
   children,
   ...props
-}: CodeBlockProps) => (
-  <CodeBlockContext.Provider value={{ code }}>
-    <div
-      className={cn(
-        "relative w-full overflow-hidden rounded-md border bg-background text-foreground",
-        className
-      )}
-      {...props}
-    >
-      <div className="relative">
-        <SyntaxHighlighter
-          className="overflow-hidden dark:hidden"
-          codeTagProps={{
-            className: "font-mono text-sm",
-          }}
-          customStyle={{
-            margin: 0,
-            padding: "1rem",
-            fontSize: "0.875rem",
-            background: "hsl(var(--background))",
-            color: "hsl(var(--foreground))",
-          }}
-          language={language}
-          lineNumberStyle={{
-            color: "hsl(var(--muted-foreground))",
-            paddingRight: "1rem",
-            minWidth: "2.5rem",
-          }}
-          showLineNumbers={showLineNumbers}
-          style={atomOneLight}
-        >
-          {code}
-        </SyntaxHighlighter>
-        <SyntaxHighlighter
-          className="hidden overflow-hidden dark:block"
-          codeTagProps={{
-            className: "font-mono text-sm",
-          }}
-          customStyle={{
-            margin: 0,
-            padding: "1rem",
-            fontSize: "0.875rem",
-            background: "hsl(var(--background))",
-            color: "hsl(var(--foreground))",
-          }}
-          language={language}
-          lineNumberStyle={{
-            color: "hsl(var(--muted-foreground))",
-            paddingRight: "1rem",
-            minWidth: "2.5rem",
-          }}
-          showLineNumbers={showLineNumbers}
-          style={atomOneDark}
-        >
-          {code}
-        </SyntaxHighlighter>
-        {children && (
-          <div className="absolute top-2 right-2 flex items-center gap-2">
-            {children}
-          </div>
+}: CodeBlockProps) => {
+  // One renderer, one theme.
+  //
+  // The obvious way to theme a code block is to render it twice — a light copy
+  // and a dark copy — and hide one with a `dark:` class. That quietly breaks:
+  // highlight.js themes declare `display: block` on their own `<pre>` as an
+  // inline style, and an inline style outranks any class, so the "hidden" copy
+  // stays on screen and the code appears twice. Choosing the theme here from
+  // the same value the rest of the app is themed from renders the code once,
+  // and the block can never disagree with the page around it.
+  const { resolvedTheme } = useTheme();
+  const style = resolvedTheme === "dark" ? atomOneDark : atomOneLight;
+
+  return (
+    <CodeBlockContext.Provider value={{ code }}>
+      <div
+        className={cn(
+          "relative w-full overflow-hidden rounded-md border bg-background text-foreground",
+          className
         )}
+        {...props}
+      >
+        <div className="relative">
+          <SyntaxHighlighter
+            className="overflow-hidden"
+            codeTagProps={{
+              className: "font-mono text-sm",
+            }}
+            customStyle={{
+              margin: 0,
+              padding: "1rem",
+              fontSize: "0.875rem",
+              // The recess the design system already reserves for code, rather
+              // than a colour borrowed from the highlight.js theme. Declared
+              // straight off the token — the app's tokens are plain colours, so
+              // wrapping them in `hsl()` would make the declaration invalid and
+              // silently hand the block back to the theme's own background.
+              background: "var(--well)",
+              color: "var(--foreground)",
+            }}
+            language={language}
+            lineNumberStyle={{
+              color: "var(--muted-foreground)",
+              paddingRight: "1rem",
+              minWidth: "2.5rem",
+            }}
+            showLineNumbers={showLineNumbers}
+            style={style}
+          >
+            {code}
+          </SyntaxHighlighter>
+          {children && (
+            <div className="absolute top-2 right-2 flex items-center gap-2">
+              {children}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </CodeBlockContext.Provider>
-);
+    </CodeBlockContext.Provider>
+  );
+};
 
 export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
   onCopy?: () => void;
