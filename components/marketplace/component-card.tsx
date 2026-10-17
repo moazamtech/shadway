@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Bookmark, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { coverImageUrl, previewVideoUrl } from "@/lib/images";
 
 export type MarketplaceCardItem = {
   slug: string;
@@ -69,13 +70,19 @@ export function ComponentCard({
 
   const saved = Boolean(savedSlugs?.[item.slug]);
   const liked = Boolean(likedSlugs?.[item.slug]) || optimisticLike;
-  const hasCover = Boolean(item.thumbnailUrl) && !coverFailed;
+
+  // Ask the CDN for the size the card paints rather than the size the author
+  // uploaded. The originals are still full-resolution renders; at card scale
+  // they are tens of times the bytes for pixels nobody sees.
+  const coverSrc = coverImageUrl(item.thumbnailUrl);
+  const videoSrc = previewVideoUrl(item.videoUrl);
+  const hasCover = Boolean(coverSrc) && !coverFailed;
 
   const cover = (
     <>
-      {videoLoaded && item.videoUrl ? (
+      {videoLoaded && videoSrc ? (
         <video
-          src={item.videoUrl}
+          src={videoSrc}
           className="h-full w-full object-cover"
           autoPlay
           muted
@@ -87,7 +94,7 @@ export function ComponentCard({
       ) : hasCover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={item.thumbnailUrl}
+          src={coverSrc}
           alt=""
           aria-hidden="true"
           loading="lazy"

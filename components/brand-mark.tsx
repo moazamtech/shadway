@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
  * outward. That halo is what the brand rows wear instead of the hard black
  * square the mark used to sit in — the mark lights the chrome instead of
  * being boxed on it.
+ *
+ * The art is served from `logo-mark.webp`, a 96px derivative of the 371x406
+ * `logo.png` master: the mark is painted at 20px, so the master is roughly
+ * twenty times the bytes for pixels that are never resolved. Regenerate it by
+ * resizing `public/logo.png` to 96x96 and exporting WebP if the art changes.
  */
 export function BrandMark({  size = 20,
   className,
@@ -33,7 +38,7 @@ export function BrandMark({  size = 20,
       {glow ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src="/logo.png"
+          src="/logo-mark.webp"
           alt=""
           aria-hidden
           draggable={false}
@@ -42,7 +47,7 @@ export function BrandMark({  size = 20,
       ) : null}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/logo.png"
+        src="/logo-mark.webp"
         alt={label ?? ""}
         draggable={false}
         className="relative h-full w-full object-contain"

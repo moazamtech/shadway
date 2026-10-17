@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
                 capture.buffer.byteOffset,
                 capture.buffer.byteOffset + capture.buffer.byteLength
               ) as ArrayBuffer,
-              `${item.slug}-cover.png`,
+              `${item.slug}-cover.webp`,
               `shadway-covers/${item.slug}`
             );
             await collection.updateOne(

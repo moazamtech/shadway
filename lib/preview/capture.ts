@@ -109,7 +109,11 @@ export async function capturePreview(
     });
 
     const screenshot = await page.screenshot({
-      type: "png",
+      // A cover is a card image, not a print proof. PNG of a rendered page is
+      // the worst case for both size and usefulness — a flat UI screenshot
+      // compresses to a fraction of it as WebP at a quality nobody can see.
+      type: "webp",
+      quality: 84,
       fullPage: false,
       ...(clip ? { clip } : {}),
     });

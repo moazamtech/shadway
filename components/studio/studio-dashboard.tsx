@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { coverImageUrl } from "@/lib/images";
 
 export type StudioItem = {
   slug: string;
@@ -273,7 +274,12 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
                         {item.thumbnailUrl ? (
                           <span
                             className="block h-full w-full bg-cover bg-center"
-                            style={{ backgroundImage: `url(${item.thumbnailUrl})` }}
+                            style={{
+                              backgroundImage: `url(${coverImageUrl(
+                                item.thumbnailUrl,
+                                160
+                              )})`,
+                            }}
                           />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">

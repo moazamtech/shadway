@@ -31,6 +31,7 @@ import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
 import { projectPayload, resolveComponentPath } from "@/lib/studio/project";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
+import { coverImageUrl } from "@/lib/images";
 
 /**
  * The sandbox is the same engine the studio previews with, so what the author
@@ -457,7 +458,7 @@ export function PublishPanel({
                     <figure className="group relative overflow-hidden rounded-lg border border-border/60">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={meta.thumbnailUrl}
+                        src={coverImageUrl(meta.thumbnailUrl, 352)}
                         alt="Cover preview"
                         className="h-28 w-44 object-cover"
                       />
