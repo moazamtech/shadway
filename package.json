@@ -52,6 +52,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
+    "@shadcn/react": "0.3.1",
     "@shikijs/transformers": "^3.14.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsdom": "^21.1.7",

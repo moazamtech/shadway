@@ -15,8 +15,15 @@
 //   export * from "pkg"
 // Template-literal dynamic imports are not matched; they are rare in component
 // code and cannot be statically resolved anyway.
+//
+// The `(?<!@)` matters more than it looks. A stylesheet's `@import "tailwindcss"`
+// is not a JavaScript import at all — it is Tailwind's own resolution, done by
+// the CSS pipeline — but without the guard the alternation matches from the
+// `import` in it, and the sandbox is told to npm-install `tailwindcss` (and
+// `tw-animate-css`, and `shadcn/tailwind.css`). The style file is skipped for
+// the same reason; its imports are never packages the bundle has to fetch.
 const IMPORT_RE =
-  /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)(["'`])([^"'`]+)\1/g;
+  /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|(?<!@)\bimport\s+)(["'`])([^"'`]+)\1/g;
 
 /** Node's own modules never belong in package.json. */
 const NODE_BUILTINS = new Set([
@@ -63,6 +70,7 @@ export function packageNameForSpecifier(specifier: string): string | null {
 export function collectNpmDependencies(files: { path: string; content: string }[]): string[] {
   const found = new Set<string>();
   for (const file of files) {
+    if (file.path.endsWith(".css")) continue;
     for (const match of file.content.matchAll(IMPORT_RE)) {
       const name = packageNameForSpecifier(match[2]);
       if (name) found.add(name);
@@ -99,6 +107,9 @@ export function collectNpmDependencies(files: { path: string; content: string }[
  * | react-day-picker       | ^9.11.1     | 10.x       |
  * | motion                 | ^12.23.24   | 14.x       |
  * | framer-motion          | ^12.23.16   | 14.x       |
+ * | @dnd-kit/sortable      | ^8.0.0      | 10.x       |
+ * | @dnd-kit/modifiers     | ^7.0.0      | 9.x        |
+ * | @tanstack/react-table  | ^8.21.3     | 9.x        |
  */
 export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   // -- the shadcn/ui runtime: what the vendored registry itself imports ------
@@ -138,6 +149,18 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   zod: "^3.25.76",
   nanoid: "^5.1.6",
 
+  // -- the other two form libraries the examples are written against ---------
+  // The registry ships the same form three times — react-hook-form above,
+  // TanStack Form, and Formisch — and nine examples use each of the latter
+  // two. Both are on their first major, so `latest` is what they were written
+  // for *today*; pinning is what keeps that true after 2.0. `valibot` is
+  // Formisch's schema library and is pinned to the range its peer dependency
+  // declares (`>=1.4.1 <2`).
+  "@tanstack/react-form": "^1.33.5",
+  "@formisch/react": "^1.1.0",
+  valibot: "^1.4.1",
+  "react-textarea-autosize": "^8.5.9",
+
   // -- icons -----------------------------------------------------------------
   "react-icons": "^5.7.0",
   "@icons-pack/react-simple-icons": "^13.8.0",
@@ -148,6 +171,20 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   "@gsap/react": "^2.1.2",
   lenis: "^1.3.11",
   ogl: "^0.0.11",
+
+  // -- the drag-and-drop stack `dashboard-01` is built from ------------------
+  // Three of these four are the reason this table exists. `latest` resolves
+  // `@dnd-kit/sortable` to 10.x, `@dnd-kit/modifiers` to 9.x and
+  // `@tanstack/react-table` to 9.x, while the block is written against 8.x /
+  // 7.x / 8.x — and `@dnd-kit/sortable` 8 peer-depends on `@dnd-kit/core`
+  // ^6.1.0, which is the only major core has. The four are pinned as the set
+  // they are, because a mixed install is a peer-conflict warning in npm and a
+  // mistyped context object at runtime.
+  "@dnd-kit/core": "^6.3.1",
+  "@dnd-kit/modifiers": "^7.0.0",
+  "@dnd-kit/sortable": "^8.0.0",
+  "@dnd-kit/utilities": "^3.2.2",
+  "@tanstack/react-table": "^8.21.3",
 
   // -- the individual Radix packages ----------------------------------------
   // The newer shadcn sources import the unified `radix-ui`, but anything
@@ -161,6 +198,7 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   "@radix-ui/react-collapsible": "^1.1.12",
   "@radix-ui/react-context-menu": "^2.2.16",
   "@radix-ui/react-dialog": "^1.1.15",
+  "@radix-ui/react-direction": "^1.2.0",
   "@radix-ui/react-dropdown-menu": "^2.1.16",
   "@radix-ui/react-hover-card": "^1.1.15",
   "@radix-ui/react-label": "^2.1.7",
