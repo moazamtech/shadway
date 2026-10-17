@@ -1,6 +1,7 @@
 import { getComponentBySlug } from "@/lib/db/components";
 import { shadcnRegistrySlug } from "@/lib/registry/parsers";
 import { parseFullSlug, resolveRegistryDependencies } from "@/lib/registry/resolve";
+import { collectNpmDependencies } from "@/lib/studio/deps";
 
 /**
  * Builds a shadcn registry item for a published component.
@@ -15,6 +16,9 @@ export type RegistryItemInput = {
   /** Optional `author/slug` form. */
   author?: string;
 };
+
+/** Packages the project running `shadcn add` already has. */
+const HOST_PACKAGES = new Set(["react", "react-dom", "next"]);
 
 export async function buildRegistryItem(
   input: RegistryItemInput,
@@ -66,6 +70,27 @@ export async function buildRegistryItem(
     return `${origin}/r/${normalized}`;
   });
 
+  /**
+   * Every npm package the installed code imports.
+   *
+   * The stored list is what the author declared, and it is not enough on its
+   * own: a component whose files import `motion/react` and `react-icons/fa6`
+   * shipped `dependencies: []`, so `shadcn add` wrote those imports into a
+   * project where neither package exists. The files are the truth, so the two
+   * are unioned — the declaration can still add something the walk cannot see,
+   * and the walk catches what it missed.
+   *
+   * `react`, `react-dom` and `next` come out of the walk but never into the
+   * item: the CLI runs inside a React project, and every shadcn item would
+   * otherwise declare the framework it is being installed into.
+   */
+  const dependencies = [
+    ...new Set([
+      ...Object.keys(resolution.npmDependencies),
+      ...collectNpmDependencies(files).filter((name) => !HOST_PACKAGES.has(name)),
+    ]),
+  ].sort();
+
   const hasVars =
     Object.keys(resolution.cssVars.light).length > 0 ||
     Object.keys(resolution.cssVars.dark).length > 0;
@@ -76,7 +101,7 @@ export async function buildRegistryItem(
     type: shadcnRegistrySlug(component.category || "ui"),
     title: component.title,
     description: component.description,
-    dependencies: Object.keys(resolution.npmDependencies),
+    dependencies,
     registryDependencies,
     files,
     ...(hasVars ? { cssVars: resolution.cssVars } : {}),
