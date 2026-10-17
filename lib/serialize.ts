@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import type { ComponentDocument, ComponentFile } from "@/lib/db/components";
+import type { ComponentCardDocument } from "@/lib/db/components";
 
 /**
  * The server/client boundary.
@@ -64,63 +64,38 @@ export function toPlain<T>(value: T): JsonValue {
 }
 
 /**
- * The shape a client component receives. `_id` is a string (or absent), and
- * every timestamp is an ISO string — never a `Date` or `ObjectId` instance.
+ * The shape a client component receives. `_id` is absent, and every timestamp
+ * is an ISO string — never a `Date` or `ObjectId` instance.
  */
-export type SerializedComponent = Omit<
-  ComponentDocument,
-  "_id" | "createdAt" | "updatedAt" | "publishedAt" | "lastDownloadedAt"
+export type SerializedCard = Omit<
+  ComponentCardDocument,
+  "_id" | "createdAt" | "updatedAt" | "publishedAt"
 > & {
-  _id?: string;
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
-  lastDownloadedAt?: string;
 };
 
 /**
- * Serialize one component row for a client component.
+ * Serialize one listing row for a client component.
  *
  * `_id` is dropped deliberately: it is never rendered, and leaving it in would
- * mean shipping a 24-char ObjectId on every card in the feed.
+ * mean shipping a 24-char ObjectId on every card in the feed. The row is a
+ * projection (`CARD_FIELDS`), so the author's source and the prebuilt preview
+ * document are not here to serialize in the first place.
  */
-export function serializeComponent(
-  component: ComponentDocument
-): SerializedComponent {
-  const {
-    _id,
-    createdAt,
-    updatedAt,
-    publishedAt,
-    lastDownloadedAt,
-    files,
-    assets,
-    ...rest
-  } = component;
+export function serializeCard(component: ComponentCardDocument): SerializedCard {
+  const { _id, createdAt, updatedAt, publishedAt, ...rest } = component;
 
-  const out: SerializedComponent = {
+  const out: SerializedCard = {
     ...rest,
     createdAt: createdAt ? new Date(createdAt).toISOString() : "",
     updatedAt: updatedAt ? new Date(updatedAt).toISOString() : "",
   };
 
-  if (_id) out._id = _id.toHexString();
   if (publishedAt) out.publishedAt = new Date(publishedAt).toISOString();
-  if (lastDownloadedAt) {
-    out.lastDownloadedAt = new Date(lastDownloadedAt).toISOString();
-  }
-  if (files) out.files = files.map(serializeFile);
-  if (assets) out.assets = assets.map((asset) => ({ ...asset }));
 
   return out;
-}
-
-function serializeFile(file: ComponentFile): ComponentFile {
-  return {
-    ...file,
-    // `target` is optional and may be absent — keep the shape stable.
-    ...(file.target === undefined ? {} : { target: file.target }),
-  };
 }
 
 /**

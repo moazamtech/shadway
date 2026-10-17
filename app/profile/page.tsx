@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { isAdmin, sessionAvatar, sessionDisplayName, sessionUsername } from "@/lib/session";
 import { ensureUsername, resolveProfile } from "@/lib/db/users";
 import { listComponents, listComponentsBySlugs } from "@/lib/db/components";
-import { serializeComponent } from "@/lib/serialize";
+import { serializeCard } from "@/lib/serialize";
 import { getUserBookmarks } from "@/lib/db/marketplace";
 import { Button } from "@/components/ui/button";
 import { ComponentCard } from "@/components/marketplace/component-card";
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
 type ComponentListItem = Awaited<ReturnType<typeof listComponents>>[number];
 
 /**
- * `listComponents` returns raw Mongo documents. The card is a client component
- * and takes a serialized `createdAt`; a `Date` (and the `_id` ObjectId) cannot
- * cross the server/client boundary, so normalize here rather than loosening
- * the card's type.
+ * `listComponents` returns projected Mongo documents. The card is a client
+ * component and takes a serialized `createdAt`; a `Date` (and the `_id`
+ * ObjectId) cannot cross the server/client boundary, so normalize here rather
+ * than loosening the card's type.
  */
 function toCardItem(item: ComponentListItem) {
-  return serializeComponent(item);
+  return serializeCard(item);
 }
 
 /**

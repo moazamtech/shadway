@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ObjectId } from "mongodb";
-import { serializeComponent, toPlain, assertSerializable } from "../serialize";
+import { serializeCard, toPlain, assertSerializable } from "../serialize";
 import type { ComponentDocument } from "../db/components";
 
 function makeComponent(overrides: Partial<ComponentDocument> = {}): ComponentDocument {
@@ -62,9 +62,9 @@ describe("toPlain", () => {
   });
 });
 
-describe("serializeComponent", () => {
+describe("serializeCard", () => {
   it("turns every timestamp into an ISO string", () => {
-    const out = serializeComponent(
+    const out = serializeCard(
       makeComponent({ publishedAt: new Date("2026-02-03T00:00:00.000Z") })
     );
 
@@ -73,34 +73,19 @@ describe("serializeComponent", () => {
     expect(out.publishedAt).toBe("2026-02-03T00:00:00.000Z");
   });
 
-  it("stringifies _id rather than leaving an ObjectId", () => {
-    const id = new ObjectId();
-    const out = serializeComponent(makeComponent({ _id: id }));
-
-    expect(out._id).toBe(id.toHexString());
-    expect(out._id).not.toBeInstanceOf(ObjectId);
-  });
-
-  it("omits _id entirely when the document has none", () => {
-    const out = serializeComponent(makeComponent());
-    expect(out._id).toBeUndefined();
+  it("drops _id rather than shipping an ObjectId on every card", () => {
+    const out = serializeCard(makeComponent({ _id: new ObjectId() }));
+    expect("_id" in out).toBe(false);
   });
 
   it("never leaves a Date or ObjectId anywhere in the result", () => {
-    const id = new ObjectId();
-    const out = serializeComponent(
-      makeComponent({
-        _id: id,
-        files: [{ path: "a.tsx", content: "x", type: "tsx" }],
-        assets: [{ url: "https://x/y.png", type: "image" }],
-      })
-    );
+    const out = serializeCard(makeComponent({ _id: new ObjectId() }));
 
     expect(assertSerializable(out)).toBeUndefined();
   });
 
   it("preserves the fields a card renders", () => {
-    const out = serializeComponent(makeComponent());
+    const out = serializeCard(makeComponent());
 
     expect(out.slug).toBe("status-pill");
     expect(out.title).toBe("Status Pill");
@@ -125,6 +110,6 @@ describe("assertSerializable", () => {
   });
 
   it("does not throw on a serialized component", () => {
-    expect(() => assertSerializable(serializeComponent(makeComponent()))).not.toThrow();
+    expect(() => assertSerializable(serializeCard(makeComponent()))).not.toThrow();
   });
 });

@@ -10,6 +10,7 @@ import {
 import { PREVIEW_BUILD_VERSION, buildComponentBundle } from "@/lib/preview/build";
 import { collectNpmDependencies } from "@/lib/studio/deps";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
+import { serializeCard } from "@/lib/serialize";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 
 export const runtime = "nodejs";
@@ -43,7 +44,11 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    return NextResponse.json({ items: components, count: components.length });
+    // The feed is a grid of images: it gets the card projection, serialized,
+    // and never the source or the prebuilt preview document behind each card.
+    const items = components.map(serializeCard);
+
+    return NextResponse.json({ items, count: items.length });
   } catch (error) {
     console.error("Failed to list components:", error);
     return NextResponse.json({ error: "Failed to list components" }, { status: 500 });

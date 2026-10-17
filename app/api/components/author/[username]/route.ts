@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listComponents } from "@/lib/db/components";
+import { serializeCard } from "@/lib/serialize";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,11 @@ export async function GET(
   }
 
   try {
-    const items = await listComponents({ author: decodeURIComponent(username), limit: 60 });
+    const rows = await listComponents({
+      author: decodeURIComponent(username),
+      limit: 60,
+    });
+    const items = rows.map(serializeCard);
     return NextResponse.json({ items, count: items.length });
   } catch (error) {
     console.error("Failed to list author components:", error);

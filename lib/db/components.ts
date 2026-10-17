@@ -68,6 +68,60 @@ export type ComponentInput = Omit<
   slug?: string;
 };
 
+/**
+ * What a listing selects.
+ *
+ * A stored component is heavy on purpose: it carries the author's source, the
+ * whole project, and the prebuilt preview document. Added up, that is a couple
+ * of hundred kilobytes per record — paid on the database round trip, in BSON
+ * decoded in memory, and again on the wire — before a single card is drawn.
+ *
+ * A feed asks for thirty of them to paint a grid of images, so every listing
+ * projects to the fields below. The heavy fields are read only by the routes
+ * that actually compile or display them, which fetch a document on its own.
+ */
+export const CARD_FIELDS = {
+  slug: 1,
+  title: 1,
+  description: 1,
+  thumbnailUrl: 1,
+  videoUrl: 1,
+  category: 1,
+  tags: 1,
+  author: 1,
+  installs: 1,
+  views: 1,
+  likes: 1,
+  featured: 1,
+  visibility: 1,
+  status: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  publishedAt: 1,
+  // Cursors are built from the tiebreaker, so it travels with the row.
+  _id: 1,
+} as const;
+
+/** A row from a listing: the card's fields, and nothing else. */
+export type ComponentCardDocument = Pick<
+  ComponentDocument,
+  keyof typeof CARD_FIELDS
+>;
+
+/**
+ * A whole component minus the prebuilt preview document.
+ *
+ * The detail surfaces read the author's source, never the built HTML: the code
+ * tab displays it and the preview iframe fetches it as its own document from
+ * `app/api/components/preview`. Selecting `previewHtml` here would put the
+ * largest field in the record on a request that never looks at it.
+ */
+export const SOURCE_FIELDS = {
+  previewHtml: 0,
+  previewHash: 0,
+  previewVersion: 0,
+} as const;
+
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function slugify(value: string): string {
@@ -231,7 +285,7 @@ function decodeCursor<T>(cursor: string): T | null {
 }
 
 export type ComponentPage = {
-  items: ComponentDocument[];
+  items: ComponentCardDocument[];
   /** Opaque cursor for the next page, or null when this is the last one. */
   nextCursor: string | null;
   /** True when more results exist beyond this page. */
@@ -247,7 +301,7 @@ export type ComponentPage = {
  */
 export async function listComponents(
   options: ListComponentsOptions = {}
-): Promise<ComponentDocument[]> {
+): Promise<ComponentCardDocument[]> {
   const { items } = await listComponentsPage(options);
   return items;
 }
@@ -310,7 +364,7 @@ export async function listComponentsPage(
   }
 
   const rows = await collection
-    .find(filter)
+    .find(filter, { projection: CARD_FIELDS })
     .sort(orderBy)
     .limit(limit + 1)
     .toArray();
@@ -345,17 +399,29 @@ export async function getComponentBySlug(slug: string) {
 /**
  * Any component by slug, drafts included — for the owner's own surfaces
  * (the dashboard and the studio), never for the public feed.
+ *
+ * The full document by default; the detail route asks for the source
+ * projection when it has no use for the prebuilt preview document.
  */
-export async function getComponentBySlugAnyStatus(slug: string) {
+export async function getComponentBySlugAnyStatus(
+  slug: string,
+  options: { projection?: Record<string, 0 | 1> } = {}
+) {
   const collection = await getComponentsCollection();
-  return collection.findOne({ slug });
+  return collection.findOne(
+    { slug },
+    options.projection ? { projection: options.projection } : {}
+  );
 }
 
 /** Everything one author owns, drafts first, newest first. */
-export async function listUserComponents(userId: string, limit = 60) {
+export async function listUserComponents(
+  userId: string,
+  limit = 60
+): Promise<ComponentCardDocument[]> {
   const collection = await getComponentsCollection();
   return collection
-    .find({ "author.userId": userId })
+    .find({ "author.userId": userId }, { projection: CARD_FIELDS })
     .sort({ status: 1, updatedAt: -1 })
     .limit(Math.min(Math.max(limit, 1), 200))
     .toArray();
@@ -365,19 +431,24 @@ export async function listUserComponents(userId: string, limit = 60) {
  * Fetches published components by slug, keeping the order the slugs were
  * given in — which is what a bookmarks list, stored newest-first, needs.
  */
-export async function listComponentsBySlugs(slugs: string[]) {
+export async function listComponentsBySlugs(
+  slugs: string[]
+): Promise<ComponentCardDocument[]> {
   if (!slugs.length) return [];
   const wanted = slugs.slice(0, 60);
   const collection = await getComponentsCollection();
   const rows = await collection
-    .find({
-      slug: { $in: wanted },
-      status: "published",
-      visibility: "public",
-    })
+    .find(
+      {
+        slug: { $in: wanted },
+        status: "published",
+        visibility: "public",
+      },
+      { projection: CARD_FIELDS }
+    )
     .toArray();
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
-  const ordered = [];
+  const ordered: ComponentCardDocument[] = [];
   for (const slug of wanted) {
     const row = bySlug.get(slug);
     if (row) ordered.push(row);

@@ -5,6 +5,7 @@ import {
   getComponentBySlugAnyStatus,
   incrementComponentMetric,
   getComponentsCollection,
+  SOURCE_FIELDS,
 } from "@/lib/db/components";
 import { requireSession } from "@/lib/auth/require-session";
 
@@ -51,7 +52,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     // Any-status fetch: an owner can always preview their own component, even
     // while it sits in the review queue — the same page customers will get,
     // minus the install endpoint, which stays published-only.
-    const component = await getComponentBySlugAnyStatus(decoded);
+    //
+    // Projected to the source: this route exists to show the author's code, and
+    // the preview iframe fetches the built document from its own endpoint.
+    const component = await getComponentBySlugAnyStatus(decoded, {
+      projection: SOURCE_FIELDS,
+    });
     if (!component) {
       return NextResponse.json({ error: "Component not found" }, { status: 404 });
     }
