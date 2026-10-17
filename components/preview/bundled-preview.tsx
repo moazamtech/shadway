@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { PREVIEW_BUILD_VERSION } from "@/lib/preview/version";
+
 type Props = {
   slug: string;
   height?: number | string;
@@ -11,8 +13,11 @@ type Props = {
 
 /**
  * Renders a published component from its prebuilt bundle.
- * The bundle is generated once at publish time, so this is a single cached
- * GET request - no compiling in the browser, no per-card bundler.
+ *
+ * The bundle is generated once at publish time, so this is a single GET with no
+ * compiling in the browser and no per-card bundler. The URL names the build
+ * version, so a frame produced by an older build is never served from a cache
+ * that the new build cannot reach.
  */
 export function BundledPreview({ slug, height = 240, className, theme = "light" }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -20,7 +25,7 @@ export function BundledPreview({ slug, height = 240, className, theme = "light" 
 
   useEffect(() => {
     setLoaded(false);
-  }, [slug]);
+  }, [slug, theme]);
 
   return (
     <div
@@ -28,10 +33,10 @@ export function BundledPreview({ slug, height = 240, className, theme = "light" 
       style={{ position: "relative", width: "100%", height, overflow: "hidden" }}
     >
       <iframe
-        key={slug}
+        key={`${slug}|${theme}|${PREVIEW_BUILD_VERSION}`}
         ref={frameRef}
         title={`${slug} preview`}
-        src={`/api/components/preview?slug=${encodeURIComponent(slug)}&theme=${theme}`}
+        src={`/api/components/preview?slug=${encodeURIComponent(slug)}&theme=${theme}&v=${PREVIEW_BUILD_VERSION}`}
         onLoad={() => setLoaded(true)}
         loading="lazy"
         sandbox="allow-scripts allow-same-origin"

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { getComponentsCollection } from "../lib/db/components";
-import { buildComponentBundle } from "../lib/preview/build";
+import { PREVIEW_BUILD_VERSION, buildComponentBundle } from "../lib/preview/build";
 import { componentPreviewFiles } from "../lib/preview/server-files";
 import { capturePreview } from "../lib/preview/capture";
 import { uploadBufferToCloudinary } from "../lib/cloudinary";
@@ -14,7 +14,13 @@ async function main() {
     process.stdout.write(`- ${item.slug} ... `);
 
     const bundle = await buildComponentBundle(
-      componentPreviewFiles({ code: item.code, demoCode: item.demoCode, styleCode: item.styleCode, files: item.files }),
+      componentPreviewFiles({
+        code: item.code,
+        componentPath: item.componentPath,
+        demoCode: item.demoCode,
+        styleCode: item.styleCode,
+        files: item.files,
+      }),
       { entry: DEFAULT_DEMO_PATH, title: item.title }
     );
 
@@ -45,6 +51,7 @@ async function main() {
         $set: {
           previewHtml: bundle.html,
           previewHash: bundle.hash,
+          previewVersion: PREVIEW_BUILD_VERSION,
           thumbnailUrl,
           updatedAt: new Date(),
         },

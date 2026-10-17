@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,8 @@ import { compileProjectCss } from "./tailwind";
  */
 
 export type BuildFile = { path: string; content: string };
+
+export { PREVIEW_BUILD_VERSION } from "./version";
 
 export type BuildResult = {
   /** The complete, self-contained document. */
@@ -232,10 +235,122 @@ if (container) {
 `;
 }
 
+/**
+ * The React version the bundle is compiled against, read from disk so the copy
+ * the CDN serves is the same library the component was built with.
+ */
+function installedVersion(name: string): string {
+  try {
+    const raw = fsSync.readFileSync(
+      path.join(process.cwd(), "node_modules", name, "package.json"),
+      "utf8"
+    );
+    return (JSON.parse(raw) as { version?: string }).version ?? "19";
+  } catch {
+    return "19";
+  }
+}
+
+const REACT_VERSION = installedVersion("react");
+const REACT_DOM_VERSION = installedVersion("react-dom");
+
+/**
+ * React itself, externalised the moment anything else is.
+ *
+ * A package served from a CDN imports `react` by name. If the bundle kept its
+ * own copy, that package would be handed a second React and every hook it
+ * calls would throw. So as soon as one package needs the CDN, React moves to
+ * the same CDN and both sides share one copy. A component that resolves
+ * entirely from `node_modules` never pays for this: it stays self-contained.
+ */
+const REACT_EXTERNALS = ["react", "react-dom"];
+
+/**
+ * The import map for whatever the build could not resolve.
+ *
+ * Keys are the specifiers the code wrote — `react-icons/fa6`, not
+ * `react-icons` — because an import map matches text, not packages. Each
+ * package also gets a trailing-slash entry so a subpath esbuild never saw
+ * still resolves. `external=react,react-dom` keeps the CDN copies from
+ * bundling a React of their own.
+ */
+function importMapFor(externals: string[]): Record<string, string> {
+  if (externals.length === 0) return {};
+
+  const imports: Record<string, string> = {
+    react: `https://esm.sh/react@${REACT_VERSION}`,
+    "react/": `https://esm.sh/react@${REACT_VERSION}/`,
+    "react/jsx-runtime": `https://esm.sh/react@${REACT_VERSION}/jsx-runtime`,
+    "react/jsx-dev-runtime": `https://esm.sh/react@${REACT_VERSION}/jsx-dev-runtime`,
+    "react-dom": `https://esm.sh/react-dom@${REACT_DOM_VERSION}?external=react`,
+    "react-dom/": `https://esm.sh/react-dom@${REACT_DOM_VERSION}/`,
+    "react-dom/client": `https://esm.sh/react-dom@${REACT_DOM_VERSION}/client?external=react`,
+  };
+
+  for (const specifier of externals) {
+    const root = packageRoot(specifier);
+    imports[specifier] ??= `https://esm.sh/${specifier}?external=react,react-dom`;
+    imports[root] ??= `https://esm.sh/${root}?external=react,react-dom`;
+    imports[`${root}/`] ??= `https://esm.sh/${root}/`;
+  }
+
+  return imports;
+}
+
+/**
+ * Reports a failure inside the frame instead of leaving a white rectangle.
+ *
+ * A module that cannot be resolved throws before React ever mounts, and a
+ * blank pane says nothing about why. The listener is registered in the capture
+ * phase because a dependency that fails to *load* fires on the script element
+ * and never bubbles up to `window` — the throw and the 404 have to be caught
+ * the same way. The overlay only appears when the root is still empty a beat
+ * after the error, so a component that renders and merely logs something is
+ * never covered up.
+ */
+const ERROR_REPORT = `<div id="shadway-preview-error" hidden>
+<p><strong>This preview could not start.</strong></p>
+<pre></pre>
+</div>
+<style>
+#shadway-preview-error{position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;gap:10px;justify-content:center;padding:28px;background:#fff;color:#b91c1c;font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace}
+#shadway-preview-error[hidden]{display:none}
+#shadway-preview-error p{margin:0;font:600 13px/1.5 system-ui,sans-serif}
+#shadway-preview-error pre{margin:0;white-space:pre-wrap;word-break:break-word;color:#7f1d1d}
+</style>
+<script>
+(function () {
+  var message = null;
+  function describe(event) {
+    if (!event) return "Unknown error";
+    if (event.message) return String(event.message);
+    if (event.error) return String(event.error);
+    var target = event.target;
+    if (target && target.src) return "Failed to load " + target.src;
+    if (target && target.href) return "Failed to load " + target.href;
+    return "A dependency could not be loaded, so the preview never mounted.";
+  }
+  function report(event) {
+    if (message === null) message = describe(event);
+    window.setTimeout(function () {
+      var box = document.getElementById("shadway-preview-error");
+      var root = document.getElementById("root");
+      if (!box || !message) return;
+      if (root && root.childElementCount > 0) return;
+      box.hidden = false;
+      box.querySelector("pre").textContent = message;
+    }, 800);
+  }
+  window.addEventListener("error", report, true);
+  window.addEventListener("unhandledrejection", function (event) {
+    report({ error: (event && event.reason) || "Unknown error" });
+  });
+})();
+</script>`;
+
 function documentShell(js: string, css: string, externals: string[], theme: "light" | "dark", title: string): string {
-  const imports = Object.fromEntries(
-    externals.map((name) => [name, `https://esm.sh/${name}?external=react,react-dom`])
-  );
+  const imports = importMapFor(externals);
+  const hasImports = Object.keys(imports).length > 0;
 
   return `<!DOCTYPE html>
 <html lang="en" class="${theme === "dark" ? "dark" : ""}">
@@ -246,13 +361,14 @@ function documentShell(js: string, css: string, externals: string[], theme: "lig
 <style>${css}</style>
 <style>html,body{height:100%}body{margin:0}</style>
 ${
-  externals.length
+  hasImports
     ? `<script type="importmap">${JSON.stringify({ imports }).replace(/</g, "\\u003c")}</script>`
     : ""
 }
 </head>
 <body>
 <div id="root"></div>
+${ERROR_REPORT}
 <script type="module">${js.replace(/<\/script>/g, "<\\/script>")}</script>
 </body>
 </html>`;
@@ -323,11 +439,18 @@ export async function buildComponentBundle(
     // A package that is not installed here cannot be bundled, but it is not a
     // build failure either: it is left external and handed to the import map,
     // which pulls it from a CDN at view time. esbuild reports every unresolved
-    // specifier at once, so the build retries with those marked external.
+    // specifier at once, so the build retries with those marked external —
+    // and, from the second attempt on, with React external alongside them so
+    // the CDN copy and the bundle share one React.
     const externals = new Set<string>();
     let output: Awaited<ReturnType<typeof esbuild>> | null = null;
 
-    for (let attempt = 0; attempt < 4 && !output; attempt += 1) {
+    for (let attempt = 0; attempt < 5 && !output; attempt += 1) {
+      const external = [
+        ...externals,
+        ...(externals.size ? REACT_EXTERNALS : []),
+      ];
+
       try {
         output = await esbuild({
           absWorkingDir: dir,
@@ -343,7 +466,7 @@ export async function buildComponentBundle(
           logLevel: "silent",
           tsconfig: path.join(dir, "tsconfig.json"),
           nodePaths: [nodeModules],
-          external: [...externals],
+          external,
           define: { "process.env.NODE_ENV": '"production"' },
           loader: { ".css": "empty" },
           plugins: [shimPlugin(fontNames)],
@@ -361,7 +484,10 @@ export async function buildComponentBundle(
     const js = output.outputFiles?.[0]?.text ?? "";
     if (!js.trim()) throw new BuildError("The build produced no output.");
 
-    const externalList = [...externals].sort();
+    const externalList = [
+      ...externals,
+      ...(externals.size ? REACT_EXTERNALS : []),
+    ].sort();
     const hash = crypto
       .createHash("sha1")
       .update(JSON.stringify({ js, css, externals: externalList }))
@@ -400,8 +526,10 @@ function unresolvedBareSpecifiers(error: unknown): string[] {
       continue;
     }
 
-    const pkg = packageRoot(specifier);
-    if (pkg) out.add(pkg);
+    // The whole specifier, not its package root: `react-icons/fa6` is a
+    // different module from `react-icons`, and an import map only matches what
+    // the code actually wrote.
+    out.add(specifier);
   }
 
   return [...out];
