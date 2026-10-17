@@ -20,6 +20,7 @@ import {
 import { CommandPalette } from "@/components/marketplace/command-palette";
 import { AppShell } from "@/components/marketplace/app-shell";
 import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
+import { FEED_LIMIT } from "@/lib/feed";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,8 +39,6 @@ const SORTS = [
 ] as const;
 
 type SortId = (typeof SORTS)[number]["id"];
-
-const FEED_LIMIT = 48;
 
 function sortItems(items: FeedItem[], sort: SortId): FeedItem[] {
   const copy = [...items];
@@ -60,17 +59,22 @@ function sortItems(items: FeedItem[], sort: SortId): FeedItem[] {
   }
 }
 
-export function ComponentExchangeHome() {
+export function ComponentExchangeHome({
+  initialItems,
+}: {
+  /** The first page of the feed, already rendered on the server. */
+  initialItems?: FeedItem[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category") ?? "all";
 
-  const [items, setItems] = useState<FeedItem[]>([]);
+  const [items, setItems] = useState<FeedItem[]>(initialItems ?? []);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [category, setCategory] = useState(categoryParam);
   const [sort, setSort] = useState<SortId>("popular");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialItems?.length);
   const [failed, setFailed] = useState(false);
   const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({});
   const [likedSlugs, setLikedSlugs] = useState<Record<string, boolean>>({});
@@ -102,7 +106,15 @@ export function ComponentExchangeHome() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Nothing to fetch when the server already rendered the feed: the grid is
+  // on screen before this effect runs, and asking for the same page again
+  // would only repaint identical cards. The request stays for the case where
+  // the server had nothing to hand over — a cold or unreachable database —
+  // where the client is the only way to fill the grid.
+  const seeded = Boolean(initialItems?.length);
+
   useEffect(() => {
+    if (seeded) return;
     let cancelled = false;
 
     async function load() {
