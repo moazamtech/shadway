@@ -12,5 +12,10 @@
  *
  * 2 — import maps keyed on the specifiers the code actually wrote, and one
  *     shared React for everything the CDN has to serve.
+ * 3 — Radix primitives bound as namespaces. The barrel split bound the wrong
+ *     thing, so every `.Root`, `.Provider` and `.Trigger` in a component was
+ *     `undefined` at render: anything stored under 2 rendered as React's
+ *     "element type is invalid". Also a stand-in for `next/form` and one answer
+ *     for which file is the entry page.
  */
-export const PREVIEW_BUILD_VERSION = 2;
+export const PREVIEW_BUILD_VERSION = 3;
