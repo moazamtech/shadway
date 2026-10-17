@@ -328,16 +328,40 @@ function Sandbox({
   const bootKey = `${reloadKey}|${sourceDependencyKey}|${dependencyKey}`;
 
   /**
-   * The project the sandbox boots with, frozen for the life of this mount.
+   * The project the sandbox boots with, latched per mount.
    *
    * Assigning during render is deliberate: it is a one-shot latch, not derived
-   * state, and it has to be in place before the provider below is rendered.
+   * state, and it has to be in place before the provider below is rendered. The
+   * latch also keeps the `files` prop identity stable between remounts — the
+   * provider resets its whole state, files included, whenever that identity
+   * changes.
    */
-  const bootRef = useRef<SandpackFiles | null>(null);
-  if (bootRef.current === null) bootRef.current = project.files;
+  const bootRef = useRef<SandpackFiles>(project.files);
 
   /** The project as last written into the sandbox. */
-  const pushedRef = useRef<SandpackFiles>(bootRef.current);
+  const pushedRef = useRef<SandpackFiles>(project.files);
+
+  /**
+   * Re-latch whenever the boot key changes.
+   *
+   * A dependency change (or a manual reload through `reloadKey`) remounts the
+   * provider via `key`, and it has to boot from the project as it is *now* —
+   * not from whatever it booted with the first time.
+   *
+   * Doing this during render rather than in an effect is the whole point:
+   * effects run child-first, so the bridge's sync fires before a parent effect
+   * could run, sees `pushedRef` still holding the pre-remount project, finds no
+   * diff and drops the update — leaving the sandbox on its stale boot build
+   * until the author types again. Re-latching here means the fresh boot is
+   * already current, and that first sync is a correct no-op instead of a
+   * redundant recompile.
+   */
+  const bootKeyRef = useRef(bootKey);
+  if (bootKeyRef.current !== bootKey) {
+    bootKeyRef.current = bootKey;
+    bootRef.current = project.files;
+    pushedRef.current = project.files;
+  }
 
   /**
    * The channel the bundler is actually answering on.
@@ -361,21 +385,6 @@ function Sandbox({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
-
-  /**
-   * Reset the "last written" cursor whenever the sandbox remounts.
-   *
-   * A remount (new dependency set, manual reload) boots from `bootRef.current`,
-   * which is latched to the first mount and never moves. If `pushedRef` is left
-   * holding the project as it was before the remount, the first sync afterwards
-   * sees no diff against it and returns without pushing — so the sandbox keeps
-   * showing the files from its first boot and every edit made since then is
-   * lost until the author types again. Clearing it back to the boot project
-   * makes that sync push the current project as a diff.
-   */
-  useEffect(() => {
-    pushedRef.current = bootRef.current ?? {};
-  }, [bootKey]);
 
   /** The newest project, for the sync that runs after every render. */
   const projectRef = useRef(project);
