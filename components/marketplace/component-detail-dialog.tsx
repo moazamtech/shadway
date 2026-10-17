@@ -7,8 +7,6 @@ import { useTheme } from "next-themes";
 import {
   Bookmark,
   Check,
-  Code2,
-  Copy,
   Download,
   ExternalLink,
   Eye,
@@ -27,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BundledPreview } from "@/components/preview/bundled-preview";
+import { ComponentCodeTabs } from "@/components/marketplace/component-code-tabs";
 import { InstallCommand } from "@/components/marketplace/install-command";
 import { InstallTabs } from "@/components/marketplace/install-tabs";
 import { useOrigin } from "@/hooks/use-origin";
@@ -80,9 +79,7 @@ export function ComponentDetailDialog({
   const origin = useOrigin();
   const { resolvedTheme } = useTheme();
   const [tab, setTab] = useState<Tab>("preview");
-  const [code, setCode] = useState<string>("");
   const [copied, setCopied] = useState<string | null>(null);
-  const [codeLoading, setCodeLoading] = useState(false);
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
 
   // Reset to the preview tab each time a new component opens.
@@ -98,27 +95,6 @@ export function ComponentDetailDialog({
   useEffect(() => {
     if (resolvedTheme) setPreviewTheme(resolvedTheme === "dark" ? "dark" : "light");
   }, [resolvedTheme]);
-
-  // The code tab is lazy: the feed never needs it, and a component's source can
-  // be large. Fetch it on first open of the tab only.
-  useEffect(() => {
-    if (!open || tab !== "code" || !activeSlug || code) return;
-    let cancelled = false;
-    setCodeLoading(true);
-    fetch(`/api/components/${encodeURIComponent(activeSlug)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled) return;
-        setCode(data?.item?.code ?? "");
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setCodeLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, tab, activeSlug, code]);
 
   // The dialog renders nothing when there is no component to show.
   if (!item) return null;
@@ -339,37 +315,7 @@ export function ComponentDetailDialog({
           ) : null}
 
           {tab === "code" ? (
-            <div className="flex h-full flex-col">
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2.5">
-                <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-                  <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  {current.slug}.tsx
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 rounded-lg px-2.5 text-[11px]"
-                  onClick={() => copy(code, "code")}
-                  disabled={!code}
-                >
-                  {copied === "code" ? (
-                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  {copied === "code" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto">
-                {codeLoading ? (
-                  <p className="p-5 text-sm text-muted-foreground">Loading source…</p>
-                ) : (
-                  <pre className="p-4 font-mono text-xs leading-6 sm:p-5">
-                    <code>{code || "No source available."}</code>
-                  </pre>
-                )}
-              </div>
-            </div>
+            <ComponentCodeTabs slug={current.slug} className="h-full" />
           ) : null}
 
           {tab === "install" ? (

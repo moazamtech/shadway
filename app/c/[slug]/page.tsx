@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useOrigin } from "@/hooks/use-origin";
 import { BundledPreview } from "@/components/preview/bundled-preview";
+import { ComponentCodeTabs } from "@/components/marketplace/component-code-tabs";
 import { InstallTabs } from "@/components/marketplace/install-tabs";
 
 type Item = {
@@ -41,7 +42,11 @@ type Item = {
   dependencies: string[];
   registryDependencies: string[];
   code: string;
+  /** Where the author keeps the component. Absent on older records. */
+  componentPath?: string;
   demoCode?: string;
+  styleCode?: string;
+  files?: { path: string; content: string }[];
   thumbnailUrl?: string;
   videoUrl?: string;
   installs: number;
@@ -455,24 +460,7 @@ export default function ComponentDetailPage() {
           ) : null}
 
           {tab === "code" ? (
-            <div className="relative min-h-0 flex-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-3 right-3 z-10"
-                onClick={() => copy(item.code, "code")}
-              >
-                {copied === "code" ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-                Copy
-              </Button>
-              <pre className="h-[420px] overflow-auto bg-well p-4 font-mono text-xs leading-6 lg:h-full">
-                <code>{item.code}</code>
-              </pre>
-            </div>
+            <ComponentCodeTabs slug={item.slug} source={item} className="min-h-[420px] lg:h-full" />
           ) : null}
 
           {tab === "install" ? (
