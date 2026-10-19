@@ -85,8 +85,15 @@ export async function uploadBufferToCloudinary(
    * and burying it under `vibecode_thumbnails` makes the bucket unreadable
    * for whoever prunes it — hence the option rather than a second upload
    * function.
+   *
+   * `resourceType` matters for the same reason: Cloudinary decides what a file
+   * *is* from `resource_type`, and its default is `image`. An MP4 sent through
+   * that default is either rejected by the upload API or stored as an image
+   * whose URL `/image/upload/...` cannot be played by a `<video>` element. A
+   * demo video has to be uploaded as a video and delivered from
+   * `/video/upload/`.
    */
-  options: { folder?: string } = {},
+  options: { folder?: string; resourceType?: "image" | "video" | "raw" } = {},
 ): Promise<string> {
   const ext = filename ? path.extname(filename) : ".png";
   const tempPath = path.join(os.tmpdir(), `upload-${Date.now()}${ext}`);
@@ -96,6 +103,7 @@ export async function uploadBufferToCloudinary(
       folder: options.folder ?? "vibecode_thumbnails",
       public_id: publicId,
       overwrite: true,
+      resource_type: options.resourceType ?? "image",
     });
     return result.secure_url;
   } catch (err) {
