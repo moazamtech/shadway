@@ -2,7 +2,6 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { ObjectId, type Collection, type Document, type Filter, type Sort } from "mongodb";
 import {
   applyBps,
-  assertAmount,
   parseAmount,
   readStoredAmount,
   toAmountString,
@@ -264,6 +263,32 @@ async function rawCollection<T extends Document>(name: string): Promise<Collecti
 }
 
 /**
+ * `listIndexes` on a collection that has never been written is an error, not an
+ * empty list — MongoDB answers `NamespaceNotFound` (26) instead of creating the
+ * collection. That made the very first payout on a fresh database fail:
+ * `ensurePayoutIndexes` threw, `recordAccrual` refused, and every creator
+ * balance endpoint answered 503. A ledger that only works after someone has
+ * hand-created its collections is not a ledger.
+ *
+ * Creating an index *does* create the collection, so the fix is to read the
+ * missing namespace as "no indexes yet" and let `createIndex` do the rest.
+ */
+function isNamespaceNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { code, codeName } = error as { code?: number; codeName?: string };
+  return code === 26 || codeName === "NamespaceNotFound";
+}
+
+async function existingIndexes<T extends Document>(collection: Collection<T>) {
+  try {
+    return await collection.indexes();
+  } catch (error) {
+    if (isNamespaceNotFound(error)) return [];
+    throw error;
+  }
+}
+
+/**
  * Create any missing index, matching on the key pattern rather than the name.
  *
  * Same rule as `ensureComponentIndexes`, and for the same reason: an existing
@@ -276,7 +301,7 @@ async function createMissingIndexes<T extends Document>(
   collection: Collection<T>,
   wanted: readonly WantedIndex[],
 ): Promise<void> {
-  const existing = await collection.indexes();
+  const existing = await existingIndexes(collection);
   const pending = wanted.filter((index) => {
     const current = existing.find(
       (entry) => JSON.stringify(entry.key) === JSON.stringify(index.key),
@@ -310,7 +335,7 @@ async function createMissingIndexes<T extends Document>(
 async function assertIdempotencyIndexReady(
   collection: Collection<PayoutAccrualDocument>,
 ): Promise<void> {
-  const existing = await collection.indexes();
+  const existing = await existingIndexes(collection);
   const present = existing.some(
     (index) =>
       index.unique === true && JSON.stringify(index.key) === JSON.stringify({ idempotencyKey: 1 }),
