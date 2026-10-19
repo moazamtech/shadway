@@ -4,9 +4,12 @@ import "dotenv/config";
  * Verifies the single auth gate.
  *
  * Protected surfaces must redirect a signed-out visitor to /login, while public
- * surfaces — including the CLI registry endpoints — must stay open. Run with a
- * dev server up:
+ * surfaces — including the CLI registry endpoints — must stay open. A CLI never
+ * follows a login redirect usefully: it receives HTML where it expected JSON and
+ * reports a parse error, so "is this endpoint protected?" is a real distinction
+ * and not a formality.
  *
+ * Run with a dev server up:
  *   BASE=http://localhost:3111 npx tsx scripts/qa-auth.ts
  */
 
@@ -36,7 +39,11 @@ function isLoginRedirect(status: number, location: string, wants: string) {
 
 async function main() {
   // ------------------------------------------------- protected: any user --
-  for (const path of ["/studio", "/studio/anything", "/bundles/new", "/profile", "/bookmarks"]) {
+  //
+  // `/settings` is guarded by the page rather than the middleware matcher, and
+  // that is fine — what matters here is that a signed-out visitor cannot reach
+  // it, not which layer says so.
+  for (const path of ["/studio", "/studio/anything", "/settings", "/profile", "/bookmarks"]) {
     const { status, location } = await probe(path);
     log(
       `${path} -> /login`,
@@ -63,17 +70,38 @@ async function main() {
   );
 
   // ------------------------------------------------------------- public ---
-  for (const path of ["/", "/bundles", "/login", "/r/pulse-button", "/r/bundle/nope", "/api/bundles"]) {
-    const { status } = await probe(path);
-    log(`${path} stays public`, status === 200 || status === 404 || status === 409, `status=${status}`);
+  //
+  // These are asserted by *shape*, not by seeded content: a QA script that
+  // requires `particles` to exist fails the day somebody unpublishes it, and the
+  // question here is whether the route is behind the login gate at all.
+  for (const path of ["/", "/login", "/api/components", "/c/does-not-exist", "/u/does-not-exist"]) {
+    const { status, location } = await probe(path);
+    log(
+      `${path} is not behind the login gate`,
+      !isLoginRedirect(status, location, path),
+      `status=${status}`
+    );
   }
 
-  // A public bundle detail page must not be behind auth.
-  const detail = await probe("/bundles/some-public-slug");
+  /**
+   * The registry endpoint the CLI calls, for a slug that does not exist.
+   *
+   * Two things are load-bearing and neither is obvious: it must be a JSON 404
+   * rather than a redirect (the CLI parses the body), and it must not be
+   * `200`, because the CLI would then install an empty item and report success.
+   */
+  const missingItem = await fetch(`${BASE}/r/does-not-exist`, { redirect: "manual" });
+  const missingBody = await missingItem.text();
   log(
-    "/bundles/<slug> stays public (404 not redirect)",
-    detail.status === 404,
-    `status=${detail.status}`
+    "an unknown registry item is a JSON 404",
+    missingItem.status === 404 &&
+      (missingItem.headers.get("content-type") ?? "").includes("application/json"),
+    `status=${missingItem.status}`
+  );
+  log(
+    "the registry 404 has a body the CLI can print",
+    missingBody.includes("error"),
+    `body=${missingBody.slice(0, 60)}`
   );
 
   // --------------------------------------------------------------- login --
