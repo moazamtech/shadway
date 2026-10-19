@@ -45,24 +45,43 @@ const NODE_BUILTINS = new Set([
   "zlib",
 ]);
 
+/** Path aliases the three commonest `tsconfig` setups use besides `@/*`. */
+const PATH_ALIASES = ["~/", "@/", "@src/", "@components/", "src/", "components/", "app/", "lib/", "pages/"];
+
 /**
  * The npm package behind an import specifier, or null for anything that is
- * not an installable package (relative paths, the `@/` alias, node builtins).
+ * not an installable package (relative paths, a path alias, node builtins).
  *
  *   "react/jsx-runtime"      -> "react"
  *   "@radix-ui/react-dialog" -> "@radix-ui/react-dialog"
  *   "@/components/ui/button" -> null
+ *   "~/components/hero"      -> null
+ *
+ * The alias list is not decoration. A specifier that is *not* a package name
+ * used to fall through as if it were, so `~/components/hero` became an npm
+ * install of a package called `~` and `src/lib/utils` one called `src`. That
+ * put a nonexistent package in `/package.json`, the dependency install failed,
+ * and the sandbox never booted at all — so the author saw an empty pane rather
+ * than the real error, which is their own import not resolving.
  */
 export function packageNameForSpecifier(specifier: string): string | null {
   if (!specifier) return null;
   if (specifier.startsWith(".") || specifier.startsWith("/")) return null;
-  if (specifier.startsWith("@/")) return null;
   if (specifier.startsWith("node:")) return null;
+  if (PATH_ALIASES.some((alias) => specifier.startsWith(alias))) return null;
 
   const clean = specifier.trim().split("?")[0];
   const segments = clean.split("/");
   const name = clean.startsWith("@") ? segments.slice(0, 2).join("/") : segments[0];
   if (!name || NODE_BUILTINS.has(name)) return null;
+
+  /**
+   * Last line of defence: a bare `~`, or an unscoped name with a capital or a
+   * path in it, is a path someone wrote, not a package. `npm` would happily
+   * fail on it, and the failure takes the whole preview with it.
+   */
+  if (name === "~" || name.startsWith(".") || /[A-Z]/.test(name)) return null;
+
   return name;
 }
 
@@ -170,7 +189,11 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   gsap: "^3.14.2",
   "@gsap/react": "^2.1.2",
   lenis: "^1.3.11",
-  ogl: "^0.0.11",
+  // A caret on a `0.0.x` version is an exact pin, not a range: `^0.0.11`
+  // resolves to 0.0.11 and nothing else, so the sandbox installed a renderer
+  // nine majors behind the one this site — and the corpus is written against —
+  // built.
+  ogl: "^1.0.11",
 
   // -- the drag-and-drop stack `dashboard-01` is built from ------------------
   // Three of these four are the reason this table exists. `latest` resolves
@@ -193,6 +216,11 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   "@radix-ui/react-accordion": "^1.2.12",
   "@radix-ui/react-alert-dialog": "^1.1.15",
   "@radix-ui/react-aspect-ratio": "^1.1.7",
+  // Six of these are reachable but never imported by the vendored sources — the
+  // barrel split can emit them from a pasted component, and a name with no
+  // entry here resolved to `latest`. Nothing caught it: the corpus is forbidden
+  // from using the barrel, so those six names can never appear in it.
+  "@radix-ui/react-accessible-icon": "^1.1.7",
   "@radix-ui/react-avatar": "^1.1.11",
   "@radix-ui/react-checkbox": "^1.3.3",
   "@radix-ui/react-collapsible": "^1.1.12",
@@ -200,11 +228,13 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   "@radix-ui/react-dialog": "^1.1.15",
   "@radix-ui/react-direction": "^1.2.0",
   "@radix-ui/react-dropdown-menu": "^2.1.16",
+  "@radix-ui/react-form": "^0.1.8",
   "@radix-ui/react-hover-card": "^1.1.15",
   "@radix-ui/react-label": "^2.1.7",
   "@radix-ui/react-menubar": "^1.1.16",
   "@radix-ui/react-navigation-menu": "^1.2.14",
   "@radix-ui/react-popover": "^1.1.15",
+  "@radix-ui/react-portal": "^1.1.9",
   "@radix-ui/react-progress": "^1.1.7",
   "@radix-ui/react-radio-group": "^1.3.8",
   "@radix-ui/react-scroll-area": "^1.2.10",
@@ -214,9 +244,12 @@ export const SANDBOX_PACKAGE_VERSIONS: Record<string, string> = {
   "@radix-ui/react-slot": "^1.2.3",
   "@radix-ui/react-switch": "^1.2.6",
   "@radix-ui/react-tabs": "^1.1.13",
+  "@radix-ui/react-toast": "^1.2.15",
   "@radix-ui/react-toggle": "^1.1.10",
   "@radix-ui/react-toggle-group": "^1.1.11",
+  "@radix-ui/react-toolbar": "^1.1.13",
   "@radix-ui/react-tooltip": "^1.2.8",
+  "@radix-ui/react-visually-hidden": "^1.2.4",
   "@radix-ui/react-use-controllable-state": "^1.2.2",
 };
 
