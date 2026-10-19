@@ -28,7 +28,16 @@ export function sessionDisplayName(session: Session | null): string {
   return session.user.name || session.user.email || "Anonymous";
 }
 
-export function isAdmin(session: Session | null): boolean {
+/**
+ * `undefined` is part of the contract, not an oversight.
+ *
+ * `getServerSession()` resolves to `Session | null`, but a session that has not
+ * been awaited yet, or a route that passes its own optional parameter straight
+ * through, is `undefined` — and the body here already handles it (`session?.`).
+ * Narrowing the *type* to exclude it only pushes a `?? null` into every caller,
+ * which is how one of them eventually writes `?? null` in the wrong place.
+ */
+export function isAdmin(session: Session | null | undefined): boolean {
   return session?.user?.role === "admin";
 }
 
