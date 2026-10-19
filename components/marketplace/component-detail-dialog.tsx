@@ -273,7 +273,12 @@ export function ComponentDetailDialog({
           {tab === "preview" ? (
             <div className="grid md:h-full md:grid-cols-[minmax(0,1fr)_340px]">
               <div className="relative min-h-[320px] bg-muted/30 md:min-h-0">
-                <BundledPreview slug={current.slug} height="100%" theme={previewTheme} />
+                <BundledPreview
+                  slug={current.slug}
+                  height="100%"
+                  theme={previewTheme}
+                  poster={current.thumbnailUrl}
+                />
               </div>
 
               <aside className="flex flex-col gap-5 border-t border-border/60 p-5 md:overflow-y-auto md:border-t-0 md:border-l">

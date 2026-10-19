@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/brand-mark";
+import { RelativeTime } from "@/components/marketplace/relative-time";
 import { coverImageUrl, previewVideoUrl } from "@/lib/images";
 
 export type MarketplaceCardItem = {
@@ -20,23 +22,6 @@ export type MarketplaceCardItem = {
   category?: string;
   createdAt?: string;
 };
-
-function timeAgo(dateStr?: string): string {
-  if (!dateStr) return "";
-  const then = Date.parse(dateStr);
-  if (Number.isNaN(then)) return "";
-  const seconds = Math.floor((Date.now() - then) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
-}
 
 /**
  * 21st-style marketplace card.
@@ -77,7 +62,9 @@ export function ComponentCard({
   /** The video src is assigned only on hover — nothing fetches otherwise. */
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
+  const [coverLoaded, setCoverLoaded] = useState(false);
   const [optimisticLike, setOptimisticLike] = useState(false);
+  const coverRef = useRef<HTMLImageElement | null>(null);
 
   const saved = Boolean(savedSlugs?.[item.slug]);
   const liked = Boolean(likedSlugs?.[item.slug]) || optimisticLike;
@@ -88,6 +75,20 @@ export function ComponentCard({
   const coverSrc = coverImageUrl(item.thumbnailUrl);
   const videoSrc = previewVideoUrl(item.videoUrl);
   const hasCover = Boolean(coverSrc) && !coverFailed;
+
+  /**
+   * A cached cover can finish before React attaches `onLoad`, and then the
+   * event never fires — the image stays at the opacity this frame gave it and
+   * the card is permanently blank. `complete` is the only way to ask after the
+   * fact, so the effect covers the hydration case and `onLoad` covers the rest.
+   */
+  useEffect(() => {
+    setCoverLoaded(false);
+    setCoverFailed(false);
+    if (coverRef.current?.complete && coverRef.current.naturalWidth > 0) {
+      setCoverLoaded(true);
+    }
+  }, [coverSrc]);
 
   const cover = (
     <>
@@ -103,16 +104,24 @@ export function ComponentCard({
           aria-hidden="true"
         />
       ) : hasCover ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={coverSrc}
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          decoding="async"
-          onError={() => setCoverFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.2,0,0,1)] group-hover:scale-[1.03]"
-        />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={coverRef}
+            src={coverSrc}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setCoverLoaded(true)}
+            onError={() => setCoverFailed(true)}
+            className={cn(
+              "h-full w-full object-cover transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.2,0,0,1)] group-hover:scale-[1.03]",
+              coverLoaded ? "opacity-100" : "opacity-0"
+            )}
+          />
+          {coverLoaded ? null : <CoverSkeleton />}
+        </>
       ) : (
         <FallbackPreview
           title={item.title}
@@ -268,7 +277,7 @@ export function ComponentCard({
               </>
             )}
             {item.createdAt ? (
-              <span className="shrink-0">{timeAgo(item.createdAt)}</span>
+              <RelativeTime value={item.createdAt} className="shrink-0" />
             ) : null}
           </div>
         </div>
@@ -292,6 +301,28 @@ function HeartIcon({ className }: { className?: string }) {
     >
       <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
     </svg>
+  );
+}
+
+/**
+ * What the cover shows until the author's image has decoded.
+ *
+ * A card whose cover has not arrived is the most common thing on a cold feed,
+ * and an empty grey rectangle reads as "nothing here" rather than "almost
+ * here". The mark, pulsing once per second at the size of a favicon, is enough
+ * to say the surface is loading — and it is the only branded thing on the card,
+ * so it has to be quiet.
+ */
+function CoverSkeleton() {
+  return (
+    <span
+      className="absolute inset-0 flex items-center justify-center bg-muted/25"
+      aria-hidden="true"
+    >
+      <span className="animate-pulse">
+        <BrandMark size={22} glow={false} />
+      </span>
+    </span>
   );
 }
 

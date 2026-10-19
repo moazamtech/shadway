@@ -457,7 +457,11 @@ export default function ComponentDetailClient() {
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-border lg:border-b-0">
           {tab === "preview" ? (
             <div className="relative h-[340px] sm:h-[440px] lg:h-full lg:min-h-0">
-              <BundledPreview slug={item.slug} height="100%" />
+              <BundledPreview
+                slug={item.slug}
+                height="100%"
+                poster={item.thumbnailUrl}
+              />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -675,7 +679,11 @@ export default function ComponentDetailClient() {
         <DialogContent className="max-w-none gap-0 overflow-hidden p-0 sm:max-w-[min(1400px,94vw)]">
           <DialogTitle className="sr-only">{item.title} preview</DialogTitle>
           <div className="h-[min(860px,88vh)] w-full">
-            <BundledPreview slug={item.slug} height="100%" />
+            <BundledPreview
+              slug={item.slug}
+              height="100%"
+              poster={item.thumbnailUrl}
+            />
           </div>
         </DialogContent>
       </Dialog>
