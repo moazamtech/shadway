@@ -1,8 +1,14 @@
 import { Metadata } from 'next'
 import { Website } from './types'
 import { generateWebsiteSlug } from './slug'
+import {
+  OG_IMAGE_FALLBACK,
+  OG_IMAGE_SIZE,
+  SITE_URL,
+  resolveOgImage,
+} from './og-image'
 
-const baseUrl = 'https://shadway.online'
+const baseUrl = SITE_URL
 const siteName = 'Shadway'
 
 interface SEOConfig {
@@ -26,7 +32,7 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
     title,
     description,
     keywords = [],
-    image = '/og-image.png',
+    image = OG_IMAGE_FALLBACK,
     url = '/',
     type = 'website',
     publishedTime,
@@ -42,16 +48,14 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
   const fullDescription = description || 'Discover beautiful websites and components built with Shadcn UI. A curated collection of modern interfaces and design inspiration for developers and designers.'
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`
 
-  // Ensure image URL is absolute and valid for OG tags
-  let fullImage = image
-  if (!image.startsWith('http')) {
-    fullImage = image.startsWith('/') ? `${baseUrl}${image}` : `${baseUrl}/${image}`
-  }
-
-  // Validate image URL and fallback to default if invalid
-  if (!fullImage.match(/\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i)) {
-    fullImage = `${baseUrl}/og-image.png`
-  }
+  // Ensure image URL is absolute and valid for OG tags.
+  //
+  // The absolutising, the scheme check and the fallback all live in
+  // `lib/og-image.ts` now, because `lib/metadata-fetcher.ts` needs the same
+  // three steps and the two copies had already drifted — one of them naming a
+  // file that is not in `public/`, which is a card with no picture rather than
+  // an error anybody sees.
+  const fullImage = resolveOgImage(image, baseUrl)
 
   const allKeywords = [
     "shadcn ui",
@@ -96,7 +100,15 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
       canonical: canonical || fullUrl,
     },
     openGraph: {
-      type: type as any,
+      /**
+       * Cast to the exact union the field accepts rather than to `any`.
+       *
+       * `type` is a caller-supplied discriminant that this function forwards
+       * untouched; typing it as `OpenGraphType` would push the narrowing onto
+       * every call site for a value that is only ever one of these four anyway.
+       * The cast is narrow enough that a typo still fails here.
+       */
+      type: type as NonNullable<Metadata["openGraph"]> extends { type?: infer T } ? T : never,
       locale: 'en_US',
       url: fullUrl,
       title: fullTitle,
@@ -105,8 +117,8 @@ export function generateSEOMetadata(config: SEOConfig): Metadata {
       images: [
         {
           url: fullImage,
-          width: 1200,
-          height: 630,
+          width: OG_IMAGE_SIZE.width,
+          height: OG_IMAGE_SIZE.height,
           alt: fullTitle,
         },
       ],

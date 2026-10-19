@@ -5,6 +5,7 @@ import { metadataRateLimiter, getClientIP } from '@/lib/rate-limit';
 import { JSDOM } from 'jsdom';
 import { captureScreenshotAndUpload } from '@/lib/uploadOrScreenshot';
 import { uploadRemoteImageToCloudinary } from '@/lib/cloudinary';
+import { OG_IMAGE_FALLBACK } from '@/lib/og-image';
 
 // Utility to extract meta content safely
 const getMetaContent = (document: Document, name: string, property?: boolean): string => {
@@ -139,10 +140,17 @@ export async function GET(request: NextRequest) {
     }
 
     // RESPONSE
+    //
+    // The screenshot fallback above can still come back empty — the target
+    // blocked the headless browser too — and a 500 is just as reachable. Both
+    // branches land on the same committed asset rather than on the
+    // `/placeholder-image.jpg` that was named here and never existed, which is
+    // how a saved website ended up with an og:image that 404s for everyone who
+    // shares it.
     return NextResponse.json({
       title: title.trim(),
       description: description.trim(),
-      ogImage: ogImage || '/placeholder-image.jpg',
+      ogImage: ogImage || OG_IMAGE_FALLBACK,
       favicon: faviconUrl,
       url: normalizedUrl,
     });
@@ -152,7 +160,7 @@ export async function GET(request: NextRequest) {
       {
         title: 'Error fetching metadata',
         description: 'Could not fetch site metadata',
-        ogImage: '/placeholder-image.jpg',
+        ogImage: OG_IMAGE_FALLBACK,
         favicon: '',
       },
       { status: 500 }

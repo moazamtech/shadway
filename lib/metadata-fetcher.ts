@@ -1,3 +1,5 @@
+import { OG_IMAGE_FALLBACK } from './og-image';
+
 export interface SiteMetadata {
   title: string;
   description: string;
@@ -18,10 +20,16 @@ export async function fetchSiteMetadata(url: string): Promise<SiteMetadata> {
   } catch (error) {
     console.error('Error fetching site metadata:', error);
 
+    // The fetch failed, so there is no image to report and nothing to upload
+    // one to Cloudinary. This string is what the admin form saves as the
+    // website's image, which is later read back as that page's og:image — so it
+    // has to be a real path in `public/`, not a wish. It used to be
+    // `/placeholder-image.jpg`, which was never committed: the form saved it,
+    // and the website page then emitted an og:image pointing at a 404.
     return {
       title: new URL(url).hostname,
       description: 'No description available',
-      ogImage: '/placeholder-image.jpg',
+      ogImage: OG_IMAGE_FALLBACK,
     };
   }
 }
