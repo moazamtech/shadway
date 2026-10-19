@@ -372,6 +372,21 @@ function Sandbox({
   /** The last moment the bundler said anything at all. */
   const lastReplyRef = useRef(0);
 
+  /** The last moment a write was handed to the bundler. */
+  const lastSendRef = useRef(0);
+
+  /**
+   * Whether this sandbox has ever answered.
+   *
+   * A cold codesandbox is silent for as long as it takes to start a container
+   * and install the template — routinely longer than the ack timeout. Silence
+   * before the first reply is boot, not a lost write, and treating it as one
+   * resent the whole project into a bundler that was still coming up: every
+   * resend another compile on top of the boot build. The watchdog only means
+   * something once the bundler has spoken.
+   */
+  const bootedRef = useRef(false);
+
   /** How many times a silent write has been resent. */
   const retryCountRef = useRef(0);
 
@@ -397,6 +412,8 @@ function Sandbox({
     pushedRef.current = project.files;
     ackedRef.current = project.files;
     retryCountRef.current = 0;
+    bootedRef.current = false;
+    lastSendRef.current = 0;
   }
 
   const projectRef = useRef(project);
@@ -413,6 +430,7 @@ function Sandbox({
     }
 
     pushedRef.current = { ...next };
+    lastSendRef.current = Date.now();
   }, []);
 
   /**
@@ -432,6 +450,7 @@ function Sandbox({
       };
       if (!data || !data.codesandbox) return;
 
+      bootedRef.current = true;
       lastReplyRef.current = Date.now();
 
       const terminal =
@@ -464,7 +483,11 @@ function Sandbox({
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (Date.now() - lastReplyRef.current < ACK_TIMEOUT) return;
+      // Silence before the first reply is the container booting, not a write
+      // that was dropped. Resending into a cold sandbox only delays it.
+      if (!bootedRef.current) return;
+      const lastHeard = Math.max(lastReplyRef.current, lastSendRef.current);
+      if (Date.now() - lastHeard < ACK_TIMEOUT) return;
       if (retryCountRef.current >= ACK_RETRIES) return;
       if (!differs(ackedRef.current, projectRef.current.files)) return;
       if (!apiRef.current) return;
