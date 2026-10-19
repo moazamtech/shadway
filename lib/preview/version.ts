@@ -17,5 +17,19 @@
  *     `undefined` at render: anything stored under 2 rendered as React's
  *     "element type is invalid". Also a stand-in for `next/form` and one answer
  *     for which file is the entry page.
+ * 4 — a `next/font` module with a default export and a binding for every font
+ *     name, on all three entry points. The bare `next/font` was not recognised
+ *     at all, so `import { Geist } from "next/font"` failed the publish build
+ *     outright while the studio rendered the same component fine; and the
+ *     generated module had no `export default`, so
+ *     `import localFont from "next/font/local"` built clean and threw
+ *     "is not a function" in every reader's browser. Every `next/font` bundle
+ *     is different bytes now, so stored previews have to be rebuilt.
+ *
+ *     Also: the document escapes `</style` and `</script` in the text it
+ *     injects (a custom property carrying `"</style><script>…"` put a working
+ *     script in the marketplace's own origin), `title` is escaped rather than
+ *     stripped of `<`, `&` and `>`, and the hash covers the finished document
+ *     rather than only the bundle — so light and dark no longer share an ETag.
  */
-export const PREVIEW_BUILD_VERSION = 3;
+export const PREVIEW_BUILD_VERSION = 4;

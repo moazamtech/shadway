@@ -1,4 +1,6 @@
 import { transformSync } from "esbuild";
+import * as jsxRuntime from "react/jsx-runtime";
+import * as react from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -107,20 +109,29 @@ function renderDefault(path: string, props: Record<string, unknown>): string {
     jsx: "automatic",
   }).code;
 
-  const module: { exports: Record<string, unknown> } = { exports: {} };
-  const runtime = require("react/jsx-runtime") as Record<string, unknown>;
-  const react = require("react") as Record<string, unknown>;
+  /**
+   * The shim is evaluated the way the browser would evaluate it.
+   *
+   * Static imports, not `require()`: the runtime modules are resolved by ESM at
+   * the top of the file, so a shim's `import "react/jsx-runtime"` is answered
+   * with the same object the test itself renders through. `module` is spelled
+   * `mod` because `module` is a Next.js lint error — it shadows the CommonJS
+   * binding the bundler cares about.
+   */
+  const mod: { exports: Record<string, unknown> } = { exports: {} };
+  const runtime = jsxRuntime as unknown as Record<string, unknown>;
+  const reactRuntime = react as unknown as Record<string, unknown>;
   new Function("exports", "require", "module", jsx)(
-    module.exports,
+    mod.exports,
     (id: string) => {
       if (id === "react" || id === "react/jsx-runtime") return runtime;
-      if (id.startsWith("react/")) return react;
+      if (id.startsWith("react/")) return reactRuntime;
       throw new Error(`The shim imported something it has no stand-in for: ${id}`);
     },
-    module
+    mod
   );
 
-  const Component = module.exports.default as (props: unknown) => unknown;
+  const Component = mod.exports.default as (props: unknown) => unknown;
   return renderToStaticMarkup(Component(props) as never);
 }
 

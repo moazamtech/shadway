@@ -205,7 +205,7 @@ const FONT_FN = `(options = {}) => ({
  * floor under the project's own imports, not as the whole surface; `fontModules`
  * unions the two.
  */
-const DEFAULT_FONT_NAMES = [
+export const DEFAULT_FONT_NAMES = [
   "Inter",
   "Roboto",
   "Geist",
