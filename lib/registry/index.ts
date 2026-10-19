@@ -12,6 +12,7 @@ import {
 } from "@/lib/registry/types";
 import { collectNpmDependencies } from "@/lib/studio/deps";
 import { hasShadcnFile, withShadcnFiles } from "@/lib/preview/shadcn-ui";
+import { reachableSourceFiles, retargetImports } from "@/lib/registry/sources";
 
 /**
  * Builds a shadcn registry item for a published component.
@@ -114,17 +115,60 @@ export async function buildRegistryItem(
     return `${installedDir}/${filePath.slice(authorDir.length + 1)}`;
   };
 
+  /**
+   * The component's own files: the entry and whatever it reaches.
+   *
+   * The stored `files` map is the author's whole project, not the item. It
+   * still holds the starter's `components/component.tsx` long after the author
+   * replaced it, and shipping that verbatim installed a file reading "Shadway
+   * Starter" beside the real component — a file nothing imports, at a path a
+   * consumer may already have. Reachability is the same rule a bundler uses,
+   * and it is the only one that keeps scaffolding out of the package.
+   */
+  const authored = reachableSourceFiles({
+    code: component.code,
+    componentPath: component.componentPath,
+    files: component.files ?? [],
+  });
+  const entry = authored[0];
+  const authorPaths = new Set(authored.map((file) => file.path));
+
+  const support = authored.slice(1).flatMap((file) => {
+    const installedPath = relocate(file.path);
+    return installedPath ? [{ ...file, installedPath }] : [];
+  });
+
+  // Author path → installed path, for the import rewrite below.
+  const installedPaths = new Map<string, string>();
+  if (entry) installedPaths.set(entry.path, `/${sourcePath}`);
+  for (const file of support) installedPaths.set(file.path, `/${file.installedPath}`);
+
+  const retarget = (content: string, from: string) =>
+    entry
+      ? retargetImports({
+          content,
+          from,
+          authorPaths,
+          installed: installedPaths,
+          entry: entry.path,
+        })
+      : content;
+
   claim(
     toRegistryFile({
       path: sourcePath,
-      content: component.code,
+      content: retarget(entry?.content ?? component.code, entry?.path ?? sourcePath),
       type: itemType,
     })
   );
-  for (const file of component.files ?? []) {
-    const relocated = relocate(file?.path);
-    if (!relocated) continue;
-    claim(toRegistryFile({ ...file, path: relocated }));
+  for (const file of support) {
+    claim(
+      toRegistryFile({
+        path: file.installedPath,
+        content: retarget(file.content, file.path),
+        type: file.type,
+      })
+    );
   }
   for (const file of Object.values(resolution.files)) {
     claim(toRegistryFile(file));

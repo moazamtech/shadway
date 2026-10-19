@@ -424,11 +424,19 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
    * item unparseable.
    */
   it("normalises a stored file type the CLI does not accept", async () => {
+    const wired = `import { Hero } from "./hero";
+
+export default function Demo() {
+  return <Hero />;
+}
+`;
     store.set(
       "pricing-hero",
       document({
+        componentPath: "/components/pricing/hero-demo.tsx",
+        code: wired,
         files: [
-          { path: "components/pricing/hero-demo.tsx", content: DEMO_CODE, type: "registry:hero" },
+          { path: "components/pricing/hero-demo.tsx", content: wired, type: "registry:hero" },
           { path: "components/pricing/hero.tsx", content: "export const x = 1;\n", type: "component" },
         ],
       })
@@ -436,6 +444,9 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
 
     const item = await build();
     expect(contractViolations(item, { slug: "pricing-hero" })).toEqual([]);
+
+    const hero = item?.files.find((file) => file.path === "components/ui/hero.tsx");
+    expect(hero?.type).toBe("registry:component");
   });
 
   /**
@@ -447,18 +458,31 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
    * itself. Measured against `shadcn@3.8.5`.
    */
   it("gives every file the target that keeps its directory", async () => {
+    const wired = `import { Panel } from "./nested/panel";
+import "./tokens.css";
+
+export default function Demo() {
+  return <Panel />;
+}
+`;
     store.set(
       "pricing-hero",
       document({
+        componentPath: "/components/pricing/hero-demo.tsx",
+        code: wired,
         files: [
-          { path: "components/pricing/hero-demo.tsx", content: DEMO_CODE, type: "registry:file" },
+          { path: "components/pricing/hero-demo.tsx", content: wired, type: "registry:component" },
+          {
+            path: "components/pricing/nested/panel.tsx",
+            content: "export function Panel() { return null; }\n",
+            type: "registry:component",
+          },
+          { path: "components/pricing/tokens.css", content: HERO_CSS, type: "registry:style" },
           {
             path: "app/pricing/page.tsx",
             content: "export default function Page() { return null; }\n",
             type: "registry:page",
           },
-          { path: "components/pricing/nested/panel.tsx", content: "export const p = 1;\n", type: "registry:component" },
-          { path: "styles/pricing-hero.css", content: HERO_CSS, type: "registry:style" },
         ],
       })
     );
@@ -471,9 +495,21 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
     }
 
     // The source file is the one case whose path is decided by the item, and it
-    // belongs in the UI directory for a UI item.
-    expect(item?.files[0].path).toBe("components/ui/pricing-hero.tsx");
+    // belongs in the UI directory for a UI item. Its neighbours move with it.
+    const paths = (item?.files ?? []).map((file) => file.path);
+    expect(paths[0]).toBe("components/ui/pricing-hero.tsx");
     expect(item?.files[0].type).toBe("registry:ui");
+    expect(paths).toContain("components/ui/nested/panel.tsx");
+    expect(paths).toContain("components/ui/tokens.css");
+
+    // A CSS file is written verbatim; the CLI would parse anything else as TSX.
+    expect(item?.files.find((file) => file.path === "components/ui/tokens.css")?.type).toBe(
+      "registry:file"
+    );
+
+    // The demo page is the author's, not the component's: nothing imports it,
+    // so it is not in the item.
+    expect(paths).not.toContain("app/pricing/page.tsx");
   });
 
   it("puts a block's source where blocks live", async () => {
@@ -502,11 +538,21 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
    * source, so every relative edge survives untouched.
    */
   it("moves a UI item's supporting files with its source", async () => {
+    const wired = `import { p } from "./panel";
+import { s } from "./deep/stat";
+import { x } from "@/lib/shared";
+
+export default function PricingHero() {
+  return <div>{p}{s}{x}</div>;
+}
+`;
     store.set(
       "pricing-hero",
       document({
         componentPath: "/components/component.tsx",
+        code: wired,
         files: [
+          { path: "components/component.tsx", content: wired, type: "registry:component" },
           { path: "components/panel.tsx", content: "export const p = 1;\n", type: "registry:component" },
           { path: "components/deep/stat.tsx", content: "export const s = 1;\n", type: "registry:component" },
           { path: "lib/shared.ts", content: "export const x = 1;\n", type: "registry:lib" },
@@ -545,12 +591,22 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
   });
 
   it("keeps only one file per path", async () => {
+    const wired = `import { one } from "./panel";
+
+export default function PricingHero() {
+  return <div>{one}</div>;
+}
+`;
     store.set(
       "pricing-hero",
       document({
+        componentPath: "/components/component.tsx",
+        code: wired,
         files: [
-          { path: "components/ui/pricing-hero.tsx", content: "export const shadow = 1;\n", type: "registry:component" },
-          { path: "styles/pricing-hero.css", content: HERO_CSS, type: "registry:style" },
+          { path: "components/component.tsx", content: wired, type: "registry:component" },
+          // The same file twice, once with a leading slash.
+          { path: "components/panel.tsx", content: "export const one = 1;\n", type: "registry:component" },
+          { path: "/components/panel.tsx", content: "export const two = 2;\n", type: "registry:component" },
         ],
       })
     );
@@ -558,6 +614,9 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
     const item = await build();
     const paths = (item?.files ?? []).map((file) => file.path);
     expect(new Set(paths).size).toBe(paths.length);
+    expect(item?.files.find((file) => file.path === "components/ui/panel.tsx")?.content).toContain(
+      "export const one = 1;"
+    );
   });
 
   /**

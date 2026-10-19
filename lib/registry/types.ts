@@ -159,9 +159,14 @@ export function normalizeRegistryFilePath(value: unknown): string | null {
  *
  * Anything the schema does not list becomes `registry:component`, which is
  * where a component's source belongs anyway — and it is strictly better than
- * the alternative, which is an item the CLI refuses to parse at all.
+ * the alternative, which is an item the CLI refuses to parse at all. A file
+ * that is not JavaScript or TypeScript source is `registry:file` regardless of
+ * what was declared: the CLI parses every other type as TSX before writing it,
+ * so a `.css` or `.json` shipped as `registry:component` (or `registry:style`)
+ * is handed to a TypeScript parser.
  */
-export function normalizeRegistryFileType(value: unknown): RegistryFileType {
+export function normalizeRegistryFileType(value: unknown, path = ""): RegistryFileType {
+  if (path && !/\.(?:[mc]?[jt]sx?)$/i.test(path)) return "registry:file";
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (isRegistryFileType(trimmed)) return trimmed;
@@ -207,7 +212,7 @@ export function toRegistryFile(input: {
   if (!path) return null;
   if (typeof input.content !== "string" || !input.content) return null;
 
-  const type = normalizeRegistryFileType(input.type);
+  const type = normalizeRegistryFileType(input.type, path);
   // An explicit target wins: upstream registry files may address `~/...`, which
   // is a destination the CLI expands and this module must not rewrite.
   const target = normalizeRegistryFilePath(input.target) ?? path;

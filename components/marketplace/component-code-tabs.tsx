@@ -6,6 +6,7 @@ import { Check, Copy, FileCode2, Loader2 } from "lucide-react";
 import { CodeBlock } from "@/components/ai-elements/code-block";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { reachableSourceFiles } from "@/lib/registry/sources";
 import { resolveComponentPath } from "@/lib/studio/project";
 import {
   DEFAULT_COMPONENT_PATH,
@@ -82,12 +83,21 @@ export function sourceFilesOf(item: ComponentSource): SourceFile[] {
     });
   };
 
-  // `code` is the component as stored; a record published before the path was
-  // recorded still carries its real source among the support files, and that
-  // copy is the one to show — the stale field would put the starter on screen.
-  push(componentPath, map[componentPath] ?? item.code);
+  /**
+   * Only the files the component reaches. The stored map is the author's whole
+   * project: the starter's `components/component.tsx` is still in it long after
+   * it was replaced, and it is not this component — listing it put a scaffold
+   * one click away from "Copy".
+   */
+  for (const file of reachableSourceFiles({
+    code: item.code,
+    componentPath,
+    files: item.files ?? [],
+  })) {
+    push(file.path, file.content);
+  }
+
   push(DEFAULT_DEMO_PATH, item.demoCode);
-  for (const [path, content] of Object.entries(map)) push(path, content);
   push(DEFAULT_STYLE_PATH, item.styleCode);
 
   return files;
@@ -111,38 +121,36 @@ export function ComponentCodeTabs({
   source?: ComponentSource;
   className?: string;
 }) {
-  const [fetched, setFetched] = useState<ComponentSource | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  // Keyed by slug: a dialog can point at another component without unmounting,
+  // and the previous answer must not be shown while the next one loads.
+  const [fetched, setFetched] = useState<{ slug: string; source: ComponentSource } | null>(null);
+  const [failedSlug, setFailedSlug] = useState<string | null>(null);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // A caller that already holds the source (the detail page does) wins, always.
-  const loaded = source ?? fetched;
+  const loaded = source ?? (fetched?.slug === slug ? fetched.source : null);
+  const failed = !loaded && failedSlug === slug;
 
   useEffect(() => {
-    if (source || fetched) return;
+    if (source || fetched?.slug === slug || failedSlug === slug) return;
     let cancelled = false;
-    setLoading(true);
 
     fetch(`/api/components/${encodeURIComponent(slug)}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (cancelled) return;
-        if (data?.item) setFetched(data.item as ComponentSource);
-        else setError(true);
+        if (data?.item) setFetched({ slug, source: data.item as ComponentSource });
+        else setFailedSlug(slug);
       })
       .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFailedSlug(slug);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [slug, source, fetched]);
+  }, [slug, source, fetched, failedSlug]);
 
   const files = useMemo(() => (loaded ? sourceFilesOf(loaded) : []), [loaded]);
   const active = files.find((file) => file.path === activePath) ?? files[0] ?? null;
@@ -156,7 +164,7 @@ export function ComponentCodeTabs({
     } catch {}
   }
 
-  if (loading || !loaded) {
+  if (!loaded) {
     return (
       <div
         className={cn(
@@ -164,7 +172,7 @@ export function ComponentCodeTabs({
           className
         )}
       >
-        {error ? (
+        {failed ? (
           "No source available."
         ) : (
           <>
