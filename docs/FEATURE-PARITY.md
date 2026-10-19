@@ -19,7 +19,7 @@
 | Component detail (Preview/Code/Install) | `apps/web/c/[component]` | Present | `components/marketplace/component-detail.tsx`, `app/c/[slug]/page.tsx` | — | — |
 | Owner controls (PATCH/DELETE) | owner endpoints | Present | `app/api/components/[slug]/route.ts` (PATCH/DELETE, 401/403/200 verified) | — | — |
 | Install (CLI / v0 / Lovable / Bolt + download) | install tabs | Present | `components/marketplace/install-tabs.tsx` | — | — |
-| Registry endpoint (`/r/<slug>`) | `/r/<slug>` | Present | `app/r/[slug]/route.ts` (and bundles) | — | — |
+| Registry endpoint (`/r/<slug>`) | `/r/<slug>` | Present | `app/r/[slug]/route.ts` + `lib/registry/index.ts`; installed for real by `scripts/qa-install.ts` | — | — |
 
 ## Studio
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|
 | Full-page editor (Monaco) | `apps/web/studio` | Present | `components/studio/component-studio.tsx`, `studio-editor.tsx` | — | — |
 | Collapsible file tree + packages panel | `use-file-system` hook | Present | studio shell | — | — |
-| Live local preview (no remote bundler) | `sandbox` | Present | `components/preview/local-preview.tsx` | — | — |
+| Live local preview (no remote bundler) | `sandbox` | Present | `components/studio/sandpack-preview.tsx`, `lib/preview/build.ts` | — | — |
 | Separate publish page | `publish` | Present | `components/studio/publish-panel.tsx` | — | — |
 | AI-assisted generation / chat | `magic`, `magic-chat` | Partial | `app/component-generator/page.tsx`, `app/vibecode/*` — generation exists; no interactive refine chat | L | P1 |
 
@@ -38,9 +38,9 @@
 | Collections (save + group) | folders / lists | Present | `app/collections/**`, `lib/db/collections.ts` | — | — |
 | Bookmarks / favorites | `bookmarks` | Present | `lib/db/marketplace.ts`, `components/marketplace/...` | — | — |
 | Votes / likes count (atomic $inc) | upvotes | Present | marketplace data layer | — | — |
-| Author pages (`/u/<username>`) | `[username]` | Present | `app/u/[username]/page.tsx` | — | — |
-| Bundles (groups of components, free/paid) | templates | Present (ours) | `app/bundles/**`, `lib/db/bundles.ts`, `app/r/[...slug]` (`/r/bundle/<slug>`) | — | — |
-| Studio dashboard (owner) | public-dashboard | Present | `components/marketplace/studio-dashboard.tsx`, `app/dashboard/page.tsx` | — | — |
+| Author pages (`/u/<username>`) | `[username]` | Present | `app/u/[username]/page.tsx` (the only profile page; `/profile` 307s here) | — | — |
+| Bundles (groups of components, free/paid) | templates | Removed | routes and data layer are gone; `/r/bundle/*` no longer resolves | — | — |
+| Studio dashboard (owner) | public-dashboard | Present | `components/studio/studio-dashboard.tsx`, `app/studio/page.tsx` | — | — |
 | Multiple demos per component | `demos/*` | Missing | — | M | P2 |
 | Component reviews / comments | threads | Missing | — | M | P2 |
 | on_review / posted / featured workflow | publish states | Missing (we use draft/published/hidden/flagged) | — | M | P2 |
@@ -50,8 +50,8 @@
 | Capability | Reference evidence | Our status | Our evidence | Effort | Priority |
 |---|---|---|---|---|---|
 | Credentials auth + register | Clerk (we use next-auth) | Present | `lib/auth.ts`, `app/api/register/route.ts`, `app/login`, `app/register`, `components/auth/*` | — | — |
-| User profile | `[username]` | Present | `app/u/[username]/page.tsx`, `app/profile/page.tsx` | — | — |
-| Settings page | `settings` | Missing | — | M | P2 |
+| User profile | `[username]` | Present | `app/u/[username]/page.tsx`, `app/profile/page.tsx` (307) | — | — |
+| Settings page | `settings` | Present | `app/settings/page.tsx`; 38 assertions in `scripts/qa-settings.ts` | — | — |
 | Public developer dashboard | `public-dashboard` | Partial | `app/dashboard/page.tsx` is private owner view | M | P2 |
 | Pricing / monetization page | `pricing`, `api-access` | Missing | — | L | P3 |
 
@@ -71,10 +71,10 @@
 | Capability | Reference evidence | Our status | Our evidence | Effort | Priority |
 |---|---|---|---|---|---|
 | Mobile-first feed grid | yes | Present | `qa-home.ts` overflow 0 @375 | — | — |
-| Hydration-clean client components | yes | Present | `COMPONENTS` verified 0 hydration warnings | — | — |
+| Hydration-clean client components | yes | Present | `components/marketplace/relative-time.tsx`; `qa-install.ts` loads the feed seconds after a publish | — | — |
 | Dark mode | yes | Partial (verify per surface) | tokens via CSS vars | S | P1 |
-| Command palette (⌘K) | likely | Missing | — | M | P2 |
-| Skeleton loading states | yes | Partial | `qa-home.ts` skeleton; others TBD | S | P2 |
+| Command palette (⌘K) | likely | Present | `components/marketplace/command-palette.tsx` | — | — |
+| Skeleton loading states | yes | Present | branded cover skeleton in `component-card.tsx`, poster-first loader in `preview/bundled-preview.tsx` | — | — |
 
 ## SEO / discovery
 
@@ -86,8 +86,8 @@
 1. **AI chat for component generation** - build an iterative chat over the existing generator.
 2. **Multiple demos per component** — media loop (video.mp4 / preview.png) already captures a single cover; extend to N.
 3. **Component review/comment thread** + status workflow (review queue).
-4. **User settings + public developer dashboard** parity.
-5. **Command palette (⌘K)** for search across components/authors/tags.
+4. **Public developer dashboard** — the owner view exists at `/studio`; the public one does not.
+5. ~~**Command palette (⌘K)**~~ — done, `command-palette.tsx`.
 6. **Dark-mode pass** across every touched surface.
 7. **Docs overhaul** to match depth.
 
@@ -96,5 +96,7 @@
 - Lint (new surface) → 0 errors.
 - `qa-home` → all checks pass (cards, filters, sort, search, 0 hydration, 0 overflow @375/768/1440).
 - `qa-owner-controls` → all checks pass (401 anonymous, 403 non-owner PATCH/DELETE, 200 owner, dashboard 200).
-- `qa-auth` → all 16 checks pass.
+- `qa-auth` → all 16 checks pass, including the registry's JSON 404.
+- `qa-publish-flow` → 8 fixtures build, publish and read back; a broken import is refused with the compiler's message.
+- `qa-install` → the real `shadcn` CLI installs a UI item and a block into a scratch Next project; every import resolves and every package is declared.
 - Anonymous publish → 401 (verified earlier).
