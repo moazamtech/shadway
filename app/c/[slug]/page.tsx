@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { CARD_FIELDS, getComponentBySlugAnyStatus } from "@/lib/db/components";
 import { generateSEOMetadata } from "@/lib/seo";
@@ -24,6 +26,45 @@ type PageProps = {
 async function getComponentForMeta(slug: string) {
   return getComponentBySlugAnyStatus(slug, { projection: CARD_FIELDS });
 }
+
+type ComponentMetaRow = NonNullable<Awaited<ReturnType<typeof getComponentForMeta>>>;
+
+/**
+ * One read, three outcomes.
+ *
+ * "There is no component with this slug" and "the database did not answer" both
+ * arrive as `null` from a `catch`, and they need opposite treatment: the first is
+ * a 404, the second must render the page that can explain itself. Collapsing them
+ * — which is what the metadata path had to do, and all it needed — is how a
+ * database wobble becomes a page telling every visitor a real component was
+ * deleted.
+ *
+ * `cache` is React's per-request memo, not a data cache: `generateMetadata` and
+ * the page are two callers in one render, and without it every detail view would
+ * pay for the same query twice.
+ */
+type ComponentRead =
+  | { status: "found"; component: ComponentMetaRow }
+  | { status: "missing" }
+  | { status: "unavailable" };
+
+const readComponentForMeta = cache(
+  async (slug: string): Promise<ComponentRead> => {
+    try {
+      const component = await getComponentForMeta(slug);
+      return component
+        ? { status: "found", component }
+        : { status: "missing" };
+    } catch (error) {
+      // The database is unreachable, or `MONGODB_URI` is unset — the same
+      // condition the detail route survives by reading `registry/`. Metadata
+      // generation must not be the thing that takes the page down: a wrong card
+      // is recoverable, a 500 is not.
+      console.error(`Failed to build metadata for component "${slug}":`, error);
+      return { status: "unavailable" };
+    }
+  },
+);
 
 /** Mongo dates, defensively — an older record may not carry the field at all. */
 function toIso(value: unknown): string | undefined {
@@ -98,19 +139,9 @@ function componentMetadata(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const read = await readComponentForMeta(slug);
 
-  let component: Awaited<ReturnType<typeof getComponentForMeta>> = null;
-  try {
-    component = await getComponentForMeta(slug);
-  } catch (error) {
-    // The database is unreachable, or `MONGODB_URI` is unset — the same
-    // condition the detail route survives by reading `registry/`. Metadata
-    // generation must not be the thing that takes the page down: a wrong card
-    // is recoverable, a 500 is not.
-    console.error(`Failed to build metadata for component "${slug}":`, error);
-  }
-
-  if (!component) {
+  if (read.status !== "found") {
     return generateSEOMetadata({
       title: "Component not found | Shadway",
       description: UNAVAILABLE_DESCRIPTION,
@@ -119,19 +150,34 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     });
   }
 
-  return componentMetadata(component, slug);
+  return componentMetadata(read.component, slug);
 }
 
 /**
- * The page renders nothing of its own.
+ * The shell around a component.
  *
- * Every visible part of this route is state — the loading skeleton, the
+ * Every *visible* part of this route is state — the loading skeleton, the
  * not-found panel, the tab strip — and all of it belongs to the client
- * component, which fetches the component itself. This server shell exists only
- * so `generateMetadata` has a server component to live in; rendering the client
- * component unchanged keeps the page byte-identical to what it was before the
- * split.
+ * component, which fetches the component itself with the reader's credentials.
+ * The server shell exists so `generateMetadata` has a server component to live
+ * in, and for one routing decision the client cannot make:
+ *
+ * a slug with no row at all is a **404**, not a 200 with a "not found" panel in
+ * it. The panel was the only outcome for a while, and the cost is invisible from
+ * inside the app: a crawler is told every mistyped URL exists, a shared link that
+ * was deleted looks alive to every status check, and Next's own not-found page —
+ * the one with the framing and the way home — never renders on the route most
+ * likely to need it.
+ *
+ * `"unavailable"` deliberately renders the client instead. A database outage is
+ * not evidence that the component was deleted, and the client's own state can say
+ * what happened without claiming the page never existed.
  */
-export default function ComponentDetailPage() {
+export default async function ComponentDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const read = await readComponentForMeta(slug);
+
+  if (read.status === "missing") notFound();
+
   return <ComponentDetailClient />;
 }
