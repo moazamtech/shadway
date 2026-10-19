@@ -5,7 +5,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdmin, sessionAvatar, sessionDisplayName, sessionUsername } from "@/lib/session";
 import { ensureUsername, resolveProfile } from "@/lib/db/users";
-import { listComponents, listComponentsBySlugs } from "@/lib/db/components";
+import {
+  EMPTY_AUTHOR_STATS,
+  getAuthorStats,
+  listComponents,
+  listComponentsBySlugs,
+  MAX_PAGE_SIZE,
+} from "@/lib/db/components";
 import { serializeCard } from "@/lib/serialize";
 import { getUserBookmarks } from "@/lib/db/marketplace";
 import { Button } from "@/components/ui/button";
@@ -39,6 +45,11 @@ function toCardItem(item: ComponentListItem) {
  * visitors see), plus a Saved tab and the owner's shortcuts. Work is filtered
  * by this account's handle, the handle `resolveAuthor` stamps on every publish
  * — the one identity rule the whole app shares.
+ *
+ * The public page splits the work into the taxonomy's two groups, because a
+ * visitor arriving at a stranger's profile needs to tell a hero section from a
+ * button. The owner knows what they wrote, so this one keeps the flat list and
+ * spends the saved round trip on the counts instead.
  */
 export default async function ProfilePage({
   searchParams,
@@ -60,19 +71,17 @@ export default async function ProfilePage({
     (email ? await ensureUsername(email).catch(() => null) : null) ??
     sessionUsername(session);
 
-  const [profile, components, savedSlugs] = await Promise.all([
+  const [profile, stats, components, savedSlugs] = await Promise.all([
     resolveProfile(handle).catch(() => null),
-    listComponents({ author: handle, limit: 60 }).catch(() => []),
+    // Counted by the database rather than added up over the page of cards
+    // below: that page stops at `MAX_PAGE_SIZE`, so an author past the ceiling
+    // was reported as owning exactly as many components as the grid could
+    // show — and the tab badge repeated the same wrong number beside it.
+    getAuthorStats(handle).catch(() => EMPTY_AUTHOR_STATS),
+    listComponents({ author: handle, limit: MAX_PAGE_SIZE }).catch(() => []),
     getUserBookmarks(session.user.id).catch(() => [] as string[]),
   ]);
   const saved = await listComponentsBySlugs(savedSlugs).catch(() => []);
-
-  const stats = {
-    components: components.length,
-    views: components.reduce((sum, item) => sum + (item.views || 0), 0),
-    likes: components.reduce((sum, item) => sum + (item.likes || 0), 0),
-    installs: components.reduce((sum, item) => sum + (item.installs || 0), 0),
-  };
 
   const activeTab = tabParam === "saved" ? "saved" : "components";
   const basePath = "/profile";
@@ -108,18 +117,29 @@ export default async function ProfilePage({
         basePath={basePath}
         activeTab={activeTab}
         tabs={[
-          { id: "components", label: "Components", count: components.length },
+          // The badge counts everything they have published, not the page the
+          // grid below managed to draw — the same number the Components stat
+          // reports, so the tab and the tile cannot disagree.
+          { id: "components", label: "Components", count: stats.components },
           { id: "saved", label: "Saved", count: saved.length },
         ]}
         stats={stats}
       >
         {activeTab === "components" ? (
           components.length ? (
-            <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[1200px]:grid-cols-3">
-              {components.map((item) => (
-                <ComponentCard key={item.slug} item={toCardItem(item)} />
-              ))}
-            </div>
+            <>
+              {components.length < stats.components ? (
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Showing the {components.length} most recent of{" "}
+                  {stats.components} published.
+                </p>
+              ) : null}
+              <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[1200px]:grid-cols-3">
+                {components.map((item) => (
+                  <ComponentCard key={item.slug} item={toCardItem(item)} />
+                ))}
+              </div>
+            </>
           ) : (
             <ProfileEmpty
               title="Nothing published yet"

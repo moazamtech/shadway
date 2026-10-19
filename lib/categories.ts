@@ -184,6 +184,33 @@ export function registryTypeFor(value: string | null | undefined): "registry:ui"
   return findGroup(normalizeGroup(value))?.registryType ?? "registry:ui";
 }
 
+/**
+ * Every value a component might actually be *stored* under that reads as
+ * `group` — the query side of `normalizeGroup`.
+ *
+ * `normalizeGroup` answers "which group is this component in?" by rewriting the
+ * value in the UI. A database query cannot do that. It matched
+ * `category: "marketing"` against the stored string, and every component filed
+ * before the taxonomy existed is stored as `block` or `hero` or `pricing` —
+ * so the category the sidebar links to returned an empty grid while the header
+ * counted one item. A count that disagrees with the grid beneath it is worse
+ * than either being wrong alone.
+ *
+ * So the query is expanded to the whole equivalence class instead: the two
+ * canonical group slugs, plus every legacy alias that resolves to them. Held
+ * here rather than in the route so the taxonomy stays the only place that knows
+ * which old names exist.
+ */
+export function storedCategoriesFor(group: string): string[] {
+  const target = normalizeGroup(group);
+  const aliases = Object.keys(LEGACY_GROUP_ALIASES).filter(
+    (alias) => LEGACY_GROUP_ALIASES[alias] === target
+  );
+  // The canonical slug is listed even when no alias spells it, so the result is
+  // never empty for a real group.
+  return [target, ...aliases.filter((alias) => alias !== target)];
+}
+
 /** The tag a slug names, or `null` when it is not one of ours. */
 export function findTag(slug: string): CategoryTag | null {
   const key = slug.trim().toLowerCase();

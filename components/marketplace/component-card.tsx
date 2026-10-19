@@ -54,6 +54,7 @@ export function ComponentCard({
   savedSlugs,
   likedSlugs,
   onOpen,
+  hideAuthor = false,
 }: {
   item: MarketplaceCardItem;
   onSave?: (slug: string) => void;
@@ -62,6 +63,16 @@ export function ComponentCard({
   likedSlugs?: Record<string, boolean>;
   /** Opens the detail dialog. When absent the card links straight to the page. */
   onOpen?: (slug: string) => void;
+  /**
+   * Drops the author name, leaving the title and its age.
+   *
+   * Opt-in and defaulting off, because everywhere else on the site the author
+   * is the one piece of the card you have not already read: the page heading,
+   * the rail, the search result. On a creator's own library it is a line of
+   * forty repetitions of the name directly above the grid, and the link it
+   * wraps points back at the page it is already on.
+   */
+  hideAuthor?: boolean;
 }) {
   /** The video src is assigned only on hover — nothing fetches otherwise. */
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -202,22 +213,24 @@ export function ComponentCard({
 
       {/* Meta */}
       <div className="mt-2.5 flex items-start gap-2.5">
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/40 bg-muted/50 text-[9px] font-bold uppercase text-muted-foreground"
-          aria-hidden="true"
-        >
-          {item.author.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={item.author.avatar}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            item.author.username.slice(0, 2)
-          )}
-        </span>
+        {hideAuthor ? null : (
+          <span
+            className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/40 bg-muted/50 text-[9px] font-bold uppercase text-muted-foreground"
+            aria-hidden="true"
+          >
+            {item.author.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.author.avatar}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              item.author.username.slice(0, 2)
+            )}
+          </span>
+        )}
 
         <div className="min-w-0 flex-1">
           {onOpen ? (
@@ -237,19 +250,25 @@ export function ComponentCard({
             </Link>
           )}
           <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Link
-              href={`/u/${item.author.username}`}
-              className="truncate rounded-sm outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {item.author.name}
-            </Link>
-            {item.createdAt ? (
+            {hideAuthor ? null : (
               <>
-                <span aria-hidden="true" className="text-border">
-                  ·
-                </span>
-                <span className="shrink-0">{timeAgo(item.createdAt)}</span>
+                <Link
+                  href={`/u/${item.author.username}`}
+                  className="truncate rounded-sm outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {item.author.name}
+                </Link>
+                {/* The dot belongs to the pair: with no name in front of it, a
+                    leading separator is the first thing on the line. */}
+                {item.createdAt ? (
+                  <span aria-hidden="true" className="text-border">
+                    ·
+                  </span>
+                ) : null}
               </>
+            )}
+            {item.createdAt ? (
+              <span className="shrink-0">{timeAgo(item.createdAt)}</span>
             ) : null}
           </div>
         </div>

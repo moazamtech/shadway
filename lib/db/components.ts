@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
-import { ObjectId, type Sort } from "mongodb";
+import { ObjectId, type Document, type Sort } from "mongodb";
 import { isValidSlug, slugify } from "@/lib/component-slug";
+import { storedCategoriesFor } from "@/lib/categories";
 
 export type ComponentVisibility = "public" | "unlisted" | "private";
 export type ComponentStatus = "draft" | "pending" | "published" | "hidden" | "flagged";
@@ -189,6 +190,12 @@ export async function ensureComponentIndexes(): Promise<void> {
     { key: { installs: -1, createdAt: -1 } },
     // Sorting by likes for the "popular" view.
     { key: { likes: -1, createdAt: -1 } },
+    // One author's public catalogue: the filter the profile pages use, ordered
+    // the way they render it. Appended rather than folded into the two indexes
+    // above on purpose — `createIndexes` matches on the key pattern, so
+    // reworking an existing entry turns a no-op into an IndexOptionsConflict
+    // (code 85) that takes the whole batch down with it, feed included.
+    { key: { "author.username": 1, status: 1, visibility: 1, createdAt: -1 } },
   ];
 
   // A collection that already carries an index with the same name but different
@@ -333,7 +340,25 @@ export async function listComponentsPage(
   };
 
   if (options.tag) filter.tags = options.tag;
-  if (options.category) filter.category = options.category;
+  if (options.category) {
+    /**
+     * Expanded to the whole equivalence class, not matched literally.
+     *
+     * Every component in the database is stored under one of the ad-hoc names
+     * the taxonomy absorbed — `block`, `hero`, `pricing`, `animation` — while
+     * the links the UI renders are the canonical group slugs. A literal match
+     * therefore returned nothing for every component published before the
+     * taxonomy existed, and the page said so in two places at once: the chip
+     * was selected, the header counted the items, and the grid beneath was
+     * empty. Two wrong numbers are harder to trust than one, and the reader has
+     * no way to tell which one to believe.
+     *
+     * `storedCategoriesFor` is the query-side twin of `normalizeGroup`, and
+     * lives beside it so the taxonomy stays the only place that knows which old
+     * names exist.
+     */
+    filter.category = { $in: storedCategoriesFor(options.category) };
+  }
   if (options.author) filter["author.username"] = options.author;
 
   if (options.q && options.q.trim()) {
@@ -455,6 +480,88 @@ export async function listComponentsBySlugs(
     if (row) ordered.push(row);
   }
   return ordered;
+}
+
+export type AuthorStats = {
+  components: number;
+  views: number;
+  likes: number;
+  installs: number;
+};
+
+/** What an author who has published nothing reads as. */
+export const EMPTY_AUTHOR_STATS: AuthorStats = {
+  components: 0,
+  views: 0,
+  likes: 0,
+  installs: 0,
+};
+
+/**
+ * The aggregation behind `getAuthorStats`, exported so a test can pin it.
+ *
+ * The filter here has to stay the same one `listComponentsPage` applies. They
+ * are two separate spellings of "published, public, this author" written in
+ * two files, and the day they disagree the profile quietly reports totals for
+ * work the grid will never show — which is the bug this replaced, wearing a
+ * different hat. A test is cheaper than noticing.
+ */
+export function authorStatsPipeline(handle: string): Document[] {
+  return [
+    {
+      $match: {
+        "author.username": handle,
+        status: "published",
+        visibility: "public",
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        components: { $sum: 1 },
+        views: { $sum: { $ifNull: ["$views", 0] } },
+        likes: { $sum: { $ifNull: ["$likes", 0] } },
+        installs: { $sum: { $ifNull: ["$installs", 0] } },
+      },
+    },
+  ];
+}
+
+/**
+ * One author's totals, counted by the database.
+ *
+ * The profile pages used to add these up in JavaScript, over a page of cards
+ * capped at `MAX_PAGE_SIZE`. That cap is the whole bug: an author past sixty
+ * items was reported with exactly sixty of them, in the stat tiles *and* in
+ * the tab badge beside them — a page that contradicts itself about how much
+ * work exists, and gets it wrong in the direction that flatters nobody's
+ * numbers. A `$group` over the matching documents has no ceiling.
+ *
+ * `$ifNull` because the counters are denormalised onto the document and the
+ * older records predate them; without it a missing field would drop the whole
+ * sum for that author rather than count as zero.
+ *
+ * One aggregation rather than four `countDocuments`/sums: a profile page is a
+ * hot path (it is in the sitemap, so crawlers hit it), and four round trips
+ * per render is four chances for one of them to be slower than the rest.
+ */
+export async function getAuthorStats(handle: string): Promise<AuthorStats> {
+  const collection = await getComponentsCollection();
+
+  const [row] = await collection
+    .aggregate<AuthorStats>(authorStatsPipeline(handle))
+    .toArray();
+
+  // A `$group` over zero documents emits no row at all, so an author who has
+  // not published is the empty set rather than a row of nulls.
+  if (!row) return EMPTY_AUTHOR_STATS;
+
+  return {
+    components: row.components ?? 0,
+    views: row.views ?? 0,
+    likes: row.likes ?? 0,
+    installs: row.installs ?? 0,
+  };
 }
 
 export async function createComponent(input: ComponentInput) {
