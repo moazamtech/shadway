@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentDocument } from "@/lib/db/components";
+// The vendored shadcn/ui data — facts about the upstream registry, not a
+// constant the builder is allowed to define. The contract below asks "could the
+// CLI resolve this name?", and this is how that question is answered.
+import { hasShadcnFile } from "@/lib/preview/shadcn-ui";
 
 /**
  * The registry-item contract.
@@ -81,6 +85,9 @@ const HOST_PACKAGES = new Set(["react", "react-dom", "next"]);
 const NAMED_REGISTRY_REFERENCE = /^@[a-zA-Z0-9][a-zA-Z0-9-_]*\/[a-zA-Z0-9][a-zA-Z0-9-_]*$/;
 
 const ABSOLUTE_URL = /^https?:\/\/[^\s]+$/;
+
+/** An item name — `button`, `data-table` — resolved against a registry. */
+const BARE_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /* ------------------------------------------------------------------ *
  * The standalone oracle.
@@ -196,9 +203,22 @@ function contractViolations(item: unknown, options: { slug?: string } = {}): str
     // The CLI decides URL-vs-name with `new URL()`. A relative path fails that,
     // so it is looked up as an item name in the default shadcn/ui registry
     // instead — where nothing of ours lives, and the install dies there.
-    if (!ABSOLUTE_URL.test(dep) && !NAMED_REGISTRY_REFERENCE.test(dep)) {
+    //
+    // A bare name is a different case, and the reason this check is not simply
+    // "must be absolute": shadcn's own items declare each other that way
+    // (`sidebar` lists `button`, `separator`, `sheet`), and the CLI resolves
+    // them against the default registry. So a bare name is legal *when the file
+    // it addresses is one shadcn publishes* — the only shape that can be
+    // resolved — and still a violation for a shadway slug, which cannot.
+    const isUpstreamPrimitive =
+      BARE_NAME.test(dep) && hasShadcnFile(`ui/${dep.replace(/\.tsx$/, "")}.tsx`);
+    if (
+      !ABSOLUTE_URL.test(dep) &&
+      !NAMED_REGISTRY_REFERENCE.test(dep) &&
+      !isUpstreamPrimitive
+    ) {
       bad.push(
-        `registryDependency ${JSON.stringify(dep)} is neither an absolute URL nor an @registry/name reference`
+        `registryDependency ${JSON.stringify(dep)} is neither an absolute URL, an @registry/name reference, nor a primitive shadcn publishes`
       );
     }
   }
@@ -419,11 +439,14 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
   });
 
   /**
-   * The schema makes `target` required for `registry:file` and `registry:page`.
-   * `PUT /api/components/[slug]` never persists one, so every such file in the
-   * database has been serving an item the CLI cannot parse.
+   * The CLI only writes a file at its declared path when it is given a
+   * `target`; without one it takes the directory from `type` and the filename
+   * from `path`, flattening everything in between. That is not a cosmetic
+   * difference: `components/pricing/hero.tsx` and `components/pricing/hero-demo.tsx`
+   * both land directly in `components/`, and a two-file component overwrites
+   * itself. Measured against `shadcn@3.8.5`.
    */
-  it("gives a targetless registry:file the target the schema requires", async () => {
+  it("gives every file the target that keeps its directory", async () => {
     store.set(
       "pricing-hero",
       document({
@@ -434,6 +457,8 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
             content: "export default function Page() { return null; }\n",
             type: "registry:page",
           },
+          { path: "components/pricing/nested/panel.tsx", content: "export const p = 1;\n", type: "registry:component" },
+          { path: "styles/pricing-hero.css", content: HERO_CSS, type: "registry:style" },
         ],
       })
     );
@@ -442,10 +467,62 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
     expect(contractViolations(item, { slug: "pricing-hero" })).toEqual([]);
 
     for (const file of item?.files ?? []) {
-      if (file.type === "registry:file" || file.type === "registry:page") {
-        expect(file.target, file.path).toBe(file.path);
-      }
+      expect(file.target, file.path).toBe(file.path);
     }
+
+    // The source file is the one case whose path is decided by the item, and it
+    // belongs in the UI directory for a UI item.
+    expect(item?.files[0].path).toBe("components/ui/pricing-hero.tsx");
+    expect(item?.files[0].type).toBe("registry:ui");
+  });
+
+  it("puts a block's source where blocks live", async () => {
+    store.set(
+      "pricing-hero",
+      document({ category: "marketing", files: [] })
+    );
+
+    const item = await build();
+    expect(item?.type).toBe("registry:block");
+    expect(item?.files[0].path).toBe("components/pricing-hero.tsx");
+    expect(item?.files[0].target).toBe("components/pricing-hero.tsx");
+    expect(item?.files[0].type).toBe("registry:block");
+  });
+
+  /**
+   * The studio builds every component at `components/component.tsx`, so its
+   * supporting files are siblings of that path and the source imports them
+   * relatively (`./panel`). A UI item installs at `components/ui/<slug>.tsx`;
+   * leaving `panel.tsx` at `components/panel.tsx` makes that import point at a
+   * module the CLI never wrote, and the install still exits 0.
+   *
+   * Measured against `shadcn@3.8.5` in `scripts/qa-install.ts`: before this, a
+   * two-file component installed cleanly into a scratch project and could not
+   * be imported. The whole author directory moves by the same delta as the
+   * source, so every relative edge survives untouched.
+   */
+  it("moves a UI item's supporting files with its source", async () => {
+    store.set(
+      "pricing-hero",
+      document({
+        componentPath: "/components/component.tsx",
+        files: [
+          { path: "components/panel.tsx", content: "export const p = 1;\n", type: "registry:component" },
+          { path: "components/deep/stat.tsx", content: "export const s = 1;\n", type: "registry:component" },
+          { path: "lib/shared.ts", content: "export const x = 1;\n", type: "registry:lib" },
+        ],
+      })
+    );
+
+    const item = await build();
+    const paths = (item?.files ?? []).map((file) => file.path);
+
+    expect(paths).toContain("components/ui/pricing-hero.tsx");
+    expect(paths).toContain("components/ui/panel.tsx");
+    expect(paths).toContain("components/ui/deep/stat.tsx");
+    // Not a neighbour of the source, so it is not the source's to move.
+    expect(paths).toContain("lib/shared.ts");
+    for (const file of item?.files ?? []) expect(file.target, file.path).toBe(file.path);
   });
 
   it("drops a file path that would be written outside the project", async () => {
@@ -454,6 +531,7 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
       document({
         files: [
           { path: "../../../../.ssh/authorized_keys", content: "ssh-rsa AAAA\n", type: "registry:file" },
+          { path: "C:/Users/ada/.ssh/id_ed25519", content: "key\n", type: "registry:file" },
           { path: "styles/pricing-hero.css", content: HERO_CSS, type: "registry:style" },
         ],
       })
@@ -462,6 +540,8 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
     const item = await build();
     expect(contractViolations(item, { slug: "pricing-hero" })).toEqual([]);
     expect(item?.files.some((file) => file.path.includes(".."))).toBe(false);
+    expect(item?.files.some((file) => /^[a-zA-Z]:/.test(file.path))).toBe(false);
+    expect(item?.files.every((file) => file.target === file.path)).toBe(true);
   });
 
   it("keeps only one file per path", async () => {
@@ -561,6 +641,104 @@ describe("buildRegistryItem — the shadcn registry-item contract", () => {
    * friends are whatever `JSON.stringify` makes of them. The contract is on the
    * bytes on the wire.
    */
+  /**
+   * The install-breaking omission.
+   *
+   * A published component whose code imports `@/components/ui/dialog` installed
+   * into a project without `dialog.tsx`: the item's `files` held only the
+   * author's source and its `dependencies` held Radix — because the publish route
+   * expands the UI files to detect npm packages, so the item *looked* complete —
+   * and the consumer's build failed on a module nobody ever mentioned.
+   */
+  it("names the components/ui primitives the installed code imports", async () => {
+    store.set(
+      "pricing-hero",
+      document({
+        code: `import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+export function PricingHero() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button>Open</Button>
+      </DialogTrigger>
+      <DialogContent>Hello</DialogContent>
+    </Dialog>
+  );
+}
+`,
+        files: [],
+        dependencies: [],
+        registryDependencies: [],
+      })
+    );
+
+    const item = await build();
+
+    expect(item?.registryDependencies).toContain("button");
+    expect(item?.registryDependencies).toContain("dialog");
+    // The names are item names, not file names: `dialog.tsx` resolves against
+    // shadcn's registry as a file that does not exist.
+    expect(item?.registryDependencies).not.toContain("dialog.tsx");
+
+    // The npm packages reached through those files come along, or the consumer
+    // installs a dialog without the Radix package it renders.
+    expect(item?.dependencies).toContain("@radix-ui/react-dialog");
+    expect(item?.dependencies).toContain("@radix-ui/react-slot");
+
+    expect(contractViolations(item, { slug: "pricing-hero" })).toEqual([]);
+  });
+
+  it("does not redeclare a primitive the item already ships", async () => {
+    // An author who writes their own `components/ui/button.tsx` keeps it, and the
+    // CLI must not fetch shadcn's over the top of it.
+    store.set(
+      "pricing-hero",
+      document({
+        code: `import { Button } from "@/components/ui/button";\n\nexport function PricingHero() {\n  return <Button />;\n}\n`,
+        files: [
+          {
+            path: "components/ui/button.tsx",
+            content: "export function Button() { return null; }\n",
+            type: "registry:ui",
+          },
+        ],
+        dependencies: [],
+        registryDependencies: [],
+      })
+    );
+
+    const item = await build();
+
+    expect(item?.registryDependencies).not.toContain("button");
+    expect(item?.files.map((file) => file.path)).toContain("components/ui/button.tsx");
+  });
+
+  it("does not invent a bare name for a file shadcn does not publish", async () => {
+    // A bare name is looked up in the default registry. One we cannot vouch for
+    // installs somebody else's component, or 404s — either way it is worse than
+    // saying nothing.
+    store.set(
+      "pricing-hero",
+      document({
+        code: `import { Thing } from "@/components/ui/not-a-real-primitive";\n\nexport function PricingHero() {\n  return <Thing />;\n}\n`,
+        files: [],
+        dependencies: [],
+        registryDependencies: [],
+      })
+    );
+
+    const item = await build();
+
+    expect(item?.registryDependencies).toEqual([]);
+    expect(contractViolations(item, { slug: "pricing-hero" })).toEqual([]);
+  });
+
   it("survives the JSON round trip the route serves", async () => {
     const item = await build();
     const onTheWire = JSON.parse(JSON.stringify(item));

@@ -85,10 +85,9 @@ export type RegistryFileType = (typeof REGISTRY_FILE_TYPES)[number];
 /**
  * The conditional on each file: these two types additionally require `target`,
  * because the CLI writes them verbatim rather than deriving a destination from
- * the type.
+ * the type. Every file carries one now (see `toRegistryFile`), so this is only
+ * useful as documentation of the schema.
  */
-const FILE_TYPES_REQUIRING_TARGET: readonly string[] = ["registry:file", "registry:page"];
-
 const ITEM_TYPES = new Set<string>(REGISTRY_ITEM_TYPES);
 const FILE_TYPES = new Set<string>(REGISTRY_FILE_TYPES);
 
@@ -148,6 +147,8 @@ export function normalizeRegistryFilePath(value: unknown): string | null {
   const path = value.trim().replace(/^\/+/, "");
   if (!path) return null;
   if (path.includes("\\") || path.includes("\0")) return null;
+  // `C:/Users/...` survives the leading-slash strip and is absolute on Windows.
+  if (/^[a-zA-Z]:/.test(path)) return null;
   const segments = path.split("/");
   if (segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
   return path;
@@ -181,10 +182,20 @@ export type RegistryFile = {
 /**
  * A file the CLI can write, or `null` when there is nothing worth writing.
  *
- * `target` is synthesised from the path when the type requires one. That is
- * lossless rather than a guess: the stored path *is* already the destination
- * the author chose, and the schema has no way to express a file with no
- * `target` at all.
+ * `target` is always written, not only for the two types the schema requires it
+ * on. The reason is a bug that only shows up in somebody else's project: the
+ * CLI, given no `target`, derives the destination *directory from the type and
+ * the filename from the path*, discarding every directory in between. An item
+ * whose type is `registry:component` — the default this module assigns — has
+ * `components/ui/pricing-hero.tsx` written to `components/pricing-hero.tsx`, and
+ * `components/pricing/hero.tsx` written to `components/hero.tsx` as well, so a
+ * multi-file component silently collided with itself and the second file
+ * overwrote the first.
+ *
+ * Measured against `shadcn@3.8.5`: with a `target`, the path is written exactly
+ * as declared. The stored path *is* the destination the author chose, so
+ * copying it into `target` is lossless — and it is the only way to keep a
+ * component's directory structure across the install.
  */
 export function toRegistryFile(input: {
   path?: unknown;
@@ -197,12 +208,11 @@ export function toRegistryFile(input: {
   if (typeof input.content !== "string" || !input.content) return null;
 
   const type = normalizeRegistryFileType(input.type);
-  const target = normalizeRegistryFilePath(input.target);
+  // An explicit target wins: upstream registry files may address `~/...`, which
+  // is a destination the CLI expands and this module must not rewrite.
+  const target = normalizeRegistryFilePath(input.target) ?? path;
 
-  if (FILE_TYPES_REQUIRING_TARGET.includes(type)) {
-    return { path, content: input.content, type, target: target ?? path };
-  }
-  return target ? { path, content: input.content, type, target } : { path, content: input.content, type };
+  return { path, content: input.content, type, target };
 }
 
 /**

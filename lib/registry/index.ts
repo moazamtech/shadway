@@ -4,12 +4,14 @@ import { parseFullSlug, resolveRegistryDependencies } from "@/lib/registry/resol
 import {
   isRegistryItemName,
   normalizeRegistryDependency,
+  normalizeRegistryFilePath,
   REGISTRY_ITEM_SCHEMA_URL,
   toPackageNames,
   toRegistryFile,
   type RegistryFile,
 } from "@/lib/registry/types";
 import { collectNpmDependencies } from "@/lib/studio/deps";
+import { hasShadcnFile, withShadcnFiles } from "@/lib/preview/shadcn-ui";
 
 /**
  * Builds a shadcn registry item for a published component.
@@ -67,15 +69,62 @@ export async function buildRegistryItem(
     files.push(file);
   };
 
+  /**
+   * The item's type also decides where its source file belongs. A UI primitive
+   * installs into `components/ui/`; a block or landing page into `components/`,
+   * which is where shadcn puts blocks and where a consumer looks for one.
+   */
+  const itemType = shadcnRegistrySlug(component.category || "ui");
+  const sourcePath =
+    itemType === "registry:ui"
+      ? `components/ui/${component.slug}.tsx`
+      : `components/${component.slug}.tsx`;
+
+  /**
+   * When the source moves, the files beside it move with it.
+   *
+   * The author's project has one root — the studio always builds at
+   * `components/component.tsx` — so their supporting file is `./install-panel`,
+   * and their nested one is `./install/deep/stat`. Installing the source at
+   * `components/ui/<slug>.tsx` and the supporters at `components/...` leaves
+   * every one of those imports pointing at a file the CLI never wrote: the
+   * install reports success and the consumer's first build fails on a module
+   * the author never named. Rewriting the imports would be editing the author's
+   * code; moving the files by the same delta keeps the relative edges exactly
+   * as they were written.
+   *
+   * Only files under the author's own directory move, and only when the source
+   * itself does; a block installed at `components/` keeps everything in place.
+   */
+  const authorDir = (() => {
+    const authored =
+      typeof component.componentPath === "string"
+        ? normalizeRegistryFilePath(component.componentPath)
+        : null;
+    if (!authored) return null;
+    const slash = authored.lastIndexOf("/");
+    return slash === -1 ? "" : authored.slice(0, slash);
+  })();
+  const installedDir = itemType === "registry:ui" ? "components/ui" : "components";
+
+  const relocate = (value: unknown): string | null => {
+    const filePath = normalizeRegistryFilePath(value);
+    if (!filePath || !authorDir || authorDir === installedDir) return filePath;
+    if (!filePath.startsWith(`${authorDir}/`)) return filePath;
+    return `${installedDir}/${filePath.slice(authorDir.length + 1)}`;
+  };
+
   claim(
     toRegistryFile({
-      path: `components/ui/${component.slug}.tsx`,
+      path: sourcePath,
       content: component.code,
-      type: "registry:component",
+      type: itemType,
     })
   );
   for (const file of component.files ?? []) {
-    claim(toRegistryFile(file));
+    const relocated = relocate(file?.path);
+    if (!relocated) continue;
+    claim(toRegistryFile({ ...file, path: relocated }));
   }
   for (const file of Object.values(resolution.files)) {
     claim(toRegistryFile(file));
@@ -105,13 +154,85 @@ export async function buildRegistryItem(
   }
 
   /**
+   * The `components/ui/*` primitives the installed code imports.
+   *
+   * A component that renders `@/components/ui/dialog` is not a component on its
+   * own, and until now its item said it was: the file list held the author's
+   * source and nothing else, and the dependency list held `@radix-ui/react-dialog`
+   * — so `shadcn add` reported success, wrote a component importing a module that
+   * no longer exists in the consumer's project, and the failure surfaced as the
+   * consumer's first `next dev` naming a file the author never mentioned. The npm
+   * packages were there because the publish route expands these files before
+   * walking imports, which made the omission harder to see: the item looked
+   * thorough.
+   *
+   * Two things make these safe to declare:
+   *
+   * 1. `withShadcnFiles` resolves what the files actually reach, transitively, so
+   *    `dialog` brings `button` with it and the author declares neither.
+   * 2. `hasShadcnFile` gates the name. These are shadcn/ui's own primitives, so
+   *    the CLI resolves a *bare* name against the default registry — exactly how
+   *    shadcn's own items declare each other. A name that is not in the vendored
+   *    set is not emitted here, because a bare name we cannot vouch for is
+   *    looked up in a registry we do not control.
+   *
+   * A file the item already ships is skipped: the author may have written their
+   * own `components/ui/button.tsx`, and declaring the dependency anyway would
+   * have the CLI overwrite the file the author just installed with the item.
+   *
+   * Deliberately not folded into the declared-dependency loop above: a bare name
+   * the *author* writes resolves against shadway (`<origin>/r/button`), which is
+   * right for a shadway component they are referring to. This list is different
+   * in kind — it is derived from files that came out of shadcn's registry, so it
+   * points at shadcn's.
+   *
+   * The same expanded set is what the npm walk reads below, for the same reason:
+   * `dialog` imports Radix, and the consumer installs the file that needs it.
+   */
+  const shipped = new Set(files.map((file) => file.path.replace(/^\/+/, "")));
+  const expandedFiles = withShadcnFiles(files);
+  const inferredUiDependencies = [
+    ...new Set(
+      expandedFiles
+        .map((file) =>
+          /^components\/ui\/([^/]+)\.(?:tsx|ts|jsx|js)$/.exec(
+            file.path.replace(/^\/+/, "")
+          )
+        )
+        .filter((match): match is RegExpExecArray => Boolean(match))
+        .map((match) => match[1])
+        /**
+         * The name, not the file: `dialog`, which the CLI resolves against the
+         * default registry. `hasShadcnFile` takes the vendored path, so this is
+         * also the check that the name is one shadcn actually publishes.
+         */
+        .filter((name) => hasShadcnFile(`ui/${name}.tsx`))
+        .filter((name) => !shipped.has(`components/ui/${name}.tsx`))
+    ),
+  ].sort();
+
+  /** The item name a dependency entry ends at: `button`, `foo/bar`, `...`. */
+  const terminalName = (dependency: string) =>
+    (dependency.split("/").pop() ?? dependency).replace(/\.json$/, "");
+
+  const declaredNames = new Set(registryDependencies.map(terminalName));
+  for (const name of inferredUiDependencies) {
+    if (declaredNames.has(terminalName(name))) continue;
+    declaredNames.add(terminalName(name));
+    registryDependencies.push(name);
+  }
+
+  /**
    * Every npm package the installed code needs.
    *
    * Three sources, because none of them is complete on its own:
    *
    *   - what the component's files import — the ground truth, and the reason a
    *     component importing `motion/react` and `react-icons/fa6` once shipped
-   *     `dependencies: []` and installed into a project with neither;
+   *     `dependencies: []` and installed into a project with neither. The walk
+   *     runs over the expanded set, so a package reached only through a
+   *     `components/ui` primitive counts as imported by this item, which the
+   *     consumer will have installed;
    *   - what the component declared, which the walk cannot see when a package
    *     is used through a re-export or reached at runtime only;
    *   - what the components it pulls in declared.
@@ -125,7 +246,7 @@ export async function buildRegistryItem(
   const dependencies = toPackageNames([
     ...(component.dependencies ?? []),
     ...Object.keys(resolution.npmDependencies),
-    ...collectNpmDependencies(files),
+    ...collectNpmDependencies(expandedFiles),
   ]);
 
   const cssVars = mergeCssVars([cssVarsForComponent(component), resolution.cssVars]);
