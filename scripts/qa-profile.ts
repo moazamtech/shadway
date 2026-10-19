@@ -4,10 +4,11 @@ import "dotenv/config";
  * End-to-end coverage of the profile surfaces:
  *
  *   - registration mints a public handle
- *   - /profile renders for the owner, even with zero work
+ *   - /profile is a redirect to /u/<handle>, and that page renders for the
+ *     owner even with zero work
  *   - publishing attributes the item to that same handle
- *   - /profile lists the item, /u/<handle> shows it to visitors
- *   - the bundles tab renders its empty state
+ *   - the profile lists the item, and so does the same URL for a visitor
+ *   - the tabs partition the work by the taxonomy's groups
  *   - the saved tab round-trips a bookmark
  *   - an unknown handle 404s
  *
@@ -31,10 +32,15 @@ function cookieHeader() {
 }
 
 function collectCookies(res: Response) {
+  /**
+   * `getSetCookie()` exists on undici's `Headers` but not in the DOM lib's
+   * type, which is what this script compiles against. A structural cast keeps
+   * the call honest — `any` here would also have accepted a typo, and a silently
+   * empty cookie jar reads as "the login failed" three assertions later.
+   */
+  const headers = res.headers as Headers & { getSetCookie?: () => string[] };
   const raw: string[] =
-    typeof (res.headers as any).getSetCookie === "function"
-      ? (res.headers as any).getSetCookie()
-      : [];
+    typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
   for (const cookie of raw) {
     const first = cookie.split(";")[0];
     const idx = first.indexOf("=");
@@ -53,6 +59,35 @@ async function request(path: string, init?: RequestInit) {
   });
   collectCookies(res);
   return res;
+}
+
+/**
+ * Follow redirects the way a browser would, and report where they landed.
+ *
+ * `request` is manual on purpose — the auth flow is asserted by its status
+ * codes, so following redirects silently would hide the thing under test. The
+ * profile addresses need the opposite: `/profile` is a 307 to the canonical
+ * `/u/<handle>`, and the assertions below are about the page a reader ends up
+ * on, not about the hop. Returning the final path is what lets a test say *which*
+ * profile it landed on — asserting only `status === 200` would pass on somebody
+ * else's page.
+ */
+async function follow(
+  path: string,
+  max = 3
+): Promise<{ res: Response; html: string; path: string }> {
+  let current = path;
+  for (let hop = 0; hop < max; hop += 1) {
+    const res = await request(current);
+    if (res.status < 300 || res.status >= 400) {
+      return { res, html: await res.text(), path: current };
+    }
+    const location = res.headers.get("location");
+    if (!location) return { res, html: await res.text(), path: current };
+    const next = new URL(location, BASE);
+    current = `${next.pathname}${next.search}`;
+  }
+  throw new Error(`more than ${max} redirects from ${path}`);
 }
 
 async function login(email: string, password: string) {
@@ -125,21 +160,38 @@ async function main() {
     log("session resolves", Boolean(sessionJson?.user?.id), `id=${sessionJson?.user?.id}`);
 
     // --- the owner's profile renders before any work exists --------------
-    const profileRes = await request("/profile");
-    const profileHtml = await profileRes.text();
-    log("/profile renders", profileRes.status === 200, `status=${profileRes.status}`);
+    const redirect = await request("/profile");
+    log(
+      "/profile is a redirect, not a page",
+      redirect.status === 307,
+      `status=${redirect.status}`
+    );
+    const target = redirect.headers.get("location") ?? "";
+    log(
+      "/profile redirects to the canonical profile",
+      new URL(target, BASE).pathname === `/u/${handle}`,
+      `location=${target}`
+    );
+
+    const owner = await follow("/profile");
+    log(
+      "the canonical profile renders",
+      owner.res.status === 200,
+      `status=${owner.res.status} path=${owner.path}`
+    );
     // React splits `@{handle}` into two SSR text nodes, so assert the handle
     // itself; the `@` prefix is part of the same paragraph in the DOM.
-    log("/profile names the handle", profileHtml.includes(handle));
+    log("the profile names the handle", owner.html.includes(handle));
     log(
-      "/profile shows all three tabs",
-      profileHtml.includes("Components") &&
-        profileHtml.includes("Bundles") &&
-        profileHtml.includes("Saved")
+      "the profile shows both work tabs",
+      owner.html.includes("Components") && owner.html.includes("Blocks")
     );
     log(
-      "/profile shows the empty state instead of 404ing",
-      profileHtml.includes("Nothing published yet")
+      "the profile shows the owner's empty state instead of 404ing",
+      // The owner reads "You haven't…" where a visitor reads "Nothing…", so the
+      // assertion has to name the one this request actually gets — asserting the
+      // visitor's wording passed nothing and hid the moderation behaviour below.
+      owner.html.includes("You haven't published anything yet")
     );
 
     // --- publish as this account -----------------------------------------
@@ -168,10 +220,54 @@ async function main() {
       `author=${authorUsername} handle=${handle}`
     );
 
-    // --- the owner sees it on /profile -----------------------------------
-    const mine = await request("/profile?tab=components");
-    const mineHtml = await mine.text();
-    log("/profile lists the published component", mineHtml.includes(title));
+    // --- publishing does not publish -------------------------------------
+    /**
+     * A regular account's publish *submits* it. The route writes
+     * `status: "pending"` and an admin approves it, so a component from a
+     * non-admin is deliberately absent from every public surface until then.
+     *
+     * This is asserted, not worked around: it is the boundary that keeps the
+     * marketplace from being a place anyone can write to directly, and a QA
+     * script that skipped it — by publishing as an admin, or by only checking the
+     * API response — would report the feature working while the profile was
+     * empty. Which is exactly what this script used to do.
+     */
+    const pendingPublic = await fetch(`${BASE}/u/${handle}`);
+    const pendingHtml = await pendingPublic.text();
+    log(
+      "a pending submission is not on the profile yet",
+      !pendingHtml.includes(title),
+      `slug=${slug}`
+    );
+
+    const pendingOwner = await follow("/profile?tab=components");
+    log(
+      "nor on the owner's own view of it",
+      !pendingOwner.html.includes(title)
+    );
+
+    // --- approve it, the way an admin would ------------------------------
+    // Through the database rather than the admin API because this script signs in
+    // as an ordinary account: it is asserting what approval *enables*, and the
+    // approval route itself is `scripts/qa-admin.ts`'s subject.
+    await db
+      .collection("components")
+      .updateOne(
+        { slug },
+        { $set: { status: "published", publishedAt: new Date() } }
+      );
+    // --- and now it is on both profiles ----------------------------------
+    const mine = await follow("/profile?tab=components");
+    log(
+      "the profile lists the published component",
+      mine.html.includes(title),
+      `path=${mine.path}`
+    );
+    log(
+      "the Components tab is the one the redirect landed on",
+      mine.path === `/u/${handle}?tab=components`,
+      `path=${mine.path}`
+    );
 
     // --- visitors see it on the public profile ---------------------------
     const publicRes = await fetch(`${BASE}/u/${handle}`);
@@ -180,11 +276,14 @@ async function main() {
     log("public profile lists the component", publicHtml.includes(title));
     log("public profile names the author", publicHtml.includes("QA Profile"));
 
-    const bundleTab = await fetch(`${BASE}/u/${handle}?tab=bundles`);
-    const bundleHtml = await bundleTab.text();
+    // The Blocks tab holds landing-page sections, and this account has published
+    // none — so it is the tab's own empty state, not the Components one. Read as
+    // a visitor (no cookie), because the owner's copy says "you haven't".
+    const blocksTab = await fetch(`${BASE}/u/${handle}?tab=blocks`);
+    const blocksHtml = await blocksTab.text();
     log(
-      "/u/<handle>?tab=bundles renders its empty state",
-      bundleTab.status === 200 && bundleHtml.includes("No bundles yet")
+      "/u/<handle>?tab=blocks renders its empty state",
+      blocksTab.status === 200 && blocksHtml.includes("No blocks yet")
     );
 
     // --- the saved tab round-trips a bookmark ----------------------------
@@ -194,9 +293,13 @@ async function main() {
       body: JSON.stringify({ slug }),
     });
     log("bookmark saves", bmRes.ok);
-    const savedTab = await request("/profile?tab=saved");
-    const savedHtml = await savedTab.text();
-    log("/profile?tab=saved lists the bookmark", savedHtml.includes(title));
+    const savedTab = await follow("/profile?tab=saved");
+    log(
+      "the saved tab survives the redirect",
+      savedTab.path === `/u/${handle}?tab=saved`,
+      `path=${savedTab.path}`
+    );
+    log("the saved tab lists the bookmark", savedTab.html.includes(title));
 
     // --- an unknown handle is a real 404 ---------------------------------
     const missing = await fetch(`${BASE}/u/qa-missing-${suffix}`);

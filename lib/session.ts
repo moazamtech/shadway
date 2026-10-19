@@ -12,7 +12,10 @@ import { deriveHandleFromEmail } from "@/lib/handles";
 export function sessionUsername(session: Session | null): string {
   if (!session?.user) return "anonymous";
 
-  const explicit = (session.user as { username?: string }).username;
+  // Carried on the token since sign-in, where it is read from the account
+  // rather than guessed — see the comment in `lib/auth.ts` for why the guess is
+  // not the same value. A token issued before that field existed falls through.
+  const explicit = session.user.username;
   if (explicit) return explicit;
 
   const email = session.user.email;

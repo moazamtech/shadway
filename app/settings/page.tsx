@@ -48,7 +48,7 @@ export default async function SettingsPage() {
             <Link href={`/u/${handle}`}>Public profile</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/profile">Your work</Link>
+            <Link href={`/u/${handle}`}>Your work</Link>
           </Button>
         </div>
       }

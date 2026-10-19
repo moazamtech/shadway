@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Bookmark,
   FolderOpen,
@@ -101,12 +102,29 @@ type RailNavItem = {
   exact?: boolean;
 };
 
+/**
+ * The Profile row is the one entry with no fixed destination.
+ *
+ * There is one profile page, and it lives at `/u/<handle>`, because a profile is
+ * a public thing: the address a visitor can open is the address its owner
+ * should land on, and the extra tabs an owner gets are panes on that same page
+ * rather than a second page with its own copy of the same components. `/profile`
+ * still resolves — it is in links people have saved, so it 307s here — but a row
+ * that pointed at a redirect and then illuminated nothing would be a navigation
+ * control that forgets where you are standing.
+ *
+ * The handle comes from `useSession` rather than a prop because `AppShell`
+ * mounts this rail twice (desktop column and phone drawer) and every page passes
+ * through it; a prop would have to be threaded from all of them to be read here.
+ */
+const PROFILE_PATH = "/profile";
+
 const NAV: RailNavItem[] = [
   { title: "Home", href: "/", icon: Home, exact: true },
   { title: "Collections", href: "/collections", icon: FolderOpen },
   { title: "Bookmarks", href: "/bookmarks", icon: Bookmark },
   { title: "Studio", href: "/studio", icon: Sparkles },
-  { title: "Profile", href: "/profile", icon: User },
+  { title: "Profile", href: PROFILE_PATH, icon: User },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -275,6 +293,7 @@ export function SidebarRail({
 }) {
   const pathname = usePathname();
   const catalog = useRailCatalog();
+  const { data: session } = useSession();
   const {
     collapsed,
     width,
@@ -284,8 +303,28 @@ export function SidebarRail({
     onResizeDoubleClick,
   } = useSidebar();
 
+  const handle = (session?.user as { username?: string } | undefined)?.username;
+  const profileHref = handle
+    ? `/u/${encodeURIComponent(handle)}`
+    : PROFILE_PATH;
+
+  const navItems = React.useMemo(
+    () =>
+      NAV.map((item) =>
+        item.href === PROFILE_PATH ? { ...item, href: profileHref } : item,
+      ),
+    [profileHref]
+  );
+
   const isActive = (item: RailNavItem) =>
-    item.exact ? pathname === item.href : pathname.startsWith(item.href);
+    item.href === profileHref
+      ? // `/u/<handle>` has no children of its own, so this is an exact match —
+        // `startsWith` would also light up `/u/handle-fan-club`. `/profile` is
+        // included for the instant before the redirect resolves.
+        pathname === profileHref || pathname === PROFILE_PATH
+      : item.exact
+        ? pathname === item.href
+        : pathname.startsWith(item.href);
 
   return (
     <aside
@@ -363,7 +402,7 @@ export function SidebarRail({
               </kbd>
             }
           />
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <RailRow
               key={item.href}
               icon={item.icon}

@@ -86,6 +86,19 @@ export function UserMenu({
   const admin = session.user.role === "admin";
   const label = session.user.name || session.user.email || "Account";
   const sub = admin ? "Admin" : (session.user.email ?? "Account");
+  /**
+   * The profile lives at `/u/<handle>`; `/profile` only redirects there.
+   *
+   * Link straight at the destination so opening the menu does not spend a round
+   * trip on a 307, and so the address bar shows the same URL a visitor would
+   * paste. The handle is minted at signup, but a session created before that
+   * field was carried on the token can lack it — then the redirect is still
+   * correct, just slower.
+   */
+  const handle = (session.user as { username?: string }).username;
+  const profileHref = handle
+    ? `/u/${encodeURIComponent(handle)}`
+    : "/profile";
 
   return (
     <DropdownMenu>
@@ -129,7 +142,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild>
-          <Link href="/profile">
+          <Link href={profileHref}>
             <Sparkles className="h-4 w-4" />
             Profile
           </Link>

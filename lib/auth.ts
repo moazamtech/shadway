@@ -2,11 +2,18 @@ import { NextAuthOptions, User as NextAuthUser } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from './mongodb';
+import { ensureUsername } from './db/users';
 import { User as DbUser } from './types';
 
 declare module 'next-auth' {
   interface User {
     role: string;
+    /**
+     * The handle this account owns, minted at sign-in. Optional because a token
+     * issued before this field existed will not carry it until the next sign-in;
+     * callers fall back to `/profile`, which resolves the handle server-side.
+     */
+    username?: string;
   }
 
   interface Session {
@@ -15,6 +22,7 @@ declare module 'next-auth' {
       email: string;
       name: string;
       role: string;
+      username?: string;
     };
   }
 }
@@ -22,6 +30,7 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     role: string;
+    username?: string;
   }
 }
 
@@ -81,11 +90,26 @@ export const authOptions: NextAuthOptions = {
             console.log('Login successful for user:', user.email);
           }
 
+          /**
+           * Resolve the handle now, once, rather than leaving every link to guess.
+           *
+           * There are exactly two ways to know a handle. `ensureUsername` reads
+           * or mints the one the account actually owns; `deriveHandleFromEmail`
+           * guesses from the address. They agree until a handle collides with an
+           * existing account, at which point `allocateHandle` suffixes this one
+           * and the guess starts pointing at somebody else's profile. Signing in
+           * is the moment the account is already being written to, so this is
+           * where the authoritative value belongs — and it means a brand-new
+           * account has a profile URL before it has ever visited one.
+           */
+          const username = await ensureUsername(user.email).catch(() => null);
+
           return {
             id: user._id!.toString(),
             email: user.email,
             name: user.name,
             role,
+            username: username ?? undefined,
           };
         } catch (error) {
           // SECURITY: Log errors but don't expose details to client
@@ -107,6 +131,11 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = isAdminEmail(user.email) ? 'admin' : user.role;
+        // Only written when it is actually present: an absent handle must leave
+        // the previous value alone rather than overwrite it with `undefined`,
+        // which is what would drop the handle on any token refresh that carries
+        // a `user` object without one.
+        if (user.username) token.username = user.username;
       } else if (token.email && isAdminEmail(token.email)) {
         token.role = 'admin';
       }
@@ -116,6 +145,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.sub!;
         session.user.role = isAdminEmail(session.user?.email || token.email) ? 'admin' : token.role;
+        if (token.username) session.user.username = token.username;
       }
       return session;
     },

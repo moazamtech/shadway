@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { Bookmark, Search } from "lucide-react";
 import Image from "next/image";
 import { authOptions } from "@/lib/auth";
+import { sessionUsername } from "@/lib/session";
 import { getUserBookmarks } from "@/lib/db/marketplace";
 import { getComponentsCollection } from "@/lib/db/components";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ export default async function BookmarksPage() {
             <span className="text-sm font-semibold tracking-tight">Shadway</span>
           </Link>
           <Link
-            href="/profile"
+            href={`/u/${sessionUsername(session)}`}
             className="hidden text-sm text-muted-foreground transition hover:text-foreground sm:block"
           >
             Profile
