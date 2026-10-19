@@ -92,7 +92,6 @@ export function AppShell({
             {toolbar}
           </header>
         ) : null}
-
         <div className={cn("min-h-0 flex-1 overflow-y-auto", contentClassName)}>
           {children}
         </div>

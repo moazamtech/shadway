@@ -6,14 +6,12 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Bookmark,
-  FolderOpen,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
   Settings,
-  Sparkles,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -121,9 +119,7 @@ const PROFILE_PATH = "/profile";
 
 const NAV: RailNavItem[] = [
   { title: "Home", href: "/", icon: Home, exact: true },
-  { title: "Collections", href: "/collections", icon: FolderOpen },
   { title: "Bookmarks", href: "/bookmarks", icon: Bookmark },
-  { title: "Studio", href: "/studio", icon: Sparkles },
   { title: "Profile", href: PROFILE_PATH, icon: User },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
@@ -491,3 +487,4 @@ export function SidebarRail({
     </aside>
   );
 }
+

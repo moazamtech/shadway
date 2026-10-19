@@ -249,7 +249,7 @@ export function ComponentExchangeHome({
           </>
         }
       >
-        <div className="px-3 py-4 lg:px-5 lg:py-5">
+        <div className="px-3 py-4 lg:px-4 lg:py-5">
           <ComponentGrid
             items={items}
             filters={filters}

@@ -96,24 +96,21 @@ export default async function AuthorPage({
     : []
   ).map(serializeCard);
 
-  // The taxonomy's two groups are the two tabs, and `normalizeGroup` is the
-  // fold that decides them: a component stored as `hero`, `block` or `pricing`
-  // is a block even though its stored string is none of those. Reading the raw
-  // field is what gave the rail three sections over one category, and it would
-  // do the same here — a Blocks tab that counts four and shows none.
+  /**
+   * One tab for the work, one for what was saved.
+   *
+   * The taxonomy's two groups used to be two tabs, which split a creator's
+   * library in half for a distinction the author never made: they published a
+   * button and a hero section, and the page told them they had two shelves.
+   * Everything published now sits on one shelf, in the order it was published;
+   * the group is still a property of each item (the feed and the registry
+   * filter on it), it is not a filing cabinet on someone's own page.
+   */
   const tabs: ProfileTab[] = [
     {
       id: "components",
-      label: "Components",
-      count: items.filter((item) => normalizeGroup(item.category) === "ui")
-        .length,
-    },
-    {
-      id: "blocks",
-      label: "Blocks",
-      count: items.filter(
-        (item) => normalizeGroup(item.category) === "marketing"
-      ).length,
+      label: "Published",
+      count: items.length,
     },
   ];
   if (isOwner) {
@@ -122,8 +119,7 @@ export default async function AuthorPage({
 
   // A tab the page does not have falls back to the first one, so
   // `?tab=saved` from a shared link is a stranger's profile rather than an
-  // empty pane. The counts of the two work tabs add up to the Components stat,
-  // because they are a partition of the same published set.
+  // empty pane, and a link to the old `?tab=blocks` still lands on the work.
   const requested = tabParam ?? tabs[0].id;
   const activeTab = tabs.some((tab) => tab.id === requested)
     ? requested
@@ -154,24 +150,6 @@ export default async function AuthorPage({
               <Link href="/">Browse components</Link>
             </Button>
           }
-        />
-      );
-    }
-
-    if (activeTab === "blocks") {
-      return (
-        <ProfileEmpty
-          title={
-            isOwner
-              ? "You haven't published any blocks yet"
-              : "No blocks yet"
-          }
-          body={
-            isOwner
-              ? "Landing page sections you publish show up here, on your public profile."
-              : `When @${handle} publishes a landing page section, it will show up here.`
-          }
-          action={studioAction}
         />
       );
     }
@@ -231,16 +209,6 @@ export default async function AuthorPage({
 
         <ComponentGrid
           items={activeTab === "saved" ? saved : items}
-          group={
-            activeTab === "components"
-              ? "ui"
-              : activeTab === "blocks"
-                ? "marketing"
-                : undefined
-          }
-          // The owner is looking at their own name in the heading above every
-          // card; the Saved tab holds other people's work and keeps its bylines.
-          hideAuthor={activeTab !== "saved"}
           empty={emptyState()}
         />
       </ProfileBody>

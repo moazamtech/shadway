@@ -39,7 +39,7 @@ function initialsFor(name: string): string {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border px-3 py-2">
+    <div className="rounded-xl border border-border px-3 py-2">
       <p className="text-base leading-6 font-semibold tabular-nums">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
@@ -113,7 +113,7 @@ export function ProfileBody({
         {/* Identity */}
         <aside className="w-full shrink-0 md:w-[248px]">
           <div className="flex flex-col items-center text-center md:items-start md:text-left">
-            <span className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-well ring-1 ring-border">
+            <span className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-well ring-1 ring-border">
               {avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -191,7 +191,7 @@ export function ProfileBody({
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-2">
-            <Stat label="Components" value={formatCount(stats.components)} />
+            <Stat label="Published" value={formatCount(stats.components)} />
             <Stat label="Views" value={formatCount(stats.views)} />
             <Stat label="Likes" value={formatCount(stats.likes)} />
             <Stat label="Installs" value={formatCount(stats.installs)} />

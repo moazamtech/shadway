@@ -276,7 +276,6 @@ export function ComponentGrid({
   loading = false,
   failed = false,
   group,
-  hideAuthor = false,
   chips = "always",
   empty,
   onSave,
@@ -302,13 +301,6 @@ export function ComponentGrid({
    * counting four.
    */
   group?: string;
-  /**
-   * Drops the author line from every card. A creator looking at their own
-   * library has just read their own name in the heading above it — repeating
-   * it on every card is noise, and the one link it wraps points at the page it
-   * is already on.
-   */
-  hideAuthor?: boolean;
   /**
    * Where the category chips may render. "rail" keeps them to phones, where
    * the rail is behind a drawer and the chips are the only filter on screen;
@@ -410,12 +402,11 @@ export function ComponentGrid({
             <ComponentCard
               key={item.slug}
               item={item}
-              hideAuthor={hideAuthor}
+              onOpen={onOpen}
               onSave={onSave}
               onLike={onLike}
               savedSlugs={savedSlugs}
               likedSlugs={likedSlugs}
-              onOpen={onOpen}
             />
           ))}
         </div>

@@ -39,7 +39,6 @@ export function ComponentCard({
   savedSlugs,
   likedSlugs,
   onOpen,
-  hideAuthor = false,
 }: {
   item: MarketplaceCardItem;
   onSave?: (slug: string) => void;
@@ -48,16 +47,6 @@ export function ComponentCard({
   likedSlugs?: Record<string, boolean>;
   /** Opens the detail dialog. When absent the card links straight to the page. */
   onOpen?: (slug: string) => void;
-  /**
-   * Drops the author name, leaving the title and its age.
-   *
-   * Opt-in and defaulting off, because everywhere else on the site the author
-   * is the one piece of the card you have not already read: the page heading,
-   * the rail, the search result. On a creator's own library it is a line of
-   * forty repetitions of the name directly above the grid, and the link it
-   * wraps points back at the page it is already on.
-   */
-  hideAuthor?: boolean;
 }) {
   /** The video src is assigned only on hover — nothing fetches otherwise. */
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -142,7 +131,7 @@ export function ComponentCard({
       {/* Cover — the video only mounts while the pointer is over the card,
           exactly like a card catalogue that never streams off-screen. */}
       <div
-        className="relative aspect-[16/10] overflow-hidden rounded-lg border border-border/40 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/15 group-hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]"
+        className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/50 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/20 group-hover:shadow-[0_10px_40px_-16px_rgba(0,0,0,0.5)]"
         onMouseEnter={() => item.videoUrl && setVideoLoaded(true)}
         onMouseLeave={() => setVideoLoaded(false)}
         onTouchStart={() => item.videoUrl && setVideoLoaded(true)}
@@ -155,14 +144,14 @@ export function ComponentCard({
               type="button"
               onClick={() => onOpen(item.slug)}
               aria-label={`Open ${item.title}`}
-              className="absolute inset-0 z-10 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
           </>
         ) : (
           <Link
             href={`/c/${item.slug}`}
             aria-label={`View ${item.title}`}
-            className="absolute inset-0 z-10 block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="absolute inset-0 z-10 block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {cover}
           </Link>
@@ -220,68 +209,12 @@ export function ComponentCard({
         </div>
       </div>
 
-      {/* Meta */}
-      <div className="mt-2.5 flex items-start gap-2.5">
-        {hideAuthor ? null : (
-          <span
-            className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/40 bg-muted/50 text-[9px] font-bold uppercase text-muted-foreground"
-            aria-hidden="true"
-          >
-            {item.author.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.author.avatar}
-                alt=""
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              item.author.username.slice(0, 2)
-            )}
-          </span>
-        )}
-
-        <div className="min-w-0 flex-1">
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={() => onOpen(item.slug)}
-              className="block truncate rounded-sm text-left text-[13px] leading-tight font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {item.title}
-            </button>
-          ) : (
-            <Link
-              href={`/c/${item.slug}`}
-              className="block truncate rounded-sm text-[13px] leading-tight font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {item.title}
-            </Link>
-          )}
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            {hideAuthor ? null : (
-              <>
-                <Link
-                  href={`/u/${item.author.username}`}
-                  className="truncate rounded-sm outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {item.author.name}
-                </Link>
-                {/* The dot belongs to the pair: with no name in front of it, a
-                    leading separator is the first thing on the line. */}
-                {item.createdAt ? (
-                  <span aria-hidden="true" className="text-border">
-                    ·
-                  </span>
-                ) : null}
-              </>
-            )}
-            {item.createdAt ? (
-              <RelativeTime value={item.createdAt} className="shrink-0" />
-            ) : null}
-          </div>
-        </div>
-      </div>
+      {/* Meta — deliberately nothing.
+          A card is a picture of the work, and the two lines of text under it
+          were the same name and the same age repeated down a column of thirty
+          covers. The title is still on the cover's own link (`aria-label`), on
+          the detail page, on the profile and in the rail; what the grid needed
+          was the image alone, aligned edge to edge. */}
     </article>
   );
 }
