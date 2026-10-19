@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
@@ -82,13 +83,29 @@ export async function POST(request: Request) {
     let thumbnailUrl: string | null = null;
     if (capture?.buffer?.length) {
       try {
+        /**
+         * The cover is stored under its own id, not a shared one.
+         *
+         * This used to pass the constant `shadway-covers/submit` with
+         * `overwrite: true`, so every submission replaced the asset the previous
+         * one was pointing at: two components in the queue could hold the same
+         * URL and show the same picture, and whichever was approved second
+         * silently changed the first one's cover. The `filename` argument beside
+         * it only ever supplied the file extension, so it never made the id
+         * unique.
+         *
+         * A per-capture id means the asset is disposable: the route that stores
+         * the final cover re-uploads under the component's own slug, and this
+         * one can be left in place or destroyed without touching anyone else.
+         */
+        const captureId = `shadway-covers/capture-${Date.now().toString(36)}-${randomUUID()}`;
         thumbnailUrl = await uploadBufferToCloudinary(
           capture.buffer.buffer.slice(
             capture.buffer.byteOffset,
             capture.buffer.byteOffset + capture.buffer.byteLength
           ) as ArrayBuffer,
-          `cover-${Date.now()}.png`,
-          `shadway-covers/submit`
+          `cover.webp`,
+          captureId
         );
       } catch (error) {
         console.error("Cover capture upload failed:", error);

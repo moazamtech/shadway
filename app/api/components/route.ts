@@ -128,11 +128,22 @@ export async function POST(request: NextRequest) {
       visibility,
     };
 
-    // Publishing an existing draft updates it in place, so the project keeps
-    // its slug, files and history instead of creating a second record.
-    const existing = requestedSlug
-      ? await collection.findOne({ slug: requestedSlug })
-      : null;
+    /**
+     * Publishing an existing draft updates it in place, so the project keeps
+     * its slug, files and history instead of creating a second record.
+     *
+     * The slug doubles as the record's identity here, which is what used to
+     * make a rename impossible: `requestedSlug` was only ever a *lookup key*, so
+     * a slug that did not match found nothing and the create path ran — leaving
+     * the original draft orphaned beside its own replacement, both public.
+     *
+     * `identitySlug` is the address the author is editing, and it travels with
+     * the record; `requestedSlug` is what they want it to be called.
+     */
+    const identitySlug =
+      typeof body.draftSlug === "string" && body.draftSlug ? body.draftSlug : requestedSlug;
+
+    const existing = identitySlug ? await collection.findOne({ slug: identitySlug }) : null;
 
     let item: Awaited<ReturnType<typeof createComponent>>;
     if (existing) {
@@ -141,8 +152,39 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Not allowed" }, { status: 403 });
       }
 
+      /**
+       * A rename, if the author asked for one. The slug is the component's
+       * permanent address, so it is held to the same rules as a new one and
+       * refused outright when the target is taken — the unique index would
+       * reject it anyway, and a raw `E11000` escaping as a generic 500 tells an
+       * author nothing about which part of their URL was wrong.
+       */
+      let renamed: string | null = null;
+      if (requestedSlug && requestedSlug !== existing.slug) {
+        if (!isValidSlug(requestedSlug)) {
+          return NextResponse.json(
+            { error: "That URL is not usable. Lowercase letters, numbers and single hyphens only." },
+            { status: 400 }
+          );
+        }
+
+        const occupant = await collection.findOne(
+          { slug: requestedSlug },
+          { projection: { _id: 1 } }
+        );
+        if (occupant) {
+          return NextResponse.json(
+            { error: "That URL is already taken." },
+            { status: 409 }
+          );
+        }
+
+        renamed = requestedSlug;
+      }
+
       const updates = {
         ...publishFields,
+        ...(renamed ? { slug: renamed } : {}),
         featured: existing.featured,
         version: existing.version,
         license: existing.license,

@@ -1,5 +1,6 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { ObjectId, type Sort } from "mongodb";
+import { isValidSlug, slugify } from "@/lib/component-slug";
 
 export type ComponentVisibility = "public" | "unlisted" | "private";
 export type ComponentStatus = "draft" | "pending" | "published" | "hidden" | "flagged";
@@ -122,20 +123,20 @@ export const SOURCE_FIELDS = {
   previewVersion: 0,
 } as const;
 
-const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
-export function isValidSlug(slug: string): boolean {
-  return SLUG_RE.test(slug) && slug.length > 2 && slug.length < 90;
-}
+/**
+ * The slug rules live in `lib/component-slug.ts`, where a client component can
+ * reach them too.
+ *
+ * They used to live here, which meant the publish panel — that has to show an
+ * author whether their URL is usable before they submit it — could not import
+ * them, because this module opens a Mongo connection at the top. So it
+ * re-implemented the slugifier inline, and the copy drifted: no `.trim()`, no
+ * trailing-hyphen repair after truncation, and a different length ceiling.
+ *
+ * Re-exported as well as imported, because a dozen server modules already reach
+ * for them from here.
+ */
+export { slugify, isValidSlug };
 
 /**
  * The raw collection, with no index bookkeeping.
