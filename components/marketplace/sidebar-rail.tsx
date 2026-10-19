@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Bookmark,
@@ -123,7 +123,6 @@ const NAV: RailNavItem[] = [
   { title: "Profile", href: PROFILE_PATH, icon: User },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
-
 type CatalogItem = {
   title: string;
   slug: string;
@@ -288,6 +287,7 @@ export function SidebarRail({
   className?: string;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const catalog = useRailCatalog();
   const { data: session } = useSession();
   const {
@@ -304,23 +304,42 @@ export function SidebarRail({
     ? `/u/${encodeURIComponent(handle)}`
     : PROFILE_PATH;
 
+  /**
+   * Bookmarks are a tab on the profile, not a page of their own.
+   *
+   * The owner's saved work lives in the same pane as the work they published —
+   * it is the same person, and it is the same list with a different filter. So
+   * the row points at `?tab=saved` on the profile, and the separate
+   * `/bookmarks` page redirects there rather than being a second rendering of
+   * the same list.
+   */
+  const bookmarksHref = handle
+    ? `/u/${encodeURIComponent(handle)}?tab=saved`
+    : "/bookmarks";
+
   const navItems = React.useMemo(
     () =>
-      NAV.map((item) =>
-        item.href === PROFILE_PATH ? { ...item, href: profileHref } : item,
-      ),
-    [profileHref]
+      NAV.map((item) => {
+        if (item.href === PROFILE_PATH) return { ...item, href: profileHref };
+        if (item.href === "/bookmarks") return { ...item, href: bookmarksHref };
+        return item;
+      }),
+    [profileHref, bookmarksHref]
   );
 
   const isActive = (item: RailNavItem) =>
     item.href === profileHref
-      ? // `/u/<handle>` has no children of its own, so this is an exact match —
-        // `startsWith` would also light up `/u/handle-fan-club`. `/profile` is
+      ? // The profile and its saved tab are the same page, so the two rows
+        // cannot both be lit: the tab decides which one is. `/profile` is
         // included for the instant before the redirect resolves.
         pathname === profileHref || pathname === PROFILE_PATH
-      : item.exact
-        ? pathname === item.href
-        : pathname.startsWith(item.href);
+        ? searchParams.get("tab") !== "saved"
+        : false
+      : item.href === bookmarksHref
+        ? pathname === profileHref && searchParams.get("tab") === "saved"
+        : item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
 
   return (
     <aside

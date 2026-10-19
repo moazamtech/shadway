@@ -122,7 +122,7 @@ export function ProfileBody({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="text-xl font-semibold text-muted-foreground">
+                <span className="text-xl font-semibold text-primary">
                   {initialsFor(name || handle)}
                 </span>
               )}

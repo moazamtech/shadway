@@ -135,7 +135,7 @@ export function UserMenu({
                     className="rounded-lg object-cover"
                   />
                 ) : null}
-                <AvatarFallback className="rounded-lg bg-accent text-xs font-semibold text-foreground-soft">
+                <AvatarFallback className="rounded-lg bg-primary/12 text-xs font-semibold text-primary">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -158,7 +158,7 @@ export function UserMenu({
                   className="rounded-lg object-cover"
                 />
               ) : null}
-              <AvatarFallback className="rounded-lg bg-accent text-xs font-semibold text-foreground-soft">
+              <AvatarFallback className="rounded-lg bg-primary/12 text-xs font-semibold text-primary">
                 {initials}
               </AvatarFallback>
             </Avatar>

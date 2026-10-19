@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowUpDown, Clock, Download, Flame, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BrandLoader } from "@/components/brand-loader";
 import {
   ComponentCard,
   type MarketplaceCardItem,
@@ -329,36 +330,24 @@ export function ComponentGrid({
 
   return (
     <>
-      {!filters ? (
-        /* No lifted filters, so nobody is placing the controls for us: one row
-           above the cards, which is where a page with no toolbar would put
-           them. It wraps, and the box comes back on phones, because without a
-           ⌘K palette this row is the only way to search this grid at all. */
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <GridSearchInput
-            query={state.query}
-            onQueryChange={state.setQuery}
-            clearQuery={() => state.setQuery("")}
-            className="block"
-          />
-          <GridSortSelect sort={state.sort} onSortChange={state.setSort} />
-          <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+      {/* The count and the categories, on one line: they are the same
+          question — "what is in here" — and two rows of pills above a grid of
+          pictures is two rows too many. */}
+      <div
+        className={cn(
+          "mb-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1",
+          chips === "rail" && "md:hidden"
+        )}
+      >
+        {!filters ? (
+          <span className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium tabular-nums text-muted-foreground">
             {loading
               ? "Loading…"
               : `${state.visible.length} component${
                   state.visible.length === 1 ? "" : "s"
                 }`}
           </span>
-        </div>
-      ) : null}
-
-      {/* Category chips. Phones only on the feed — see `chips`. */}
-      <div
-        className={cn(
-          "mb-4 flex items-center gap-2 overflow-x-auto pb-1",
-          chips === "rail" && "md:hidden"
-        )}
-      >
+        ) : null}
         {state.categories.map((cat) => (
           <button
             key={cat}
@@ -378,24 +367,33 @@ export function ComponentGrid({
       </div>
 
       {loading ? (
-        <div
-          className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4"
-          aria-busy="true"
-          aria-label="Loading components"
-        >
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div
-              key={index}
-              className="overflow-hidden rounded-lg border border-border"
-            >
-              <Skeleton className="aspect-[16/10] w-full rounded-none" />
-              <div className="space-y-2 p-3">
-                <Skeleton className="h-4 w-3/5" />
-                <Skeleton className="h-3 w-4/5" />
+        state.visible.length ? (
+          /* The cards are already on the page and something is being refetched
+             in the background: the shape of the grid is worth keeping, so the
+             page does not jump when the answer arrives. */
+          <div
+            className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4"
+            aria-busy="true"
+            aria-label="Loading components"
+          >
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div
+                key={index}
+                className="overflow-hidden rounded-lg border border-border"
+              >
+                <Skeleton className="aspect-[16/10] w-full rounded-none" />
+                <div className="space-y-2 p-3">
+                  <Skeleton className="h-4 w-3/5" />
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          /* Nothing on the page yet: this is the wait, and it should look
+             like the site rather than like a broken layout. */
+          <BrandLoader className="min-h-[420px] rounded-xl" />
+        )
       ) : state.visible.length ? (
         <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">
           {state.visible.map((item) => (

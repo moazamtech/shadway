@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ComponentGrid,
-  GridSearchInput,
-  GridSortSelect,
   useGridFilters,
   type ComponentGridItem,
 } from "@/components/marketplace/component-grid";
@@ -181,6 +179,26 @@ export function ComponentExchangeHome({
     [items, openSlug]
   );
 
+  /**
+   * Page through the grid while the showcase is open.
+   *
+   * The dialog is a stage, and a stage you can only leave is a dead end: the
+   * reader has just been looking at a component and the next one is right
+   * there. The step is taken over the *visible* list — the same order the
+   * grid is drawn in — and the ends wrap around, because a component gallery
+   * that stops at the last card is a gallery with a wall in it.
+   */
+  const step = useCallback(
+    (delta: number) => {
+      if (!items.length) return;
+      const index = items.findIndex((item) => item.slug === openSlug);
+      const from = index === -1 ? 0 : index;
+      const next = (from + delta + items.length) % items.length;
+      setOpenSlug(items[next].slug);
+    },
+    [items, openSlug]
+  );
+
   const count = filters.visible.length;
 
   return (
@@ -202,6 +220,8 @@ export function ComponentExchangeHome({
         likeCount={activeItem?.likes ?? 0}
         onToggleSave={toggleSave}
         onToggleLike={toggleLike}
+        onPrev={() => step(-1)}
+        onNext={() => step(1)}
       />
 
       {/* The shell: a rail on the tinted canvas, and the feed living in a
@@ -229,22 +249,18 @@ export function ComponentExchangeHome({
             </Button>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden text-xs tabular-nums text-muted-foreground md:block">
-                {loading
-                  ? "Loading…"
-                  : `${count} component${count === 1 ? "" : "s"}`}
-              </span>
-
-              <GridSearchInput
-                query={filters.query}
-                onQueryChange={filters.setQuery}
-                clearQuery={() => filters.setQuery("")}
-              />
-
-              <GridSortSelect
-                sort={filters.sort}
-                onSortChange={filters.setSort}
-              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openPalette}
+                className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                {loading ? "—" : count}
+                <span className="hidden sm:inline">
+                  {count === 1 ? "component" : "components"}
+                </span>
+              </Button>
             </div>
           </>
         }

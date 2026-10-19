@@ -16,6 +16,23 @@ type PaletteItem = {
 };
 
 /**
+ * The three orders the palette can put the registry in.
+ *
+ * The sort used to live in a control on the feed's toolbar, next to a search
+ * box, which made the toolbar a second search field and put two dropdowns in
+ * the way of a page that is meant to be a catalogue. Sorting is a question
+ * about the *result*, so it belongs with the result: it is here, under the
+ * query, where the thing it reorders is.
+ */
+type Sort = "latest" | "popular" | "installs";
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: "latest", label: "Latest" },
+  { id: "popular", label: "Popular" },
+  { id: "installs", label: "Most installed" },
+];
+
+/**
  * ⌘K command palette for fast component search.
  *
  * Fetches the same feed the home page uses, filters client-side, and lets the
@@ -35,6 +52,7 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [sort, setSort] = useState<Sort>("latest");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +89,13 @@ export function CommandPalette({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return items.slice(0, 12);
-    return items
+    const ordered = [...items].sort((a, b) => {
+      if (sort === "popular") return b.views - a.views;
+      if (sort === "installs") return b.installs - a.installs;
+      return 0;
+    });
+    if (!q) return ordered.slice(0, 12);
+    return ordered
       .filter((item) => {
         return (
           item.title.toLowerCase().includes(q) ||
@@ -83,7 +106,7 @@ export function CommandPalette({
         );
       })
       .slice(0, 12);
-  }, [items, query]);
+  }, [items, query, sort]);
 
   // Keep the active option scrolled into view.
   useEffect(() => {
@@ -139,6 +162,28 @@ export function CommandPalette({
           <kbd className="shrink-0 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
             ESC
           </kbd>
+        </div>
+
+        <div className="flex items-center gap-1.5 border-b border-border/70 px-4 py-2">
+          {SORTS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => {
+                setSort(option.id);
+                setActiveIndex(0);
+              }}
+              aria-pressed={sort === option.id}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                sort === option.id
+                  ? "border-foreground/20 bg-foreground/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
 
         <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
