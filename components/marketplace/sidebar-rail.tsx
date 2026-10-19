@@ -32,7 +32,20 @@ import {
    fills with the app's one hover tone (--accent), so a lit row on the rail
    matches a lit row in a menu; pressing releases it back toward the rail.
    The interactive parent carries `group/row` and `relative`, and its visible
-   children `relative` so they paint above the pill. */
+   children `relative` so they paint above the pill.
+
+   The pill is also where "you are here" lives. Fill is the one part of a row
+   that survives the collapsed rail — the label is gone by then, the icon
+   alone cannot carry the difference — so the selected tone has to be a
+   stronger surface than the hover tone rather than a heavier label. The rail
+   runs a four-step ladder, each rung one little closer to the ink:
+   rest (the canvas) → hover (--accent) → selected → selected under the
+   pointer. Selected therefore rides --foreground at 10% and 15% instead of
+   another grey — the same two tints the rail's own resize handle lifts
+   through, and the only ones that step further in the same direction in both
+   themes: the theme has nothing between --accent and the canvas (--muted and
+   --input land on the hover tone's own step, --well IS the canvas), and dark
+   climbs where light descends. */
 function RowPill({ className }: { className?: string }) {
   return (
     <span
@@ -45,12 +58,29 @@ function RowPill({ className }: { className?: string }) {
   );
 }
 
-/* Flat nav row: icon and label share the soft chrome ink; hover fills the
-   pill. Collapses to a centered icon on the rail — left-anchored at all
-   times, so the icon never jumps, the label just fades under the sliding
-   edge. */
+/* One left gutter for everything the rail stacks — rows, the primary pill,
+   the category headers. It has to be a single value rather than a padded
+   state and a plainer collapsed one: the collapsed rail is 64px wide and 24px
+   of that is its own padding, so one 12px gutter leaves exactly 16px inside
+   — the icon's own width — and centres it dead on the rail. Two gutters
+   meant the icon nudged a couple of pixels sideways every time the rail
+   collapsed, which read as a crooked column of icons rather than a rail. */
+const GUTTER = "px-3";
+
+/* One type scale for the rail's controls: the nav rows and the primary pill
+   beside them are the same kind of thing at the same size, and 13.5 against
+   a pill's 14 was a half-pixel disagreement nobody could name but everyone
+   could feel. */
+const TYPE = "text-[13.5px]/4 font-medium";
+
+/* Flat nav row: icon and label share the soft chrome ink; the fill under
+   them is the pill's job, and the selected row overrides that fill and the
+   label's ink (see RailRow). Hover lifts the ink to full as well, so a row
+   you are about to click reads as lit before it is clicked. The focus ring
+   is inset because the rows sit two pixels apart — an outset ring would
+   reach into the neighbouring rows and into the rail's own padding. */
 const ROW =
-  "group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13.5px]/4 font-medium text-foreground-soft transition-[padding] sidebar-collapsed:pl-3";
+  `group/row relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg ${GUTTER} ${TYPE} text-foreground-soft transition-colors duration-150 ease-out group-hover/row:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
 
 /* Width rides `--sidebar-width` (painted pre-hydration by the layout script,
    driven live by useSidebar), so drags track 1:1 and the collapse toggle
@@ -175,7 +205,16 @@ function RailRow({
 }) {
   const body = (
     <>
-      <RowPill className={active ? "bg-accent" : undefined} />
+      {/* A selected row does not inherit the hover/press pair — it overrides
+          both, so putting the pointer on the current page cannot demote it
+          back to looking hovered. Same variant prefix, later in the list, so
+          tailwind-merge swaps the two out rather than layering them. */}
+      <RowPill
+        className={cn(
+          active &&
+            "bg-foreground/10 group-hover/row:bg-foreground/15 group-active/row:bg-foreground/15"
+        )}
+      />
       {RowIcon ? (
         <span className="relative shrink-0">
           <RowIcon className="h-4 w-4" />
@@ -183,7 +222,12 @@ function RailRow({
       ) : null}
       <span className={FADE}>{label}</span>
       {trailing !== undefined ? (
-        <span className="relative ml-auto shrink-0 text-xs tabular-nums text-muted-foreground sidebar-collapsed:hidden">
+        <span
+          className={cn(
+            "relative ml-auto shrink-0 text-xs tabular-nums text-muted-foreground transition-colors duration-150 ease-out group-hover/row:text-foreground-soft sidebar-collapsed:hidden",
+            active && "text-foreground-soft"
+          )}
+        >
           {trailing}
         </span>
       ) : null}
@@ -195,7 +239,7 @@ function RailRow({
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={cn(ROW, className)}
+        className={cn(ROW, active && "text-foreground", className)}
       >
         {body}
       </Link>
@@ -207,7 +251,7 @@ function RailRow({
       type="button"
       onClick={onClick}
       aria-current={active ? "true" : undefined}
-      className={cn(ROW, className)}
+      className={cn(ROW, active && "text-foreground", className)}
     >
       {body}
     </button>
@@ -263,7 +307,7 @@ export function SidebarRail({
       <div className="sidebar-glide relative flex h-7 items-center px-1.5 transition-[padding] sidebar-collapsed:pl-2.5">
         <Link
           href="/"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           aria-label="Shadway home"
         >
           <BrandMark
@@ -283,7 +327,7 @@ export function SidebarRail({
           type="button"
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="sidebar-glide ml-auto -mr-1.5 hidden size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-foreground-soft opacity-0 transition-[opacity,background-color] duration-150 group-hover/sidebar:opacity-100 hover:bg-accent focus-visible:opacity-100 sidebar-collapsed:absolute sidebar-collapsed:inset-0 sidebar-collapsed:m-auto sidebar-collapsed:opacity-0 sidebar-collapsed:group-hover/sidebar:opacity-100 md:flex"
+          className="sidebar-glide ml-auto -mr-1.5 hidden size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-foreground-soft opacity-0 transition-[opacity,background-color] duration-150 group-hover/sidebar:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sidebar-collapsed:absolute sidebar-collapsed:inset-0 sidebar-collapsed:m-auto sidebar-collapsed:opacity-0 sidebar-collapsed:group-hover/sidebar:opacity-100 md:flex"
         >
           {collapsed ? (
             <PanelLeftOpen className="h-4 w-4" />
@@ -295,19 +339,17 @@ export function SidebarRail({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
         {/* Primary pill. The glaze is a translucent background-image gradient
-            over the fill, so hover still animates the color beneath it. */}
+            over the fill, so hover still animates the color beneath it. It
+            shares the rail's gutter and type with the rows below it — it is
+            the first of the same stack, not a separate control — and its
+            press scale is the one piece of real motion here, so it stands
+            down for anyone who asked for stillness. */}
         <Link
           href="/studio"
-          className="relative inline-flex h-8 w-full cursor-pointer items-center justify-start gap-2 rounded-lg bg-primary bg-linear-to-b from-white/25 to-white/0 px-3 text-sm font-medium text-primary-foreground transition-[background-color,scale] duration-150 ease-out hover:bg-(--primary-hover) active:scale-[0.96]"
+          className={`relative inline-flex h-8 w-full cursor-pointer items-center justify-start gap-2 rounded-lg bg-primary bg-linear-to-b from-white/25 to-white/0 ${GUTTER} ${TYPE} text-primary-foreground transition-[background-color,scale] duration-150 ease-out outline-none hover:bg-(--primary-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100`}
         >
           <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-          <span
-            className={cn(
-              "overflow-hidden whitespace-nowrap transition-[opacity,visibility] duration-150 sidebar-collapsed:invisible sidebar-collapsed:opacity-0"
-            )}
-          >
-            New component
-          </span>
+          <span className={FADE}>New component</span>
         </Link>
 
         <nav className="-mt-1.5 flex flex-col gap-0.5">
@@ -345,7 +387,7 @@ export function SidebarRail({
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
-                  className="flex h-8 items-center gap-2.5 px-2.5"
+                  className={`flex h-8 items-center gap-2.5 ${GUTTER}`}
                 >
                   <span className="h-3.5 w-full max-w-[120px] animate-pulse rounded bg-muted sidebar-collapsed:hidden" />
                 </div>
@@ -361,7 +403,7 @@ export function SidebarRail({
                       : `/?category=${encodeURIComponent(group.slug)}`
                   }
                   className={cn(
-                    "flex h-6 items-center gap-2 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground sidebar-collapsed:hidden",
+                    `flex h-6 items-center gap-2 ${GUTTER} text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sidebar-collapsed:hidden`,
                     activeCategory === group.slug && "text-foreground"
                   )}
                 >
