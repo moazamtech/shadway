@@ -53,6 +53,39 @@ export async function getUsersCollection(): Promise<Collection<UserDocument>> {
   return users;
 }
 
+/**
+ * The account a session belongs to, and the collection to write back through.
+ *
+ * The `_id` lookup is the real one and the email lookup is the fallback: a
+ * session minted before the id was carried on the token has only an email, and
+ * an endpoint that hard-requires the id refuses exactly those people to change
+ * their own settings. A raw string would silently match nothing here, because
+ * `_id` is an ObjectId and `session.user.id` is its stringified form.
+ *
+ * This was a private helper inside `/api/me`; the profile endpoints need the
+ * same lookup and the same fallback, and two copies of "how do we find the
+ * person who is calling" is how one of them ends up updating the wrong record.
+ */
+export async function findAccountBySession(
+  id: string,
+  email?: string | null,
+): Promise<{
+  users: Collection<UserDocument>;
+  account: UserDocument | null;
+}> {
+  const users = await getUsersCollection();
+
+  if (ObjectId.isValid(id)) {
+    const byId = await users.findOne({ _id: new ObjectId(id) });
+    if (byId) return { users, account: byId };
+  }
+  if (email) {
+    const byEmail = await users.findOne({ email });
+    if (byEmail) return { users, account: byEmail };
+  }
+  return { users, account: null };
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

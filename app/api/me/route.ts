@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
-import { ObjectId } from "mongodb";
 import { authOptions } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import type { UserDocument } from "@/lib/db/users";
+import { findAccountBySession as findAccount } from "@/lib/db/users";
 
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 80;
@@ -20,23 +18,10 @@ function sanitizeName(value: string) {
  * PATCH -> update name and/or password. A password change must present the
  *          current one, and the new one must meet the minimum length.
  *
- * The account is looked up by `_id`, falling back to the email address:
- * sessions minted before the id was carried on the token have only the email.
+ * The account lookup (by `_id`, falling back to the email for sessions minted
+ * before the id was carried on the token) lives in `lib/db/users` now, so
+ * `/api/profile` resolves the caller exactly the same way.
  */
-async function findAccount(id: string, email?: string | null) {
-  const { db } = await connectToDatabase();
-  const users = db.collection<UserDocument>("users");
-
-  if (ObjectId.isValid(id)) {
-    const byId = await users.findOne({ _id: new ObjectId(id) });
-    if (byId) return { users, account: byId };
-  }
-  if (email) {
-    const byEmail = await users.findOne({ email });
-    if (byEmail) return { users, account: byEmail };
-  }
-  return { users, account: null };
-}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
