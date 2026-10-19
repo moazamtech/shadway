@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { Settings as SettingsIcon, ShieldCheck } from "lucide-react";
 import { AccountForm } from "@/components/settings/account-form";
 import { ProfileForm } from "@/components/settings/profile-form";
+import { PayoutsPanel } from "@/components/settings/payouts-panel";
 import { ensureUsername, resolveProfile } from "@/lib/db/users";
 import { sessionUsername } from "@/lib/session";
 import { isCloudinaryConfigured } from "@/lib/cloudinary";
@@ -89,6 +90,10 @@ export default async function SettingsPage() {
             github={profile?.github ?? ""}
             uploadsEnabled={uploadsEnabled}
           />
+        </div>
+
+        <div className="raised rounded-lg border border-border bg-card p-6">
+          <PayoutsPanel />
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

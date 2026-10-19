@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 import {
-  BadgeCheck,
   Bell,
   ChevronsUpDown,
   ClipboardCheck,
@@ -15,10 +14,8 @@ import {
   Sparkles,
   Globe,
   FileText,
-  BarChart3,
   Settings,
   Home,
-  Users,
   Layers,
   Code,
   Eye,
@@ -83,6 +80,11 @@ const data = {
       icon: ClipboardCheck,
     },
     {
+      title: "Payouts",
+      url: "/admin/payouts",
+      icon: CreditCard,
+    },
+    {
       title: "Components Admin",
       url: "/admin/components",
       icon: Code,
@@ -129,36 +131,33 @@ export function AppSidebar({
   const [pendingReviews, setPendingReviews] = useState(0);
 
   useEffect(() => {
-    fetchPendingSubmissions();
-    fetchPendingReviews();
+    let cancelled = false;
+
+    fetch("/api/submissions")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((submissions) => {
+        if (cancelled || !Array.isArray(submissions)) return;
+        setPendingSubmissions(
+          submissions.filter((item: { status?: string }) => item.status === "pending").length
+        );
+      })
+      .catch((error) => {
+        console.error("Error fetching pending submissions:", error);
+      });
+
+    fetch("/api/admin/review", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && typeof data?.count === "number") setPendingReviews(data.count);
+      })
+      .catch((error) => {
+        console.error("Error fetching pending reviews:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const fetchPendingReviews = async () => {
-    try {
-      const response = await fetch("/api/admin/review", { cache: "no-store" });
-      if (response.ok) {
-        const data = await response.json();
-        setPendingReviews(typeof data.count === "number" ? data.count : 0);
-      }
-    } catch (error) {
-      console.error("Error fetching pending reviews:", error);
-    }
-  };
-
-  const fetchPendingSubmissions = async () => {
-    try {
-      const response = await fetch("/api/submissions");
-      if (response.ok) {
-        const submissions = await response.json();
-        const pending = submissions.filter(
-          (s: any) => s.status === "pending",
-        ).length;
-        setPendingSubmissions(pending);
-      }
-    } catch (error) {
-      console.error("Error fetching pending submissions:", error);
-    }
-  };
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/admin/login" });
