@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { slugify, slugMessage, slugProblem } from "@/lib/component-slug";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   CircleCheck,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
+import { CATEGORY_GROUPS, findGroup, normalizeGroup, tagsInGroup } from "@/lib/categories";
 import { projectPayload, resolveComponentPath } from "@/lib/studio/project";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 import { coverImageUrl } from "@/lib/images";
@@ -103,10 +106,16 @@ export function PublishPanel({
     title: "",
     description: "",
     tags: "",
-    category: "ui",
     thumbnailUrl: "",
     videoUrl: "",
     ...initialMeta,
+    // Normalized on the way in, after the spread, because a draft saved before
+    // the taxonomy existed can arrive carrying "block" or "animation" or
+    // "hero". The select below only ever offers the canonical groups, so a
+    // legacy value would render the control with nothing selected and then
+    // post the stale string back — the author sees one category and the
+    // registry ships another.
+    category: normalizeGroup(initialMeta?.category ?? "ui"),
   });
   const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -133,13 +142,85 @@ export function PublishPanel({
   );
 
   const isUpdate = status === "published";
-  const registrySlug =
-    slug ||
-    meta.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") ||
-    "your-slug";
+
+  /** The group the author picked, so the form can explain what it means. */
+  const selectedGroup = findGroup(meta.category);
+
+  /**
+   * The tags field is a comma-separated string because that is what it has
+   * always been — the free-text input, the `publish()` payload split and the
+   * draft that reloads this page all speak that format. The picker below
+   * therefore never owns a separate array; it reads this string and writes
+   * this string back, so the two controls cannot drift into disagreeing about
+   * what is tagged.
+   */
+  const tagList = useMemo(
+    () =>
+      meta.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    [meta.tags]
+  );
+
+  /** Compared case-insensitively: a hand-typed `Button` is still a button. */
+  const selectedTags = useMemo(
+    () => new Set(tagList.map((tag) => tag.toLowerCase())),
+    [tagList]
+  );
+
+  /**
+   * The canonical tags for the chosen group. This is the whole point of the
+   * taxonomy from an author's side: the group is an exclusive choice between
+   * two things, so the many-valued field is where the specificity lives, and
+   * the slugs are fixed (`pricing-section`) rather than whatever the author
+   * typed (`Pricing section`), which is why a tag could not be linked to
+   * before.
+   */
+  const groupTags = useMemo(() => tagsInGroup(meta.category), [meta.category]);
+
+  /** Append or remove one slug, leaving the field's own format intact. */
+  function toggleTag(slug: string) {
+    setMeta((prev) => {
+      const current = prev.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const key = slug.toLowerCase();
+      const next = current.some((tag) => tag.toLowerCase() === key)
+        ? current.filter((tag) => tag.toLowerCase() !== key)
+        : [...current, slug];
+      return { ...prev, tags: next.join(", ") };
+    });
+  }
+
+  /**
+   * The URL this component will live at, as an editable field.
+   *
+   * It used to be derived text: the draft's slug, or a title slugified inline
+   * by a second copy of the rules that had drifted from the server's. So the
+   * address an author ends up with — the one a stranger runs `shadcn add`
+   * against — was decided in a route they never see, with no way to change it.
+   *
+   * The field holds what the author typed; `slugify` only suggests, and the
+   * same helpers the server validates with are imported here so the sentence
+   * under the input is the sentence the server would have refused with.
+   */
+  const [slugField, setSlugField] = useState(slug ?? "");
+  const slugTouched = slugField !== (slug ?? "");
+
+  const suggestedSlug = useMemo(
+    () => slugify(meta.title) || slugify(slugField) || "your-component",
+    [meta.title, slugField]
+  );
+
+  /** What will actually be published: what they typed, or the suggestion. */
+  const registrySlug = (slugTouched ? slugify(slugField) : slug || suggestedSlug) || "your-slug";
+
+  const slugIssue = slugMessage(slugProblem(registrySlug));
+
+  /** A rename, which the server treats as the record's new identity. */
+  const isRename = Boolean(slug) && registrySlug !== slug;
 
   /** The demo if the author kept one, otherwise the component itself. */
   const previewPage = useMemo(() => {
@@ -198,6 +279,7 @@ export function PublishPanel({
         throw new Error("Write your component before publishing.");
       }
       if (!meta.title.trim()) throw new Error("Give your component a title.");
+      if (slugIssue) throw new Error(slugIssue);
 
       // Build + screenshot: the component is compiled with the same bundler
       // customers will run, then rendered once in a headless browser so the
@@ -227,7 +309,17 @@ export function PublishPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slug,
+          /**
+           * Two slugs, and the difference is the whole feature.
+           *
+           * `slug` is what the author wants the component to be *called* — the
+           * field they just typed. `draftSlug` is the record this is an update
+           * of, so the server can find the right document and move it rather
+           * than looking the new name up, missing, and creating a second
+           * component beside the original.
+           */
+          slug: registrySlug,
+          draftSlug: slug,
           title: meta.title,
           description: meta.description,
           tags: meta.tags
@@ -350,6 +442,67 @@ export function PublishPanel({
             />
           </label>
 
+          {/* The address, editable. It sits under the title because it is part
+              of the component's identity rather than its metadata: it is what a
+              stranger types into `shadcn add`, and once a component is out in
+              the world it is the URL people have already pasted into their own
+              package.json. */}
+          <div className="space-y-1.5 text-sm font-medium">
+            <label htmlFor="publish-slug">Registry URL</label>
+            <div className="flex h-10 items-center rounded-lg border border-border/60 bg-background px-3 text-sm transition-colors focus-within:border-primary/60">
+              <span className="shrink-0 select-none text-muted-foreground/70">
+                /r/
+              </span>
+              <input
+                id="publish-slug"
+                name="publish-slug"
+                className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/50"
+                value={slugTouched ? slugField : slug || suggestedSlug}
+                placeholder={suggestedSlug}
+                spellCheck={false}
+                autoComplete="off"
+                aria-invalid={slugIssue ? true : undefined}
+                aria-describedby="publish-slug-help"
+                onChange={(e) => setSlugField(e.target.value)}
+              />
+              {slugTouched && slugField !== "" && registrySlug !== slugField ? (
+                <button
+                  type="button"
+                  onClick={() => setSlugField("")}
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+            <p
+              id="publish-slug-help"
+              className={cn(
+                "text-xs font-normal",
+                slugIssue ? "text-destructive" : "text-muted-foreground"
+              )}
+            >
+              {slugIssue ?? (
+                <>
+                  Install it with{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                    npx shadcn@latest add {registrySlug}
+                  </code>
+                  {isRename ? (
+                    <>
+                      {" "}
+                      · This changes the address — anything already pointing at{" "}
+                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                        /r/{slug}
+                      </code>{" "}
+                      will stop resolving.
+                    </>
+                  ) : null}
+                </>
+              )}
+            </p>
+          </div>
+
           <label className="block space-y-1.5 text-sm font-medium">
             Description
             <textarea
@@ -368,13 +521,25 @@ export function PublishPanel({
                 value={meta.category}
                 onChange={(e) => setMeta({ ...meta, category: e.target.value })}
               >
-                <option value="ui">UI</option>
-                <option value="block">Block</option>
-                <option value="marketing">Marketing</option>
-                <option value="animation">Animation</option>
-                <option value="form">Form</option>
-                <option value="data">Data</option>
+                {/* The taxonomy, not a hand-maintained list. The old six
+                    options were the shape the registry used to have; two of
+                    them (`block`, `marketing`) disagreed with each other, and
+                    `shadcn add` had no type for any of the rest. */}
+                {CATEGORY_GROUPS.map((group) => (
+                  <option key={group.slug} value={group.slug}>
+                    {group.title}
+                  </option>
+                ))}
               </select>
+              {/* What the group means, under the control. A native <select>
+                  shows one line per option and that line is also the closed
+                  control's own label, so the explanation cannot live inside
+                  the option without making the closed control unreadable. */}
+              {selectedGroup && (
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {selectedGroup.description}
+                </span>
+              )}
             </label>
 
             <label className="block space-y-1.5 text-sm font-medium">
@@ -386,6 +551,43 @@ export function PublishPanel({
                 placeholder="button, animation"
               />
             </label>
+          </div>
+
+          {/* The taxonomy, made clickable. It sits below the field rather than
+              inside it so the field stays exactly as it was — free text, still
+              editable, still authoritative — and this only ever writes that same
+              string back. Typing "animation" still works; typing something the
+              taxonomy has never heard of still ships, because these chips are a
+              way to reach the canonical slugs without memorizing them, not a
+              whitelist that rejects the rest. */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {selectedGroup?.title ?? "This component"} · {groupTags.length}{" "}
+              canonical tags. Pick one to add it, pick it again to drop it — the
+              field above stays yours either way.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {groupTags.map((tag) => {
+                const on = selectedTags.has(tag.slug);
+                return (
+                  <button
+                    key={tag.slug}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleTag(tag.slug)}
+                    title={tag.slug}
+                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors duration-150 ${
+                      on
+                        ? "border-primary/50 bg-primary/10 text-foreground"
+                        : "border-border/60 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    {on && <CircleCheck className="h-3 w-3 text-primary" aria-hidden="true" />}
+                    {tag.title}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Media — one dropzone, because a cover and a demo video are the

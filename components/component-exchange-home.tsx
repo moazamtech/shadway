@@ -21,6 +21,7 @@ import { CommandPalette } from "@/components/marketplace/command-palette";
 import { AppShell } from "@/components/marketplace/app-shell";
 import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
 import { FEED_LIMIT } from "@/lib/feed";
+import { normalizeGroup } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 
 /**
@@ -185,11 +186,19 @@ export function ComponentExchangeHome({
     const q = debouncedQuery.trim().toLowerCase();
     const matches = items.filter((item) => {
       if (category !== "all") {
-        const itemCategory = item.category?.trim().toLowerCase();
+        /* Both sides of the comparison go through the taxonomy. The rail now
+           links the canonical groups, so `?category=marketing` has to mean
+           "everything filed as a marketing block" — a component stored as
+           `hero` or `block` included. Raw string equality said otherwise, and
+           the result was a header that counted twelve and a grid that showed
+           four. normalizeGroup is idempotent and total, so the raw chip
+           values below still resolve to the bucket they always did. */
+        const sameGroup =
+          normalizeGroup(item.category) === normalizeGroup(category);
         const taggedAsCategory = item.tags.some(
           (tag) => tag.toLowerCase() === category
         );
-        if (itemCategory !== category && !taggedAsCategory) return false;
+        if (!sameGroup && !taggedAsCategory) return false;
       }
       if (!q) return true;
       return (

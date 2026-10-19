@@ -16,6 +16,7 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { findGroup, normalizeGroup } from "@/lib/categories";
 import { Separator } from "@/components/ui/separator";
 import { BrandMark } from "@/components/brand-mark";
 import { UserMenu } from "@/components/user-menu";
@@ -110,14 +111,24 @@ function useRailCatalog(): CatalogGroup[] | null {
           category?: string;
           installs?: number;
         }>) {
-          const slug =
-            typeof item.category === "string"
-              ? item.category.trim().toLowerCase()
-              : "";
-          if (!slug || !item.slug || !item.title) continue;
+          if (!item.slug || !item.title) continue;
+          /* Key on the taxonomy's group, not on the stored string. Every
+             component in the database was filed under one of the ad-hoc
+             lists, so keying on the raw value gave the rail a "hero"
+             section and a "blocks" section and a "marketing" section — three
+             sections over one category, each linking to a different query
+             than the header count implies. normalizeGroup is what folds them
+             back together, and findGroup is what turns the key back into
+             something worth reading. The feed still decides what appears:
+             an empty group is simply absent, because it is never seeded. */
+          const slug = normalizeGroup(item.category);
           const group =
             map.get(slug) ??
-            ({ slug, label: slug, items: [] } satisfies CatalogGroup);
+            ({
+              slug,
+              label: findGroup(slug)?.title ?? slug,
+              items: [],
+            } satisfies CatalogGroup);
           group.items.push({
             title: item.title,
             slug: item.slug,
