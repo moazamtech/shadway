@@ -1,6 +1,14 @@
 import { getComponentBySlug } from "@/lib/db/components";
-import { shadcnRegistrySlug } from "@/lib/registry/parsers";
+import { cssVarsForComponent, mergeCssVars, shadcnRegistrySlug } from "@/lib/registry/parsers";
 import { parseFullSlug, resolveRegistryDependencies } from "@/lib/registry/resolve";
+import {
+  isRegistryItemName,
+  normalizeRegistryDependency,
+  REGISTRY_ITEM_SCHEMA_URL,
+  toPackageNames,
+  toRegistryFile,
+  type RegistryFile,
+} from "@/lib/registry/types";
 import { collectNpmDependencies } from "@/lib/studio/deps";
 
 /**
@@ -10,15 +18,19 @@ import { collectNpmDependencies } from "@/lib/studio/deps";
  * load-bearing: `registryDependencies` must be installable URLs, `files` must
  * land at real paths, and `dependencies` must name every npm package the
  * installed code imports.
+ *
+ * What comes out of the database is not held to that contract — the category,
+ * each file's `type`, the declared dependency names and the registry
+ * dependency slugs are all free text that reached the database from a request
+ * body — so none of it is passed through unchecked. Everything below goes
+ * through `lib/registry/types.ts`, and `lib/registry/__tests__/item.test.ts`
+ * holds the item against the published schema.
  */
 export type RegistryItemInput = {
   slug: string;
   /** Optional `author/slug` form. */
   author?: string;
 };
-
-/** Packages the project running `shadcn add` already has. */
-const HOST_PACKAGES = new Set(["react", "react-dom", "next"]);
 
 export async function buildRegistryItem(
   input: RegistryItemInput,
@@ -34,69 +46,93 @@ export async function buildRegistryItem(
     return null;
   }
 
+  // The item's name is also its URL. A slug that cannot survive one is not a
+  // component anyone can install, so there is no item worth building from it.
+  if (!isRegistryItemName(component.slug)) return null;
+
   // A per-author lookup would be more correct, but shadway keys components by
   // a globally unique slug, so the author qualifier only changes the URL.
   const resolution = await resolveRegistryDependencies(
     component.registryDependencies ?? []
   );
 
-  // The component's own source plus everything it pulls in.
-  const files = [
-    {
+  // The component's own source plus everything it pulls in, in that order:
+  // the first file to claim a path keeps it, so the component being installed
+  // always wins over a dependency that happens to write to the same place.
+  const files: RegistryFile[] = [];
+  const claimed = new Set<string>();
+  const claim = (file: RegistryFile | null) => {
+    if (!file || claimed.has(file.path)) return;
+    claimed.add(file.path);
+    files.push(file);
+  };
+
+  claim(
+    toRegistryFile({
       path: `components/ui/${component.slug}.tsx`,
       content: component.code,
-      type: "registry:component" as const,
-    },
-    ...(component.files ?? []).map((file) => ({
-      path: file.path.startsWith("/") ? file.path.replace(/^\/+/, "") : file.path,
-      content: file.content,
-      type: file.type,
-    })),
-  ];
+      type: "registry:component",
+    })
+  );
+  for (const file of component.files ?? []) {
+    claim(toRegistryFile(file));
+  }
+  for (const file of Object.values(resolution.files)) {
+    claim(toRegistryFile(file));
+  }
 
-  for (const [path, file] of Object.entries(resolution.files)) {
-    if (!files.some((existing) => existing.path === path)) {
-      files.push({ path, content: file.content, type: file.type });
+  /**
+   * Registry dependencies the CLI can resolve: absolute URLs to our own
+   * registry, an absolute URL the author wrote, or an `@registry/name` the
+   * consumer resolves from its own components.json.
+   *
+   * Anything else is dropped rather than shipped. A relative `/r/<slug>` looks
+   * like it addresses shadway and does not: the CLI's URL test is `new URL()`,
+   * which a relative path fails, so it falls through to being resolved as a
+   * component *name* in the default shadcn/ui registry — where shadway does
+   * not exist, and the install fails naming something the author never wrote.
+   */
+  const registryDependencies: string[] = [];
+  for (const dep of component.registryDependencies ?? []) {
+    const url = normalizeRegistryDependency(dep, options.origin ?? "");
+    if (url) {
+      if (!registryDependencies.includes(url)) registryDependencies.push(url);
+    } else {
+      resolution.warnings.push(
+        `Dropped registry dependency "${String(dep).trim()}": not an absolute URL and no origin to resolve it against.`
+      );
     }
   }
 
-  // Rewrite bare registry dependencies into absolute URLs so the CLI can fetch
-  // them without knowing shadway's origin. Relative entries are left untouched.
-  const origin = options.origin ?? "";
-  const registryDependencies = (component.registryDependencies ?? []).map((dep) => {
-    const normalized = dep.trim().replace(/^\/+|\/+$/g, "");
-    if (!normalized) return dep;
-    if (normalized.includes("://")) return dep;
-    return `${origin}/r/${normalized}`;
-  });
-
   /**
-   * Every npm package the installed code imports.
+   * Every npm package the installed code needs.
    *
-   * The stored list is what the author declared, and it is not enough on its
-   * own: a component whose files import `motion/react` and `react-icons/fa6`
-   * shipped `dependencies: []`, so `shadcn add` wrote those imports into a
-   * project where neither package exists. The files are the truth, so the two
-   * are unioned — the declaration can still add something the walk cannot see,
-   * and the walk catches what it missed.
+   * Three sources, because none of them is complete on its own:
    *
-   * `react`, `react-dom` and `next` come out of the walk but never into the
-   * item: the CLI runs inside a React project, and every shadcn item would
-   * otherwise declare the framework it is being installed into.
+   *   - what the component's files import — the ground truth, and the reason a
+   *     component importing `motion/react` and `react-icons/fa6` once shipped
+   *     `dependencies: []` and installed into a project with neither;
+   *   - what the component declared, which the walk cannot see when a package
+   *     is used through a re-export or reached at runtime only;
+   *   - what the components it pulls in declared.
+   *
+   * All three are untrusted shapes of the same question, so all three are
+   * normalised by `toPackageNames` before they reach the consumer's
+   * package.json. `react`, `react-dom` and `next` come out of the walk and stay
+   * out of the item: the CLI runs inside a React project, and every item
+   * declaring the framework it is being installed into is noise.
    */
-  const dependencies = [
-    ...new Set([
-      ...Object.keys(resolution.npmDependencies),
-      ...collectNpmDependencies(files).filter((name) => !HOST_PACKAGES.has(name)),
-    ]),
-  ].sort();
+  const dependencies = toPackageNames([
+    ...(component.dependencies ?? []),
+    ...Object.keys(resolution.npmDependencies),
+    ...collectNpmDependencies(files),
+  ]);
 
-  const hasVars =
-    Object.keys(resolution.cssVars.light).length > 0 ||
-    Object.keys(resolution.cssVars.dark).length > 0;
+  const cssVars = mergeCssVars([cssVarsForComponent(component), resolution.cssVars]);
+  const hasVars = Object.keys(cssVars.light).length > 0 || Object.keys(cssVars.dark).length > 0;
 
   return {
-    $schema: "https://ui.shadcn.com/schema/registry-item.json",
+    $schema: REGISTRY_ITEM_SCHEMA_URL,
     name: component.slug,
     type: shadcnRegistrySlug(component.category || "ui"),
     title: component.title,
@@ -104,7 +140,7 @@ export async function buildRegistryItem(
     dependencies,
     registryDependencies,
     files,
-    ...(hasVars ? { cssVars: resolution.cssVars } : {}),
+    ...(hasVars ? { cssVars } : {}),
     meta: {
       author: component.author.username,
       tags: component.tags,

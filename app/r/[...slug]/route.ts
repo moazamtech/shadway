@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  *   /r/<author>/<slug>     the same component, addressed per-author
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string[] }> }
 ) {
   if (!process.env.MONGODB_URI) {
@@ -28,14 +28,32 @@ export async function GET(
     // containing a literal `%`.
     const segments = (await params).slug ?? [];
 
+    /**
+     * Where this request came from, which is the only place the host the CLI
+     * is talking to can come from.
+     *
+     * A component's own `registryDependencies` have to be rewritten into
+     * absolute URLs before they leave here. `buildRegistryItem` used to be
+     * called without an origin, so every one of them shipped as `/r/<slug>` —
+     * and the CLI's test for "is this a URL" is `new URL()`, which a relative
+     * path fails. It therefore resolved them as component *names* in the
+     * default shadcn/ui registry, which is not where shadway lives, so every
+     * install that pulled in a dependency died naming something the author
+     * never wrote.
+     */
+    const origin = new URL(request.url).origin;
+
     const item =
       segments.length === 1
-        ? await buildRegistryItem({ slug: segments[0] })
+        ? await buildRegistryItem({ slug: segments[0] }, { origin })
         : segments.length === 2
-          ? await buildRegistryItem({
-              author: segments[0],
-              slug: segments[1],
-            })
+          ? await buildRegistryItem(
+              {
+                author: segments[0],
+                slug: segments[1],
+              },
+              { origin }
+            )
           : null;
 
     if (!item) {

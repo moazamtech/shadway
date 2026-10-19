@@ -1,6 +1,6 @@
 import type { WithId } from "mongodb";
 import { getComponentsCollection, type ComponentDocument } from "@/lib/db/components";
-import { extractCssVars, mergeCssVars, type CssVars } from "@/lib/registry/parsers";
+import { cssVarsForComponent, mergeCssVars, type CssVars } from "@/lib/registry/parsers";
 
 /**
  * Registry dependency resolution.
@@ -201,26 +201,7 @@ function toResolvedComponent(
     files.push({ path, content: support.content, type: support.type });
   }
 
-  const cssVars: CssVars = { light: {}, dark: {} };
-  for (const file of component.files ?? []) {
-    if (file.path.endsWith(".css")) {
-      const extracted = extractCssVars(file.content);
-      cssVars.light = { ...cssVars.light, ...extracted.light };
-      cssVars.dark = { ...cssVars.dark, ...extracted.dark };
-    }
-  }
-  // `cssVars` on the document is already the parsed shape; prefer it when the
-  // component never shipped a CSS file.
-  if (!Object.keys(cssVars.light).length && !Object.keys(cssVars.dark).length) {
-    if (component.cssVars && typeof component.cssVars === "object") {
-      const stored = component.cssVars as Record<string, Record<string, string>>;
-      for (const [theme, vars] of Object.entries(stored)) {
-        if (theme === "light" || theme === "dark") {
-          cssVars[theme] = { ...cssVars[theme], ...(vars ?? {}) };
-        }
-      }
-    }
-  }
+  const cssVars = cssVarsForComponent(component);
 
   return {
     fullSlug: parsed.author ? `${parsed.author}/${component.slug}` : component.slug,
