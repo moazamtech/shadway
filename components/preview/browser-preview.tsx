@@ -160,7 +160,10 @@ export function BrowserPreview({
     [code, files, entryFile]
   );
 
-  const { css, vendored } = usePreviewCss(project?.files ?? {}, project?.style);
+  const { css, vendored, error: cssError } = usePreviewCss(
+    project?.files ?? {},
+    project?.style
+  );
 
   if (!project) {
     return (
@@ -187,6 +190,21 @@ export function BrowserPreview({
         theme={isDarkTheme ? "dark" : "light"}
         className="h-full w-full"
       />
+
+      {/*
+       * The hook holds the last stylesheet that compiled, so a failure shows up
+       * as one class missing rather than as a broken-looking component — which
+       * is invisible here, because this preview is embedded in a page that has
+       * no editor attached to it and nothing else to look wrong.
+       */}
+      {cssError ? (
+        <p
+          role="status"
+          className="absolute inset-x-0 bottom-0 truncate bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive"
+        >
+          Stylesheet not updated — {cssError}
+        </p>
+      ) : null}
     </div>
   );
 }

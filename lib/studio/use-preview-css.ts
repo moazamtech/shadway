@@ -69,9 +69,24 @@ export function usePreviewCss(
     initialCss === undefined ? null : compileKey(files, styleCode)
   );
 
+  /**
+   * The last project a compile was *attempted* for, successful or not.
+   *
+   * Only `compiled` used to be checked, so a failed compile looked identical to
+   * a never-compiled one and the next render tried again — and the next. Callers
+   * rebuild their file map every render, so a project whose stylesheet cannot be
+   * built (a `@apply` of a class that does not exist, a missing theme, an empty
+   * `globals.css`) turned into a request storm against the compile endpoint, one
+   * per render, for as long as the author sat on the error. Keying the attempt
+   * instead means a failure is retried when the project *changes*, which is the
+   * only thing that can fix it, and not merely when React re-renders.
+   */
+  const attempted = useRef<string | null>(compiled.current);
+
   useEffect(() => {
     const key = compileKey(files, styleCode);
-    if (key === compiled.current) return;
+    if (key === compiled.current || key === attempted.current) return;
+    attempted.current = key;
 
     const entries = Object.entries(files).map(([path, content]) => ({
       path,
@@ -104,9 +119,29 @@ export function usePreviewCss(
           setError(null);
         } catch (err) {
           if (cancelled) return;
-          // Unstyled beats never rendering: let the sandbox boot without CSS.
-          setError((err as Error).message);
-          setCss("");
+
+          /**
+           * The last good stylesheet is *kept*, not cleared.
+           *
+           * It used to `setCss("")`, on the reasoning that unstyled beats never
+           * rendering — but the preview renders either way; the sandbox only
+           * loses its CSS. And the loss was total and silent: neither caller
+           * read `error`, so a transient 500 left the whole preview unstyled
+           * with nothing on screen to say why, and the author was left staring
+           * at a broken-looking component with no way to connect it to the
+           * stylesheet they had just broken.
+           *
+           * A stylesheet that is one edit behind is nearly free — the preview
+           * keeps its layout, its colours and its spacing, and the only thing
+           * missing is the class the author has not committed yet. An empty
+           * one takes all of it away. So the stale sheet is held, the error is
+           * reported, and the next edit to the project retries the compile.
+           *
+           * `compiled.current` is deliberately left alone: it names the project
+           * the *retained* stylesheet was built from, and pretending the failed
+           * one landed would pin the studio to a broken project forever.
+           */
+          setError(err instanceof Error ? err.message : String(err));
         }
       })();
     }, delay);

@@ -391,11 +391,14 @@ export function ComponentStudio({
   // The same request reports the vendored shadcn/ui files the project reaches,
   // which is how the sandbox gets `@/components/ui/*` without the browser ever
   // downloading the registry.
-  const { css: previewCss, vendored: previewVendored } = usePreviewCss(
-    debouncedFiles,
-    debouncedFiles[DEFAULT_STYLE_PATH],
-    { initialCss, initialVendored: initialVendoredFiles }
-  );
+  const {
+    css: previewCss,
+    vendored: previewVendored,
+    error: previewCssError,
+  } = usePreviewCss(debouncedFiles, debouncedFiles[DEFAULT_STYLE_PATH], {
+    initialCss,
+    initialVendored: initialVendoredFiles,
+  });
 
   /* -------------------------------------------- the sandbox, kept in step -- */
 
@@ -1121,7 +1124,7 @@ export function ComponentStudio({
           {/* Preview canvas — the sandbox owns the whole surface, including its
               own loading state. */}
           <div
-            className={`flex min-h-0 flex-1 justify-center overflow-auto ${
+            className={`relative flex min-h-0 flex-1 justify-center overflow-auto ${
               viewport === "mobile" ? "items-center bg-muted/20 p-4" : "p-0"
             }`}
           >
@@ -1143,6 +1146,32 @@ export function ComponentStudio({
                 page={previewPage}
               />
             </div>
+
+            {/*
+             * A stylesheet that would not compile.
+
+             * The hook keeps the last good stylesheet when a compile fails, so
+             * the preview stays *almost* right — and that is exactly what makes
+             * it hard to notice. The class the author has just added is the one
+             * missing, everything else looks deliberate, and without this the
+             * only symptom is a component that is subtly not what they wrote.
+
+             * So it says so, in the place the author is already looking, and
+             * names the likely cause: a `globals.css` that will not compile is
+             * almost always an `@apply` of a utility that does not exist, which
+             * is a mistake in the file being edited right now.
+             */}
+            {previewCssError ? (
+              <div
+                role="status"
+                className="absolute inset-x-0 bottom-0 z-10 border-t border-destructive/25 bg-destructive/8 px-4 py-2 text-xs text-destructive backdrop-blur-sm"
+              >
+                <span className="font-medium">Stylesheet not updated.</span>{" "}
+                {previewCssError} The preview is showing your last compiling
+                version — an <code className="font-mono">@apply</code> of a class
+                that does not exist is the usual cause.
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
