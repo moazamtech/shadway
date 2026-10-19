@@ -22,6 +22,8 @@ export interface User {
   email: string;
   password: string;
   name: string;
+  /** Profile photo URL. Written by `/api/profile/avatar`, mirrored into the session. */
+  avatar?: string;
   /** The public handle the account's profile lives at (`/u/<username>`). */
   username?: string;
   role: "admin" | "user";

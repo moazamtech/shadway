@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Github, Globe, ImageUp, Loader2, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,8 @@ export function ProfileForm({
   github,
   uploadsEnabled,
 }: ProfileFormProps) {
+  const { update } = useSession();
+  const router = useRouter();
   const [bioDraft, setBioDraft] = useState(bio);
   const [websiteDraft, setWebsiteDraft] = useState(website);
   const [twitterDraft, setTwitterDraft] = useState(twitter);
@@ -90,7 +94,12 @@ export function ProfileForm({
   const savedAvatarRef = useRef(avatar);
   const objectUrlRef = useRef<string | null>(null);
 
-  savedAvatarRef.current = savedAvatar;
+  // Kept in step with the saved value in an effect rather than during render:
+  // the ref is only ever read from an event handler, and writing it while
+  // rendering is what the React compiler rules are about.
+  useEffect(() => {
+    savedAvatarRef.current = savedAvatar;
+  }, [savedAvatar]);
 
   /**
    * Object URLs are not garbage collected — a browser holds the blob alive
@@ -130,6 +139,14 @@ export function ProfileForm({
       setPhotoCleared(false);
       setAvatarNotice(null);
       setStatus({ kind: "success", message: "Profile photo updated." });
+      /**
+       * The nav, the sidebar and this page all read the photo from the session,
+       * and the session was minted before this file existed. Asking for a
+       * refresh re-runs the `jwt` callback, which re-reads the account — so the
+       * new picture appears everywhere without a sign-out.
+       */
+      void update();
+      router.refresh();
     } catch (error) {
       /**
        * Put back what is actually stored. Leaving the failed local preview up
@@ -253,6 +270,10 @@ export function ProfileForm({
       }
       setPhotoCleared(false);
       setStatus({ kind: "success", message: "Profile updated." });
+      // Removing the photo is saved by this request, not by the upload route,
+      // so the session has to be told here too.
+      void update();
+      router.refresh();
     } catch {
       setStatus({ kind: "error", message: "Network error. Try again." });
     } finally {

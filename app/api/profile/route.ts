@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import type { Document } from "mongodb";
 import { authOptions } from "@/lib/auth";
 import { findAccountBySession, type UserDocument } from "@/lib/db/users";
+import { syncAuthorAvatar } from "@/lib/db/components";
 import {
   PROFILE_TEXT_FIELDS,
   normalizeProfileField,
@@ -107,6 +108,17 @@ export async function PATCH(request: Request) {
   if (Object.keys(unset).length) update.$unset = unset;
 
   await users.updateOne({ _id: account._id }, update);
+
+  /**
+   * A removed picture has to leave the components too — the copies on a
+   * creator's work are what the feed and the detail page draw, and a stale
+   * picture there is the one the whole site shows most often.
+   */
+  if (Object.prototype.hasOwnProperty.call(unset, "avatar")) {
+    await syncAuthorAvatar(account._id!.toString(), "").catch((error) => {
+      console.error("Failed to clear the author picture:", error);
+    });
+  }
 
   return NextResponse.json({
     ok: true,

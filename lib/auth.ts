@@ -1,8 +1,8 @@
-import { NextAuthOptions, User as NextAuthUser } from 'next-auth';
+import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from './mongodb';
-import { ensureUsername } from './db/users';
+import { ensureUsername, findAccountBySession } from './db/users';
 import { User as DbUser } from './types';
 
 declare module 'next-auth' {
@@ -14,6 +14,8 @@ declare module 'next-auth' {
      * callers fall back to `/profile`, which resolves the handle server-side.
      */
     username?: string;
+    /** The profile photo, mirrored from the account at sign-in and on update. */
+    image?: string | null;
   }
 
   interface Session {
@@ -23,6 +25,12 @@ declare module 'next-auth' {
       name: string;
       role: string;
       username?: string;
+      /**
+       * The account's photo. It lives on the account, not on the token, because
+       * the settings page writes it from a different request — the `jwt`
+       * callback below re-reads it when the client asks for a refresh.
+       */
+      image?: string | null;
     };
   }
 }
@@ -110,6 +118,7 @@ export const authOptions: NextAuthOptions = {
             name: user.name,
             role,
             username: username ?? undefined,
+            image: user.avatar || undefined,
           };
         } catch (error) {
           // SECURITY: Log errors but don't expose details to client
@@ -128,7 +137,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = isAdminEmail(user.email) ? 'admin' : user.role;
         // Only written when it is actually present: an absent handle must leave
@@ -136,8 +145,35 @@ export const authOptions: NextAuthOptions = {
         // which is what would drop the handle on any token refresh that carries
         // a `user` object without one.
         if (user.username) token.username = user.username;
-      } else if (token.email && isAdminEmail(token.email)) {
-        token.role = 'admin';
+        /**
+         * The photo, carried as `picture` — the field NextAuth copies into
+         * `session.user.image`. `undefined` clears it, which is what a removed
+         * photo is: leaving the old URL here would show a picture the account
+         * no longer has.
+         */
+        token.picture = user.image ?? undefined;
+      } else {
+        if (token.email && isAdminEmail(token.email)) {
+          token.role = 'admin';
+        }
+        /**
+         * A photo is uploaded and saved by `/api/profile/avatar`, which is a
+         * different request from the one that minted this token. Nothing in the
+         * token can know the account changed, so a client that has just saved
+         * asks for a refresh (`useSession().update()`), and this is the read
+         * that answers it. The value comes from the database, never from the
+         * refresh payload: otherwise a caller could point their own avatar at
+         * any URL and have every page render it.
+         */
+        if (trigger === 'update' && token.sub) {
+          const found = await findAccountBySession(token.sub, token.email ?? null).catch(() => null);
+          const account = found?.account;
+          if (account) {
+            token.picture = account.avatar || undefined;
+            if (account.name) token.name = account.name;
+            if (account.username) token.username = account.username;
+          }
+        }
       }
       return token;
     },
@@ -146,6 +182,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub!;
         session.user.role = isAdminEmail(session.user?.email || token.email) ? 'admin' : token.role;
         if (token.username) session.user.username = token.username;
+        session.user.image = token.picture ?? null;
       }
       return session;
     },

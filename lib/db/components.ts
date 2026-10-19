@@ -454,6 +454,30 @@ export async function listUserComponents(
 }
 
 /**
+ * Keeps the author record on a creator's components in step with their account.
+ *
+ * A component carries a denormalised copy of its author — name, handle and
+ * picture — so the feed can draw thirty cards without thirty account lookups.
+ * The price of that copy is that it goes stale: an author who replaces their
+ * photo would keep the old one on every card they have ever published, and on
+ * the detail page, until each component was touched again.
+ *
+ * So the account is the truth and the copies follow it. This is called when a
+ * picture is uploaded or removed; an empty string clears it, which the readers
+ * already treat as "no picture" (they fall back to the handle's initials).
+ */
+export async function syncAuthorAvatar(
+  userId: string,
+  avatar?: string | null,
+): Promise<void> {
+  const collection = await getComponentsCollection();
+  await collection.updateMany(
+    { "author.userId": userId },
+    { $set: { "author.avatar": avatar ?? "" } },
+  );
+}
+
+/**
  * Fetches published components by slug, keeping the order the slugs were
  * given in — which is what a bookmarks list, stored newest-first, needs.
  */

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isCloudinaryConfigured, uploadBufferToCloudinary } from "@/lib/cloudinary";
 import { findAccountBySession } from "@/lib/db/users";
+import { syncAuthorAvatar } from "@/lib/db/components";
 import {
   AVATAR_FOLDER,
   avatarProblem,
@@ -94,6 +95,14 @@ export async function POST(request: Request) {
       { _id: account._id },
       { $set: { avatar: url, updatedAt: new Date() } },
     );
+
+    /**
+     * The account is the truth about who this person is; the copies on their
+     * components are what the feed, the detail page and the quick-view dialog
+     * draw. Without this the new picture would appear on the profile and
+     * nowhere else, which is the same bug as not having a picture at all.
+     */
+    await syncAuthorAvatar(account._id!.toString(), url);
 
     return NextResponse.json({ url });
   } catch (error) {

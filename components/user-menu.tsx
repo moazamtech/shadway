@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +88,18 @@ export function UserMenu({
   const label = session.user.name || session.user.email || "Account";
   const sub = admin ? "Admin" : (session.user.email ?? "Account");
   /**
+   * The account's photo, if it has one.
+   *
+   * The row used to render initials and nothing else, so a profile photo
+   * uploaded in settings never appeared in the two places the account is most
+   * visible. `AvatarImage` hides itself when the URL fails to load and the
+   * fallback takes over, so a broken or deleted file degrades to the initials
+   * rather than the empty white square that made a missing photo look like a
+   * rendering bug.
+   */
+  const image = session.user.image ?? undefined;
+  const initials = label.slice(0, 2).toUpperCase();
+  /**
    * The profile lives at `/u/<handle>`; `/profile` only redirects there.
    *
    * Link straight at the destination so opening the menu does not spend a round
@@ -114,9 +127,18 @@ export function UserMenu({
         >
           {row ? (
             <>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-foreground-soft transition-colors group-hover/row:bg-background sidebar-collapsed:-ml-1.5 sidebar-glide">
-                {label.slice(0, 2).toUpperCase()}
-              </span>
+              <Avatar className="size-9 shrink-0 rounded-lg transition-opacity group-hover/row:opacity-90 sidebar-collapsed:-ml-1.5 sidebar-glide">
+                {image ? (
+                  <AvatarImage
+                    src={image}
+                    alt=""
+                    className="rounded-lg object-cover"
+                  />
+                ) : null}
+                <AvatarFallback className="rounded-lg bg-accent text-xs font-semibold text-foreground-soft">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
               <span className="flex min-w-0 flex-col sidebar-collapsed:hidden">
                 <span className="truncate text-[13.5px] leading-4 font-medium">
                   {label}
@@ -128,7 +150,18 @@ export function UserMenu({
               <ChevronUp className="ml-auto h-4 w-4 shrink-0 text-muted-foreground sidebar-collapsed:hidden" />
             </>
           ) : (
-            label.slice(0, 2).toUpperCase()
+            <Avatar className="size-8 rounded-lg">
+              {image ? (
+                <AvatarImage
+                  src={image}
+                  alt=""
+                  className="rounded-lg object-cover"
+                />
+              ) : null}
+              <AvatarFallback className="rounded-lg bg-accent text-xs font-semibold text-foreground-soft">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
           )}
         </button>
       </DropdownMenuTrigger>
