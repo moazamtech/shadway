@@ -51,6 +51,48 @@ type Account = {
   updatedAt: string | null;
 };
 
+/** What the weekly run would do, in the shape the route answers with. */
+type RunPlan = {
+  written?: boolean;
+  batches?: number;
+  runId?: string;
+  plan?: {
+    lines?: {
+      creatorId: string;
+      address: string;
+      grossMinor: string;
+      owedMinor: string;
+      eventCount: number;
+    }[];
+    skipped?: {
+      creatorId: string;
+      reason: string;
+      grossMinor: string;
+      owedMinor: string;
+      shortfallMinor: string;
+      eventCount: number;
+    }[];
+    totals?: {
+      grossMinor: string;
+      owedMinor: string;
+      creatorsPaid: number;
+      creatorsSkipped: number;
+    };
+  };
+};
+
+/** Minor units as dollars, for the eye rather than for arithmetic. */
+function usdc(minor: string): string {
+  try {
+    const value = BigInt(minor);
+    const whole = value / BigInt(1_000_000);
+    const cents = (value % BigInt(1_000_000)) / BigInt(10_000);
+    return `$${whole}.${cents.toString().padStart(2, "0")}`;
+  } catch {
+    return "$0.00";
+  }
+}
+
 const TONE: Record<Status, string> = {
   pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-transparent",
   verified: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-transparent",
@@ -69,6 +111,8 @@ export default function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Account | null>(null);
+  const [running, setRunning] = useState(false);
+  const [run, setRun] = useState<RunPlan | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +139,41 @@ export default function PayoutsPage() {
   }, []);
 
   const pending = useMemo(() => items.filter((item) => item.status === "pending").length, [items]);
+
+  /**
+   * The weekly run.
+   *
+   * The plan is read before it is written, because the two are the same
+   * arithmetic and an operator who cannot see the numbers should not be
+   * writing them. Writing the batch records what would be paid and claims the
+   * earnings it covers; it does not move money — that is the step the signing
+   * key owns, and the key is not in this application.
+   */
+  async function runBatch(confirm: boolean) {
+    setRunning(true);
+    try {
+      const response = await fetch("/api/admin/payouts/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "The run failed");
+      }
+      setRun(data);
+      toast.success(
+        confirm
+          ? `Batch written${data.batches ? `: ${data.batches} creator(s)` : ""}.`
+          : "Preview ready.",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "The run failed");
+    } finally {
+      setRunning(false);
+    }
+  }
 
   async function decide(account: Account, action: "verify" | "reject") {
     setBusy(account.creatorId);
@@ -130,6 +209,96 @@ export default function PayoutsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6 p-6">
+        {/* The weekly run. */}
+        <section className="rounded-md border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Weekly run</h2>
+              <p className="text-xs text-muted-foreground">
+                The last seven days of earnings, and what would be paid from
+                them. Writing the batch records the decision and claims the
+                earnings it covers; the transaction itself is signed with the
+                key this deployment does not hold.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={running}
+                onClick={() => void runBatch(false)}
+              >
+                {running ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                Preview
+              </Button>
+              <Button size="sm" disabled={running} onClick={() => void runBatch(true)}>
+                {running ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Write the batch
+              </Button>
+            </div>
+          </div>
+
+          {run?.plan ? (
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <span>
+                  Paying {run.plan.totals?.creatorsPaid ?? 0} creator
+                  {run.plan.totals?.creatorsPaid === 1 ? "" : "s"} ·{" "}
+                  {usdc(run.plan.totals?.owedMinor ?? "0")}
+                </span>
+                <span>
+                  Skipping {run.plan.totals?.creatorsSkipped ?? 0} ·{" "}
+                  {usdc(run.plan.totals?.grossMinor ?? "0")} accrued
+                </span>
+                {run.written ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    Batch written{run.batches ? `: ${run.batches}` : ""} — awaiting
+                    a signature.
+                  </span>
+                ) : null}
+              </div>
+
+              {run.plan.lines?.length ? (
+                <ul className="divide-y divide-border rounded-md border">
+                  {run.plan.lines.map((line) => (
+                    <li key={line.creatorId} className="flex items-center gap-3 px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                        {line.address}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {line.eventCount} event{line.eventCount === 1 ? "" : "s"}
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {usdc(line.owedMinor)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {run.plan.skipped?.length ? (
+                <ul className="divide-y divide-border rounded-md border">
+                  {run.plan.skipped.map((line) => (
+                    <li key={line.creatorId} className="flex items-center gap-3 px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+                        {line.creatorId}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {line.reason.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {usdc(line.owedMinor)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Payout addresses</h1>
