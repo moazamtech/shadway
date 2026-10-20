@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/auth/require-session";
 import { toPackageNames } from "@/lib/registry/types";
+import {
+  parseRegistryInput,
+  RegistryInputError,
+  type RegistryReference,
+} from "@/lib/studio/registry-reference";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -241,8 +246,159 @@ async function assertReachable(url: URL, network: RegistryNetwork): Promise<void
   }
 }
 
-/* --------------------------------------------------------------- the answer -- */
+/* ------------------------------------------------------------- the address -- */
 
+/**
+ * The registry every shadcn project has always installed from.
+ *
+ * The item's own address is `https://ui.shadcn.com/r/styles/<style>/<name>.json`,
+ * and the style is part of the address: the same name is a different file
+ * under a different style, and the newest items only exist under the newer
+ * one. So a name is looked for under both, in the order the CLI would try
+ * them, and the first one that answers with an item is the item.
+ */
+const DEFAULT_REGISTRY = "https://ui.shadcn.com";
+
+/** The styles a bare name is looked for under, in the order they are tried. */
+const DEFAULT_STYLES = ["new-york", "new-york-v4"];
+
+/**
+ * The directory of the registries the CLI knows by name.
+ *
+ * The CLI carries a list of the community registries, so that
+ * `npx shadcn add @acme/button` works without the project having configured
+ * anything. The list is the same one, and it is the only way a name with a
+ * namespace can be turned into an address.
+ */
+const REGISTRY_DIRECTORY_URL = "https://ui.shadcn.com/r/registries.json";
+
+/** How long the directory is kept before it is read again. */
+const DIRECTORY_TTL_MS = 10 * 60 * 1000;
+
+type RegistryDirectoryEntry = {
+  name: string;
+  url: string;
+  homepage?: string;
+  description?: string;
+};
+
+/**
+ * The directory, read once and kept for a while.
+ *
+ * It is a large document — every community registry, with the health of each
+ * — and an author pasting a name is not going to paste many of them in a
+ * minute. The copy is kept in memory for ten minutes, which is long enough
+ * that a second import does not read it again and short enough that a
+ * registry which moves is picked up in the same afternoon.
+ */
+let directory: { entries: RegistryDirectoryEntry[]; readAt: number } | null = null;
+
+async function readDirectory(
+  network: RegistryNetwork
+): Promise<RegistryDirectoryEntry[]> {
+  if (directory && Date.now() - directory.readAt < DIRECTORY_TTL_MS) {
+    return directory.entries;
+  }
+
+  const { response } = await fetchItem(new URL(REGISTRY_DIRECTORY_URL), network);
+  if (!response.ok) {
+    throw new ImportError(
+      502,
+      "The registry directory could not be read, so the name could not be looked up."
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await readAnswer(response));
+  } catch {
+    throw new ImportError(502, "The registry directory could not be read.");
+  }
+
+  if (!Array.isArray(payload)) {
+    throw new ImportError(502, "The registry directory could not be read.");
+  }
+
+  const entries = payload.filter(
+    (entry): entry is RegistryDirectoryEntry =>
+      isRecord(entry) &&
+      typeof entry.name === "string" &&
+      typeof entry.url === "string"
+  );
+
+  directory = { entries, readAt: Date.now() };
+  return entries;
+}
+
+/**
+ * The address of a namespaced item.
+ *
+ * The directory gives a template rather than an address, because one registry
+ * holds many items: `https://acme.com/r/{name}.json`. The placeholders are
+ * filled in the way the CLI fills them in — the item's name, and the style
+ * when the template asks for one.
+ */
+function fillTemplate(template: string, name: string, style: string): string | null {
+  let filled = template.replace(/\{name\}/g, name);
+  if (filled.includes("{style}")) {
+    filled = filled.replace(/\{style\}/g, style);
+  }
+  if (filled.includes("{")) return null;
+
+  try {
+    return new URL(filled).toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The addresses a name can be read from, in the order they are tried.
+ *
+ * A name is not one address. The same name is a different file under a
+ * different style, and the newest items only exist under the newer one, so a
+ * name is read from every style the CLI would try until one of them answers
+ * with an item. The first answer wins, and the others are not read at all.
+ */
+async function resolveAddresses(
+  reference: RegistryReference,
+  network: RegistryNetwork
+): Promise<string[]> {
+  if (reference.kind === "url") {
+    return [reference.value];
+  }
+
+  if (reference.namespace) {
+    const entries = await readDirectory(network);
+    const entry = entries.find((candidate) => candidate.name === `@${reference.namespace}`);
+
+    if (!entry) {
+      throw new ImportError(
+        404,
+        `There is no registry called @${reference.namespace} in the shadcn registry directory.`
+      );
+    }
+
+    const addresses: string[] = [];
+    for (const style of DEFAULT_STYLES) {
+      const address = fillTemplate(entry.url, reference.name, style);
+      if (address && !addresses.includes(address)) addresses.push(address);
+    }
+    if (!addresses.length) {
+      throw new ImportError(
+        502,
+        `The registry @${reference.namespace} does not say where its items live.`
+      );
+    }
+    return addresses;
+  }
+
+  return DEFAULT_STYLES.map(
+    (style) => `${DEFAULT_REGISTRY}/r/styles/${style}/${reference.name}.json`
+  );
+}
+
+/* --------------------------------------------------------------- the answer -- */
 /**
  * The registry's answer, read within a size the deployment can afford.
  *
@@ -364,11 +520,17 @@ export type RegistryItem = {
   type: string;
   files: RegistryFile[];
   dependencies: string[];
-  registryDependencies: string[];
+  registryDependencies: RegistryReference[];
   cssVars?: RegistryCssVars;
   /** The files that were left out, and why. */
   skipped: { path: string; reason: string }[];
 };
+
+/** How a reference reads when it is shown to a person. */
+export function describeReference(reference: RegistryReference): string {
+  if (reference.kind === "url") return reference.value;
+  return reference.namespace ? `@${reference.namespace}/${reference.name}` : reference.name;
+}
 
 /**
  * A path that stays inside the project.
@@ -438,22 +600,34 @@ function readFiles(files: unknown): {
 }
 
 /**
- * The item's registry dependencies, addressed the way their registry
- * addresses them.
+ * The item's registry dependencies, as the things they are.
  *
- * The same rule the registry itself follows: a dependency's address is made
- * absolute before it leaves the server, because a relative address is read
- * against whoever serves it. Here that would be this deployment, whose
- * registry is a different one, so a dependency written as a name is resolved
- * against the directory of the item it came from — the registry's own tree,
- * not ours — and never left relative.
+ * A dependency is another item, and it is named in one of three ways. A link
+ * is the item's own address. A name with a namespace belongs to the registry
+ * that namespace names. A bare name belongs to the default registry — which is
+ * what makes a block that is built out of shadcn's own components work: the
+ * block says "button" and the button is the one everybody has.
+ *
+ * The address is made absolute before it leaves this function, because a
+ * relative address is read against whoever serves it, and whoever serves it
+ * here is this deployment, whose registry is a different one.
  */
-function readRegistryDependencies(values: unknown, itemUrl: URL): string[] {
+function readRegistryDependencies(
+  values: unknown,
+  itemUrl: URL
+): RegistryReference[] {
   if (!Array.isArray(values)) return [];
 
-  const resolved: string[] = [];
+  const resolved: RegistryReference[] = [];
   const directory = new URL(".", itemUrl);
   const suffix = itemUrl.pathname.endsWith(".json") ? ".json" : "";
+
+  const add = (reference: RegistryReference) => {
+    const key = JSON.stringify(reference);
+    if (!resolved.some((candidate) => JSON.stringify(candidate) === key)) {
+      resolved.push(reference);
+    }
+  };
 
   for (const value of values) {
     if (typeof value !== "string") continue;
@@ -461,14 +635,21 @@ function readRegistryDependencies(values: unknown, itemUrl: URL): string[] {
     if (!trimmed) continue;
 
     if (/^https?:\/\//i.test(trimmed)) {
-      if (!resolved.includes(trimmed)) resolved.push(trimmed);
+      add({ kind: "url", value: trimmed });
       continue;
     }
 
-    // A `@registry/name` belongs to the consumer's own configuration, and is
-    // left exactly as it was written.
-    if (/^@[a-zA-Z0-9][a-zA-Z0-9-_]*\/[a-zA-Z0-9][a-zA-Z0-9-_]*$/.test(trimmed)) {
-      if (!resolved.includes(trimmed)) resolved.push(trimmed);
+    const namespaced = /^@([a-zA-Z0-9][a-zA-Z0-9._-]*)\/([a-zA-Z0-9][a-zA-Z0-9._-]*)$/.exec(
+      trimmed
+    );
+    if (namespaced) {
+      add({ kind: "item", namespace: namespaced[1], name: namespaced[2] });
+      continue;
+    }
+
+    // A plain name is the default registry's.
+    if (/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(trimmed)) {
+      add({ kind: "item", namespace: null, name: trimmed });
       continue;
     }
 
@@ -479,7 +660,7 @@ function readRegistryDependencies(values: unknown, itemUrl: URL): string[] {
       continue;
     }
     if (suffix && !absolute.endsWith(suffix)) absolute += suffix;
-    if (!resolved.includes(absolute)) resolved.push(absolute);
+    add({ kind: "url", value: absolute });
   }
 
   return resolved;
@@ -505,10 +686,46 @@ function readCssVars(value: unknown): RegistryCssVars | undefined {
  * than a stack trace they cannot.
  */
 export async function readRegistryItem(
-  address: string,
+  address: string | string[],
   options: { network?: RegistryNetwork } = {}
 ): Promise<RegistryItem> {
   const network = options.network ?? defaultNetwork;
+  const candidates = Array.isArray(address) ? address : [address];
+
+  let last: ImportError | null = null;
+  for (const candidate of candidates) {
+    try {
+      return await readRegistryItemAt(candidate, network);
+    } catch (error) {
+      /**
+       * Only "there is nothing there" is worth trying the next address for.
+       *
+       * A registry that answered with an error has answered, and the next
+       * address is a different registry's item: reading it would be answering
+       * a different question than the author asked.
+       */
+      if (!(error instanceof ImportError) || error.status !== 404) throw error;
+      last = error;
+    }
+  }
+
+  throw last ?? new ImportError(404, "That registry has no item at that address.");
+}
+
+/**
+ * The item at one address.
+ *
+ * Everything the studio needs to bring the component in is decided here: the
+ * files with their content, the packages the item declares, the variables it
+ * sets, and the registry dependencies it names. A registry that answers with
+ * anything else — a page, a 404, a document that is not an item — is
+ * refused with a sentence, because an error the author can read is worth more
+ * than a stack trace they cannot.
+ */
+async function readRegistryItemAt(
+  address: string,
+  network: RegistryNetwork
+): Promise<RegistryItem> {
   const url = parseRegistryUrl(address);
 
   const { response, url: finalUrl } = await fetchItem(url, network);
@@ -563,6 +780,173 @@ export async function readRegistryItem(
 
 /* --------------------------------------------------------------- the route -- */
 
+/**
+ * How deep the registry dependencies are followed.
+ *
+ * A block is built out of other blocks, and those out of others, and the
+ * chain is short but it is not flat. Two levels is enough for what the
+ * registries actually publish, and the limit is here because the chain is
+ * followed into strangers' registries: a cycle would otherwise be followed
+ * forever.
+ */
+const DEPENDENCY_DEPTH = 2;
+
+/** How many items are brought in altogether, dependencies included. */
+const MAX_ITEMS = 24;
+
+/**
+ * The item, and the items it is built out of.
+ *
+ * A registry item that says it is built out of a button is describing a
+ * component that does not compile without one. The CLI installs the whole
+ * chain, and so does this: the dependencies are read and their files are
+ * brought in beside the item's own, so what lands in the studio is a
+ * component that runs rather than a component that is missing half of
+ * itself.
+ *
+ * A dependency that cannot be read is reported rather than fatal. The author
+ * gets the item they asked for and a list of what is missing, which is a
+ * better answer than nothing at all, and the list says what to look for.
+ */
+async function readItemWithDependencies(
+  reference: RegistryReference,
+  network: RegistryNetwork,
+  depth = 0,
+  seen: Set<string> = new Set(),
+  read: RegistryItem[] = []
+): Promise<{ item: RegistryItem; files: RegistryFile[]; unresolved: string[] }> {
+  const addresses = await resolveAddresses(reference, network);
+  const item = await readRegistryItem(addresses, { network });
+
+  if (seen.has(item.url) || read.length >= MAX_ITEMS) {
+    return { item, files: [], unresolved: [] };
+  }
+  seen.add(item.url);
+  read.push(item);
+
+  const files: RegistryFile[] = [];
+  const unresolved: string[] = [];
+
+  if (depth >= DEPENDENCY_DEPTH) {
+    for (const dependency of item.registryDependencies) {
+      unresolved.push(describeReference(dependency));
+    }
+    return { item, files, unresolved };
+  }
+
+  for (const dependency of item.registryDependencies) {
+    try {
+      const nested = await readItemWithDependencies(
+        dependency,
+        network,
+        depth + 1,
+        seen,
+        read
+      );
+      /**
+       * The dependency's own files, and the files of what it is built out of.
+       *
+       * A dependency is a component like any other, and it is made of files
+       * that have to land in the project as well — otherwise the item the
+       * author asked for arrives with a hole where its own building blocks
+       * should be.
+       */
+      files.push(...nested.item.files, ...nested.files);
+      unresolved.push(...nested.unresolved);
+    } catch (error) {
+      const label = describeReference(dependency);
+      unresolved.push(
+        error instanceof ImportError ? `${label} (${error.message})` : label
+      );
+    }
+  }
+
+  return { item, files, unresolved };
+}
+
+/**
+ * The import, as the studio needs it.
+ *
+ * Everything the studio has to land in the project, in one answer: the items
+ * that were named, every file they are made of, the files of the registry
+ * dependencies that came with them, the packages the sandbox will have to
+ * install, and the dependencies that could not be read.
+ */
+export type RegistryImport = {
+  items: RegistryItem[];
+  files: RegistryFile[];
+  registryFiles: RegistryFile[];
+  dependencies: string[];
+  unresolved: string[];
+};
+
+export async function importReferences(
+  references: RegistryReference[],
+  network: RegistryNetwork = defaultNetwork
+): Promise<RegistryImport> {  const items: RegistryItem[] = [];
+  const files: RegistryFile[] = [];
+  const registryFiles: RegistryFile[] = [];
+  const dependencies: string[] = [];
+  const unresolved: string[] = [];
+  const seen = new Set<string>();
+  const read: RegistryItem[] = [];
+
+  for (const reference of references) {
+    const result = await readItemWithDependencies(
+      reference,
+      network,
+      0,
+      seen,
+      read
+    );
+    items.push(result.item);
+    files.push(...result.item.files);
+    registryFiles.push(...result.files);
+    unresolved.push(...result.unresolved);
+  }
+
+  /**
+   * The packages, from every item that was read.
+   *
+   * A dependency has packages of its own, and the sandbox has to install them
+   * too: a button that needs a slot is not a button that runs.
+   */
+  for (const item of read) {
+    for (const dependency of item.dependencies) {
+      if (!dependencies.includes(dependency)) dependencies.push(dependency);
+    }
+  }
+
+  /**
+   * The files, one per path.
+   *
+   * A block and the primitives it is built out of often agree on a file: the
+   * button the block uses is the button the block's own dependency asks for,
+   * and the styles the two registries are published under may differ. The
+   * first file for a path is the one that stays, and the first is the item's
+   * own — the thing the author asked for wins over the thing it is built out
+   * of.
+   */
+  const own = new Map<string, RegistryFile>();
+  for (const file of files) {
+    if (!own.has(file.path)) own.set(file.path, file);
+  }
+
+  const dependenciesFiles = new Map<string, RegistryFile>();
+  for (const file of registryFiles) {
+    if (own.has(file.path)) continue;
+    if (!dependenciesFiles.has(file.path)) dependenciesFiles.set(file.path, file);
+  }
+
+  return {
+    items,
+    files: [...own.values()],
+    registryFiles: [...dependenciesFiles.values()],
+    dependencies,
+    unresolved,
+  };
+}
+
 async function handle(request: Request): Promise<NextResponse> {
   let body: unknown;
   try {
@@ -575,14 +959,41 @@ async function handle(request: Request): Promise<NextResponse> {
     throw new ImportError(400, "The request body was not a JSON object.");
   }
 
-  const address = typeof body.url === "string" ? body.url : "";
-  if (!address.trim()) {
-    throw new ImportError(400, "Paste the address of a registry item.");
+  /**
+   * What the author pasted.
+   *
+   * The link is the old name of this and it still works, because a link is
+   * what the route was built for. The command and the name are the newer
+   * ones: the command is what a registry's page puts on its copy button, and
+   * the name is what that command is carrying.
+   */
+  const pasted =
+    typeof body.input === "string" && body.input.trim()
+      ? body.input
+      : typeof body.url === "string"
+        ? body.url
+        : "";
+
+  if (!pasted.trim()) {
+    throw new ImportError(
+      400,
+      "Paste the address of a registry item, or the command that installs it."
+    );
   }
 
-  const item = await readRegistryItem(address);
+  let references: RegistryReference[];
+  try {
+    references = parseRegistryInput(pasted);
+  } catch (error) {
+    if (error instanceof RegistryInputError) {
+      throw new ImportError(400, error.message);
+    }
+    throw error;
+  }
 
-  return NextResponse.json({ ok: true, ...item });
+  const imported = await importReferences(references, defaultNetwork);
+
+  return NextResponse.json({ ok: true, ...imported });
 }
 
 export async function POST(request: Request): Promise<NextResponse> {

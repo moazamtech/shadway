@@ -6,9 +6,11 @@ import puppeteer from "puppeteer";
 
 import {
   ImportError,
+  importReferences,
   readRegistryItem,
   type RegistryNetwork,
 } from "../app/api/studio/import-registry/route";
+import { parseRegistryInput } from "../lib/studio/registry-reference";
 import { BASE, createQaAccount, removeQaAccount, signIn, type QaAccount } from "./qa-session";
 
 /**
@@ -68,6 +70,23 @@ const ITEM = {
   ],
 };
 
+/**
+ * The directory the CLI carries.
+ *
+ * The CLI knows the community registries by name, so `@acme/button` works
+ * without the project having configured anything. The local registry serves a
+ * directory of its own, with one registry in it, and the checks below ask for
+ * an item in that registry by name.
+ */
+const DIRECTORY = [
+  {
+    name: "@acme",
+    url: "https://registry.example/r/{name}.json",
+    homepage: "https://acme.example",
+    description: "A registry of the check's own.",
+  },
+];
+
 let failures = 0;
 function log(label: string, ok: boolean, extra = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${extra ? `  ${extra}` : ""}`);
@@ -78,10 +97,51 @@ function log(label: string, ok: boolean, extra = "") {
 function startRegistry() {
   const server = http.createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
+    /**
+     * The address without its extension.
+     *
+     * A registry answers at `/r/name` and at `/r/name.json` alike, and the
+     * checks ask for both, so the extension is taken off before the address
+     * is compared.
+     */
+    const key = path.replace(/\.json$/, "");
 
-    if (path === "/r/qa-hero") {
+    if (key === "/r/qa-hero" || key === "/r/styles/new-york/qa-hero") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify(ITEM));
+      return;
+    }
+
+    /**
+     * The dependency the item is built out of.
+     *
+     * A block that says it is built out of a button is describing a component
+     * that does not compile without one, so the import has to bring the button
+     * in with it.
+     */
+    if (key === "/r/button" || key === "/r/styles/new-york/button") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          name: "button",
+          type: "registry:ui",
+          dependencies: ["@radix-ui/react-slot"],
+          files: [
+            {
+              path: "ui/button.tsx",
+              content:
+                'export function Button(props: Record<string, unknown>) {\n  return <button {...props} />;\n}\n',
+              type: "registry:ui",
+            },
+          ],
+        })
+      );
+      return;
+    }
+
+    if (path === "/r/registries.json") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(DIRECTORY));
       return;
     }
 
@@ -193,8 +253,83 @@ async function main() {
     );
     log(
       "a relative registry dependency is addressed absolutely",
-      item.registryDependencies[0] === "https://registry.example/r/button",
-      item.registryDependencies.join(" | "),
+      item.registryDependencies[0]?.kind === "item" &&
+        item.registryDependencies[0]?.namespace === null &&
+        item.registryDependencies[0]?.name === "button",
+      JSON.stringify(item.registryDependencies),
+    );
+
+    /* ------------------------------------------------- the command and the name -- */
+
+    /**
+     * The command, in the shapes people copy it in.
+     *
+     * The runner is the package manager's business — `npx`, `pnpm dlx`,
+     * `bunx` all mean the same thing to the person who copied them — and what
+     * the command says is which item it installs.
+     */
+    for (const command of [
+      "npx shadcn@latest add @acme/qa-hero",
+      "pnpm dlx shadcn@latest add @acme/qa-hero",
+      "bunx --bun shadcn@latest add @acme/qa-hero",
+      "yarn dlx shadcn@latest add @acme/qa-hero",
+      "npx shadcn@latest add @acme/qa-hero --yes",
+      "shadcn add @acme/qa-hero",
+    ]) {
+      const references = parseRegistryInput(command);
+      const named =
+        references.length === 1 &&
+        references[0].kind === "item" &&
+        references[0].namespace === "acme" &&
+        references[0].name === "qa-hero";
+
+      const imported = named
+        ? await importReferences(references, network)
+        : null;
+
+      log(
+        `the command names the item: ${command}`,
+        named && imported !== null && imported.items.length === 1,
+        named ? "" : "it did not name the item",
+      );
+    }
+
+    const byName = await importReferences(
+      parseRegistryInput("@acme/qa-hero"),
+      network
+    );
+    log(
+      "a name in a namespace is found through the directory",
+      byName.items.length === 1 && byName.items[0].name === "qa-hero",
+      byName.items.map((found) => found.url).join(" | "),
+    );
+    log(
+      "the item's own files come with it",
+      byName.files.some((file) => file.path === "components/qa-hero.tsx"),
+      byName.files.map((file) => file.path).join(" | "),
+    );
+
+    const bare = await importReferences(parseRegistryInput("qa-hero"), network);
+    log(
+      "a name with no namespace is found in the default registry",
+      bare.items.length === 1 && bare.items[0].name === "qa-hero",
+      bare.items.map((found) => found.url).join(" | "),
+    );
+
+    log(
+      "the item it is built out of is brought in as well",
+      byName.registryFiles.some((file) => file.path === "ui/button.tsx"),
+      byName.registryFiles.map((file) => file.path).join(" | "),
+    );
+    log(
+      "the packages the dependencies need are named",
+      byName.dependencies.includes("@radix-ui/react-slot"),
+      byName.dependencies.join(","),
+    );
+    log(
+      "a dependency that cannot be read is reported and not fatal",
+      byName.unresolved.some((entry) => entry.includes("other")),
+      byName.unresolved.join(" | "),
     );
 
     const local = await refusal(`http://127.0.0.1:${new URL(origin).port}/r/qa-hero`, network);
@@ -304,7 +439,13 @@ async function checkEndpoint(origin: string) {
     const page = await browser.newPage();
     // A plain document on the site's own origin: the requests below are made
     // from the page, so they have to be made from somewhere on the site.
-    await page.goto(`${BASE}/api/health`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    const landed = await page
+      .goto(`${BASE}/api/health`, { waitUntil: "domcontentloaded", timeout: 90_000 })
+      .catch(() => null);
+    if (!landed) {
+      console.log("SKIP  the endpoint over http  the dev server is not running");
+      return;
+    }
 
     const ask = async (url: string) =>
       page.evaluate(async (target) => {

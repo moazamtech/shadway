@@ -63,10 +63,28 @@ type RegistryFile = {
 type RegistryItem = {
   name: string;
   type?: string;
+  url?: string;
   files: RegistryFile[];
   dependencies?: string[];
   registryDependencies?: string[];
   skipped?: { path: string; reason: string }[];
+};
+
+/**
+ * What the import brought in.
+ *
+ * An item is the component that was asked for, and the files beside it are
+ * the ones it is built out of — the shadcn primitives a block is made of, the
+ * helpers it imports. Both come in together, because a component that is
+ * missing half of itself does not run.
+ */
+type RegistryImport = {
+  items: RegistryItem[];
+  files: RegistryFile[];
+  registryFiles: RegistryFile[];
+  dependencies: string[];
+  unresolved: string[];
+  skipped: { path: string; reason: string }[];
 };
 
 /** The page a demo is rendered by. */
@@ -98,14 +116,23 @@ export function projectPathFor(repoPath: string): string {
 /**
  * Which kind of source an address names.
  *
- * A registry item lives at `<registry>/r/<name>`, and a repository lives at
- * `github.com/<owner>/<repo>`. The host is what tells them apart, so the
- * studio does not have to ask which of the two the author meant before it
- * has read anything.
+ * A repository is a repository by its address: `github.com/<owner>/<repo>`.
+ * Everything else is a registry — a link to an item, the name of an item, or
+ * the command that installs one — because those are the forms a registry
+ * hands out and the studio knows how to read all of them.
  */
 function importKindFor(value: string): "github" | "registry" {
   const raw = value.trim();
   if (!raw) return "github";
+
+  /**
+   * A command is not an address.
+   *
+   * It reads like one to a parser — `npx shadcn@latest add @acme/button` has
+   * a host in it — and treating it as a repository would send the studio
+   * looking for a repository called `npx`.
+   */
+  if (/\b(add|install)\b/i.test(raw) && /\s/.test(raw)) return "registry";
 
   let url: URL;
   try {
@@ -204,12 +231,20 @@ function rewriteRegistryImports(content: string): string {
  * write. A file without one is placed by the shape of its path, and a demo
  * is placed at the demo page, which is the one file in the project that a
  * registry item is allowed to replace.
+ *
+ * The files of the item's own dependencies are placed by the same rules, but
+ * they are not allowed to take the demo page: the demo is the component the
+ * author is here to look at, and a primitive that happens to be called
+ * `page.tsx` is not it.
  */
-function projectFilesForRegistryItem(item: RegistryItem): ImportedFile[] {
-  const files: ImportedFile[] = [];
+function projectFilesForRegistry(
+  files: RegistryFile[],
+  options: { allowDemo: boolean }
+): ImportedFile[] {
+  const placed: ImportedFile[] = [];
   let demoTaken = false;
 
-  for (const file of item.files ?? []) {
+  for (const file of files) {
     const kind = registryFileKind(file);
     if (kind === "style") continue;
 
@@ -222,7 +257,7 @@ function projectFilesForRegistryItem(item: RegistryItem): ImportedFile[] {
       !target.split("/").some((segment) => segment === "." || segment === "..")
     ) {
       path = `/${target}`;
-    } else if (kind === "demo" && !demoTaken) {
+    } else if (kind === "demo" && options.allowDemo && !demoTaken) {
       path = DEMO_PATH;
       demoTaken = true;
     } else {
@@ -233,10 +268,10 @@ function projectFilesForRegistryItem(item: RegistryItem): ImportedFile[] {
     // The demo page is one page, and the second demo does not take it.
     if (path === DEMO_PATH) demoTaken = true;
 
-    files.push({ path, content: rewriteRegistryImports(file.content) });
+    placed.push({ path, content: rewriteRegistryImports(file.content) });
   }
 
-  return files;
+  return placed;
 }
 
 export function ImportGithubDialog({
@@ -252,7 +287,7 @@ export function ImportGithubDialog({
   const [url, setUrl] = useState("");
   const [source, setSource] = useState<"github" | "registry">("github");
   const [listed, setListed] = useState<Listed | null>(null);
-  const [item, setItem] = useState<RegistryItem | null>(null);
+  const [imported, setImported] = useState<RegistryImport | null>(null);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -260,7 +295,7 @@ export function ImportGithubDialog({
 
   function reset() {
     setListed(null);
-    setItem(null);
+    setImported(null);
     setPicked({});
     setError(null);
   }
@@ -300,12 +335,16 @@ export function ImportGithubDialog({
    * An item is one component described in full, so there is nothing to pick
    * between: the item's files are what the studio shows, and the author
    * decides whether to take the lot of it.
+   *
+   * What the author pasted is sent as it was written, because it may be a
+   * link, a name, or the command a registry's own page hands out — and the
+   * route is the one that knows which of those it is.
    */
   async function loadRegistry() {
     const response = await fetch("/api/studio/import-registry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ input: url }),
     }).catch(() => {
       throw new Error("That registry could not be reached.");
     });
@@ -313,15 +352,25 @@ export function ImportGithubDialog({
     if (!response.ok || !data.ok) {
       throw new Error(data.error ?? "That registry item could not be read.");
     }
-    setItem({
-      name: data.name,
-      type: data.type,
+
+    const items: RegistryItem[] = Array.isArray(data.items)
+      ? data.items.map((found: { name: string; type?: string; url?: string }) => ({
+          name: found.name,
+          type: found.type,
+          url: found.url,
+          files: [],
+        }))
+      : [];
+
+    setImported({
+      items,
       files: Array.isArray(data.files) ? data.files : [],
+      registryFiles: Array.isArray(data.registryFiles) ? data.registryFiles : [],
       dependencies: Array.isArray(data.dependencies) ? data.dependencies : [],
-      registryDependencies: Array.isArray(data.registryDependencies)
-        ? data.registryDependencies
-        : [],
-      skipped: Array.isArray(data.skipped) ? data.skipped : [],
+      unresolved: Array.isArray(data.unresolved) ? data.unresolved : [],
+      skipped: Array.isArray(data.skipped)
+        ? data.skipped
+        : (items.flatMap((found) => found.skipped ?? []) as { path: string; reason: string }[]),
     });
   }
 
@@ -331,7 +380,7 @@ export function ImportGithubDialog({
     setLoading(true);
     setError(null);
     setListed(null);
-    setItem(null);
+    setImported(null);
     try {
       if (kind === "registry") {
         await loadRegistry();
@@ -388,8 +437,11 @@ export function ImportGithubDialog({
 
   /** The item's files, taken whole. */
   function runRegistryImport() {
-    if (!item) return;
-    const files = projectFilesForRegistryItem(item);
+    if (!imported) return;
+    const files = [
+      ...projectFilesForRegistry(imported.files, { allowDemo: true }),
+      ...projectFilesForRegistry(imported.registryFiles, { allowDemo: false }),
+    ];
     if (!files.length) {
       setError("That item has no files that can be brought into the project.");
       return;
@@ -400,7 +452,12 @@ export function ImportGithubDialog({
   }
 
   const chosen = Object.values(picked).filter(Boolean).length;
-  const registryFiles = item ? projectFilesForRegistryItem(item) : [];
+  const registryFiles = imported
+    ? [
+        ...projectFilesForRegistry(imported.files, { allowDemo: true }),
+        ...projectFilesForRegistry(imported.registryFiles, { allowDemo: false }),
+      ]
+    : [];
   const count = source === "registry" ? registryFiles.length : chosen;
 
   return (
@@ -418,8 +475,9 @@ export function ImportGithubDialog({
             Import a component
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Paste a repository address or the address of a registry item. The
-            component files it holds are listed here, and you choose what
+            Paste a repository address, the address of a registry item, or the
+            command that installs one — <span className="font-mono text-xs">npx shadcn@latest add @acme/button</span>.
+            The component files it holds are listed here, and you choose what
             comes into the project.
           </DialogDescription>
         </DialogHeader>
@@ -432,8 +490,8 @@ export function ImportGithubDialog({
               onKeyDown={(event) => {
                 if (event.key === "Enter" && url.trim()) void load();
               }}
-              placeholder="https://github.com/owner/repository  ·  https://registry.example/r/name"
-              aria-label="Repository or registry address"
+              placeholder="https://github.com/owner/repository  ·  npx shadcn@latest add @acme/button  ·  https://registry.example/r/name"
+              aria-label="Repository address, registry link, or install command"
               spellCheck={false}
               className="font-mono text-sm"
             />
@@ -514,14 +572,14 @@ export function ImportGithubDialog({
             </div>
           ) : null}
 
-          {item ? (
+          {imported ? (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {item.name}
-                {item.type ? ` · ${item.type}` : ""} · {registryFiles.length} file
-                {registryFiles.length === 1 ? "" : "s"}
-                {item.dependencies?.length
-                  ? ` · ${item.dependencies.length} package${item.dependencies.length === 1 ? "" : "s"}`
+                {imported.items.map((found) => found.name).join(", ") || "Registry item"}
+                {imported.items[0]?.type ? ` · ${imported.items[0].type}` : ""} ·{" "}
+                {registryFiles.length} file{registryFiles.length === 1 ? "" : "s"}
+                {imported.dependencies.length
+                  ? ` · ${imported.dependencies.length} package${imported.dependencies.length === 1 ? "" : "s"}`
                   : ""}
               </p>
 
@@ -548,21 +606,39 @@ export function ImportGithubDialog({
                 </div>
               )}
 
-              {item.dependencies?.length ? (
+              {imported.registryFiles.length ? (
+                <p className="text-xs text-muted-foreground">
+                  {imported.registryFiles.length} of these are the item&apos;s own
+                  building blocks — the components it is built out of. They
+                  come in with it, so the component runs and is not a shape
+                  with a hole in it.
+                </p>
+              ) : null}
+
+              {imported.dependencies.length ? (
                 <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                   <Package className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                   <span>
-                    The item needs {item.dependencies.join(", ")}. The studio
+                    The item needs {imported.dependencies.join(", ")}. The studio
                     installs the packages the imported code imports, so these
                     come in with the files.
                   </span>
                 </p>
               ) : null}
 
-              {item.skipped?.length ? (
+              {imported.unresolved.length ? (
                 <p className="text-xs text-muted-foreground">
-                  {item.skipped.length} file{item.skipped.length === 1 ? "" : "s"} did not come
-                  in: {item.skipped.map((file) => `${file.path} (${file.reason})`).join(", ")}.
+                  {imported.unresolved.length} part
+                  {imported.unresolved.length === 1 ? "" : "s"} could not be
+                  read: {imported.unresolved.join(", ")}. Everything else comes
+                  in.
+                </p>
+              ) : null}
+
+              {imported.skipped.length ? (
+                <p className="text-xs text-muted-foreground">
+                  {imported.skipped.length} file{imported.skipped.length === 1 ? "" : "s"} did not come
+                  in: {imported.skipped.map((file) => `${file.path} (${file.reason})`).join(", ")}.
                 </p>
               ) : null}
             </div>

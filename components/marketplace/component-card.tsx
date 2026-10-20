@@ -156,7 +156,10 @@ export function ComponentCard({
   }
 
   return (
-    <article className="group relative flex flex-col">
+    <article
+      data-component-card={item.slug}
+      className="group relative flex flex-col"
+    >
       {/* Cover — the video only mounts while the pointer is over the card,
           exactly like a card catalogue that never streams off-screen. */}
       <div

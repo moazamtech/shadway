@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { eq } from "drizzle-orm";
-import puppeteer from "puppeteer";
+import puppeteer, { type ElementHandle } from "puppeteer";
 
 import { db } from "../lib/db/postgres";
 import { components as componentsTable } from "../lib/db/schema";
@@ -73,14 +73,16 @@ async function main() {
    * a catalogue nobody trusts.
    */
   let originalVideoUrl: string | null = null;
+  let title = "";
 
   try {
     const existing = await db()
-      .select({ videoUrl: componentsTable.videoUrl })
+      .select({ title: componentsTable.title, videoUrl: componentsTable.videoUrl })
       .from(componentsTable)
       .where(eq(componentsTable.slug, SLUG))
       .limit(1);
     originalVideoUrl = existing[0]?.videoUrl ?? null;
+    title = existing[0]?.title ?? "";
 
     const csrf = await (await request("/api/auth/csrf")).json();
     await request("/api/auth/callback/credentials", {
@@ -143,6 +145,33 @@ async function main() {
     for (const card of cards) {
       await card.hover();
       await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+
+    /**
+     * The pointer goes to the card under test last.
+     *
+     * A card mounts its video while the pointer is on it and takes it down
+     * again when the pointer leaves, so the card that is read has to be the
+     * one the pointer is on. The feed's order is the publisher's — a
+     * component published last week sits in the middle of it — and the loop
+     * above ends wherever the feed happens to end, which is a card that is
+     * not the subject. The card is found by the name it wears instead of by
+     * where it sits.
+     */
+    const subject = await page.evaluateHandle((wanted: string) => {
+      const articles = Array.from(document.querySelectorAll("article"));
+      return (
+        articles.find((article) =>
+          Array.from(article.querySelectorAll("button, a")).some(
+            (element) => element.getAttribute("aria-label") === `Open ${wanted}`,
+          ),
+        ) ?? null
+      );
+    }, title);
+    const subjectCard = subject.asElement() as ElementHandle<Element> | null;
+    if (subjectCard) {
+      await subjectCard.scrollIntoView();
+      await subjectCard.hover();
     }
     await new Promise((resolve) => setTimeout(resolve, 2500));
 

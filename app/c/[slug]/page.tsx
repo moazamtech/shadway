@@ -56,7 +56,7 @@ const readComponentForMeta = cache(
         ? { status: "found", component }
         : { status: "missing" };
     } catch (error) {
-      // The database is unreachable, or `MONGODB_URI` is unset — the same
+      // The database is unreachable, or `DATABASE_URL` is unset — the same
       // condition the detail route survives by reading `registry/`. Metadata
       // generation must not be the thing that takes the page down: a wrong card
       // is recoverable, a 500 is not.

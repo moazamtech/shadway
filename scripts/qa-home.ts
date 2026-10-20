@@ -25,7 +25,7 @@ function log(label: string, ok: boolean, extra = "") {
 }
 
 async function cardCount(page: Page) {
-  return page.$$eval('a[href^="/c/"]', (nodes) => nodes.length);
+  return page.$$eval("[data-component-card]", (nodes) => nodes.length);
 }
 
 async function overflow(page: Page) {
@@ -59,7 +59,7 @@ async function main() {
     });
     log("home responds 200", res?.status() === 200, `status=${res?.status()}`);
 
-    await page.waitForSelector('a[href^="/c/"]', { timeout: 45_000 }).catch(() => {});
+    await page.waitForSelector("[data-component-card]", { timeout: 45_000 }).catch(() => {});
 
     const total = await cardCount(page);
     log("feed renders cards", total > 0, `cards=${total}`);

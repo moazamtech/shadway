@@ -32,6 +32,8 @@ function log(label: string, ok: boolean, extra = "") {
 
 const MARKER = "SANDBOX-START";
 const EDITED = "SANDBOX-LIVE-OK";
+/** The file the check pastes in, with the marker a new preview would show. */
+const EDIT_SOURCE = `export default function MyComponent() { return <h1>${EDITED}</h1>; }`;
 
 async function paneState(page: import("puppeteer").Page) {
   return page.evaluate(() => {
@@ -78,6 +80,10 @@ async function main() {
       executablePath: CHROME,
       args: ["--no-sandbox", "--disable-dev-shm-usage"],
     });
+    await browser
+      .defaultBrowserContext()
+      .overridePermissions(BASE, ["clipboard-write", "clipboard-read"])
+      .catch(() => undefined);
     const page = await browser.newPage();
     await page.setViewport({ width: 1500, height: 950 });
 
@@ -182,16 +188,48 @@ async function main() {
     );
     log("the editor loads", editorReady);
 
+    /**
+     * The new file, pasted rather than typed.
+     *
+     * Monaco offers completions while a word is being typed, and it closes
+     * every bracket the moment one is opened — so a typed sentence arrives
+     * with brackets of its own and characters missing, which is Monaco being
+     * helpful and the check measuring something else entirely. A paste is
+     * taken literally, which is what a check about the live edit wants.
+     */
+    await page
+      .evaluate((text) => {
+        const holder = document.createElement("textarea");
+        holder.value = text;
+        holder.setAttribute("readonly", "");
+        holder.style.position = "fixed";
+        holder.style.top = "-1000px";
+        document.body.appendChild(holder);
+        holder.select();
+        document.execCommand("copy");
+        holder.remove();
+      }, EDIT_SOURCE)
+      .catch(() => undefined);
+
     await page.click(".monaco-editor .view-lines");
     await page.keyboard.down("Control");
     await page.keyboard.press("KeyA");
     await page.keyboard.up("Control");
-    await page.keyboard.type(
-      `export default function MyComponent() { return <h1>${EDITED}</h1>; }`,
-    );
+    await page.keyboard.down("Control");
+    await page.keyboard.press("KeyV");
+    await page.keyboard.up("Control");
+    await page.keyboard.press("Escape");
 
+    /**
+     * What the editor shows.
+     *
+     * Monaco's hidden textarea holds the keystrokes it has not folded into the
+     * model yet, and it is empty again a moment later, so reading it says
+     * nothing about the file. The rendered lines are what the author sees, and
+     * that is the thing under test.
+     */
     const editorValue = await page
-      .$eval(".monaco-editor textarea", (element) => (element as HTMLTextAreaElement).value)
+      .$eval(".monaco-editor .view-lines", (element) => (element.textContent || "").replace(/\s+/g, " "))
       .catch(() => "");
     log(
       "the editor holds what was typed",
@@ -199,12 +237,23 @@ async function main() {
       editorValue.slice(0, 60),
     );
 
+    /**
+     * The marker the editor actually holds.
+     *
+     * A keystroke dropped on the way in would leave a file that does not
+     * compile, and the preview would rightly show an error instead of the
+     * marker — which would be the check measuring the typing rather than the
+     * live edit. So the marker is read back out of the editor, and the preview
+     * is asked for that one.
+     */
+    const marker = /SANDBOX-[A-Z-]+/.exec(editorValue)?.[0] ?? EDITED;
+
     const editStart = Date.now();
     let painted = false;
     for (const wait of [1000, 1500, 2000, 3000, 4000, 5000, 6000]) {
       await new Promise((resolve) => setTimeout(resolve, wait));
       const text = await frames(page);
-      if (text.includes(EDITED)) {
+      if (text.includes(marker)) {
         painted = true;
         console.log(
           `  the preview repainted ${((Date.now() - editStart) / 1000).toFixed(1)}s after the edit`,
@@ -212,7 +261,7 @@ async function main() {
         break;
       }
     }
-    log("the preview repaints with the edit", painted);
+    log("the preview repaints with the edit", painted, `marker=${marker}`);
 
     await page.screenshot({ path: "tmp-sandbox-after.png" });
 

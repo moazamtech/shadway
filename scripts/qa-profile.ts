@@ -222,6 +222,13 @@ async function main() {
           "}",
         ].join("\n"),
         category: "ui",
+        /**
+         * The first tag is the sub-category, and the route refuses a publish
+         * without one: a component that does not say what kind of thing it is
+         * cannot be filed on a shelf, so it would sit there with nothing to
+         * file it under. The two tags after it are the fixture's own labels
+         * and say nothing about the kind.
+         */
         tags: ["button", "qa", "profile"],
       }),
     });
