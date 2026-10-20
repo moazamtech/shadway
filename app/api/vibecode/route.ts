@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { eq, sql } from "drizzle-orm";
 import { authOptions } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
+import { getVibecodeBySlug, insertVibecode } from "@/lib/db/content";
+import { db } from "@/lib/db/postgres";
+import { vibecode } from "@/lib/db/schema";
 import { VibecodeComponent } from "@/lib/types";
 
 const MAX_TITLE_LENGTH = 120;
@@ -54,16 +57,83 @@ function estimatePayloadSize(payload: Record<string, unknown>) {
   }
 }
 
+/**
+ * The author's record, as the API has always answered with it.
+ *
+ * The column holds the record as JSON, and the rows that were copied across
+ * carry it as a JSON string inside that, so it is unwrapped here. A record
+ * that is already an object is left alone.
+ */
+function authorOf(value: unknown): VibecodeComponent["createdBy"] {
+  if (value && typeof value === "object") {
+    return value as VibecodeComponent["createdBy"];
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed && typeof parsed === "object") {
+        return parsed as VibecodeComponent["createdBy"];
+      }
+    } catch {
+      // A record that was flattened into a string cannot be read back. The
+      // answer keeps the shape of the field rather than dropping it.
+    }
+  }
+  return { id: "", name: "", email: "" };
+}
+
+/**
+ * A row as the document the API has always answered with.
+ *
+ * The row carries its key under the name the column has, and the document has
+ * always carried it as `_id`. They are the same string, and only the one the
+ * clients know goes out, so an answer cannot tell which database it came from.
+ */
+type VibecodeDocument = Omit<
+  typeof vibecode.$inferSelect,
+  "id" | "createdBy"
+> & {
+  _id: string;
+  createdBy: VibecodeComponent["createdBy"];
+};
+
+function asDocument(row: typeof vibecode.$inferSelect): VibecodeDocument {
+  const { id, createdBy, ...document } = row;
+  return { ...document, _id: id, createdBy: authorOf(createdBy) };
+}
+
+/**
+ * The key of a row that was just written.
+ *
+ * The accessors answer with the document, and the document carries its key as
+ * `_id`. The shared type allows the key to be missing, so it is read out
+ * rather than asserted: a row that came back without a key was not written.
+ */
+function keyOf(document: VibecodeComponent): string {
+  const key = document._id;
+  if (!key) {
+    throw new Error("a vibecode component came back without a key");
+  }
+  return key;
+}
+
 export async function GET() {
   try {
-    const { db } = await connectToDatabase();
-    const vibecode = db.collection<VibecodeComponent>("vibecode");
-    const items = await vibecode
-      .find({ status: "published" })
-      .sort({ publishedAt: -1, createdAt: -1 })
-      .toArray();
+    // The published drops, newest first. The accessor lists every drop, and
+    // the gallery is only ever the published ones, so the query is written
+    // out here rather than filtered out of a longer list.
+    const rows = await db()
+      .select()
+      .from(vibecode)
+      .where(eq(vibecode.status, "published"))
+      .orderBy(
+        // Mongo put a missing date last and Postgres puts it first, so the
+        // order says which end a drop without a date belongs at.
+        sql`${vibecode.publishedAt} desc nulls last`,
+        sql`${vibecode.createdAt} desc nulls last`,
+      );
 
-    return NextResponse.json(items);
+    return NextResponse.json(rows.map(asDocument));
   } catch (error) {
     console.error("Error fetching vibecode items:", error);
     return NextResponse.json(
@@ -150,19 +220,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payload too large" }, { status: 413 });
     }
 
-    const { db } = await connectToDatabase();
-    const vibecode = db.collection<VibecodeComponent>("vibecode");
-
     const baseSlug = slugify(title);
     let slug = baseSlug;
     let suffix = 1;
-    while (await vibecode.findOne({ slug })) {
+    while (await getVibecodeBySlug(slug)) {
       slug = `${baseSlug}-${suffix}`;
       suffix += 1;
     }
 
-    const now = new Date();
-    const item: Omit<VibecodeComponent, "_id"> = {
+    const item = await insertVibecode({
       title,
       description,
       slug,
@@ -181,15 +247,11 @@ export async function POST(request: NextRequest) {
         name: session.user.name,
         email: session.user.email,
       },
-      createdAt: now,
-      updatedAt: now,
-      publishedAt: now,
-    };
-
-    const result = await vibecode.insertOne(item);
+      publishedAt: new Date(),
+    });
 
     return NextResponse.json(
-      { message: "Vibecode component published", id: result.insertedId, slug },
+      { message: "Vibecode component published", id: keyOf(item), slug },
       { status: 201 },
     );
   } catch (error) {

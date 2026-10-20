@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
@@ -10,7 +9,7 @@ import {
   isEvmAddress,
   putPayoutAccount,
 } from "@/lib/db/payouts";
-import { connectToDatabase } from "@/lib/mongodb";
+import { usernamesFor as usernamesForAccounts } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,21 +33,7 @@ async function requireAdmin() {
 }
 
 async function usernamesFor(creatorIds: string[]): Promise<Map<string, string>> {
-  const names = new Map<string, string>();
-  const ids = creatorIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-  if (!ids.length) return names;
-
-  const { db } = await connectToDatabase();
-  const users = await db
-    .collection<{ _id: ObjectId; username?: string | null; name?: string | null; email?: string }>("users")
-    .find({ _id: { $in: ids } })
-    .project({ username: 1, name: 1, email: 1 })
-    .toArray();
-
-  for (const user of users) {
-    names.set(user._id.toString(), user.username || user.name || user.email || user._id.toString());
-  }
-  return names;
+  return usernamesForAccounts(creatorIds);
 }
 
 export async function GET() {

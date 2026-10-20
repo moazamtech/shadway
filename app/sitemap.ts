@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
-import { connectToDatabase } from "@/lib/mongodb";
-import { VibecodeComponent, Website } from "@/lib/types";
+import { listVibecode, listWebsites } from "@/lib/db/content";
 import { generateWebsiteSlug } from "@/lib/slug";
+import type { VibecodeComponent, Website } from "@/lib/types";
 
 // Helper function to escape XML entities
 function escapeXml(str: string): string {
@@ -12,6 +12,49 @@ function escapeXml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+/**
+ * The moment a row was last touched, as a number.
+ *
+ * A row with no date is older than every row that has one, which is what a
+ * missing date has always meant: it belongs at the end of a list, not at the
+ * front of it.
+ */
+function touchedAt(value?: Date): number {
+  return value ? new Date(value).getTime() : 0;
+}
+
+/**
+ * The websites, the ones that were touched last first.
+ *
+ * The accessor hands back the catalogue in the order the pages show it, and
+ * that order is the one a curator chose. A sitemap is a promise about what
+ * changed, so the order is put back here and the pages a crawler visits
+ * first are the ones that moved.
+ */
+function recentlyTouched(websites: Website[]): Website[] {
+  return [...websites].sort(
+    (a, b) => touchedAt(b.updatedAt) - touchedAt(a.updatedAt),
+  );
+}
+
+/**
+ * The published drops, the ones that were published last first.
+ *
+ * The accessor lists every drop, and a sitemap only ever names the ones the
+ * gallery shows, so the rest are dropped here rather than being fetched and
+ * then thrown away. A drop without a publication date belongs at the end of
+ * the list, which is where the sort puts it.
+ */
+function publishedDrops(drops: VibecodeComponent[]): VibecodeComponent[] {
+  return drops
+    .filter((drop) => drop.status === "published")
+    .sort((a, b) => {
+      const published = touchedAt(b.publishedAt) - touchedAt(a.publishedAt);
+      if (published !== 0) return published;
+      return touchedAt(b.updatedAt) - touchedAt(a.updatedAt);
+    });
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -70,14 +113,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const { db } = await connectToDatabase();
-
     // Get all websites for dynamic pages
-    const websites = await db
-      .collection<Website>("websites")
-      .find({})
-      .sort({ updatedAt: -1 })
-      .toArray();
+    const websites = recentlyTouched(await listWebsites());
 
     // Generate dynamic pages for each website (if you have individual pages)
     const websitePages = websites.map((website) => ({
@@ -98,11 +135,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-    const vibecodeItems = await db
-      .collection<VibecodeComponent>("vibecode")
-      .find({ status: "published" })
-      .sort({ publishedAt: -1, updatedAt: -1 })
-      .toArray();
+    const vibecodeItems = publishedDrops(await listVibecode());
 
     const vibecodePages = vibecodeItems.map((item) => ({
       url: escapeXml(`${baseUrl}/vibecode/${encodeURIComponent(item.slug)}`),

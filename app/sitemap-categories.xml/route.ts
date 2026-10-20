@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
-import { Website } from '@/lib/types'
+import { listWebsites } from '@/lib/db/content'
 
 export async function GET() {
   try {
-    const { db } = await connectToDatabase()
     const baseUrl = 'https://shadway.online'
 
     // Get all unique categories
-    const categories = await db
-      .collection<Website>('websites')
-      .distinct('category')
+    const websites = await listWebsites()
+    const categories = Array.from(
+      new Set(
+        websites
+          .map(website => website.category)
+          .filter(category => typeof category === 'string')
+      )
+    ).sort()
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

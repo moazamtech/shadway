@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { deleteSubmission, updateSubmission } from '@/lib/db/content';
 import { Submission } from '@/lib/types';
-import { ObjectId } from 'mongodb';
 
-/** Submissions are keyed by ObjectId in Mongo even though the shared type says string. */
-type SubmissionDoc = Omit<Submission, '_id'> & { _id?: ObjectId };
+/**
+ * The ids a submission can have.
+ *
+ * The catalogue was written for Mongo, where a key was an ObjectId, so the
+ * submissions that were copied across keep their twenty-four hex characters
+ * and the ones written since carry a UUID. An id that is neither is not a key
+ * this table can answer for.
+ */
+const SUBMISSION_ID =
+  /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+function isSubmissionId(id: string | undefined): boolean {
+  return Boolean(id && SUBMISSION_ID.test(id));
+}
 
 export async function PUT(
   request: NextRequest,
@@ -33,20 +44,17 @@ export async function PUT(
       );
     }
 
-    const { db } = await connectToDatabase();
-    const submissions = db.collection<SubmissionDoc>('submissions');
+    if (!isSubmissionId(id)) {
+      // Mongo threw here when the id was not an ObjectId, and the throw became
+      // this route's own five hundred. The ids are text now, so nothing throws
+      // by itself, and the check is written out so that a request for an id
+      // that cannot exist still fails the way it failed before.
+      throw new Error(`"${id}" is not a submission id`);
+    }
 
-    const result = await submissions.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          status,
-          updatedAt: new Date()
-        }
-      }
-    );
+    const submission = await updateSubmission(id, { status });
 
-    if (result.matchedCount === 0) {
+    if (!submission) {
       return NextResponse.json(
         { error: 'Submission not found' },
         { status: 404 }
@@ -78,12 +86,13 @@ export async function DELETE(
       );
     }
 
-    const { db } = await connectToDatabase();
-    const submissions = db.collection<SubmissionDoc>('submissions');
+    if (!isSubmissionId(id)) {
+      throw new Error(`"${id}" is not a submission id`);
+    }
 
-    const result = await submissions.deleteOne({ _id: new ObjectId(id) });
+    const deleted = await deleteSubmission(id);
 
-    if (result.deletedCount === 0) {
+    if (!deleted) {
       return NextResponse.json(
         { error: 'Submission not found' },
         { status: 404 }

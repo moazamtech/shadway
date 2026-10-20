@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { connectToDatabase } from '@/lib/mongodb'
+import { listWebsites } from '@/lib/db/content'
 import { Website } from '@/lib/types'
 import { generateWebsitePageSEO, generateBreadcrumbSchema } from '@/lib/seo'
 import { generateWebsiteSlug } from '@/lib/slug'
@@ -59,23 +59,22 @@ function generateUniqueContent(website: Website) {
   }
 }
 
+/**
+ * The website a slug belongs to.
+ *
+ * The slug is made out of the name, so the name is what is matched, and the
+ * first website that answers is the one the page is about. A website that is
+ * not there is a page that is not there, which is what a null answer means.
+ */
 async function getWebsiteBySlug(slug: string): Promise<Website | null> {
   try {
-    const { db } = await connectToDatabase()
-
     // Find website by matching the slug generated from name
-    const websites = await db
-      .collection<Website>('websites')
-      .find({})
-      .toArray()
-
-    const website = websites.find(w => generateWebsiteSlug(w.name) === slug)
+    const website = (await listWebsites()).find(w => generateWebsiteSlug(w.name) === slug)
 
     if (!website) return null
 
-    // Convert MongoDB document to plain object
     return {
-      _id: website._id?.toString(),
+      _id: website._id,
       name: website.name,
       description: website.description,
       url: website.url,

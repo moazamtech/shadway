@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
-import { VibecodeComponent } from "@/lib/types";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  deleteVibecode,
+  getVibecodeBySlug,
+  updateVibecode,
+} from "@/lib/db/content";
+import { VibecodeComponent } from "@/lib/types";
 
 type RouteParams = {
   params: Promise<{ slug: string }>;
@@ -26,26 +30,73 @@ function normalizeTags(tags: unknown) {
   return Array.from(new Set(cleaned)).slice(0, MAX_TAGS);
 }
 
+/**
+ * The author's record, as the API has always answered with it.
+ *
+ * The column holds the record as JSON, and the rows that were copied across
+ * carry it as a JSON string inside that, so it is unwrapped here. A record
+ * that is already an object is left alone.
+ */
+function authorOf(value: unknown): VibecodeComponent["createdBy"] {
+  if (value && typeof value === "object") {
+    return value as VibecodeComponent["createdBy"];
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed && typeof parsed === "object") {
+        return parsed as VibecodeComponent["createdBy"];
+      }
+    } catch {
+      // A record that was flattened into a string cannot be read back. The
+      // answer keeps the shape of the field rather than dropping it.
+    }
+  }
+  return { id: "", name: "", email: "" };
+}
+
+/**
+ * A row as the document the API has always answered with.
+ *
+ * The row carries its key under the name the column has, and the document has
+ * always carried it as `_id`. They are the same string, and only the one the
+ * clients know goes out, so an answer cannot tell which database it came from.
+ */
+function asDocument(item: VibecodeComponent & { id?: string }): VibecodeComponent {
+  const { id, ...document } = item;
+  return { ...document, _id: id ?? document._id, createdBy: authorOf(document.createdBy) };
+}
+
+/**
+ * The key of a row.
+ *
+ * The accessors answer with the document, and the document carries its key as
+ * `_id`. The shared type allows the key to be missing, so it is read out
+ * rather than asserted: a row that came back without a key is not a row the
+ * route can act on.
+ */
+function keyOf(item: VibecodeComponent): string {
+  const key = item._id;
+  if (!key) {
+    throw new Error("a vibecode component came back without a key");
+  }
+  return key;
+}
+
 export async function GET(_request: Request, { params }: RouteParams) {
   const { slug } = await params;
   try {
-    const { db } = await connectToDatabase();
-    const vibecode = db.collection<VibecodeComponent>("vibecode");
-    const item = await vibecode.findOne({
-      slug: slug,
-      status: "published",
-    });
+    const item = await getVibecodeBySlug(slug);
 
-    if (!item) {
+    if (!item || item.status !== "published") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await vibecode.updateOne(
-      { _id: item._id },
-      { $inc: { viewCount: 1 }, $set: { updatedAt: new Date() } },
-    );
+    // The count moves after the row was read, so the answer is the drop as it
+    // was before this visit and the next one is the drop after it.
+    await updateVibecode(keyOf(item), { viewCount: (item.viewCount ?? 0) + 1 });
 
-    return NextResponse.json(item);
+    return NextResponse.json(asDocument(item));
   } catch (error) {
     console.error("Error fetching vibecode item:", error);
     return NextResponse.json(
@@ -86,31 +137,40 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    const { db } = await connectToDatabase();
-    const vibecode = db.collection<VibecodeComponent>("vibecode");
-
-    const update = {
-      title,
-      description,
-      category,
-      tags,
-      updatedAt: new Date(),
-    };
-
-    const result = await vibecode.findOneAndUpdate(
-      { slug: slug },
-      { $set: update },
-      { returnDocument: "after" },
-    );
-
-    if (!result) {
+    const item = await getVibecodeBySlug(slug);
+    if (!item) {
       return NextResponse.json(
         { error: "Vibecode component not found" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json(result);
+    /**
+     * A category that was not in the body is written as null.
+     *
+     * Mongo turned the missing value into a null, so clearing the category in
+     * the admin panel cleared it in the catalogue. The accessor writes the
+     * fields it is given and leaves the others alone, and the shared type has
+     * no null for a category, so the null is written here where the request
+     * is read.
+     */
+    const categoryOrNull = (category ?? null) as unknown as string;
+
+    const updated = await updateVibecode(keyOf(item), {
+      title,
+      description,
+      category: categoryOrNull,
+      tags,
+    });
+
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Vibecode component not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(asDocument(updated));
   } catch (error) {
     console.error("Error updating vibecode component:", error);
     return NextResponse.json(
@@ -132,16 +192,15 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
-    const { db } = await connectToDatabase();
-    const vibecode = db.collection<VibecodeComponent>("vibecode");
-    const result = await vibecode.deleteOne({ slug: slug });
-
-    if (result.deletedCount === 0) {
+    const item = await getVibecodeBySlug(slug);
+    if (!item) {
       return NextResponse.json(
         { error: "Vibecode component not found" },
         { status: 404 },
       );
     }
+
+    await deleteVibecode(keyOf(item));
 
     return NextResponse.json({ message: "Vibecode component deleted" });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { connectToDatabase } from "@/lib/mongodb";
+import { getVibecodeBySlug } from "@/lib/db/content";
 import { VibecodeComponent } from "@/lib/types";
 import { Navbar } from "@/components/navbar";
 import Link from "next/link";
@@ -13,24 +13,44 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+/**
+ * The published drop a slug belongs to.
+ *
+ * A drop that is still a draft is not on show, so the page answers for the
+ * published ones only. A drop that is not there is a page that is not there.
+ */
 async function getVibecodeItem(slug: string) {
-  const { db } = await connectToDatabase();
-  const vibecode = db.collection<VibecodeComponent>("vibecode");
-  return vibecode.findOne({ slug, status: "published" });
+  const item = await getVibecodeBySlug(slug);
+  if (!item || item.status !== "published") return null;
+  return item;
+}
+
+/**
+ * The drop without the key the column carries.
+ *
+ * The row comes back with the key under the name of the column, and the
+ * document has always carried it as `_id`. Only the name the page knows goes
+ * out, so an answer cannot tell which database it came from.
+ */
+function withoutKey(item: VibecodeComponent): VibecodeComponent {
+  const document = { ...item } as VibecodeComponent & { id?: string };
+  delete document.id;
+  return document;
 }
 
 function serializeItem(item: VibecodeComponent): SerializedVibecodeComponent {
+  const document = withoutKey(item);
   return {
-    ...item,
-    _id: item._id?.toString(),
-    createdAt: item.createdAt
-      ? new Date(item.createdAt).toISOString()
+    ...document,
+    _id: document._id?.toString(),
+    createdAt: document.createdAt
+      ? new Date(document.createdAt).toISOString()
       : undefined,
-    updatedAt: item.updatedAt
-      ? new Date(item.updatedAt).toISOString()
+    updatedAt: document.updatedAt
+      ? new Date(document.updatedAt).toISOString()
       : undefined,
-    publishedAt: item.publishedAt
-      ? new Date(item.publishedAt).toISOString()
+    publishedAt: document.publishedAt
+      ? new Date(document.publishedAt).toISOString()
       : undefined,
   };
 }

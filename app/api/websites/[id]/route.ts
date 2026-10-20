@@ -1,12 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/mongodb';
+import { deleteWebsite, getWebsite, updateWebsite } from '@/lib/db/content';
 import { Website } from '@/lib/types';
-import { ObjectId } from 'mongodb';
 
-/** Websites are keyed by ObjectId in Mongo even though the shared type says string. */
-type WebsiteDoc = Omit<Website, '_id'> & { _id?: ObjectId };
+/**
+ * The ids a website can have.
+ *
+ * The catalogue was written for Mongo, where a key was an ObjectId, so the
+ * websites that were copied across keep their twenty-four hex characters and
+ * the ones written since carry a UUID. An id that is neither is not a key
+ * this table can answer for.
+ */
+const WEBSITE_ID =
+  /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+function isWebsiteId(id: string | undefined): boolean {
+  return Boolean(id && WEBSITE_ID.test(id));
+}
+
+/**
+ * A row as the document the API has always answered with.
+ *
+ * The row carries its key under the name the column has, and the document has
+ * always carried it as `_id`. They are the same string, and only the one the
+ * clients know goes out, so an answer cannot tell which database it came from.
+ */
+function asDocument(row: Website & { id?: string }): Website {
+  const { id, ...document } = row;
+  return { ...document, _id: id };
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,10 +37,16 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { db } = await connectToDatabase();
-    const websites = db.collection<WebsiteDoc>('websites');
 
-    const website = await websites.findOne({ _id: new ObjectId(id) });
+    if (!isWebsiteId(id)) {
+      // Mongo threw here when the id was not an ObjectId, and the throw became
+      // this route's own five hundred. The ids are text now, so nothing throws
+      // by itself, and the check is written out so that a request for an id
+      // that cannot exist still fails the way it failed before.
+      throw new Error(`"${id}" is not a website id`);
+    }
+
+    const website = await getWebsite(id);
 
     if (!website) {
       return NextResponse.json(
@@ -26,7 +55,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(website);
+    return NextResponse.json(asDocument(website));
   } catch (error) {
     console.error('Error fetching website:', error);
     return NextResponse.json(
@@ -61,10 +90,11 @@ export async function PUT(
       );
     }
 
-    const { db } = await connectToDatabase();
-    const websites = db.collection<WebsiteDoc>('websites');
+    if (!isWebsiteId(id)) {
+      throw new Error(`"${id}" is not a website id`);
+    }
 
-    const updateData = {
+    const website = await updateWebsite(id, {
       name,
       description,
       url,
@@ -72,16 +102,10 @@ export async function PUT(
       category,
       tags: tags || [],
       featured: featured || false,
-      sequence: sequence !== undefined ? sequence : 0,
-      updatedAt: new Date(),
-    };
+      sequence: sequence !== undefined ? sequence : 0
+    });
 
-    const result = await websites.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updateData }
-    );
-
-    if (result.matchedCount === 0) {
+    if (!website) {
       return NextResponse.json(
         { error: 'Website not found' },
         { status: 404 }
@@ -113,12 +137,13 @@ export async function DELETE(
       );
     }
 
-    const { db } = await connectToDatabase();
-    const websites = db.collection<WebsiteDoc>('websites');
+    if (!isWebsiteId(id)) {
+      throw new Error(`"${id}" is not a website id`);
+    }
 
-    const result = await websites.deleteOne({ _id: new ObjectId(id) });
+    const deleted = await deleteWebsite(id);
 
-    if (result.deletedCount === 0) {
+    if (!deleted) {
       return NextResponse.json(
         { error: 'Website not found' },
         { status: 404 }

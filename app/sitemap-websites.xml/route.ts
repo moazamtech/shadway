@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
+import { listWebsites } from '@/lib/db/content'
 import { Website } from '@/lib/types'
 import { generateWebsiteSlug } from '@/lib/slug'
 
@@ -14,17 +14,35 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;')
 }
 
+/**
+ * The moment a website was last touched, as a number.
+ *
+ * A website with no date is older than every website that has one, which is
+ * what a missing date has always meant: it belongs at the end of a list, not
+ * at the front of it.
+ */
+function touchedAt(website: Website): number {
+  return website.updatedAt ? new Date(website.updatedAt).getTime() : 0
+}
+
+/**
+ * The websites, the ones that were touched last first.
+ *
+ * The accessor hands back the catalogue in the order the pages show it, and
+ * that order is the one a curator chose. A sitemap is a promise about what
+ * changed, so the order is put back here and the pages a crawler visits
+ * first are the ones that moved.
+ */
+function recentlyTouched(websites: Website[]): Website[] {
+  return [...websites].sort((a, b) => touchedAt(b) - touchedAt(a))
+}
+
 export async function GET() {
   try {
-    const { db } = await connectToDatabase()
     const baseUrl = 'https://shadway.online'
 
     // Get all websites
-    const websites = await db
-      .collection<Website>('websites')
-      .find({})
-      .sort({ updatedAt: -1 })
-      .toArray()
+    const websites = recentlyTouched(await listWebsites())
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">

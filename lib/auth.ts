@@ -1,9 +1,7 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { connectToDatabase } from './mongodb';
-import { ensureUsername, findAccountBySession } from './db/users';
-import { User as DbUser } from './types';
+import { ensureUsername, findAccountByEmail, findAccountBySession } from './db/users';
 
 declare module 'next-auth' {
   interface User {
@@ -66,20 +64,15 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const { db } = await connectToDatabase();
-          const users = db.collection<DbUser>('users');
-
           const normalizedEmail = credentials.email.toLowerCase().trim();
-          const user = await users.findOne({
-            email: { $regex: `^${normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
-          });
+          const user = await findAccountByEmail(normalizedEmail);
 
           if (!user) {
             // SECURITY: Don't log specific failure reasons in production
             return null;
           }
 
-          const isValidPassword = await bcrypt.compare(credentials.password, user.password);
+          const isValidPassword = await bcrypt.compare(credentials.password, user.password ?? '');
 
           if (!isValidPassword) {
             // SECURITY: Don't log specific failure reasons in production
@@ -90,6 +83,7 @@ export const authOptions: NextAuthOptions = {
           const role = isAdmin ? 'admin' : (user.role || 'user');
 
           if (isAdmin && user.role !== 'admin') {
+            const { users } = await findAccountBySession(user._id ?? '', user.email);
             void users.updateOne({ _id: user._id }, { $set: { role: 'admin' } });
           }
 

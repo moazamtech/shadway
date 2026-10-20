@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import { getServerSession } from "next-auth";
 import bcrypt from "bcryptjs";
-import { connectToDatabase } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
-import { User as DbUser } from "@/lib/types";
-
-/** Users are keyed by ObjectId in Mongo even though the shared type says string. */
-type UserDoc = Omit<DbUser, "_id"> & { _id?: ObjectId };
+import {
+  findAccountByEmail,
+  readAccount,
+  updateAccount,
+} from "@/lib/db/users";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -32,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
 
-    if (!id || !ObjectId.isValid(id)) {
+    if (!id) {
       return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
     }
 
@@ -44,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const currentPassword =
       typeof body?.currentPassword === "string" ? body.currentPassword : "";
 
-    const updates: Partial<UserDoc> = {};
+    const updates: { email?: string; name?: string; password?: string } = {};
     if (rawEmail !== undefined) {
       const email = normalizeEmail(rawEmail);
       if (!email) {
@@ -78,10 +77,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const { db } = await connectToDatabase();
-    const users = db.collection<UserDoc>("users");
-    const targetId = new ObjectId(id);
-    const targetUser = await users.findOne({ _id: targetId });
+    const targetUser = await readAccount(id);
 
     if (!targetUser || targetUser.role !== "admin") {
       return NextResponse.json(
@@ -90,7 +86,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const isSelf = targetUser._id?.toString() === session.user.id;
+    const isSelf = targetUser._id === session.user.id;
     if (isSelf && (newPassword || updates.email)) {
       if (!currentPassword) {
         return NextResponse.json(
@@ -100,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
       const isValidPassword = await bcrypt.compare(
         currentPassword,
-        targetUser.password,
+        (await readAccountWithPassword(id)) ?? "",
       );
       if (!isValidPassword) {
         return NextResponse.json(
@@ -111,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if (updates.email && updates.email !== targetUser.email) {
-      const existing = await users.findOne({ email: updates.email });
+      const existing = await findAccountByEmail(updates.email);
       if (existing) {
         return NextResponse.json(
           { error: "An account with this email already exists" },
@@ -131,13 +127,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    updates.updatedAt = new Date();
-
-    const result = await users.findOneAndUpdate(
-      { _id: targetId },
-      { $set: updates },
-      { returnDocument: "after", projection: { password: 0 } },
-    );
+    const result = await updateAccount(id, updates);
 
     if (!result) {
       return NextResponse.json(
@@ -154,4 +144,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * The secret, read for one reason only.
+ *
+ * A password is never in the answer an account read produces — there is no
+ * reason for one — but the one place that needs it is the check that asks
+ * whether the person making the change knows the current password. So it is
+ * read here, and nowhere else.
+ */
+async function readAccountWithPassword(id: string): Promise<string | null> {
+  const { findAccountBySession } = await import("@/lib/db/users");
+  const { account } = await findAccountBySession(id);
+  if (!account) return null;
+  return account.password ?? null;
 }

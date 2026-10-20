@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import bcrypt from "bcryptjs";
-import { connectToDatabase } from "@/lib/mongodb";
 import { authOptions } from "@/lib/auth";
-import { User as DbUser } from "@/lib/types";
+import {
+  createAccount,
+  findAccountByEmail,
+  listAdminAccounts,
+} from "@/lib/db/users";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -22,15 +25,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { db } = await connectToDatabase();
-    const users = db.collection<DbUser>("users");
-    const admins = await users
-      .find({ role: "admin" })
-      .sort({ createdAt: -1 })
-      .project({ password: 0 })
-      .toArray();
-
-    return NextResponse.json(admins);
+    return NextResponse.json(await listAdminAccounts());
   } catch (error) {
     console.error("Error fetching admin users:", error);
     return NextResponse.json(
@@ -68,10 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { db } = await connectToDatabase();
-    const users = db.collection<DbUser>("users");
-
-    const existing = await users.findOne({ email });
+    const existing = await findAccountByEmail(email);
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists" },
@@ -81,20 +73,17 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(rawPassword, 12);
     const now = new Date();
-    const newUser: Omit<DbUser, "_id"> = {
+
+    const account = await createAccount({
       email,
       password: hashedPassword,
       name,
       role: "admin",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const result = await users.insertOne(newUser);
+    });
 
     return NextResponse.json(
       {
-        _id: result.insertedId,
+        _id: account._id,
         email,
         name,
         role: "admin",

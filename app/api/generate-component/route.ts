@@ -6,8 +6,7 @@ const gatewayModel = (id: string) => gateway(id) as unknown as LanguageModel;
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { z } from "zod";
-import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession } from "@/lib/auth/require-session";
+import { getConfigValue } from "@/lib/db/content";import { requireSession } from "@/lib/auth/require-session";
 
 export const runtime = "nodejs";
 
@@ -37,10 +36,8 @@ function normalizeModelId(input: string) {
 async function getActiveModelId() {
   const fromEnv = process.env.AI_GENERATE_COMPONENT_MODEL;
   try {
-    const { db } = await connectToDatabase();
-    const config = db.collection<{ _id: string; value: string }>("config");
-    const doc = await config.findOne({ _id: MODEL_CONFIG_ID });
-    const value = doc?.value || fromEnv || "google/gemini-3-flash";
+    const configured = await getConfigValue<string>(MODEL_CONFIG_ID);
+    const value = configured || fromEnv || "google/gemini-3-flash";
     return normalizeModelId(value);
   } catch {
     return normalizeModelId(fromEnv || "google/gemini-3-flash");
@@ -520,11 +517,8 @@ export default function Header() {
 
 async function getActiveSystemPrompt() {
   try {
-    const { db } = await connectToDatabase();
-    const config = db.collection<{ _id: string; value: string }>("config");
-    const doc = await config.findOne({ _id: SYSTEM_PROMPT_CONFIG_ID });
-    const value = typeof doc?.value === "string" ? doc.value : "";
-    return value.trim() ? value : DEFAULT_SYSTEM_PROMPT;
+    const value = await getConfigValue<string>(SYSTEM_PROMPT_CONFIG_ID);
+    return value && value.trim() ? value.trim() : DEFAULT_SYSTEM_PROMPT;
   } catch {
     return DEFAULT_SYSTEM_PROMPT;
   }

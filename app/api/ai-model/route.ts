@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import { getConfigValue } from "@/lib/db/content";
 
 export const runtime = "nodejs";
 
@@ -16,12 +16,13 @@ export async function GET() {
   const fromEnv = process.env.AI_GENERATE_COMPONENT_MODEL || "openai/gpt-5";
 
   try {
-    const { db } = await connectToDatabase();
-    const config = db.collection<{ _id: string; value: string }>("config");
-    const doc = await config.findOne({ _id: MODEL_CONFIG_ID });
-    const active = normalizeModelId(doc?.value || fromEnv);
+    const stored = await getConfigValue<string>(MODEL_CONFIG_ID);
+    const active = normalizeModelId(stored || fromEnv);
     return NextResponse.json({ model: active });
   } catch {
+    // A database that is not there must not take the model down with it: the
+    // environment is the fallback, and the answer is the same one the route
+    // gave when Mongo was unreachable.
     return NextResponse.json({ model: normalizeModelId(fromEnv) });
   }
 }

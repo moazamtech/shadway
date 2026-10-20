@@ -1,18 +1,33 @@
 import { NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
+import { listWebsites } from '@/lib/db/content'
 import { Website } from '@/lib/types'
+
+/**
+ * The moment a website was added, as a number.
+ *
+ * A website with no date is older than every website that has one, which is
+ * what a missing date has always meant: it belongs at the end of a list, not
+ * at the front of it.
+ */
+function addedAt(website: Website): number {
+  return website.createdAt ? new Date(website.createdAt).getTime() : 0
+}
+
+/**
+ * The fifty newest websites, newest first.
+ *
+ * The accessor hands back the catalogue in the order the pages show it, and
+ * that order is the one a curator chose. A feed promises something else, that
+ * it moves, so the order is put back here and the fifty most recent are the
+ * ones that go out.
+ */
+function newestWebsites(websites: Website[]): Website[] {
+  return [...websites].sort((a, b) => addedAt(b) - addedAt(a)).slice(0, 50)
+}
 
 export async function GET() {
   try {
-    const { db } = await connectToDatabase()
-
-    // Get all websites sorted by creation date
-    const websites = await db
-      .collection<Website>('websites')
-      .find({})
-      .sort({ createdAt: -1 })
-      .limit(50) // Limit to last 50 items
-      .toArray()
+    const websites = newestWebsites(await listWebsites())
 
     const baseUrl = 'https://shadway.online'
 

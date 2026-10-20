@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectToDatabase } from '@/lib/mongodb'
+import { listWebsites } from '@/lib/db/content'
 import { Website } from '@/lib/types'
 import { generateWebsiteSlug } from '@/lib/slug'
 
@@ -41,12 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (action === 'generate-urls') {
       // Generate all URLs for manual submission
-      const { db } = await connectToDatabase()
-
-      const websites = await db
-        .collection<Website>('websites')
-        .find({})
-        .toArray()
+      const websites = await listWebsites()
 
       const categories = [...new Set(websites.map(w => w.category.toLowerCase()))]
 

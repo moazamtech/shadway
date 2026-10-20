@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { connectToDatabase } from '@/lib/mongodb'
+import { listWebsites } from '@/lib/db/content'
 import { Website } from '@/lib/types'
 import { generateCategoryPageSEO, generateBreadcrumbSchema } from '@/lib/seo'
 import { Navbar } from '@/components/navbar'
@@ -13,34 +13,35 @@ interface PageProps {
   params: Promise<{ slug: string }>
 }
 
+/**
+ * The websites in a category, and how many of them there are.
+ *
+ * The category in a URL is written in lower case, and the catalogue is not,
+ * so the match ignores case: a page that answered for one spelling and not
+ * for the other would be a page that comes and goes with the casing. The
+ * accessor already hands the websites back in the order the page shows them,
+ * so nothing is sorted here.
+ */
 async function getCategoryWebsites(category: string): Promise<{ websites: Website[]; count: number }> {
   try {
-    const { db } = await connectToDatabase()
+    const wanted = category.toLowerCase()
 
-    // Case-insensitive search for category
-    const websitesDocs = await db
-      .collection<Website>('websites')
-      .find({
-        category: { $regex: new RegExp(`^${category}$`, 'i') }
-      })
-      .sort({ sequence: 1, createdAt: -1 })
-      .toArray()
-
-    // Convert MongoDB documents to plain objects
-    const websites = websitesDocs.map(website => ({
-      _id: website._id?.toString(),
-      name: website.name,
-      description: website.description,
-      url: website.url,
-      image: website.image,
-      category: website.category,
-      tags: website.tags,
-      featured: website.featured,
-      sequence: website.sequence,
-      sponsor: website.sponsor,
-      createdAt: website.createdAt,
-      updatedAt: website.updatedAt,
-    }))
+    const websites = (await listWebsites())
+      .filter(website => website.category?.toLowerCase() === wanted)
+      .map(website => ({
+        _id: website._id,
+        name: website.name,
+        description: website.description,
+        url: website.url,
+        image: website.image,
+        category: website.category,
+        tags: website.tags,
+        featured: website.featured,
+        sequence: website.sequence,
+        sponsor: website.sponsor,
+        createdAt: website.createdAt,
+        updatedAt: website.updatedAt,
+      }))
 
     return {
       websites,

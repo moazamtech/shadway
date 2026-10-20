@@ -12,6 +12,14 @@ import { MongoClient, Db } from "mongodb";
  * In development Next.js reloads modules on edit, which would orphan a global
  * client on every save. Stashing it on `globalThis` keeps one client across
  * those reloads.
+ *
+ * **The application does not read from Mongo any more.** The catalogue, the
+ * accounts, the ledger and the rest moved to Postgres, and the data layer in
+ * `lib/db/` talks to it through Drizzle. This module is what the one-off
+ * migration reads from — `scripts/migrate-to-neon.ts` — and what the fixtures
+ * in `scripts/qa-*.ts` still reach for. It is here because the old database
+ * is still the only copy of the history, and a day will come when it is worth
+ * deleting.
  */
 
 declare global {

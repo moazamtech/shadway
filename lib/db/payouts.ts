@@ -1,26 +1,32 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { ObjectId, type Collection, type Document, type Filter, type Sort } from "mongodb";
+import { randomBytes } from "node:crypto";
+
+import { and, asc, desc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+
 import {
+  AmountError,
   applyBps,
   parseAmount,
   readStoredAmount,
   toAmountString,
   USDC_SCALE,
   type Amount,
-} from "@/lib/payouts/amount";
+} from "../payouts/amount";
 import {
   MIN_PAYOUT_MINOR,
   REVENUE_SHARE_BPS,
   type AccrualRow,
   type CreatorPayoutTarget,
-} from "@/lib/payouts/payouts";
+} from "../payouts/payouts";
+
+import { db } from "./postgres";
+import { payoutAccruals, payoutAccounts, payoutBatches } from "./schema";
 
 /**
  * The payout ledger: accruals, batches, and the addresses money goes to.
  *
  * ## The decision this schema encodes
  *
- * Creators accrue in Mongo and get paid weekly in USDC on Base. There is
+ * Creators accrue in Postgres and get paid weekly in USDC on Base. There is
  * deliberately no per-install on-chain transfer, because an install is a web
  * request: paying per one means paying gas per request, and a component that
  * installs ten thousand times in a week would cost more to settle than it earns.
@@ -28,25 +34,39 @@ import {
  * anything. x402 is the collection rail for those installs and is out of scope
  * here; this module is the settlement side of the same ledger.
  *
- * ## Three collections, and why not two
+ * ## Three tables, and why not two
  *
- * - `payout_accruals` — the append-only ledger. Every event, forever.
- * - `payout_batches` — one document per (run, creator): what was owed, to
- *   where, and the transaction that moved it.
- * - `payout_accounts` — where a creator's money goes, and whether a human has
- *   checked it.
+ * `payout_accruals` is the append-only ledger: every event, forever.
+ * `payout_batches` holds one row per (run, creator) — what was owed, to where,
+ * and the transaction that moved it. `payout_accounts` says where a creator's
+ * money goes, and whether a human has checked it.
  *
  * The address table is the reason there are three. It is tempting to hang the
- * destination address off the batch document alone and take it from somewhere
- * else at payout time, but that makes "which address did this go to" a question
- * with two answers: the one on the chain and the one the code thought it was
- * using. Freezing the address onto the batch at the moment of calculation means
- * the batch document is a self-contained receipt, and a later change to a
- * creator's address cannot retroactively alter what a past batch says it did.
+ * destination address off the batch row alone and take it from somewhere else
+ * at payout time, but that makes "which address did this go to" a question with
+ * two answers: the one on the chain and the one the code thought it was using.
+ * Freezing the address onto the batch at the moment of calculation means the
+ * batch row is a self-contained receipt, and a later change to a creator's
+ * address cannot retroactively alter what a past batch says it did.
  *
  * It is also where the "never take a payout address from a request body"
  * boundary lives: the address is written by the account that owns it or by an
  * admin, and a batch will only pay a state that is `verified`.
+ *
+ * ## What the tables cannot hold
+ *
+ * The amounts are text columns, because the arithmetic is on bigints and a
+ * bigint does not fit a double. Every sum in this module therefore happens in
+ * the database as `bigint` and comes back as the exact decimal string it was
+ * written as, and the reader refuses anything that is not an integer.
+ *
+ * Three fields of the old documents have no column: an accrual's `recordedBy`
+ * and its `updatedAt`, and a batch's list of the events it covers. Nothing
+ * reads them, and inventing a column for a field nobody reads is how a ledger
+ * grows a shape that has to be migrated again later. The two accrual fields
+ * are carried in the value a write returns and are absent when a row is read
+ * back; the batch's events are read back from the accruals that carry the
+ * batch that claimed them, which is the same claim seen from the other side.
  */
 
 /** Why an accrual exists. Constrained because the sign rule depends on it. */
@@ -81,7 +101,14 @@ export type PayoutAccountStatus = "pending" | "verified" | "rejected";
 /* -------------------------------------------------------------------------- */
 
 export type PayoutAccrualDocument = {
-  _id?: ObjectId;
+  /**
+   * The row's id, as text.
+   *
+   * It was an object id and the migration carried the same twenty-four
+   * characters over, so a lookup compares the string the caller holds instead
+   * of building an id out of it.
+   */
+  _id?: string;
   /**
    * The idempotency key. Unique, and the only thing standing between a retried
    * request and a double payment.
@@ -90,12 +117,16 @@ export type PayoutAccrualDocument = {
    * because a caller who chooses the key is a caller who can collide with
    * somebody else's accrual, or re-use a key that already paid to make a
    * second, unrelated payment look like a harmless no-op.
+   *
+   * There is no column for it. The uniqueness it describes is the unique index
+   * on `(source, source_id)`, and the key is rebuilt from those columns every
+   * time a row is read.
    */
   idempotencyKey: string;
   creatorId: string;
   username?: string;
   componentSlug?: string;
-  /** Gross attributable revenue, USDC minor units, stored as BSON Int64. */
+  /** Gross attributable revenue, USDC minor units. */
   amountMinor: bigint;
   currency: "USDC";
   reason: AccrualReason;
@@ -105,15 +136,17 @@ export type PayoutAccrualDocument = {
   occurredAt: Date;
   status: AccrualStatus;
   /** The batch that claimed this event. `null` means still unpaid. */
-  batchId: ObjectId | null;
-  recordedBy: string;
+  batchId: string | null;
+  /** Who asked for the accrual. The table has no column for it. */
+  recordedBy?: string;
   note?: string;
   createdAt: Date;
-  updatedAt: Date;
+  /** The table has no column for it either. */
+  updatedAt?: Date;
 };
 
 export type PayoutBatchDocument = {
-  _id?: ObjectId;
+  _id?: string;
   /**
    * Identifies one *run* of the weekly batch. Unique together with
    * `creatorId`, so re-running the same run id can never produce a second
@@ -142,10 +175,16 @@ export type PayoutBatchDocument = {
   /** The platform's rounding residue, in 1/10000 of a minor unit. */
   roundingRemainder: bigint;
   eventCount: number;
-  eventIds: ObjectId[];
-  periodStart: Date;
+  /**
+   * The events this batch covers.
+   *
+   * There is no column for the list either: the accrual rows carry the batch
+   * that claimed them, so the list is read back from them.
+   */
+  eventIds: string[];
+  periodStart: Date | null;
   /** Exclusive: an accrual at exactly `periodEnd` belongs to the next period. */
-  periodEnd: Date;
+  periodEnd: Date | null;
   status: PayoutBatchStatus;
   txHash?: string | null;
   nonce?: number | null;
@@ -163,7 +202,11 @@ export type PayoutBatchDocument = {
 };
 
 export type PayoutAccountDocument = {
-  _id?: ObjectId;
+  /**
+   * The account's key, which is the creator. There is one address per creator
+   * and the creator is what it is keyed by, so there is no second id to keep.
+   */
+  _id?: string;
   creatorId: string;
   address: string;
   chain: "base";
@@ -194,7 +237,8 @@ export const MAX_ACCRUAL_MINOR: Amount = USDC_SCALE * BigInt(1_000_000);
  * Raised when the ledger's uniqueness guarantee is not in place.
  *
  * A distinct type because it must never be swallowed by a generic `catch` and
- * turned into a 500 that someone retries — see `assertIdempotencyIndexReady`.
+ * turned into a 500 that someone retries — see `insertAccrualOnce`, which
+ * refuses to report an accrual it cannot prove it wrote.
  */
 export class PayoutLedgerUnavailableError extends Error {
   constructor(message: string) {
@@ -204,12 +248,46 @@ export class PayoutLedgerUnavailableError extends Error {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                                  Ids                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The shape of a ledger id: twenty-four hex characters.
+ *
+ * The migrated rows carry the object ids they had, so the ids in the table are
+ * all one shape and a string that is not that shape is not an id. Comparing it
+ * as text is what the lookup does now; building an object id out of it is what
+ * it did before.
+ */
+const LEDGER_ID = /^[0-9a-f]{24}$/i;
+
+function isLedgerId(value: unknown): value is string {
+  return typeof value === "string" && LEDGER_ID.test(value);
+}
+
+/**
+ * A new ledger id: twelve random bytes, hex.
+ *
+ * The first four bytes are the current second, which is what makes the ids
+ * sort by the moment they were minted — the property the old object ids had,
+ * and the one the `createdAt` ordering leans on when two rows share a
+ * timestamp. The rest is random, so two ids minted in the same second are
+ * still two ids.
+ */
+function newLedgerId(): string {
+  const bytes = randomBytes(12);
+  bytes.writeUInt32BE(Math.floor(Date.now() / 1000), 0);
+  return bytes.toString("hex");
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              Indexes                                       */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Whether the payout indexes have been built in this process. Same rationale as
- * `ensureComponentIndexes`: index creation is a migration, not per-request work.
+ * Whether the payout indexes have been checked in this process. Same rationale
+ * as `ensureComponentIndexes`: index creation is a migration, not per-request
+ * work.
  */
 let indexesReady = false;
 
@@ -218,178 +296,139 @@ export function resetPayoutIndexes(): void {
   indexesReady = false;
 }
 
-type WantedIndex = { key: Record<string, 1 | -1>; unique?: boolean };
-
-const ACCRUAL_INDEXES: WantedIndex[] = [
-  // The guarantee. Without it, `insertAccrualOnce` has nothing to collide
-  // against and "idempotent" is a comment rather than a behaviour.
-  { key: { idempotencyKey: 1 }, unique: true },
-  // The creator's own ledger, and the period scan the batch runs.
-  { key: { creatorId: 1, occurredAt: -1 } },
-  // Settling: find everything already claimed, and by which batch.
-  { key: { batchId: 1, occurredAt: -1 } },
-  // Per-component revenue reporting.
-  { key: { componentSlug: 1, occurredAt: -1 } },
-];
-
-const BATCH_INDEXES: WantedIndex[] = [
-  // A run id identifies one execution. Together with the creator it makes a
-  // whole run re-runnable without being re-payable.
-  { key: { runId: 1, creatorId: 1 }, unique: true },
-  // The admin history table.
-  { key: { createdAt: -1 } },
-  { key: { status: 1, createdAt: -1 } },
-  // A creator's own payout history.
-  { key: { creatorId: 1, createdAt: -1 } },
-];
-
-const ACCOUNT_INDEXES: WantedIndex[] = [
-  // One destination per creator. Not a compound: the creator *is* the key.
-  { key: { creatorId: 1 }, unique: true },
-];
-
 /**
- * A collection handle for a name whose document type is not known at the call
- * site.
+ * Confirm that the ledger's indexes are in place.
  *
- * `T` has to satisfy the driver's `Document` constraint — an unconstrained type
- * parameter is rejected by every `Collection<T>` signature, which is the reason
- * this file did not compile. Saying so explicitly is better than widening to
- * `any` and losing the projection types downstream.
+ * The indexes are declared in the schema and already exist in the database, so
+ * this creates nothing: a table either exists with its constraints or it does
+ * not exist at all, and there is no runtime work left to do here.
+ *
+ * The Mongo version built its indexes on the way in and refused to accrue
+ * without them, because in Mongo an index is a thing a collection may or may
+ * not have. In Postgres the guarantee is the schema's, and the one that
+ * matters — the unique index on `(source, source_id)` — is what makes the
+ * conflict-tolerant insert in `insertAccrualOnce` a guarantee rather than a
+ * hope.
  */
-async function rawCollection<T extends Document>(name: string): Promise<Collection<T>> {
-  const { db } = await connectToDatabase();
-  return db.collection<T>(name);
-}
-
-/**
- * `listIndexes` on a collection that has never been written is an error, not an
- * empty list — MongoDB answers `NamespaceNotFound` (26) instead of creating the
- * collection. That made the very first payout on a fresh database fail:
- * `ensurePayoutIndexes` threw, `recordAccrual` refused, and every creator
- * balance endpoint answered 503. A ledger that only works after someone has
- * hand-created its collections is not a ledger.
- *
- * Creating an index *does* create the collection, so the fix is to read the
- * missing namespace as "no indexes yet" and let `createIndex` do the rest.
- */
-function isNamespaceNotFound(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const { code, codeName } = error as { code?: number; codeName?: string };
-  return code === 26 || codeName === "NamespaceNotFound";
-}
-
-async function existingIndexes<T extends Document>(collection: Collection<T>) {
-  try {
-    return await collection.indexes();
-  } catch (error) {
-    if (isNamespaceNotFound(error)) return [];
-    throw error;
-  }
-}
-
-/**
- * Create any missing index, matching on the key pattern rather than the name.
- *
- * Same rule as `ensureComponentIndexes`, and for the same reason: an existing
- * deployment carries these indexes under auto-generated names, so a name
- * lookup would never find them. Index specs are append-only — reordering an
- * entry turns `createIndexes` from a no-op into an `IndexOptionsConflict`
- * (code 85) that takes the whole batch down with it.
- */
-async function createMissingIndexes<T extends Document>(
-  collection: Collection<T>,
-  wanted: readonly WantedIndex[],
-): Promise<void> {
-  const existing = await existingIndexes(collection);
-  const pending = wanted.filter((index) => {
-    const current = existing.find(
-      (entry) => JSON.stringify(entry.key) === JSON.stringify(index.key),
-    );
-    if (!current) return true;
-    return (
-      JSON.stringify(current.key) !== JSON.stringify(index.key) ||
-      Boolean(current.unique) !== Boolean(index.unique)
-    );
-  });
-
-  for (const index of pending) {
-    await collection.createIndex(index.key, index);
-  }
-}
-
-/**
- * Confirm the unique index on `idempotencyKey` actually exists.
- *
- * This is where `lib/db/payouts.ts` deliberately parts company with
- * `ensureComponentIndexes`, which logs an index failure and carries on because
- * for a feed the worst case is a slower query.
- *
- * Here the worst case is a ledger that accepts the same economic event twice.
- * "Mostly idempotent, unless the index failed to build" is not idempotency, and
- * the failure is invisible: both rows are individually plausible and the
- * balance is off by exactly one payout. So an index that cannot be built takes
- * the whole accrual path down loudly instead. A payout outage is recoverable;
- * discovering a duplicate payment from a support ticket is not.
- */
-async function assertIdempotencyIndexReady(
-  collection: Collection<PayoutAccrualDocument>,
-): Promise<void> {
-  const existing = await existingIndexes(collection);
-  const present = existing.some(
-    (index) =>
-      index.unique === true && JSON.stringify(index.key) === JSON.stringify({ idempotencyKey: 1 }),
-  );
-  if (!present) {
-    throw new PayoutLedgerUnavailableError(
-      "the payout accrual ledger has no unique index on idempotencyKey; refusing to accrue, because a retry would pay twice",
-    );
-  }
-}
-
 export async function ensurePayoutIndexes(): Promise<void> {
   if (indexesReady) return;
-
-  const [accruals, batches, accounts] = await Promise.all([
-    rawCollection<PayoutAccrualDocument>("payout_accruals"),
-    rawCollection<PayoutBatchDocument>("payout_batches"),
-    rawCollection<PayoutAccountDocument>("payout_accounts"),
-  ]);
-
-  try {
-    await Promise.all([
-      createMissingIndexes(accruals, ACCRUAL_INDEXES),
-      createMissingIndexes(batches, BATCH_INDEXES),
-      createMissingIndexes(accounts, ACCOUNT_INDEXES),
-    ]);
-    await assertIdempotencyIndexReady(accruals);
-  } catch (error) {
-    throw new PayoutLedgerUnavailableError(
-      `payout indexes could not be established: ${
-        error instanceof Error ? error.message : "unknown error"
-      }`,
-    );
-  }
-
   indexesReady = true;
 }
 
-export async function getAccrualCollection(): Promise<Collection<PayoutAccrualDocument>> {
-  const collection = await rawCollection<PayoutAccrualDocument>("payout_accruals");
+/* -------------------------------------------------------------------------- */
+/*                              Collections                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The connected database, as the client hands it back. */
+type Database = ReturnType<typeof db>;
+
+/** The rows, as the tables hand them back. */
+type AccrualRecord = typeof payoutAccruals.$inferSelect;
+type BatchRecord = typeof payoutBatches.$inferSelect;
+type AccountRecord = typeof payoutAccounts.$inferSelect;
+
+/**
+ * A page of payout accounts, in the order the admin table asks for.
+ *
+ * The admin route still speaks the old query vocabulary — a filter, a sort, a
+ * limit — and it cannot be changed from here, so the handle answers in that
+ * vocabulary rather than in the table's. It is a thin seam over the same
+ * table the rest of this module reads.
+ */
+export type PayoutAccountQuery = {
+  sort(spec: { status?: 1 | -1; updatedAt?: 1 | -1 }): PayoutAccountQuery;
+  limit(count: number): PayoutAccountQuery;
+  toArray(): Promise<PayoutAccountDocument[]>;
+};
+
+/** The accounts table, as the admin route asks for it. */
+export type PayoutAccountCollection = {
+  find(filter: { creatorId?: string }): PayoutAccountQuery;
+};
+
+/**
+ * The accounts table, and the handle to read it through.
+ *
+ * The call to `db()` is not decoration. A missing `DATABASE_URL` has to throw
+ * from here, the way a missing `MONGODB_URI` threw from the Mongo connection,
+ * because the callers catch that error and answer with a degraded response
+ * rather than a crash.
+ */
+export async function getAccountCollection(): Promise<PayoutAccountCollection> {
+  const client = db();
   await ensurePayoutIndexes();
-  return collection;
+  return accountCollection(client);
 }
 
-export async function getBatchCollection(): Promise<Collection<PayoutBatchDocument>> {
-  const collection = await rawCollection<PayoutBatchDocument>("payout_batches");
-  await ensurePayoutIndexes();
-  return collection;
+function accountCollection(client: Database): PayoutAccountCollection {
+  return {
+    find(filter) {
+      let sortSpec: { status?: 1 | -1; updatedAt?: 1 | -1 } = {};
+      let max = 0;
+
+      const query: PayoutAccountQuery = {
+        sort(spec) {
+          sortSpec = spec;
+          return query;
+        },
+        limit(count) {
+          max = count;
+          return query;
+        },
+        async toArray() {
+          const order = [];
+          if (sortSpec.status) {
+            order.push(
+              sortSpec.status === 1
+                ? asc(payoutAccounts.status)
+                : desc(payoutAccounts.status),
+            );
+          }
+          if (sortSpec.updatedAt) {
+            order.push(
+              sortSpec.updatedAt === 1
+                ? asc(payoutAccounts.updatedAt)
+                : desc(payoutAccounts.updatedAt),
+            );
+          }
+
+          const query = client
+            .select()
+            .from(payoutAccounts)
+            .where(
+              filter.creatorId ? eq(payoutAccounts.creatorId, filter.creatorId) : undefined,
+            )
+            .orderBy(...order);
+
+          const rows = max > 0 ? await query.limit(max) : await query;
+
+          return rows.map(toAccountDocument);
+        },
+      };
+
+      return query;
+    },
+  };
 }
 
-export async function getAccountCollection(): Promise<Collection<PayoutAccountDocument>> {
-  const collection = await rawCollection<PayoutAccountDocument>("payout_accounts");
+/**
+ * The accrual table.
+ *
+ * The indexes live in the schema, so there is nothing to build here. The call
+ * to `db()` is not decoration: an unconfigured deployment has to fail here,
+ * the way it failed when the connection was made.
+ */
+export async function getAccrualCollection(): Promise<typeof payoutAccruals> {
+  db();
   await ensurePayoutIndexes();
-  return collection;
+  return payoutAccruals;
+}
+
+/** The batch table, for the same reason as the accrual table. */
+export async function getBatchCollection(): Promise<typeof payoutBatches> {
+  db();
+  await ensurePayoutIndexes();
+  return payoutBatches;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -414,6 +453,13 @@ export async function getAccountCollection(): Promise<Collection<PayoutAccountDo
  * batched import produces — and would swallow real revenue. An upstream
  * identifier is the only thing that is unique to the event rather than to the
  * moment we happened to learn about it.
+ *
+ * This is the document's label rather than the database's constraint. The
+ * unique index the ledger keeps is on `(source, source_id)`, so the creator
+ * scope this key carries is a scope the database does not enforce: one
+ * upstream event cannot be credited twice, not even to two different
+ * creators. The key says who an event is for; the index says the event is
+ * already spoken for.
  */
 export function buildAccrualIdempotencyKey(input: {
   source: AccrualSource;
@@ -446,105 +492,116 @@ export function buildAccrualIdempotencyKey(input: {
   return `${source}:${creatorId}:${sourceId}`;
 }
 
+/**
+ * The idempotency key of a stored row, rebuilt from its columns.
+ *
+ * The key is not a column, so it is recomposed rather than read. This is the
+ * one place where the two halves of the story meet: the key names the creator
+ * as well as the event, while the unique index the database keeps is on the
+ * event alone.
+ */
+function accrualKeyOf(row: AccrualRecord): string {
+  return `${row.source}:${row.creatorId}:${row.sourceId}`;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Writing accruals                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The slice of the driver this module uses to make an accrual idempotent.
+ * The slice of the database this module uses to make an accrual idempotent.
  *
  * Narrow on purpose: it is impossible for `insertAccrualOnce` to do anything
- * to the collection beyond the one upsert below. A function that took a whole
- * `Collection` would also be able to delete, replace or bulk-write the ledger,
- * and it would be one refactor away from being handed to code that does.
+ * to the ledger beyond the one insert below and the read that answers it. A
+ * handle that could delete or rewrite rows would be one refactor away from
+ * being handed to code that does.
  */
-type IdempotentUpsert<T extends Document & { idempotencyKey: string }> = {
-  /**
-   * The filter is spelled out rather than being `Filter<T>`.
-   *
-   * `Filter<T>` is a mapped conditional type, and for a *generic* `T` the
-   * compiler cannot resolve `{ idempotencyKey: string }` against it — hence the
-   * error this signature used to produce. Spelling out the one field the
-   * function is allowed to filter on is also the point: this handle exists so a
-   * caller cannot do more to the ledger than an idempotent upsert, and a filter
-   * it can only ever narrow to a single known event says that in the type.
-   */
-  findOneAndUpdate(
-    filter: { idempotencyKey: string },
-    update: { $setOnInsert: T },
-    options: {
-      upsert: boolean;
-      returnDocument: "after";
-      includeResultMetadata: true;
-    },
-  ): Promise<{ value: T | null; lastErrorObject?: { updatedExisting?: boolean } }>;
+export type IdempotentAccrualWriter = {
+  /** Insert the accrual, unless one already exists for this event. */
+  insertOnce(values: typeof payoutAccruals.$inferInsert): Promise<AccrualRecord[]>;
+  /** The row that owns this event, if there is one. */
+  findByEvent(source: string, sourceId: string): Promise<AccrualRecord[]>;
 };
 
-/** MongoDB's duplicate-key error. */
-const DUPLICATE_KEY = 11000;
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: unknown }).code === DUPLICATE_KEY
-  );
+function accrualWriter(client: Database): IdempotentAccrualWriter {
+  return {
+    async insertOnce(values) {
+      return client
+        .insert(payoutAccruals)
+        .values(values)
+        // The unique index on `(source, source_id)` is the guarantee, and this
+        // is the insert that leans on it: a second writer for the same event
+        // is turned away by the index rather than by a read that a concurrent
+        // writer could slip past.
+        .onConflictDoNothing({
+          target: [payoutAccruals.source, payoutAccruals.sourceId],
+        })
+        .returning();
+    },
+    async findByEvent(source, sourceId) {
+      return client
+        .select()
+        .from(payoutAccruals)
+        .where(
+          and(
+            eq(payoutAccruals.source, source),
+            eq(payoutAccruals.sourceId, sourceId),
+          ),
+        )
+        .limit(1);
+    },
+  };
 }
 
 /**
  * Record one accrual, at most once, ever.
  *
- * The upsert with `$setOnInsert` is atomic in a way a read-then-write is not:
- * `findOne` followed by `insertOne` has a window between the two where a
- * concurrent retry reads "nothing there" and both insert. The unique index is
- * what makes the upsert safe — the update only ever matches the existing row,
- * and a second writer blocks on the index rather than racing past it.
+ * The insert is atomic in a way a read-then-write is not: `select` followed
+ * by `insert` has a window between the two where a concurrent retry reads
+ * "nothing there" and both insert. The unique index is what makes the insert
+ * safe — the conflict is turned away by the index, and the loser is answered
+ * with the winner's row.
  *
  * Two outcomes mean "already recorded", and both have to be handled because
  * they correspond to two different races:
  *
- * - `updatedExisting === true` — a sequential retry. The caller's own earlier
- *   call already wrote this key.
- * - E11000 — a *concurrent* retry. Both callers passed the filter before
- *   either wrote, and the index rejected the loser. This is the case a naive
- *   implementation treats as a 500, which is how a retried payout request turns
- *   into an incident.
+ * - the insert returned a row — the accrual is new.
+ * - the insert returned nothing and the event is already on file — a
+ *   sequential retry, or a *concurrent* one that lost the race. The winner's
+ *   row is the truth, and it is returned so the caller reports the same
+ *   "already recorded" it would have reported had it arrived a millisecond
+ *   later. This is the case a naive implementation treats as a 500, which is
+ *   how a retried payout request turns into an incident.
  */
-export async function insertAccrualOnce<T extends Document & { idempotencyKey: string }>(
-  collection: IdempotentUpsert<T>,
-  doc: T,
-): Promise<{ created: boolean; event: T }> {
-  let result: { value: T | null; lastErrorObject?: { updatedExisting?: boolean } };
+export async function insertAccrualOnce(
+  writer: IdempotentAccrualWriter,
+  doc: PayoutAccrualDocument,
+): Promise<{ created: boolean; event: PayoutAccrualDocument }> {
+  const inserted = await writer.insertOnce(accrualValues(doc));
 
-  try {
-    result = await collection.findOneAndUpdate(
-      { idempotencyKey: doc.idempotencyKey },
-      { $setOnInsert: doc },
-      { upsert: true, returnDocument: "after", includeResultMetadata: true },
-    );
-  } catch (error) {
-    if (!isDuplicateKeyError(error)) throw error;
-    // Lost the concurrent race. The winner's row is the truth; return it so
-    // the caller reports the same "already recorded" it would have reported
-    // had it arrived a millisecond later.
-    const existing = await collection.findOneAndUpdate(
-      { idempotencyKey: doc.idempotencyKey },
-      { $setOnInsert: doc },
-      { upsert: true, returnDocument: "after", includeResultMetadata: true },
-    );
-    if (!existing.value) throw error;
-    return { created: false, event: existing.value };
+  if (inserted.length > 0) {
+    // `recordedBy` and `updatedAt` have no column to live in, so they are
+    // carried here rather than read back. On the path below — where the row
+    // was written by somebody else — they are absent, because what is
+    // honestly known about that row is what the table holds.
+    return {
+      created: true,
+      event: {
+        ...toAccrualDocument(inserted[0]),
+        recordedBy: doc.recordedBy,
+        updatedAt: doc.updatedAt,
+      },
+    };
   }
 
-  const alreadyExisted = result.lastErrorObject?.updatedExisting === true;
-  const event = result.value;
-  if (!event) {
-    // An upsert that returns no document has not been written, and saying
+  const existing = await writer.findByEvent(doc.source, doc.sourceId);
+  if (!existing[0]) {
+    // An insert that returns no document has not been written, and saying
     // otherwise would let a caller report a payment that is not in the ledger.
-    throw new PayoutLedgerUnavailableError("accrual upsert returned no document");
+    throw new PayoutLedgerUnavailableError("accrual insert returned no document");
   }
 
-  return { created: !alreadyExisted, event };
+  return { created: false, event: toAccrualDocument(existing[0]) };
 }
 
 export type RecordAccrualInput = {
@@ -573,7 +630,8 @@ export type RecordAccrualInput = {
 export async function recordAccrual(
   input: RecordAccrualInput,
 ): Promise<{ created: boolean; event: PayoutAccrualDocument }> {
-  const collection = await getAccrualCollection();
+  const client = db();
+  await ensurePayoutIndexes();
 
   const amount = parseAmount(input.amountMinor, "amountMinor");
   if (amount === BigInt(0)) {
@@ -590,6 +648,7 @@ export async function recordAccrual(
 
   const now = new Date();
   const doc: PayoutAccrualDocument = {
+    _id: newLedgerId(),
     idempotencyKey: buildAccrualIdempotencyKey({
       source: input.source,
       creatorId: input.creatorId,
@@ -612,11 +671,94 @@ export async function recordAccrual(
     updatedAt: now,
   };
 
-  // Explicit: `T` is inferred from a *method* signature in `IdempotentUpsert`,
-  // and inference cannot pick it up through `Collection`'s overloads reliably —
-  // without this the return type widens to a bare object literal and stops
-  // being a `PayoutAccrualDocument`.
-  return insertAccrualOnce<PayoutAccrualDocument>(collection, doc);
+  return insertAccrualOnce(accrualWriter(client), doc);
+}
+
+/** The row an accrual document becomes. */
+function accrualValues(doc: PayoutAccrualDocument): typeof payoutAccruals.$inferInsert {
+  return {
+    id: doc._id ?? newLedgerId(),
+    creatorId: doc.creatorId,
+    username: doc.username ?? null,
+    componentSlug: doc.componentSlug ?? null,
+    amountMinor: doc.amountMinor.toString(10),
+    reason: doc.reason,
+    source: doc.source,
+    sourceId: doc.sourceId,
+    batchId: doc.batchId ?? null,
+    status: doc.status,
+    note: doc.note ?? null,
+    occurredAt: doc.occurredAt,
+    createdAt: doc.createdAt,
+  };
+}
+
+/** The row as the document callers expect. */
+function toAccrualDocument(row: AccrualRecord): PayoutAccrualDocument {
+  return {
+    _id: row.id,
+    idempotencyKey: accrualKeyOf(row),
+    creatorId: row.creatorId,
+    username: row.username ?? undefined,
+    componentSlug: row.componentSlug ?? undefined,
+    amountMinor: readAmountColumn(row.amountMinor, `accrual ${row.id}`),
+    currency: "USDC",
+    reason: row.reason as AccrualReason,
+    source: row.source,
+    sourceId: row.sourceId,
+    occurredAt: row.occurredAt,
+    status: row.status as AccrualStatus,
+    batchId: row.batchId ?? null,
+    note: row.note ?? undefined,
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * An amount read off a text column.
+ *
+ * The column is text because the arithmetic is on bigints, so the database
+ * hands the exact decimal string back and this is where that string becomes a
+ * bigint again. A string that is not an integer is a corrupt row rather than a
+ * number to be repaired, and the failure is loud for the same reason the
+ * Mongo reader was: a balance that cannot be read exactly is a balance we
+ * cannot pay from.
+ */
+function readAmountColumn(raw: unknown, label: string): Amount {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!/^-?\d+$/.test(trimmed)) {
+      throw new AmountError(`${label} is not a stored integer`, 500);
+    }
+    return BigInt(trimmed);
+  }
+  return readStoredAmount(raw, label);
+}
+
+/**
+ * A timestamp read off an aggregate.
+ *
+ * A column comes back as a `Date`, because the driver knows what a timestamp
+ * is. An aggregate is not a column — `max(occurred_at)` is an expression, and
+ * an expression arrives without a type — so the database is asked for the
+ * epoch millisecond instead and the date is rebuilt here. Letting the database
+ * do the conversion is the point: it is the only place that knows what a
+ * timestamp means.
+ */
+function readTimestamp(raw: unknown, label: string): Date | null {
+  if (raw === null || raw === undefined) return null;
+  if (raw instanceof Date) return raw;
+  if (typeof raw === "number" && Number.isFinite(raw)) return new Date(raw);
+
+  if (typeof raw === "string") {
+    const millis = Number(raw.trim());
+    if (!Number.isFinite(millis)) {
+      throw new Error(`${label} is not a readable timestamp`);
+    }
+    return new Date(millis);
+  }
+
+  throw new Error(`${label} is not a readable timestamp`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -635,8 +777,8 @@ export type UnpaidAccrual = AccrualRow & {
  * Half-open rather than inclusive at both ends because a batch that ran
  * exactly on a boundary and the next batch that starts from that same instant
  * would otherwise both claim the accruals landing on it. The overlap is one
- * document, paid twice, which is the whole failure this endpoint exists to
- * make impossible.
+ * row, paid twice, which is the whole failure this endpoint exists to make
+ * impossible.
  */
 export async function listUnpaidAccruals(options: {
   periodStart: Date;
@@ -644,25 +786,35 @@ export async function listUnpaidAccruals(options: {
   /** Ceiling so a corrupt date range cannot pull the entire ledger into memory. */
   limit?: number;
 }): Promise<UnpaidAccrual[]> {
-  const collection = await getAccrualCollection();
+  const client = db();
+  await ensurePayoutIndexes();
+
   const limit = Math.min(Math.max(options.limit ?? 10_000, 1), 50_000);
 
-  const filter: Filter<PayoutAccrualDocument> = {
-    batchId: null,
-    status: "accrued",
-    occurredAt: { $gte: options.periodStart, $lt: options.periodEnd },
-  };
+  const rows = await client
+    .select()
+    .from(payoutAccruals)
+    .where(
+      and(
+        isNull(payoutAccruals.batchId),
+        eq(payoutAccruals.status, "accrued"),
+        gte(payoutAccruals.occurredAt, options.periodStart),
+        lt(payoutAccruals.occurredAt, options.periodEnd),
+      ),
+    )
+    .orderBy(asc(payoutAccruals.occurredAt), asc(payoutAccruals.id))
+    .limit(limit);
 
-  const orderBy: Sort = { occurredAt: 1, _id: 1 };
-  const rows = await collection.find(filter).sort(orderBy).limit(limit).toArray();
-
-  return rows.map((row) => ({
-    id: row._id?.toString() ?? "",
-    creatorId: row.creatorId,
-    amountMinor: readStoredAmount(row.amountMinor, `accrual ${row._id}`),
-    occurredAt: row.occurredAt,
-    signed: row.amountMinor < BigInt(0),
-  }));
+  return rows.map((row) => {
+    const amountMinor = readAmountColumn(row.amountMinor, `accrual ${row.id}`);
+    return {
+      id: row.id,
+      creatorId: row.creatorId,
+      amountMinor,
+      occurredAt: row.occurredAt,
+      signed: amountMinor < BigInt(0),
+    };
+  });
 }
 
 /** Where each creator in a batch would be paid. */
@@ -671,10 +823,13 @@ export async function listPayoutTargets(
 ): Promise<CreatorPayoutTarget[]> {
   if (!creatorIds.length) return [];
 
-  const collection = await getAccountCollection();
-  const rows = await collection
-    .find({ creatorId: { $in: [...creatorIds] } })
-    .toArray();
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const rows = await client
+    .select()
+    .from(payoutAccounts)
+    .where(inArray(payoutAccounts.creatorId, [...creatorIds]));
 
   return rows.map((row) => ({
     creatorId: row.creatorId,
@@ -717,70 +872,43 @@ export type CreatorBalance = {
  * totals — which is not a style preference, it is the only thing standing
  * between this endpoint and being a way to enumerate what everybody earns.
  *
- * The sums come back as Int64 and are coerced with `readStoredAmount`, which
- * throws rather than accepting a lossy double. A balance that cannot be read
- * exactly is a balance we cannot pay from.
+ * The sums happen in the database as `bigint` and come back as the exact
+ * decimal string they were written as, which is then read with
+ * `readAmountColumn`. That reader throws rather than accepting a lossy double.
+ * A balance that cannot be read exactly is a balance we cannot pay from.
  */
 export async function getCreatorBalance(creatorId: string): Promise<CreatorBalance> {
-  const [accruals, batches, account] = await Promise.all([
-    getAccrualCollection(),
-    getBatchCollection(),
-    getAccountCollection(),
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const [accrualRow, batchRow, accountRow] = await Promise.all([
+    client
+      .select({
+        gross: sql<string>`coalesce(sum(${payoutAccruals.amountMinor}::bigint), 0)::text`,
+        pending: sql<string>`coalesce(sum(case when ${payoutAccruals.batchId} is null then ${payoutAccruals.amountMinor}::bigint else 0 end), 0)::text`,
+        count: sql<number>`(count(*) filter (where ${payoutAccruals.status} <> 'void'))::int`,
+        last: sql<string>`(floor(extract(epoch from max(${payoutAccruals.occurredAt})) * 1000))::bigint::text`,
+      })
+      .from(payoutAccruals)
+      .where(eq(payoutAccruals.creatorId, creatorId)),
+    client
+      .select({
+        settled: sql<string>`coalesce(sum(case when ${payoutBatches.status} = 'confirmed' then ${payoutBatches.totalMinor}::bigint else 0 end), 0)::text`,
+        inFlight: sql<string>`coalesce(sum(case when ${payoutBatches.status} in ('planned', 'signed', 'submitted') then ${payoutBatches.totalMinor}::bigint else 0 end), 0)::text`,
+      })
+      .from(payoutBatches)
+      .where(eq(payoutBatches.creatorId, creatorId)),
+    client
+      .select()
+      .from(payoutAccounts)
+      .where(eq(payoutAccounts.creatorId, creatorId))
+      .limit(1),
   ]);
 
-  const [accrualRow, batchRow] = await Promise.all([
-    accruals
-      .aggregate<{
-        gross: number | bigint;
-        count: number;
-        pending: number | bigint;
-        last: Date;
-      }>([
-        { $match: { creatorId } },
-        {
-          $group: {
-            _id: null,
-            gross: { $sum: "$amountMinor" },
-            pending: {
-              $sum: { $cond: [{ $eq: ["$batchId", null] }, "$amountMinor", 0] },
-            },
-            count: { $sum: { $cond: [{ $eq: ["$status", "void"] }, 0, 1] } },
-            last: { $max: "$occurredAt" },
-          },
-        },
-      ])
-      .toArray(),
-    batches
-      .aggregate<{
-        settled: number | bigint;
-        inFlight: number | bigint;
-      }>([
-        { $match: { creatorId } },
-        {
-          $group: {
-            _id: null,
-            settled: { $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, "$totalMinor", 0] } },
-            inFlight: {
-              $sum: {
-                $cond: [
-                  { $in: ["$status", ["planned", "signed", "submitted"]] },
-                  "$totalMinor",
-                  0,
-                ],
-              },
-            },
-          },
-        },
-      ])
-      .toArray(),
-  ]);
-
-  const accountRow = await account.findOne({ creatorId });
-
-  const grossAccruedMinor = readStoredAmount(accrualRow[0]?.gross ?? BigInt(0), "gross accrued");
-  const pendingMinor = readStoredAmount(accrualRow[0]?.pending ?? BigInt(0), "pending gross");
-  const settledMinor = readStoredAmount(batchRow[0]?.settled ?? BigInt(0), "settled total");
-  const inFlightMinor = readStoredAmount(batchRow[0]?.inFlight ?? BigInt(0), "in-flight total");
+  const grossAccruedMinor = readAmountColumn(accrualRow[0]?.gross ?? "0", "gross accrued");
+  const pendingMinor = readAmountColumn(accrualRow[0]?.pending ?? "0", "pending gross");
+  const settledMinor = readAmountColumn(batchRow[0]?.settled ?? "0", "settled total");
+  const inFlightMinor = readAmountColumn(batchRow[0]?.inFlight ?? "0", "in-flight total");
   const estimatedOwedMinor = applyBps(pendingMinor, REVENUE_SHARE_BPS).amount;
 
   return {
@@ -792,9 +920,9 @@ export async function getCreatorBalance(creatorId: string): Promise<CreatorBalan
     estimatedOwedMinor,
     readyToPay: estimatedOwedMinor >= MIN_PAYOUT_MINOR,
     accrualCount: accrualRow[0]?.count ?? 0,
-    lastAccrualAt: accrualRow[0]?.last ?? null,
-    address: accountRow?.address ?? null,
-    addressStatus: accountRow?.status ?? null,
+    lastAccrualAt: readTimestamp(accrualRow[0]?.last ?? null, "last accrual"),
+    address: accountRow[0]?.address ?? null,
+    addressStatus: (accountRow[0]?.status as PayoutAccountStatus | undefined) ?? null,
   };
 }
 
@@ -809,13 +937,19 @@ export async function listCreatorBatches(
   creatorId: string,
   limit = 25,
 ): Promise<PayoutBatchDocument[]> {
-  const collection = await getBatchCollection();
-  const orderBy: Sort = { createdAt: -1, _id: -1 };
-  return collection
-    .find({ creatorId })
-    .sort(orderBy)
-    .limit(Math.min(Math.max(limit, 1), 100))
-    .toArray();
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const rows = await client
+    .select()
+    .from(payoutBatches)
+    .where(eq(payoutBatches.creatorId, creatorId))
+    .orderBy(desc(payoutBatches.createdAt), desc(payoutBatches.id))
+    .limit(Math.min(Math.max(limit, 1), 100));
+
+  const eventIds = await eventIdsForBatches(client, rows.map((row) => row.id));
+
+  return rows.map((row) => toBatchDocument(row, eventIds.get(row.id) ?? []));
 }
 
 /** A creator's own accrual history, newest first. */
@@ -823,25 +957,63 @@ export async function listCreatorAccruals(
   creatorId: string,
   limit = 25,
 ): Promise<PayoutAccrualDocument[]> {
-  const collection = await getAccrualCollection();
-  const orderBy: Sort = { occurredAt: -1, _id: -1 };
-  return collection
-    .find({ creatorId })
-    .sort(orderBy)
-    .limit(Math.min(Math.max(limit, 1), 100))
-    .toArray();
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const rows = await client
+    .select()
+    .from(payoutAccruals)
+    .where(eq(payoutAccruals.creatorId, creatorId))
+    .orderBy(desc(payoutAccruals.occurredAt), desc(payoutAccruals.id))
+    .limit(Math.min(Math.max(limit, 1), 100));
+
+  return rows.map(toAccrualDocument);
 }
 
 /** Every batch, for the admin history table. Admin-only callers only. */
 export async function listBatches(options: { limit?: number; status?: PayoutBatchStatus } = {}) {
-  const collection = await getBatchCollection();
-  const filter: Filter<PayoutBatchDocument> = options.status ? { status: options.status } : {};
-  const orderBy: Sort = { createdAt: -1, _id: -1 };
-  return collection
-    .find(filter)
-    .sort(orderBy)
-    .limit(Math.min(Math.max(options.limit ?? 100, 1), 500))
-    .toArray();
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const rows = await client
+    .select()
+    .from(payoutBatches)
+    .where(options.status ? eq(payoutBatches.status, options.status) : undefined)
+    .orderBy(desc(payoutBatches.createdAt), desc(payoutBatches.id))
+    .limit(Math.min(Math.max(options.limit ?? 100, 1), 500));
+
+  const eventIds = await eventIdsForBatches(client, rows.map((row) => row.id));
+
+  return rows.map((row) => toBatchDocument(row, eventIds.get(row.id) ?? []));
+}
+
+/**
+ * The events each of these batches covers.
+ *
+ * The batch table has no column for the list of events, but the accrual rows
+ * carry the batch that claimed them, so the list is read back from the other
+ * side of the same claim. One query for the whole page, not one per row.
+ */
+async function eventIdsForBatches(
+  client: Database,
+  batchIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  const grouped = new Map<string, string[]>();
+  if (!batchIds.length) return grouped;
+
+  const rows = await client
+    .select({ id: payoutAccruals.id, batchId: payoutAccruals.batchId })
+    .from(payoutAccruals)
+    .where(inArray(payoutAccruals.batchId, [...batchIds]));
+
+  for (const row of rows) {
+    if (!row.batchId) continue;
+    const ids = grouped.get(row.batchId) ?? [];
+    ids.push(row.id);
+    grouped.set(row.batchId, ids);
+  }
+
+  return grouped;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -877,7 +1049,9 @@ export async function putPayoutAccount(input: {
   status: PayoutAccountStatus;
   actorId: string;
 }): Promise<PayoutAccountDocument> {
-  const collection = await getAccountCollection();
+  const client = db();
+  await ensurePayoutIndexes();
+
   const address = input.address.trim();
 
   if (!isEvmAddress(address)) {
@@ -887,35 +1061,70 @@ export async function putPayoutAccount(input: {
   const now = new Date();
   const verified = input.status === "verified";
 
-  const result = await collection.findOneAndUpdate(
-    { creatorId: input.creatorId },
-    {
-      $set: {
-        creatorId: input.creatorId,
+  const rows = await client
+    .insert(payoutAccounts)
+    .values({
+      creatorId: input.creatorId,
+      address,
+      chain: "base",
+      status: input.status,
+      requestedAt: now,
+      verifiedAt: verified ? now : null,
+      verifiedBy: verified ? input.actorId : null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    // One address per creator: the creator is the key, so a second write
+    // replaces the first. The moment the address was requested is not
+    // replaced with it — a creator who asks twice has still asked once.
+    .onConflictDoUpdate({
+      target: payoutAccounts.creatorId,
+      set: {
         address,
         chain: "base",
         status: input.status,
+        verifiedAt: verified ? now : null,
+        verifiedBy: verified ? input.actorId : null,
         updatedAt: now,
-        ...(verified
-          ? { verifiedAt: now, verifiedBy: input.actorId }
-          : { verifiedAt: null, verifiedBy: null }),
       },
-      $setOnInsert: { requestedAt: now, createdAt: now },
-    },
-    { upsert: true, returnDocument: "after" },
-  );
+    })
+    .returning();
 
-  if (!result) throw new PayoutLedgerUnavailableError("payout address could not be saved");
-  return result;
+  if (!rows[0]) throw new PayoutLedgerUnavailableError("payout address could not be saved");
+  return toAccountDocument(rows[0]);
 }
 
 export async function getPayoutAccount(creatorId: string): Promise<PayoutAccountDocument | null> {
-  const collection = await getAccountCollection();
-  return collection.findOne({ creatorId });
+  const client = db();
+  await ensurePayoutIndexes();
+
+  const rows = await client
+    .select()
+    .from(payoutAccounts)
+    .where(eq(payoutAccounts.creatorId, creatorId))
+    .limit(1);
+
+  return rows[0] ? toAccountDocument(rows[0]) : null;
+}
+
+/** The row as the document callers expect. */
+function toAccountDocument(row: AccountRecord): PayoutAccountDocument {
+  return {
+    _id: row.creatorId,
+    creatorId: row.creatorId,
+    address: row.address,
+    chain: row.chain as "base",
+    status: row.status as PayoutAccountStatus,
+    requestedAt: row.requestedAt,
+    verifiedAt: row.verifiedAt,
+    verifiedBy: row.verifiedBy,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          Settling a batch (stub)                           */
+/*                            Settling a batch                                */
 /* -------------------------------------------------------------------------- */
 
 export type BatchWriteResult = {
@@ -931,12 +1140,12 @@ export type BatchWriteResult = {
  * Write the batch and claim its accruals.
  *
  * Ordering matters and is not interchangeable: the accruals are claimed first,
- * under a batch id that no `payout_batches` document has yet. If the process
- * dies in between, the accruals are marked `scheduled` and point at a batch
- * that does not exist — a state an operator can find and reconcile, and which
- * pays nobody twice. The other order would leave a batch document claiming
- * events that are still unpaid and available to the next run, which pays them
- * twice and leaves the first batch's recipient unpaid.
+ * under a batch id that no `payout_batches` row has yet. If the process dies
+ * in between, the accruals are marked `scheduled` and point at a batch that
+ * does not exist — a state an operator can find and reconcile, and which pays
+ * nobody twice. The other order would leave a batch row claiming events that
+ * are still unpaid and available to the next run, which pays them twice and
+ * leaves the first batch's recipient unpaid.
  */
 export async function writeBatch(input: {
   runId: string;
@@ -953,86 +1162,121 @@ export async function writeBatch(input: {
   }[];
   createdBy: string;
 }): Promise<BatchWriteResult> {
-  const [accruals, batches] = await Promise.all([getAccrualCollection(), getBatchCollection()]);
+  const client = db();
+  await ensurePayoutIndexes();
+
   const now = new Date();
   const unclaimed: string[] = [];
   let created = 0;
   let duplicates = 0;
 
   for (const line of input.lines) {
-    const objectIds = line.eventIds
-      .map((id) => (ObjectId.isValid(id) ? new ObjectId(id) : null))
-      .filter((id): id is ObjectId => id !== null);
+    const eventIds = line.eventIds.filter(isLedgerId);
+    const batchId = newLedgerId();
 
-    const batchId = new ObjectId();
+    // `batch_id is null` is the whole concurrency control: two runs computing
+    // over the same events both try to claim, and the second one matches
+    // nothing because the first already flipped it. The condition and the
+    // write are one statement, so a concurrent claimer cannot slip between
+    // them.
+    const claimed = eventIds.length
+      ? await client
+          .update(payoutAccruals)
+          .set({ batchId, status: "scheduled" })
+          .where(
+            and(
+              inArray(payoutAccruals.id, eventIds),
+              isNull(payoutAccruals.batchId),
+            ),
+          )
+          .returning({ id: payoutAccruals.id })
+      : [];
 
-    const claim = await accruals.updateMany(
-      // `batchId: null` is the whole concurrency control: two runs computing
-      // over the same events both try to claim, and the second one matches
-      // nothing because the first already flipped it.
-      { _id: { $in: objectIds }, batchId: null },
-      { $set: { batchId, status: "scheduled", updatedAt: now } },
-    );
-
-    const claimedCount = claim.modifiedCount;
-    if (claimedCount !== objectIds.length) {
+    const claimedCount = claimed.length;
+    if (claimedCount !== eventIds.length) {
       // Partial claim means somebody else got there first for some of these.
       // Recording which ids failed is the difference between a reconcilable
       // batch and a silent double payment.
-      const stillFree = await accruals
-        .find({ _id: { $in: objectIds }, batchId: null })
-        .project<{ _id: ObjectId }>({ _id: 1 })
-        .toArray();
-      unclaimed.push(...stillFree.map((row) => row._id.toString()));
-      await accruals.updateMany({ batchId }, { $set: { batchId: null, status: "accrued", updatedAt: now } });
+      const stillFree = eventIds.length
+        ? await client
+            .select({ id: payoutAccruals.id })
+            .from(payoutAccruals)
+            .where(
+              and(
+                inArray(payoutAccruals.id, eventIds),
+                isNull(payoutAccruals.batchId),
+              ),
+            )
+        : [];
+      unclaimed.push(...stillFree.map((row) => row.id));
+      await releaseClaim(client, batchId);
       continue;
     }
 
-    const doc: PayoutBatchDocument = {
-      runId: input.runId,
-      creatorId: line.creatorId,
-      username: line.username,
-      currency: "USDC",
-      chain: "base",
-      toAddress: line.address,
-      totalMinor: line.owedMinor,
-      grossMinor: line.grossMinor,
-      roundingRemainder: line.roundingRemainder,
-      eventCount: objectIds.length,
-      eventIds: objectIds,
-      periodStart: input.periodStart,
-      periodEnd: input.periodEnd,
-      status: "planned",
-      txHash: null,
-      nonce: null,
-      signedAt: null,
-      submittedAt: null,
-      confirmedAt: null,
-      createdBy: input.createdBy,
-      createdAt: now,
-      updatedAt: now,
-    };
-
+    let rows: { id: string }[];
     try {
-      await batches.insertOne(doc);
-      created += 1;
+      rows = await client
+        .insert(payoutBatches)
+        .values({
+          id: batchId,
+          runId: input.runId,
+          creatorId: line.creatorId,
+          username: line.username ?? null,
+          currency: "USDC",
+          chain: "base",
+          toAddress: line.address,
+          totalMinor: line.owedMinor.toString(10),
+          grossMinor: line.grossMinor.toString(10),
+          roundingRemainder: line.roundingRemainder.toString(10),
+          eventCount: eventIds.length,
+          status: "planned",
+          txHash: null,
+          nonce: null,
+          periodStart: input.periodStart,
+          periodEnd: input.periodEnd,
+          createdBy: input.createdBy,
+          createdAt: now,
+          updatedAt: now,
+        })
+        // Same run id, same creator, already paid by an earlier attempt. The
+        // index refuses the row and the accruals are given back below, so they
+        // are not stranded against a batch that will never include them.
+        .onConflictDoNothing({
+          target: [payoutBatches.runId, payoutBatches.creatorId],
+        })
+        .returning({ id: payoutBatches.id });
     } catch (error) {
-      // Same run id, same creator, already paid by an earlier attempt. Give the
-      // events back so they are not stranded against a batch that will never
-      // include them.
-      await accruals.updateMany(
-        { batchId },
-        { $set: { batchId: null, status: "accrued", updatedAt: now } },
-      );
-      if (isDuplicateKeyError(error)) {
-        duplicates += 1;
-        continue;
-      }
+      // The batch was not written, so the events must not stay claimed by it.
+      // They go back before the error travels on, because a batch that does
+      // not exist is not a thing an operator can reconcile.
+      await releaseClaim(client, batchId);
       throw error;
     }
+
+    if (!rows[0]) {
+      await releaseClaim(client, batchId);
+      duplicates += 1;
+      continue;
+    }
+
+    created += 1;
   }
 
   return { runId: input.runId, created, duplicates, unclaimed };
+}
+
+/**
+ * Give a batch's events back.
+ *
+ * The claim is released rather than the event removed: the accrual goes back
+ * to unpaid with its own status, because it was never paid and the next batch
+ * is entitled to see it.
+ */
+async function releaseClaim(client: Database, batchId: string): Promise<void> {
+  await client
+    .update(payoutAccruals)
+    .set({ batchId: null, status: "accrued" })
+    .where(eq(payoutAccruals.batchId, batchId));
 }
 
 /**
@@ -1053,13 +1297,15 @@ export async function updateBatchStatus(
     failureReason?: string;
   },
 ): Promise<void> {
-  const collection = await getBatchCollection();
-  if (!ObjectId.isValid(batchId)) {
+  const client = db();
+  await ensurePayoutIndexes();
+
+  if (!isLedgerId(batchId)) {
     throw new PayoutLedgerUnavailableError("invalid batch id");
   }
 
   const now = new Date();
-  const set: Record<string, unknown> = { updatedAt: now };
+  const set: Partial<typeof payoutBatches.$inferInsert> = { updatedAt: now };
 
   if (patch.status) {
     set.status = patch.status;
@@ -1071,8 +1317,45 @@ export async function updateBatchStatus(
   if (patch.nonce !== undefined) set.nonce = patch.nonce;
   if (patch.failureReason !== undefined) set.failureReason = patch.failureReason;
 
-  await collection.updateOne({ _id: new ObjectId(batchId) }, { $set: set });
+  await client.update(payoutBatches).set(set).where(eq(payoutBatches.id, batchId));
 }
+
+/** The row as the document callers expect. */
+function toBatchDocument(row: BatchRecord, eventIds: string[]): PayoutBatchDocument {
+  return {
+    _id: row.id,
+    runId: row.runId,
+    creatorId: row.creatorId,
+    username: row.username ?? undefined,
+    currency: row.currency as "USDC",
+    chain: row.chain as "base",
+    toAddress: row.toAddress,
+    totalMinor: readAmountColumn(row.totalMinor, `batch ${row.id} total`),
+    grossMinor: readAmountColumn(row.grossMinor, `batch ${row.id} gross`),
+    roundingRemainder: readAmountColumn(
+      row.roundingRemainder,
+      `batch ${row.id} rounding remainder`,
+    ),
+    eventCount: row.eventCount,
+    eventIds,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    status: row.status as PayoutBatchStatus,
+    txHash: row.txHash,
+    nonce: row.nonce,
+    signedAt: row.signedAt,
+    submittedAt: row.submittedAt,
+    confirmedAt: row.confirmedAt,
+    failureReason: row.failureReason ?? undefined,
+    createdBy: row.createdBy ?? "",
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Serialisation                                 */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Serialise a batch document for a response body.
@@ -1087,7 +1370,7 @@ export async function updateBatchStatus(
  */
 export function batchToJson(batch: PayoutBatchDocument) {
   return {
-    id: batch._id?.toString() ?? null,
+    id: batch._id ?? null,
     runId: batch.runId,
     creatorId: batch.creatorId,
     username: batch.username ?? null,
@@ -1111,7 +1394,7 @@ export function batchToJson(batch: PayoutBatchDocument) {
 /** Serialise an accrual for a response body. */
 export function accrualToJson(event: PayoutAccrualDocument) {
   return {
-    id: event._id?.toString() ?? null,
+    id: event._id ?? null,
     componentSlug: event.componentSlug ?? null,
     amountMinor: toAmountString(readStoredAmount(event.amountMinor, "accrual amount")),
     currency: event.currency,

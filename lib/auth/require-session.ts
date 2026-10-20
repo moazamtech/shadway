@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { connectToDatabase } from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
 import { sessionAvatar, sessionDisplayName, sessionUsername } from "@/lib/session";
-import { ensureUsername } from "@/lib/db/users";
-import { User as DbUser } from "@/lib/types";
+import { ensureUsername, findAccountBySession } from "@/lib/db/users";
 
 /**
  * Session gate for the marketplace.
@@ -32,8 +29,6 @@ export async function requireSession() {
 
 /** Resolves the author's public profile for a publish. */
 export async function resolveAuthor(session: Session) {
-  const { db } = await connectToDatabase();
-
   // Prefer the handle stored on the account — that is the name its profile
   // page lives at, and `ComponentAuthor.username` is what
   // `listComponents({ author })` filters on. Accounts created before handles
@@ -52,14 +47,11 @@ export async function resolveAuthor(session: Session) {
   // carries the old copy.
   let name: string | undefined;
   const id = session.user?.id;
-  if (id && ObjectId.isValid(id)) {
-    type StoredUser = Omit<DbUser, "_id"> & { _id?: ObjectId };
-    // A raw string here would silently match nothing, since `_id` is an
-    // ObjectId and `session.user.id` is its stringified form.
-    const stored = await db
-      .collection<StoredUser>("users")
-      .findOne({ _id: new ObjectId(id) });
-    name = stored?.name ?? undefined;
+  if (id) {
+    const { account } = await findAccountBySession(id, email ?? null).catch(
+      () => ({ users: null, account: null }) as never,
+    );
+    name = account?.name ?? undefined;
   }
 
   return {

@@ -62,6 +62,23 @@ covers. It stops there: the signing key is not in this application, so no
 route here can move money. `lib/payouts/payouts.ts` is the arithmetic, and it
 is a pure function over rows — which is what makes the rounding rule testable.
 
+## The database
+
+Postgres, on Neon, through Drizzle. The schema is `lib/db/schema.ts` and the
+client is `lib/db/postgres.ts`; there is no second copy of the shape in a
+migration folder to drift out of step.
+
+The data was written for Mongo, and it moved without being rewritten: the same
+documents, the same names, the same ids. Ids are text — a hex string — and
+everything that referred to an id still refers to the same one. What changed is
+where the bytes live and what enforces the rules: a unique index on a handle is
+a promise the database keeps, and a column of `jsonb` is a place for a document
+that has no shape of its own to live without pretending to be a table.
+
+`scripts/migrate-to-neon.ts` is the one-off that copied everything across. It
+is safe to run again: a row that is already there is written with the same
+values, so an interrupted run can simply be repeated.
+
 ## The pieces worth knowing about
 
 **The studio sandbox.** Sandpack runs in the visitor's browser, so the preview

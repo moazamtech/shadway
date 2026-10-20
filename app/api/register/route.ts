@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 
-import { connectToDatabase } from "@/lib/mongodb";
 import { authRateLimiter, getClientIP } from "@/lib/rate-limit";
-import { planUsername } from "@/lib/db/users";
+import { createAccount, findAccountByEmail, planUsername } from "@/lib/db/users";
 import { isAdminEmail } from "@/lib/auth";
-import { User as DbUser } from "@/lib/types";
-
-/** Users are keyed by ObjectId in Mongo even though the shared type says string. */
-type UserDoc = Omit<DbUser, "_id"> & { _id?: ObjectId };
 
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 80;
@@ -76,13 +70,7 @@ export async function POST(request: NextRequest) {
   const name = sanitizeName(rawName) || email.split("@")[0];
 
   try {
-    const { db } = await connectToDatabase();
-    const users = db.collection<UserDoc>("users");
-
-    const existing = await users.findOne(
-      { email },
-      { projection: { _id: 1 } },
-    );
+    const existing = await findAccountByEmail(email);
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
@@ -90,24 +78,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = new Date();
     const password = await bcrypt.hash(rawPassword, 12);
     // The public handle is minted at signup so the account has a profile URL
     // from day one, and so its first publish lands on that URL.
     const username = await planUsername(email, name);
 
-    const result = await users.insertOne({
+    const account = await createAccount({
       email,
       password,
       name,
       username,
       role: isAdminEmail(email) ? "admin" : "user",
-      createdAt: now,
-      updatedAt: now,
     });
 
     return NextResponse.json(
-      { id: result.insertedId.toString(), email, name, username },
+      { id: account._id, email, name, username },
       { status: 201 },
     );
   } catch (error) {
