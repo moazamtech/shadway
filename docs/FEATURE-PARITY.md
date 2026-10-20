@@ -15,8 +15,10 @@
 |---|---|---|---|---|---|
 | Publish (build-once bundle + static cover) | `apps/web/publish`, `app/api/bundle` | Present | `components/studio/publish-panel.tsx`, `lib/preview/bundle.ts`, `app/api/components/route.ts` | — | — |
 | Auth-gated publish | middleware + Clerk | Present | `app/api/components/route.ts` (`requireSession`), 401 verified | — | — |
-| Discover feed (grid, search, filters) | `apps/web/app/page` | Partial | `components/component-exchange-home.tsx` — search debounce + category filter + sort added | M | P1 |
-| Component detail (Preview/Code/Install) | `apps/web/c/[component]` | Present | `components/marketplace/component-detail.tsx`, `app/c/[slug]/page.tsx` | — | — |
+| Discover feed (grid, search, filters) | `apps/web/app/page` | Present | `components/component-exchange-home.tsx` — the grid, the ⌘K palette (search + sort) and the category rail | — | — |
+| Component detail (Preview/Code/Install) | `apps/web/c/[component]` | Present | `app/c/[slug]/page.tsx`, `components/marketplace/component-detail-client.tsx` | — | — |
+| Fullscreen showcase from the feed | `apps/web/...` | Present | `components/marketplace/component-detail-dialog.tsx` — the page dims, the component takes the screen, the chevrons step through the grid, the copy menu takes the source, the page link, the registry address or the published document | — | — |
+| Published document at its own address | `cdn/…/bundle.<ts>.html?theme=` | Present | `app/p/[slug]/route.ts` — the built component, with `?theme=dark` for the dark copy of the same bytes | — | — |
 | Owner controls (PATCH/DELETE) | owner endpoints | Present | `app/api/components/[slug]/route.ts` (PATCH/DELETE, 401/403/200 verified) | — | — |
 | Install (CLI / v0 / Lovable / Bolt + download) | install tabs | Present | `components/marketplace/install-tabs.tsx` | — | — |
 | Registry endpoint (`/r/<slug>`) | `/r/<slug>` | Present | `app/r/[slug]/route.ts` + `lib/registry/index.ts`; installed for real by `scripts/qa-install.ts` | — | — |
@@ -29,6 +31,7 @@
 | Collapsible file tree + packages panel | `use-file-system` hook | Present | studio shell | — | — |
 | Live local preview (no remote bundler) | `sandbox` | Present | `components/studio/sandpack-preview.tsx`, `lib/preview/build.ts` | — | — |
 | Separate publish page | `publish` | Present | `components/studio/publish-panel.tsx` | — | — |
+| Import a component from a repository | — | Present | `app/api/studio/import-github/route.ts`, `components/studio/import-github-dialog.tsx` — a repository is listed by folder, the author picks the files, the paths are rewritten to the project's | — | — |
 | AI-assisted generation / chat | `magic`, `magic-chat` | Partial | `app/component-generator/page.tsx`, `app/vibecode/*` — generation exists; no interactive refine chat | L | P1 |
 
 ## Marketplace surfaces
@@ -93,10 +96,16 @@
 
 ## Our verified metrics (current)
 - `npx tsc --noEmit` → 0 errors.
-- Lint (new surface) → 0 errors.
+- `npx eslint components app lib scripts` → **0 errors** (215 warnings, all pre-existing rule levels).
+- `npm test` → 277 tests / 25 files pass.
 - `qa-home` → all checks pass (cards, filters, sort, search, 0 hydration, 0 overflow @375/768/1440).
 - `qa-owner-controls` → all checks pass (401 anonymous, 403 non-owner PATCH/DELETE, 200 owner, dashboard 200).
 - `qa-auth` → all 16 checks pass, including the registry's JSON 404.
 - `qa-publish-flow` → 8 fixtures build, publish and read back; a broken import is refused with the compiler's message.
 - `qa-install` → the real `shadcn` CLI installs a UI item and a block into a scratch Next project; every import resolves and every package is declared.
+- `qa-catalogue` → every published component answers on its page, serves its document in both themes, and its registry item has files.
+- `qa-payouts` → a creator sees their balance, an address cannot be approved by the creator, a review of a different value is a conflict, and an accrual shows at the 70% share.
+- `qa-payout-run` → the weekly run previews, writes one batch, claims the earnings, and writes nothing when the same week is run again.
+- `qa-media` → a cover is an image, a demo video is a `/video/upload/` document that is served back as `video/mp4`, and HTML is not media.
+- `qa-video` → nothing is fetched before the pointer arrives; on hover the video mounts, plays, and is delivered at the size it is painted.
 - Anonymous publish → 401 (verified earlier).
