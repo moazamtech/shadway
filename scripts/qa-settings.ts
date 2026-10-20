@@ -398,9 +398,17 @@ async function main() {
 
       const profileWithAvatar = await (await fetch(`${BASE}/u/${handle}`)).text();
       const avatarUrl = typeof withAvatar?.avatar === "string" ? withAvatar.avatar : "";
+      /**
+       * The picture is delivered at the size it is painted, so the page asks
+       * the CDN for a smaller copy of the same asset — the URL in the markup
+       * is not the URL in the database. What has to be on the page is the
+       * asset, and the asset is named by the last segment of its path.
+       */
+      const asset = avatarUrl.split("/").pop() ?? "";
       log(
         "the profile paints the picture",
-        Boolean(avatarUrl) && profileWithAvatar.includes(avatarUrl)
+        Boolean(asset) && profileWithAvatar.includes(asset),
+        `asset=${asset}`
       );
 
       // A typed URL must not be able to become an avatar.

@@ -183,8 +183,8 @@ async function main() {
     // itself; the `@` prefix is part of the same paragraph in the DOM.
     log("the profile names the handle", owner.html.includes(handle));
     log(
-      "the profile shows both work tabs",
-      owner.html.includes("Components") && owner.html.includes("Blocks")
+      "the profile shows one shelf of published work",
+      owner.html.includes("Published")
     );
     log(
       "the profile shows the owner's empty state instead of 404ing",
@@ -276,14 +276,15 @@ async function main() {
     log("public profile lists the component", publicHtml.includes(title));
     log("public profile names the author", publicHtml.includes("QA Profile"));
 
-    // The Blocks tab holds landing-page sections, and this account has published
-    // none — so it is the tab's own empty state, not the Components one. Read as
-    // a visitor (no cookie), because the owner's copy says "you haven't".
+    // There is one shelf of published work now, so a tab that used to exist
+    // falls back to it rather than answering with an empty pane of its own.
+    // Read as a visitor (no cookie), because the owner's copy says "you
+    // haven't".
     const blocksTab = await fetch(`${BASE}/u/${handle}?tab=blocks`);
     const blocksHtml = await blocksTab.text();
     log(
-      "/u/<handle>?tab=blocks renders its empty state",
-      blocksTab.status === 200 && blocksHtml.includes("No blocks yet")
+      "/u/<handle>?tab=blocks falls back to the published work",
+      blocksTab.status === 200 && blocksHtml.includes(title)
     );
 
     // --- the saved tab round-trips a bookmark ----------------------------

@@ -71,9 +71,10 @@ async function main() {
     log("no hydration warnings", hydration.length === 0, `count=${hydration.length}`);
 
     // ------------------------------------------------------------- category --
-    // Desktop uses sidebar buttons; mobile uses aria-pressed chips.
+    // The rail's categories are links — they carry a URL, because a category
+    // is a place you can be sent to, not a control that toggles something.
     const sidebarCategories = await page.$$eval(
-      "aside button",
+      'aside a[href*="category="]',
       (nodes) =>
         nodes
           .map((n) => (n.textContent || "").trim().toLowerCase())
@@ -113,26 +114,69 @@ async function main() {
       await new Promise((r) => setTimeout(r, 300));
     }
 
-    // ----------------------------------------------------------------- sort --
-    const hasSort = await page.$('select[aria-label="Sort components"]');
-    log("sort control present", Boolean(hasSort));
-    if (hasSort) {
-      await page.select('select[aria-label="Sort components"]', "popular");
-      await new Promise((r) => setTimeout(r, 300));
-      log("sort change keeps cards", (await cardCount(page)) > 0);
-    }
+    // ------------------------------------------------------- the palette ----
+    // The search and the sort live in the ⌘K palette: the toolbar carries
+    // the count and nothing else, so the grid is a picture of the catalogue
+    // rather than a control panel.
+    const openPalette = async () => {
+      await page.keyboard.down("Control");
+      await page.keyboard.press("KeyK");
+      await page.keyboard.up("Control");
+      await page.waitForSelector('input[aria-label="Search components"]', {
+        timeout: 10_000,
+      });
+      await new Promise((r) => setTimeout(r, 900));
+    };
+
+    const paletteRows = () =>
+      page.$$eval('[cmdk-item]', (nodes) =>
+        nodes.map((n) => (n.textContent || "").trim())
+      );
+
+    await openPalette();
+
+    const sorts = await page.$$eval('[role="dialog"] button[aria-pressed]', (nodes) =>
+      nodes.map((n) => (n.textContent || "").trim()).filter(Boolean)
+    );
+    log(
+      "the palette carries the sort",
+      sorts.some((label) => /popular/i.test(label)),
+      sorts.slice(0, 4).join(",")
+    );
+
+    const firstBefore = (await paletteRows())[0] ?? "";
+    await page.evaluate(() => {
+      const pill = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
+        /popular/i.test((b.textContent || "").trim()),
+      );
+      pill?.click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const firstAfter = (await paletteRows())[0] ?? "";
+    log(
+      "the sort reorders the results",
+      Boolean(firstAfter) && firstAfter !== firstBefore,
+      `before="${firstBefore}" after="${firstAfter}"`,
+    );
 
     // --------------------------------------------------------------- search --
-    await page.type('input[aria-label="Search components"]', "button");
+    await page.type('input[aria-label="Search components"]', "hero");
     await new Promise((r) => setTimeout(r, 600));
-    const searched = await cardCount(page);
-    const countText = await page.$$eval("span", (nodes) =>
-      nodes.map((n) => n.textContent || "").find((t) => /components$/.test(t)) || ""
+    const searched = await paletteRows();
+    log(
+      "the search narrows the results",
+      searched.length > 0,
+      `rows=${searched.length}`,
     );
-    log("search filters the feed", searched <= total, `after=${searched} label="${countText}"`);
+    log(
+      "the search finds the component by name",
+      searched.some((row) => /hero/i.test(row)),
+      searched.slice(0, 2).join(" | "),
+    );
 
-    await page.click('button[aria-label="Clear search"]').catch(() => {});
+    await page.keyboard.press("Escape");
     await new Promise((r) => setTimeout(r, 400));
+    log("the palette closes on escape", (await page.$('[cmdk-list]')) === null);
 
     // ----------------------------------------------------------- responsive --
     for (const width of [375, 768, 1440]) {
