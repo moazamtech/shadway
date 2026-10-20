@@ -83,6 +83,20 @@ export function ComponentDetailDialog({
   const origin = useOrigin();
   const { resolvedTheme } = useTheme();
   const [copied, setCopied] = useState<string | null>(null);
+  /**
+   * How many people liked the component on the stage.
+   *
+   * The number travels with the component: a new one on the stage starts at
+   * its own count, and the button moves it by one.
+   */
+  const [likeCount, setLikeCount] = useState(0);
+  const stageSlug = item?.slug;
+  const stageLikes = item?.likes ?? 0;
+  const [countedSlug, setCountedSlug] = useState(stageSlug);
+  if (countedSlug !== stageSlug) {
+    setCountedSlug(stageSlug);
+    setLikeCount(stageLikes);
+  }
 
   /**
    * The copied marker belongs to the showing it was made in.
@@ -366,15 +380,22 @@ export function ComponentDetailDialog({
 
           <button
             type="button"
-            onClick={() => onToggleLike(current.slug)}
+            onClick={() => {
+              onToggleLike(current.slug);
+              // The count belongs to the component, and the component on the
+              // stage may be another one than the one that was here, so the
+              // number is kept against the showing it belongs to.
+              setLikeCount((count) => count + (liked ? -1 : 1));
+            }}
             aria-pressed={liked}
             title={liked ? "Remove like" : "Like"}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none",
+              "flex h-7 items-center gap-1.5 rounded-full px-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none",
               liked && "text-rose-400 hover:text-rose-400"
             )}
           >
             <Heart className={cn("h-4 w-4", liked && "fill-current")} aria-hidden="true" />
+            <span className="text-[11px] tabular-nums">{likeCount}</span>
           </button>
 
           <button

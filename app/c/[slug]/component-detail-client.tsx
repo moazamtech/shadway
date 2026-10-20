@@ -172,6 +172,10 @@ export default function ComponentDetailClient() {
   const [tab, setTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState<string | null>(null);
   const [voted, setVoted] = useState(false);
+  /** The number of people who liked it, kept in step with the button. */
+  const [likeCount, setLikeCount] = useState(item?.likes ?? 0);
+  /** How many people have kept it. */
+  const [bookmarkCount, setBookmarkCount] = useState(item?.bookmarks ?? 0);
   const [saved, setSaved] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -203,7 +207,14 @@ export default function ComponentDetailClient() {
         );
         if (!response.ok) throw new Error("not found");
         const data = await response.json();
-        if (!cancelled) setItem(data.item);
+        if (!cancelled) {
+          setItem(data.item);
+          // The count the button shows comes from the component, so it has to
+          // be read again when the component is — the page may have been opened
+          // on a different one than the one that was here.
+          setLikeCount(data.item?.likes ?? 0);
+          setBookmarkCount(data.item?.bookmarks ?? 0);
+        }
       } catch {
         if (!cancelled) setItem(null);
       } finally {
@@ -233,15 +244,27 @@ export default function ComponentDetailClient() {
     if (!item) return;
     const next = !voted;
     setVoted(next);
+    setLikeCount((count) => count + (next ? 1 : -1));
     try {
       const res = await fetch(
         `/api/components/${encodeURIComponent(item.slug)}/like`,
         { method: voted ? "DELETE" : "POST" }
       );
       const data = await res.json().catch(() => ({}));
-      if (typeof data.voted === "boolean") setVoted(data.voted);
+      /**
+       * The route answers with `liked` — the same word the feed's own like
+       * toggle reads. It used to look for `voted` here, which the route has
+       * never said, so the button flipped and then snapped back: the state was
+       * only ever the optimistic guess, and a server that disagreed left the
+       * page lying.
+       */
+      if (typeof data.liked === "boolean") {
+        setVoted(data.liked);
+        setLikeCount((count) => count + (data.liked === next ? 0 : data.liked ? 1 : -1));
+      }
     } catch {
       setVoted(!next);
+      setLikeCount((count) => count + (next ? -1 : 1));
     }
   }
 
@@ -249,6 +272,7 @@ export default function ComponentDetailClient() {
     if (!item) return;
     const next = !saved;
     setSaved(next);
+    setBookmarkCount((count) => count + (next ? 1 : -1));
     try {
       const res = await fetch("/api/components/bookmarks", {
         method: "POST",
@@ -564,6 +588,7 @@ export default function ComponentDetailClient() {
                 className={cn("h-3.5 w-3.5", voted && "fill-current text-rose-500")}
               />
               {voted ? "Liked" : "Like"}
+              <span className="ml-1 tabular-nums opacity-70">{likeCount}</span>
             </Button>
             <Button
               variant={saved ? "secondary" : "outline"}
@@ -574,6 +599,9 @@ export default function ComponentDetailClient() {
             >
               <Bookmark className={cn("h-3.5 w-3.5", saved && "fill-current")} />
               {saved ? "Saved" : "Save"}
+              <span className="ml-1 tabular-nums opacity-70">
+                {formatCount(bookmarkCount)}
+              </span>
             </Button>
           </div>
 
