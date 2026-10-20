@@ -6,8 +6,14 @@ const CHROME = [
   "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
 ].find((p) => fs.existsSync(p));
 
+const BASE = process.env.BASE ?? "http://localhost:3000";
+
 async function main() {
-  const url = process.argv[2];
+  // The page to open, the file to write, and a string the page must contain.
+  // With no arguments the script looks at the site itself, so running it bare
+  // reports the state of the front page instead of failing on an undefined
+  // address.
+  const url = process.argv[2] ?? `${BASE}/`;
   const shot = process.argv[3] || "tmp-qa.png";
   const needle = process.argv[4] || "";
 

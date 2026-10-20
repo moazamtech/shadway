@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
+import { requireSession } from "@/lib/auth/require-session";
 
 /**
  * Node's filesystem errors carry a `code`, and only `EEXIST` means the
@@ -31,6 +32,15 @@ function messageOf(error: unknown): string | undefined {
 }
 
 export async function POST(req: NextRequest) {
+  /**
+   * This writes a file into the deployment's own source tree, so it is not a
+   * public endpoint: without a session anybody could put a file on the disk
+   * and have it served by the next build. The studio is behind a login, and
+   * this is the studio's save.
+   */
+  const { response } = await requireSession();
+  if (response) return response;
+
   try {
     const { name, code } = (await req.json()) as {
       name?: string;

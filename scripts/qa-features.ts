@@ -228,18 +228,25 @@ async function main() {
       }
     });
     await new Promise((resolve) => setTimeout(resolve, 400));
+    // The field creates on Enter — there is no button, and the hint under it
+    // says so.
     const confirmed = await page.evaluate(() => {
-      const button = Array.from(document.querySelectorAll("button")).find(
-        (candidate) => (candidate.textContent || "").trim() === "Create",
-      ) as HTMLButtonElement | undefined;
-      button?.click();
-      return Boolean(button);
+      const input = Array.from(document.querySelectorAll("input")).find(
+        (candidate) =>
+          (candidate as HTMLInputElement).placeholder === "components/hero.tsx",
+      ) as HTMLInputElement | undefined;
+      if (!input) return false;
+      input.focus();
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      return true;
     });
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const tree = await page.evaluate(() => document.body.innerText);
     log(
       "a new file reaches the tree",
-      created && confirmed && tree.includes("use-counter.ts"),
+      confirmed && tree.includes("use-counter.ts"),
       "",
     );
 

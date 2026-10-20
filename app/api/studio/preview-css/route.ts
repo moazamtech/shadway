@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { requireSession } from "@/lib/auth/require-session";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
 import { compileProjectCssCached } from "@/lib/preview/tailwind";
 
@@ -24,6 +25,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  /**
+   * Compiling a stylesheet is work on this host, and it is the studio's
+   * work: the page that calls this is behind a login, and the endpoint that
+   * does the compiling should be too. An open one is a way to make the
+   * deployment spend CPU on a stranger's files.
+   */
+  const { response } = await requireSession();
+  if (response) return response;
+
   let body: { files?: PreviewFileInput[]; styleCode?: string };
 
   try {

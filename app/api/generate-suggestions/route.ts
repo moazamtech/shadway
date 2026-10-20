@@ -2,6 +2,8 @@ import { generateText, type LanguageModel } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { NextResponse } from "next/server";
 
+import { requireSession } from "@/lib/auth/require-session";
+
 /** The gateway package targets a newer AI SDK major; cast at the boundary. */
 const gatewayModel = (id: string) => gateway(id) as unknown as LanguageModel;
 
@@ -234,6 +236,14 @@ function pickFallbackSuggestions(excludedTitles: Set<string>) {
 }
 
 export async function POST(req: Request) {
+  /**
+   * Suggestions are generated, and generation costs the deployment money. The
+   * caller is the component generator, which is a signed-in surface, so the
+   * endpoint is one too.
+   */
+  const { response } = await requireSession();
+  if (response) return response;
+
   try {
     const body = (await req.json().catch(() => ({}))) as SuggestionsRequestBody;
     const excludedTitles = new Set(

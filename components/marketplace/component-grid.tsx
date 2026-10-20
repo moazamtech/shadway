@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpDown, Clock, Download, Flame, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrandLoader } from "@/components/brand-loader";
@@ -12,53 +12,17 @@ import {
   type MarketplaceCardItem,
 } from "@/components/marketplace/component-card";
 import { normalizeGroup } from "@/lib/categories";
-import { cn } from "@/lib/utils";
 
 /** A row a grid can paint. The feed's own item type widened this to nothing. */
 export type ComponentGridItem = MarketplaceCardItem;
 
-const SORTS = [
-  { id: "newest", label: "Newest", icon: Clock },
-  { id: "popular", label: "Popular", icon: Flame },
-  { id: "installs", label: "Most installed", icon: Download },
-] as const;
-
-export type GridSortId = (typeof SORTS)[number]["id"];
-
-function sortItems(
-  items: ComponentGridItem[],
-  sort: GridSortId
-): ComponentGridItem[] {
-  const copy = [...items];
-  switch (sort) {
-    case "popular":
-      return copy.sort(
-        (a, b) => b.likes - a.likes || b.installs - a.installs
-      );
-    case "installs":
-      return copy.sort((a, b) => b.installs - a.installs);
-    case "newest":
-    default:
-      return copy.sort((a, b) => {
-        const at = a.createdAt ? Date.parse(a.createdAt) : 0;
-        const bt = b.createdAt ? Date.parse(b.createdAt) : 0;
-        return bt - at;
-      });
-  }
-}
-
 export type GridFilters = {
-  /** The filter box's live value — typing updates this on every keystroke. */
-  query: string;
-  setQuery: (next: string) => void;
   /** The selected chip, or "all". */
   category: string;
   setCategory: (next: string) => void;
-  sort: GridSortId;
-  setSort: (next: GridSortId) => void;
   /** What the chips can offer, "all" included. */
   categories: string[];
-  /** Everything the group scope, the chips, the box and the sort let through. */
+  /** Everything the group scope and the chips let through. */
   visible: ComponentGridItem[];
   /** True while something is narrowing the grid down. */
   isFiltering: boolean;
@@ -67,7 +31,15 @@ export type GridFilters = {
 };
 
 /**
- * Search, category and sort, in one place.
+ * The category scope, in one place.
+ *
+ * The grid used to own a search box and a sort as well, and both moved into
+ * the ⌘K palette: the palette is mounted by the shell, so the search and the
+ * sort are the same control on every page, and the feed's toolbar carries the
+ * count instead of two widgets. What is left here is the one filter the grid
+ * owns — the category — because the chips are drawn from the rows on screen
+ * and have to be next to them.
+ */
  *
  * The feed's filter box lives in the shell's fixed toolbar, which is a
  * different part of the tree from the cards it filters, so the state has to be
@@ -94,16 +66,7 @@ export function useGridFilters({
   /** Told about every chip press, so a parent can put it in the URL. */
   onCategoryChange?: (next: string) => void;
 }): GridFilters {
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [category, setCategoryState] = useState(defaultCategory);
-  const [sort, setSort] = useState<GridSortId>("popular");
-
-  // Debounce the search box so typing stays smooth on large feeds.
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 180);
-    return () => clearTimeout(timer);
-  }, [query]);
 
   // The rail's category links navigate to /?category=… — keep the chip state
   // reading from the URL so deep links and rail clicks stay in sync.
@@ -141,119 +104,36 @@ export function useGridFilters({
   }, [scoped]);
 
   const visible = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    const matches = scoped.filter((item) => {
-      if (category !== "all") {
-        /* Both sides of the comparison go through the taxonomy. The rail now
-           links the canonical groups, so `?category=marketing` has to mean
-           "everything filed as a marketing block" — a component stored as
-           `hero` or `block` included. Raw string equality said otherwise, and
-           the result was a header that counted twelve and a grid that showed
-           four. normalizeGroup is idempotent and total, so the raw chip
-           values below still resolve to the bucket they always did. */
-        const sameGroup =
-          normalizeGroup(item.category) === normalizeGroup(category);
-        const taggedAsCategory = item.tags.some(
-          (tag) => tag.toLowerCase() === category
-        );
-        if (!sameGroup && !taggedAsCategory) return false;
-      }
-      if (!q) return true;
-      return (
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-        item.author.username.toLowerCase().includes(q) ||
-        item.author.name.toLowerCase().includes(q)
+    if (category === "all") return scoped;
+    /* Both sides of the comparison go through the taxonomy. The rail now
+       links the canonical groups, so `?category=marketing` has to mean
+       "everything filed as a marketing block" — a component stored as
+       `hero` or `block` included. Raw string equality said otherwise, and the
+       result was a header that counted twelve and a grid that showed
+       four. normalizeGroup is idempotent and total, so the raw chip
+       values below still resolve to the bucket they always did. */
+    return scoped.filter((item) => {
+      const sameGroup =
+        normalizeGroup(item.category) === normalizeGroup(category);
+      const taggedAsCategory = item.tags.some(
+        (tag) => tag.toLowerCase() === category
       );
+      return sameGroup || taggedAsCategory;
     });
-    return sortItems(matches, sort);
-  }, [scoped, debouncedQuery, category, sort]);
+  }, [scoped, category]);
 
   const clear = useCallback(() => {
-    setQuery("");
     setCategory("all");
   }, [setCategory]);
 
   return {
-    query,
-    setQuery,
     category,
     setCategory,
-    sort,
-    setSort,
     categories,
     visible,
-    isFiltering: debouncedQuery.trim().length > 0 || category !== "all",
+    isFiltering: category !== "all",
     clear,
   };
-}
-
-export function GridSearchInput({
-  query,
-  onQueryChange,
-  clearQuery,
-  className,
-}: {
-  query: string;
-  onQueryChange: (next: string) => void;
-  clearQuery: () => void;
-  /** Shown from `sm` up by default — see `alwaysVisible`. */
-  className?: string;
-}) {
-  return (
-    <div
-      /* The feed's box is phones-hidden because ⌘K covers search there, and a
-         narrow fixed toolbar has no room for it. A page with no palette has to
-         pass its own class through to get the box back. */
-      className={cn("relative hidden sm:block", className)}
-    >
-      <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-      <input
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="Filter…"
-        aria-label="Search components"
-        className="h-8 w-[170px] rounded-lg border border-border bg-transparent pr-7 pl-8 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring dark:border-input"
-      />
-      {query ? (
-        <button
-          type="button"
-          onClick={clearQuery}
-          aria-label="Clear search"
-          className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition hover:text-foreground"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export function GridSortSelect({
-  sort,
-  onSortChange,
-}: {
-  sort: GridSortId;
-  onSortChange: (next: GridSortId) => void;
-}) {
-  return (
-    <label className="relative flex shrink-0 items-center">
-      <ArrowUpDown className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
-      <select
-        value={sort}
-        onChange={(event) => onSortChange(event.target.value as GridSortId)}
-        aria-label="Sort components"
-        className="h-8 appearance-none rounded-lg border border-border bg-transparent pr-2.5 pl-7 text-xs outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring dark:border-input"
-      >
-        {SORTS.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 }
 
 /**
@@ -452,7 +332,7 @@ export function ComponentGrid({
           <p className="mt-1 text-sm text-muted-foreground">
             {failed
               ? "Please refresh in a moment."
-              : "Try a different search term or category."}
+              : "Try another category, or search with ⌘K."}
           </p>
           {state.isFiltering && !failed ? (
             <Button variant="outline" className="mt-4" onClick={state.clear}>

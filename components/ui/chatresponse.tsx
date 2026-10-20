@@ -225,7 +225,7 @@ const components: Components = {
           </CodeBlockFiles>
           <div className="flex items-center gap-2">
             <CodeBlockCopyButton
-              onCopy={() => console.log('Copied')}
+              onCopy={() => {}}
               className="text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
             />
           </div>

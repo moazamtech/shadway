@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { apiRateLimiter, getClientIP } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -42,6 +45,22 @@ const REASONING_MODELS = [
 ];
 
 export async function POST(req: Request) {
+  /**
+   * The chat is public, so the thing that keeps it public is a budget rather
+   * than a login: every message is a call to a model provider on this
+   * deployment's key, and an endpoint that will stream to anybody is an
+   * endpoint that will be found. The limiter is per address, so one visitor
+   * cannot spend the budget of everybody else.
+   */
+  const address = getClientIP(req as NextRequest);
+  const limit = apiRateLimiter.check(address);
+  if (!limit.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a few minutes." },
+      { status: 429 },
+    );
+  }
+
   const {
     messages,
     model = "google/gemini-2.0-flash-exp:free",

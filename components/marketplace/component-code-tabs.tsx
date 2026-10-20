@@ -199,7 +199,12 @@ export function ComponentCodeTabs({
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
-      {/* Tab rail — the file strip of an editor, not a second navigation bar. */}
+      {/* Tab rail — the file strip of an editor, not a second navigation bar.
+
+          The rail's own padding and the tab's padding add up to the same
+          16px the path bar under it uses, so the file name, the path and the
+          code all start on one line. Three different left edges in one panel
+          is the kind of thing nobody names and everybody sees. */}
       <div
         role="tablist"
         aria-label="Component files"
@@ -219,7 +224,7 @@ export function ComponentCodeTabs({
                 setCopied(false);
               }}
               className={cn(
-                "shrink-0 rounded-t-md border border-b-0 px-3 py-1.5 font-mono text-[11px] whitespace-nowrap transition-[color,background-color,border-color] duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                "shrink-0 rounded-t-md border border-b-0 px-2 py-1.5 font-mono text-[11px] whitespace-nowrap transition-[color,background-color,border-color] duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                 isActive
                   ? "border-border/60 bg-background text-foreground"
                   : "border-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground"

@@ -7,6 +7,7 @@ import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
+import { requireSession } from "@/lib/auth/require-session";
 
 export const runtime = "nodejs";
 
@@ -530,6 +531,15 @@ async function getActiveSystemPrompt() {
 }
 
 export async function POST(req: Request) {
+  /**
+   * Generation costs the deployment money and writes to the database, and the
+   * page that calls it is the generator in the studio. A session is the
+   * cheapest way to say "an account is behind this" — and the limiter behind
+   * it says how much of the budget one account may spend.
+   */
+  const { response } = await requireSession();
+  if (response) return response;
+
   try {
     if (!process.env.AI_GATEWAY_API_KEY) {
       return new Response(
