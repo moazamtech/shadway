@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,43 @@ interface WebsiteFormDialogProps {
   isLoading?: boolean;
 }
 
+type WebsiteFormState = {
+  name: string;
+  description: string;
+  url: string;
+  image: string;
+  category: string;
+  tags: string;
+  featured: boolean;
+  sequence: number;
+};
+
+/** The form with nothing in it, which is what a new website starts from. */
+const EMPTY_WEBSITE_FORM: WebsiteFormState = {
+  name: '',
+  description: '',
+  url: '',
+  image: '',
+  category: '',
+  tags: '',
+  featured: false,
+  sequence: 0,
+};
+
+/** The form as the website describes it. */
+function websiteFormOf(website: Website): WebsiteFormState {
+  return {
+    name: website.name || '',
+    description: website.description || '',
+    url: website.url || '',
+    image: website.image || '',
+    category: website.category || '',
+    tags: website.tags?.join(', ') || '',
+    featured: website.featured || false,
+    sequence: website.sequence || 0,
+  };
+}
+
 export function WebsiteFormDialog({
   isOpen,
   onClose,
@@ -30,44 +67,25 @@ export function WebsiteFormDialog({
   website,
   isLoading = false
 }: WebsiteFormDialogProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    url: '',
-    image: '',
-    category: '',
-    tags: '',
-    featured: false,
-    sequence: 0,
-  });
+  const [formData, setFormData] = useState<WebsiteFormState>(() =>
+    website ? websiteFormOf(website) : EMPTY_WEBSITE_FORM,
+  );
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
 
-  // Update form data when website prop changes
-  useEffect(() => {
-    if (website) {
-      setFormData({
-        name: website.name || '',
-        description: website.description || '',
-        url: website.url || '',
-        image: website.image || '',
-        category: website.category || '',
-        tags: website.tags?.join(', ') || '',
-        featured: website.featured || false,
-        sequence: website.sequence || 0,
-      });
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        url: '',
-        image: '',
-        category: '',
-        tags: '',
-        featured: false,
-        sequence: 0,
-      });
-    }
-  }, [website]);
+  /**
+   * The form belongs to the website it was opened for.
+   *
+   * A dialog that edits one website and then edits another would keep the
+   * first one's values unless something cleared them, and the clearing
+   * landed a render late. React compares a value with the one from the
+   * previous render, so the previous website is what has to be kept, and
+   * the form is emptied in the render that notices the change.
+   */
+  const [syncedWebsite, setSyncedWebsite] = useState(website);
+  if (syncedWebsite !== website) {
+    setSyncedWebsite(website);
+    setFormData(website ? websiteFormOf(website) : EMPTY_WEBSITE_FORM);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

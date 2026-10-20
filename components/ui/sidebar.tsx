@@ -606,10 +606,18 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  }, [])
+  /**
+   * A width between 50 and 90%.
+   *
+   * The bar stands in for a title of unknown length, and a placeholder that
+   * is always the same width reads as a column rather than as something
+   * still arriving. The width is drawn once, when the row first appears: a
+   * value taken on every render would give the row a new width each time it
+   * repainted, which is the one thing a skeleton must never do.
+   */
+  const [width] = React.useState(
+    () => `${Math.floor(Math.random() * 40) + 50}%`
+  )
 
   return (
     <div

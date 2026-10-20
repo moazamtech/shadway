@@ -106,13 +106,21 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
   const [error, setError] = React.useState<string | null>(null);
   const [deleting, setDeleting] = React.useState<StudioItem | null>(null);
   const [deletingBusy, setDeletingBusy] = React.useState(false);
-  const [rows, setRows] = React.useState(items);
+  const [removed, setRemoved] = React.useState<string[]>([]);
   const [filter, setFilter] = React.useState<Filter>("all");
   const [query, setQuery] = React.useState("");
 
-  React.useEffect(() => {
-    setRows(items);
-  }, [items]);
+  /**
+   * The rows on screen are the server's rows, less the ones deleted here.
+   *
+   * The list used to be copied into a state of its own and then kept in
+   * step with the prop by an effect, which meant the copy was a second
+   * source of truth that had to be corrected on every render it disagreed
+   * about. Naming the rows that are gone instead leaves the server's list
+   * as the only list, and the removal is the one thing this screen knows
+   * that the server does not.
+   */
+  const rows = items.filter((item) => !removed.includes(item.slug));
 
   const counts: Record<Filter, number> = {
     all: rows.length,
@@ -161,7 +169,9 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Failed to delete the project");
       }
-      setRows((prev) => prev.filter((item) => item.slug !== deleting.slug));
+      setRemoved((prev) =>
+        prev.includes(deleting.slug) ? prev : [...prev, deleting.slug],
+      );
       setDeleting(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete the project");

@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 export type WebPreviewContextValue = {
   url: string;
@@ -135,10 +135,21 @@ export const WebPreviewUrl = ({
   const { url, setUrl } = useWebPreview();
   const [inputValue, setInputValue] = useState(url);
 
-  // Sync input value with context URL when it changes externally
-  useEffect(() => {
+  /**
+   * The field follows the context, and the context follows the field.
+   *
+   * A URL that changes elsewhere — another part of the preview driving it —
+   * has to show up in the field, but a URL the reader is halfway through
+   * typing must not be wiped by the context it came from. React compares a
+   * value with the one from the previous render, so the previous URL is
+   * what has to be kept, and the field is brought along in the render that
+   * notices the change.
+   */
+  const [syncedUrl, setSyncedUrl] = useState(url);
+  if (syncedUrl !== url) {
+    setSyncedUrl(url);
     setInputValue(url);
-  }, [url]);
+  }
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);

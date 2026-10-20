@@ -158,17 +158,35 @@ export const InlineCitationCarouselIndex = ({
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
 
+  /**
+   * The index reads the carousel's own numbers.
+   *
+   * The carousel cannot count its slides until it has measured them, and it
+   * hands its api over when it has. The numbers are taken in the render
+   * that notices the api, so the first frame already shows the right count
+   * instead of a zero that corrects itself a moment later.
+   */
+  const [syncedApi, setSyncedApi] = useState(api);
+  if (syncedApi !== api) {
+    setSyncedApi(api);
+    setCount(api ? api.scrollSnapList().length : 0);
+    setCurrent(api ? api.selectedScrollSnap() + 1 : 0);
+  }
+
   useEffect(() => {
     if (!api) {
       return;
     }
 
-    setCount(api.scrollSnapList().length);
-    setCurrent(api.selectedScrollSnap() + 1);
-
-    api.on("select", () => {
+    const onSelect = () => {
       setCurrent(api.selectedScrollSnap() + 1);
-    });
+    };
+
+    api.on("select", onSelect);
+
+    return () => {
+      api.off("select", onSelect);
+    };
   }, [api]);
 
   return (

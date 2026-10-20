@@ -5,14 +5,26 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { flushSync } from "react-dom";
 
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * The server has no theme to read, so the button it paints is the placeholder
+ * one — the sun, disabled. Answering the question from a store keeps that
+ * answer honest: false while the server renders, true as soon as the browser
+ * takes over, with no second pass over the tree to say so.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
+
 export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  );
   const buttonRef = React.useRef<HTMLButtonElement>(null);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleTheme = React.useCallback(async () => {
     if (!buttonRef.current || !mounted) return;

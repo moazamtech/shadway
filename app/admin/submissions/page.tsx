@@ -26,6 +26,21 @@ import { Submission } from '@/lib/types';
 import { AdminLayout } from '../components';
 import { SubmissionsTable } from '../dashboard/components/submissions-table';
 
+/**
+ * The submissions list, as the API serves it.
+ *
+ * The request sits outside the component so the first paint and the refresh
+ * button ask the same question and get the same answer: a list of
+ * submissions or a failure, never a page that is half loaded.
+ */
+async function loadSubmissions(): Promise<Submission[]> {
+  const response = await fetch('/api/submissions');
+  if (!response.ok) {
+    throw new Error('Failed to fetch submissions');
+  }
+  return response.json();
+}
+
 export default function SubmissionsPage() {
   // State management
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -36,18 +51,31 @@ export default function SubmissionsPage() {
 
   // Fetch submissions
   useEffect(() => {
-    fetchSubmissions();
+    let cancelled = false;
+
+    // The list arrives after the first paint. The request and the state are
+    // read together, so nothing lands once the page has gone and the
+    // spinner ends when the answer does.
+    loadSubmissions()
+      .then((data) => {
+        if (!cancelled) setSubmissions(data);
+      })
+      .catch((error) => {
+        if (!cancelled) console.error('Error fetching submissions:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchSubmissions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/submissions');
-      if (!response.ok) {
-        throw new Error('Failed to fetch submissions');
-      }
-      const data = await response.json();
-      setSubmissions(data);
+      setSubmissions(await loadSubmissions());
     } catch (error) {
       console.error('Error fetching submissions:', error);
     } finally {

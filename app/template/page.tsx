@@ -194,25 +194,38 @@ export default function TemplatePage() {
 
 
   useEffect(() => {
-    fetchTemplates()
-  }, [])
+    let cancelled = false
 
-  const fetchTemplates = async () => {
-    try {
-      const response = await fetch('/api/templates')
-      if (response.ok) {
-        const data = await response.json()
+    // The list arrives after the first paint. The request and the state are
+    // read together, so nothing lands once the page has gone and the
+    // skeleton cards give way to the real ones when the answer does. A
+    // server that declines is reported as a refusal and a broken request as
+    // an error, which is how the two have always been told apart.
+    fetch('/api/templates')
+      .then((response) => {
+        if (!response.ok) {
+          if (!cancelled) setError('Failed to fetch templates')
+          return null
+        }
+        return response.json()
+      })
+      .then((data) => {
+        if (cancelled || data === null) return
         setTemplates(data)
-      } else {
-        setError('Failed to fetch templates')
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error)
-      setError('Error fetching templates')
-    } finally {
-      setLoading(false)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error('Error fetching templates:', error)
+        setError('Error fetching templates')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-  }
+  }, [])
 
   return (
     <div className="min-h-screen relative bg-background overflow-x-hidden">

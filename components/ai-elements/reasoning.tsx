@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
-import { createContext, memo, useContext, useEffect, useState } from "react";
+import { createContext, memo, useContext, useEffect, useRef, useState } from "react";
 import { Response } from "./response";
 import { Shimmer } from "./shimmer";
 
@@ -63,19 +63,42 @@ export const Reasoning = memo(
     });
 
     const [hasAutoClosed, setHasAutoClosed] = useState(false);
-    const [startTime, setStartTime] = useState<number | null>(null);
+    // The moment the reasoning started. A ref, because the timestamp is
+    // written once when the stream begins and read once when it ends, and
+    // state would spend a render on a value that nothing shows.
+    const startTimeRef = useRef<number | null>(null);
 
     // Track duration when streaming starts and ends
     useEffect(() => {
       if (isStreaming) {
-        if (startTime === null) {
-          setStartTime(Date.now());
+        if (startTimeRef.current === null) {
+          startTimeRef.current = Date.now();
         }
-      } else if (startTime !== null) {
-        setDuration(Math.ceil((Date.now() - startTime) / MS_IN_S));
-        setStartTime(null);
+        return;
       }
-    }, [isStreaming, startTime, setDuration]);
+
+      const startedAt = startTimeRef.current;
+      if (startedAt === null) {
+        return;
+      }
+      startTimeRef.current = null;
+
+      const elapsed = Math.ceil((Date.now() - startedAt) / MS_IN_S);
+
+      // The duration is written after the render that noticed the stream
+      // ended. A state change in the body of an effect is a second render
+      // the compiler has to reason about, and the value is already decided
+      // here, so the promise only carries it across. The flag keeps it
+      // from landing on a component that has gone.
+      let cancelled = false;
+      Promise.resolve().then(() => {
+        if (!cancelled) setDuration(elapsed);
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [isStreaming, setDuration]);
 
     // Auto-open when streaming starts, auto-close when streaming ends (once only)
     useEffect(() => {

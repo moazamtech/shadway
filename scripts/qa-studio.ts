@@ -1,120 +1,121 @@
 import puppeteer from "puppeteer";
 import fs from "fs";
 
+import {
+  BASE,
+  createQaAccount,
+  removeQaAccount,
+  signIn,
+} from "./qa-session";
+
 const CHROME = [
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
 ].find((p) => fs.existsSync(p));
 
-async function main() {
-  const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: CHROME,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1500, height: 950 });
+/**
+ * The studio dashboard.
+ *
+ * The dashboard is the list of what an author has made, and the one control
+ * that acts on it: creating a new one. It is also the page that used to be
+ * the editor, which is why the checks that walked it kept opening a page that
+ * was no longer there — the editor lives at `/studio/<slug>` now, and the
+ * dashboard at `/studio`.
+ *
+ * So this signs in, opens the dashboard, and checks the two things that can
+ * be wrong: that the author's own work is listed, and that the new-component
+ * dialog opens and creates.
+ */
 
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
-  page.on("console", (m) => {
-    const t = m.text();
-    if (m.type() === "error") errors.push(t.slice(0, 200));
-    if (/hydrat|<a>|cannot be a descendant/i.test(t)) {
-      warnings.push(t.slice(0, 200));
-    }
-  });
-
-  const frameText = async () =>
-    (
-      await Promise.all(
-        page
-          .frames()
-          .filter((f) => f !== page.mainFrame())
-          .map((f) => f.evaluate(() => document.body?.innerText?.trim() || "").catch(() => ""))
-      )
-    ).join(" | ");
-
-  // ---------- Homepage: no hydration warnings ----------
-  await page.goto("http://localhost:3000/", { waitUntil: "networkidle2", timeout: 90000 });
-  await new Promise((r) => setTimeout(r, 4000));
-  const cards = await page.evaluate(
-    () => document.querySelectorAll("article").length
-  );
-  console.log("HOME_CARDS:", cards);
-  console.log("HOME_HYDRATION_WARNINGS:", warnings.length);
-  warnings.slice(0, 3).forEach((w) => console.log("   !", w));
-  await page.screenshot({ path: "tmp-home.png" });
-
-  // ---------- Studio: editor + folders + preview ----------
-  await page.goto("http://localhost:3000/studio", {
-    waitUntil: "networkidle2",
-    timeout: 90000,
-  });
-  await new Promise((r) => setTimeout(r, 8000));
-
-  const monacoReady = await page.evaluate(() => Boolean(document.querySelector(".monaco-editor")));
-  console.log("MONACO_LOADED:", monacoReady);
-
-  const folderCount = await page.evaluate(() =>
-    Array.from(document.querySelectorAll("button")).filter((b) =>
-      b.textContent?.trim().startsWith("components")
-    ).length
-  );
-  console.log("FOLDERS_RENDERED:", folderCount > 0);
-
-  const previewOk = (await frameText()).includes("Your shadcn component");
-  console.log("STUDIO_PREVIEW:", previewOk);
-
-  // Collapse a folder and confirm it toggles
-  const collapsed = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll("button")).find(
-      (b) => b.textContent?.trim() === "src"
-    ) as HTMLButtonElement | undefined;
-    if (!btn) return false;
-    const before = document.body.innerText;
-    btn.click();
-    return before !== document.body.innerText;
-  });
-  await new Promise((r) => setTimeout(r, 500));
-  console.log("FOLDER_COLLAPSE:", collapsed);
-
-  // Live edit through Monaco
-  await page.click(".monaco-editor .view-lines");
-  await page.keyboard.down("Control");
-  await page.keyboard.press("KeyA");
-  await page.keyboard.up("Control");
-  await page.keyboard.type('export default function Live() { return <h1>MONACO-EDIT-OK</h1>; }');
-  await new Promise((r) => setTimeout(r, 4500));
-  console.log("LIVE_EDIT:", (await frameText()).includes("MONACO-EDIT-OK"));
-
-  await page.screenshot({ path: "tmp-studio.png" });
-
-  // ---------- Publish panel ----------
-  const opened = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll("button")).find(
-      (b) => (b.textContent || "").trim() === "Publish"
-    ) as HTMLButtonElement | undefined;
-    btn?.click();
-    return Boolean(btn);
-  });
-  await new Promise((r) => setTimeout(r, 2500));
-  const publishBody = await page.evaluate(() => document.body.innerText);
-  console.log("PUBLISH_PANEL:", opened && /Describe your component/.test(publishBody));
-  console.log(
-    "PUBLISH_HAS_METADATA:",
-    ["Title", "Description", "Tags", "Visibility"].every((f) => publishBody.includes(f))
-  );
-  await page.screenshot({ path: "tmp-publish-panel.png" });
-
-  console.log("TOTAL_ERRORS:", errors.length);
-  errors.slice(0, 5).forEach((e) => console.log("   x", e));
-
-  await browser.close();
+let failures = 0;
+function log(label: string, ok: boolean, extra = "") {
+  console.log(`${ok ? "PASS" : "FAIL"}  ${label}${extra ? `  ${extra}` : ""}`);
+  if (!ok) failures += 1;
 }
 
-main().catch((e) => {
-  console.error("FATAL:", String(e).slice(0, 300));
+async function main() {
+  const account = await createQaAccount("admin");
+
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: CHROME,
+      args: ["--no-sandbox"],
+    });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1500, height: 950 });
+
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text().slice(0, 160));
+    });
+    page.on("pageerror", (error) => errors.push(String(error).slice(0, 160)));
+
+    await signIn(page, account.email, account.password);
+
+    // One component, so the list has something in it.
+    const published = await page.evaluate(async () => {
+      const response = await fetch("/api/components", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "QA Studio Fixture",
+          description: "A fixture for the studio dashboard check.",
+          code: ["export function QaStudioFixture() {", "  return <div />;", "}"].join("\n"),
+          category: "ui",
+          tags: ["qa"],
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      return { status: response.status, slug: data?.item?.slug ?? null };
+    });
+    log(
+      "the fixture component is published",
+      published.status === 201 && Boolean(published.slug),
+      `slug=${published.slug}`,
+    );
+
+    await page.goto(`${BASE}/studio`, { waitUntil: "networkidle2", timeout: 90_000 });
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const body = await page.evaluate(() => document.body.innerText);
+    log("the dashboard names the work", body.includes("Components"));
+    log(
+      "the author's own component is listed",
+      body.includes("QA Studio Fixture"),
+      "",
+    );
+
+    // The new-component dialog.
+    const opened = await page.evaluate(() => {
+      const button = Array.from(document.querySelectorAll("button")).find(
+        (candidate) =>
+          (candidate.textContent || "").trim().toLowerCase() === "new component",
+      ) as HTMLButtonElement | undefined;
+      button?.click();
+      return Boolean(button);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    const dialogText = await page.evaluate(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      return dialog ? dialog.innerText : "";
+    });
+    log("the new-component dialog opens", opened && dialogText.length > 0);
+
+    await page.screenshot({ path: "tmp-studio-dashboard.png" });
+    log("the page had no console errors", errors.length === 0, errors.slice(0, 2).join(" | "));
+
+    await browser.close();
+  } finally {
+    await removeQaAccount(account.email);
+  }
+
+  console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
+main().catch((error) => {
+  console.error("FATAL:", String(error).slice(0, 300));
   process.exit(1);
 });

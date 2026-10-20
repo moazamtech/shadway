@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -148,6 +148,23 @@ const LoadingSpinner = () => (
   </div>
 );
 
+/**
+ * Whether the tree is running in a browser.
+ *
+ * The context menu is drawn in a portal, and a portal needs a document to
+ * draw into. The server has no document, so the tree asks the store
+ * instead of flipping a flag in an effect: the server snapshot says no,
+ * the browser snapshot says yes, and React takes the browser's answer once
+ * the handover is done.
+ */
+const subscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+function useIsMounted() {
+  return useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
+}
+
 export function FileTree({
   files,
   selectedFile,
@@ -186,7 +203,7 @@ export function FileTree({
   } | null>(null);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsMounted();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -209,10 +226,6 @@ export function FileTree({
     path: "",
   });
   const [newFileName, setNewFileName] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (searchOpen) {

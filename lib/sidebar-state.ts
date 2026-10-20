@@ -74,8 +74,20 @@ export function useSidebar() {
 
   /* Adopt what the pre-paint script already painted. */
   useEffect(() => {
-    setCollapsed(readCollapsed());
-    setWidth(readWidth());
+    let cancelled = false;
+    // The storage is read after the first paint rather than during it: the
+    // server has no storage to read, so a value taken while the markup is
+    // still being produced would leave the browser and the server
+    // describing two different sidebars. The write happens in a callback of
+    // its own so the rail is not painted twice for a width it already has.
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setCollapsed(readCollapsed());
+      setWidth(readWidth());
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /* The drag's window listeners normally leave with the pointer, but a drag

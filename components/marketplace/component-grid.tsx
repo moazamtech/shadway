@@ -70,7 +70,17 @@ export function useGridFilters({
   // The rail's category links navigate to /?category=… — keep the chip state
   // reading from the URL so deep links and rail clicks stay in sync.
   useEffect(() => {
-    setCategoryState(defaultCategory);
+    let cancelled = false;
+    // The write is made from a callback of its own. A state change in the
+    // body of the effect would land in the same commit as the navigation
+    // that caused it and paint the grid twice for every chip that moves.
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setCategoryState(defaultCategory);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [defaultCategory]);
 
   const setCategory = useCallback(

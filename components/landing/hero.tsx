@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, type Variants } from "framer-motion";
@@ -35,6 +41,21 @@ import { LandingFooter } from "./footer";
 
 type RegistryItem = { name: string; category?: string; type?: string };
 type RegistryResponse = { items?: RegistryItem[] };
+
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * The shader layers are WebGL, and WebGL is the one thing on this page that
+ * has no server rendering at all — there is no markup to send, so the layers
+ * are simply absent until a canvas can exist. A flag flipped by an effect
+ * would say the same thing one render later, at the price of a second pass
+ * over the whole hero for every visitor; the store answers the question
+ * directly, false while the server is painting and true the moment the
+ * browser is in charge.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
 
 /* ------------------------------------------------------------------ */
 /*  Animation variants                                                 */
@@ -280,16 +301,16 @@ export function LandingHero() {
     ? ["#2596be", "#0154a5", "#0241a7"]
     : ["#0154a5", "#0154a5", "#0241a7"];
   const heroShaderBack = isDark ? "#0a0a0a" : "#ffffff";
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  );
 
   const [registryItems, setRegistryItems] = useState<RegistryItem[]>([]);
   const [published, setPublished] = useState<VibecodeComponent[]>([]);
   const [registryLoading, setRegistryLoading] = useState(true);
   const [vibecodeLoading, setVibecodeLoading] = useState(true);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   /* ---- data fetch ---- */
   useEffect(() => {

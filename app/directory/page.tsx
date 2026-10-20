@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { Website } from "@/lib/types";
 import { WebsiteCards } from "@/components/website-cards";
 import { CTASection } from "@/components/cta-section";
@@ -26,14 +26,27 @@ async function getWebsites(): Promise<Website[]> {
   }
 }
 
+/**
+ * Whether the page is running in a browser.
+ *
+ * The server has no window to measure against, and the markup it sends is
+ * the markup the browser has to agree with, so the two are told apart here
+ * rather than by a flag the first effect flips. The store is React's own
+ * answer: the server snapshot says no, the browser snapshot says yes, and
+ * React takes the browser's answer once the handover is done.
+ */
+const subscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+function useIsMounted() {
+  return useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
+}
+
 export default function Home() {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsMounted();
 
   useEffect(() => {
     if (!mounted) return;

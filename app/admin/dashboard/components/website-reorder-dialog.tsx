@@ -26,18 +26,33 @@ export function WebsiteReorderDialog({
   websites,
   onReorder
 }: WebsiteReorderDialogProps) {
-  const [reorderedWebsites, setReorderedWebsites] = useState(websites);
+  const [reorderedWebsites, setReorderedWebsites] = useState<Website[]>(websites);
   const [isLoading, setIsLoading] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Reset when dialog opens/closes
-  React.useEffect(() => {
+  /**
+   * The order belongs to the dialog, not to the list.
+   *
+   * Opening the dialog sorts the websites into the order they are shown in
+   * and clears the search, because a dialog that opens on yesterday's order
+   * shows the admin a list that is not the one they are about to change.
+   * React compares a value with the one from the previous render, so the
+   * previous list is what has to be kept, and the order is set in the
+   * render that notices the change.
+   */
+  const [syncedWebsites, setSyncedWebsites] = useState(websites);
+  const [syncedOpen, setSyncedOpen] = useState(isOpen);
+  if (syncedOpen !== isOpen || syncedWebsites !== websites) {
+    setSyncedOpen(isOpen);
+    setSyncedWebsites(websites);
     if (isOpen) {
-      setReorderedWebsites([...websites].sort((a, b) => (a.sequence || 0) - (b.sequence || 0)));
+      setReorderedWebsites(
+        [...websites].sort((a, b) => (a.sequence || 0) - (b.sequence || 0)),
+      );
       setSearchTerm('');
     }
-  }, [isOpen, websites]);
+  }
 
   // Filter websites based on search term
   const filteredWebsites = React.useMemo(() => {

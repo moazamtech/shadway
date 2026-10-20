@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
@@ -6,6 +6,18 @@ import {
   Dithering,
 } from "@paper-design/shaders-react";
 import React from "react";
+
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * The grain and the dithering are shaders, so there is nothing for a server
+ * to send but the decision to leave them out. The store carries that
+ * decision: false while the server paints, true once the browser is in
+ * charge, and no second render to discover it.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
 
 export function HatchedSeparator() {
   return (
@@ -82,8 +94,11 @@ export function OutsideRailMotif({
 
 export function TechnicalGrid() {
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  );
 
   const isDark = resolvedTheme === "dark";
   const colors = isDark

@@ -95,11 +95,26 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
+    let cancelled = false
+    /**
+     * The arrows are told where the carousel is at, once the engine has
+     * been built.
+     *
+     * Embla keeps its own answer to that question and the buttons have to
+     * agree with it. The answer is read from a callback of its own rather
+     * than from the body of the effect: a state write here would paint the
+     * arrows disabled and enabled again on every mount, and the reader
+     * would see the carousel arrive before it can be driven.
+     */
+    const timer = window.setTimeout(() => {
+      if (!cancelled) onSelect(api)
+    }, 0)
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
     return () => {
+      cancelled = true
+      window.clearTimeout(timer)
       api?.off("select", onSelect)
     }
   }, [api, onSelect])

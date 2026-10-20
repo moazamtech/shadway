@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { coverImageUrl } from "@/lib/images";
@@ -44,11 +44,19 @@ export function BundledPreview({
   poster,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loadedFrame, setLoadedFrame] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLoaded(false);
-  }, [slug, theme]);
+  /**
+   * The frame is named after what it shows.
+   *
+   * A new slug or a new theme is a new frame, and a new frame has not
+   * loaded yet — so the poster has to come back while it arrives. Naming
+   * the frame and remembering which one loaded keeps those two facts
+   * together: the poster is under the frame whenever the frame that is on
+   * screen is not the frame that finished loading.
+   */
+  const frameKey = `${slug}|${theme}|${PREVIEW_BUILD_VERSION}`;
+  const loaded = loadedFrame === frameKey;
 
   const cover = coverImageUrl(poster);
 
@@ -92,11 +100,11 @@ export function BundledPreview({
       ) : null}
 
       <iframe
-        key={`${slug}|${theme}|${PREVIEW_BUILD_VERSION}`}
+        key={frameKey}
         ref={frameRef}
         title={`${slug} preview`}
         src={`/api/components/preview?slug=${encodeURIComponent(slug)}&theme=${theme}&v=${PREVIEW_BUILD_VERSION}`}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => setLoadedFrame(frameKey)}
         loading="lazy"
         sandbox="allow-scripts allow-same-origin"
         className={cn(

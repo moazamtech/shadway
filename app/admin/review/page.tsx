@@ -74,22 +74,33 @@ export default function ReviewPage() {
   const [rejectTarget, setRejectTarget] = useState<ReviewItem | null>(null);
 
   useEffect(() => {
-    void fetchQueue();
-  }, []);
+    let cancelled = false;
 
-  async function fetchQueue() {
-    try {
-      const response = await fetch("/api/admin/review", { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load the review queue");
-      const data = await response.json();
-      setItems(Array.isArray(data.items) ? data.items : []);
-    } catch (error) {
-      console.error("Error loading review queue:", error);
-      toast.error("Failed to load the review queue");
-    } finally {
-      setLoading(false);
-    }
-  }
+    // The queue arrives after the first paint, so the request and the state
+    // are read together: nothing lands once the page has gone, and the
+    // badge stops counting down the moment the answer does.
+    fetch("/api/admin/review", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load the review queue");
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(Array.isArray(data.items) ? data.items : []);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Error loading review queue:", error);
+        toast.error("Failed to load the review queue");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function decide(item: ReviewItem, action: "approve" | "reject") {
     setBusySlug(item.slug);

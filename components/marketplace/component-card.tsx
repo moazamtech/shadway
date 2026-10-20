@@ -49,8 +49,8 @@ export function ComponentCard({
 }) {
   /** The video src is assigned only on hover — nothing fetches otherwise. */
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [coverFailed, setCoverFailed] = useState(false);
-  const [coverLoaded, setCoverLoaded] = useState(false);
+  const [loadedCover, setLoadedCover] = useState<string | undefined>(undefined);
+  const [failedCover, setFailedCover] = useState<string | undefined>(undefined);
   const [optimisticLike, setOptimisticLike] = useState(false);
   const coverRef = useRef<HTMLImageElement | null>(null);
 
@@ -62,6 +62,18 @@ export function ComponentCard({
   // they are tens of times the bytes for pixels nobody sees.
   const coverSrc = coverImageUrl(item.thumbnailUrl);
   const videoSrc = previewVideoUrl(item.videoUrl);
+
+  /**
+   * The cover's state is kept against the URL it describes.
+   *
+   * A card that changes its cover has to forget the old one's verdict, and a
+   * flag cannot do that on its own — the flag is still true when the next
+   * URL arrives, and something has to remember to clear it. Naming the URL
+   * instead makes the reset automatic: the verdict belongs to the image it
+   * was about, and a different image has none.
+   */
+  const coverLoaded = Boolean(coverSrc) && loadedCover === coverSrc;
+  const coverFailed = Boolean(coverSrc) && failedCover === coverSrc;
   const hasCover = Boolean(coverSrc) && !coverFailed;
 
   /**
@@ -71,11 +83,20 @@ export function ComponentCard({
    * fact, so the effect covers the hydration case and `onLoad` covers the rest.
    */
   useEffect(() => {
-    setCoverLoaded(false);
-    setCoverFailed(false);
-    if (coverRef.current?.complete && coverRef.current.naturalWidth > 0) {
-      setCoverLoaded(true);
-    }
+    let cancelled = false;
+    // The image is asked in a callback of its own. A state write straight
+    // into the effect body would re-render every card on the page the moment
+    // it mounts, which is the one thing a feed of covers cannot afford.
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      const image = coverRef.current;
+      if (image?.complete && image.naturalWidth > 0) {
+        setLoadedCover(coverSrc);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [coverSrc]);
 
   const cover = (
@@ -101,8 +122,8 @@ export function ComponentCard({
             aria-hidden="true"
             loading="lazy"
             decoding="async"
-            onLoad={() => setCoverLoaded(true)}
-            onError={() => setCoverFailed(true)}
+            onLoad={() => setLoadedCover(coverSrc)}
+            onError={() => setFailedCover(coverSrc)}
             className={cn(
               "h-full w-full object-cover transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.2,0,0,1)] group-hover:scale-[1.03]",
               coverLoaded ? "opacity-100" : "opacity-0"

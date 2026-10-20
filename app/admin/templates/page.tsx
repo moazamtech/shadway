@@ -22,6 +22,24 @@ function priceAmount(price: StoredPrice): number {
   return typeof price === 'object' ? price.amount : price;
 }
 
+/**
+ * The template list, as the API serves it.
+ *
+ * The request sits outside the component so the first paint and the refresh
+ * that follows a save ask the same question and get the same answer. A
+ * server that declines is answered here rather than by a throw, because the
+ * admin table reports a refusal differently from a request that never
+ * arrived.
+ */
+async function loadTemplates(): Promise<Template[] | null> {
+  const response = await fetch('/api/templates');
+  if (!response.ok) {
+    toast.error('Failed to fetch templates');
+    return null;
+  }
+  return response.json();
+}
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,18 +55,33 @@ export default function TemplatesPage() {
   });
 
   useEffect(() => {
-    fetchTemplates();
+    let cancelled = false;
+
+    // The list arrives after the first paint. The request and the state are
+    // read together, so nothing lands once the page has gone and the
+    // spinner ends when the answer does.
+    loadTemplates()
+      .then((data) => {
+        if (!cancelled && data) setTemplates(data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Error fetching templates:', error);
+        toast.error('Error fetching templates');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/templates');
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data);
-      } else {
-        toast.error('Failed to fetch templates');
-      }
+      const data = await loadTemplates();
+      if (data) setTemplates(data);
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast.error('Error fetching templates');

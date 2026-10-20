@@ -63,10 +63,23 @@ export function usePreviewCss(
   const [vendored, setVendored] = useState<PreviewFileInput[]>(initialVendored ?? []);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * The project the first stylesheet belongs to.
+   *
+   * A stylesheet that arrived with the first render is already current, so
+   * the key is worked out once here and both refs below start from it.
+   * Reading it back out of a ref would work, but a ref read during render
+   * is a value the compiler cannot prove is stable, and it would be asked
+   * for an answer the initializer had already computed.
+   */
+  const [firstProject] = useState<string | null>(() =>
+    initialCss === undefined ? null : compileKey(files, styleCode),
+  );
+
   /** The project whose stylesheet `css` holds. */
   const compiled = useRef<string | null>(
     // A stylesheet that arrived with the first render is already current.
-    initialCss === undefined ? null : compileKey(files, styleCode)
+    firstProject,
   );
 
   /**
@@ -81,7 +94,7 @@ export function usePreviewCss(
    * instead means a failure is retried when the project *changes*, which is the
    * only thing that can fix it, and not merely when React re-renders.
    */
-  const attempted = useRef<string | null>(compiled.current);
+  const attempted = useRef<string | null>(firstProject);
 
   useEffect(() => {
     const key = compileKey(files, styleCode);

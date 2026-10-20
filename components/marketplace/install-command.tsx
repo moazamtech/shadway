@@ -49,12 +49,25 @@ export function InstallCommand({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored && isPackageManager(stored)) setManager(stored);
-    } catch {
-      // Storage can be blocked; the default is a fine answer.
-    }
+    let cancelled = false;
+    // The remembered manager is read after the first paint rather than
+    // during it. The server has no storage to read, so a value taken while
+    // the markup is still being produced would leave the browser describing
+    // a command the server's markup never contained. The write happens in a
+    // callback of its own so the panel is not painted twice for a choice it
+    // already shows.
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (stored && isPackageManager(stored)) setManager(stored);
+      } catch {
+        // Storage can be blocked; the default is a fine answer.
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const runner = RUNNERS[manager];

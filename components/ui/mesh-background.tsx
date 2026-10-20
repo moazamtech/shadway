@@ -1,7 +1,7 @@
 "use client"
 
 import { MeshGradient } from "@paper-design/shaders-react"
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 import { cn } from "@/lib/utils"
 import { ReactNode } from "react"
 
@@ -95,6 +95,17 @@ interface MeshBackgroundProps {
  * }
  * ```
  */
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * A shader is a canvas, and a canvas is the one thing a server cannot send.
+ * The mesh is left out of the server's answer entirely and painted by the
+ * browser instead; the store says which of the two is in charge right now.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
+
 export function MeshBackground({
   colors = ["#72b9bb", "#b5d9d9", "#ffd1bd", "#ffebe0", "#8cc5b8", "#dbf4a4"],
   distortion = 0.8,
@@ -107,11 +118,11 @@ export function MeshBackground({
   children,
   showGrain = false,
 }: MeshBackgroundProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  )
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,52 @@ type LegacyTemplate = Omit<Template, "price"> & {
   price?: number | { amount?: number };
 };
 
+type TemplateFormState = {
+  name: string;
+  description: string;
+  image: string;
+  demoUrl: string;
+  purchaseUrl: string;
+  price: number;
+  featured: boolean;
+  sequence: number;
+};
+
+/** The form with nothing in it, which is what a new template starts from. */
+const EMPTY_TEMPLATE_FORM: TemplateFormState = {
+  name: "",
+  description: "",
+  image: "",
+  demoUrl: "",
+  purchaseUrl: "",
+  price: 0,
+  featured: false,
+  sequence: 0,
+};
+
+/**
+ * The form as the template describes it.
+ *
+ * The price comes through the legacy shape as well, because a row written
+ * before the price was flattened still carries the amount inside an object.
+ */
+function templateFormOf(template: Template): TemplateFormState {
+  const legacy = template as LegacyTemplate;
+  return {
+    name: template.name || "",
+    description: template.description || "",
+    image: template.image || "",
+    demoUrl: template.demoUrl || "",
+    purchaseUrl: template.purchaseUrl || "",
+    price:
+      typeof legacy.price === "object"
+        ? (legacy.price.amount as number)
+        : legacy.price || 0,
+    featured: template.featured || false,
+    sequence: template.sequence || 0,
+  };
+}
+
 export function TemplateFormDialog({
   isOpen,
   onClose,
@@ -37,47 +83,27 @@ export function TemplateFormDialog({
   template,
   isLoading = false,
 }: TemplateFormDialogProps) {
-  const [formData, setFormData] = useState({
-    name: template?.name || "",
-    description: template?.description || "",
-    image: template?.image || "",
-    demoUrl: template?.demoUrl || "",
-    purchaseUrl: template?.purchaseUrl || "",
-    price: template?.price || 0,
-    featured: template?.featured || false,
-    sequence: template?.sequence || 0,
-  });
+  const [formData, setFormData] = useState<TemplateFormState>(() =>
+    template ? templateFormOf(template) : EMPTY_TEMPLATE_FORM,
+  );
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
-  useEffect(() => {
-    if (template) {
-      const legacy = template as LegacyTemplate;
-      setFormData({
-        name: template.name || "",
-        description: template.description || "",
-        image: template.image || "",
-        demoUrl: template.demoUrl || "",
-        purchaseUrl: template.purchaseUrl || "",
-        price:
-          typeof legacy.price === "object"
-            ? (legacy.price.amount as number)
-            : legacy.price || 0,
-        featured: template.featured || false,
-        sequence: template.sequence || 0,
-      });
-    } else {
-      // reset for "create new"
-      setFormData({
-        name: "",
-        description: "",
-        image: "",
-        demoUrl: "",
-        purchaseUrl: "",
-        price: 0,
-        featured: false,
-        sequence: 0,
-      });
-    }
-  }, [template, isOpen]);
+
+  /**
+   * The form belongs to the template it was opened for.
+   *
+   * A dialog that edits one template and then edits another would keep the
+   * first one's values unless something cleared them, and the clearing
+   * landed a render late. React compares a value with the one from the
+   * previous render, so the previous template is what has to be kept, and
+   * the form is emptied in the render that notices the change.
+   */
+  const [syncedTemplate, setSyncedTemplate] = useState(template);
+  const [syncedOpen, setSyncedOpen] = useState(isOpen);
+  if (syncedTemplate !== template || syncedOpen !== isOpen) {
+    setSyncedTemplate(template);
+    setSyncedOpen(isOpen);
+    setFormData(template ? templateFormOf(template) : EMPTY_TEMPLATE_FORM);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,16 +132,7 @@ export function TemplateFormDialog({
   };
 
   const resetForm = () => {
-    setFormData({
-      name: "",
-      description: "",
-      image: "",
-      demoUrl: "",
-      purchaseUrl: "",
-      price: 0,
-      featured: false,
-      sequence: 0,
-    });
+    setFormData(EMPTY_TEMPLATE_FORM);
   };
 
   const handleClose = () => {

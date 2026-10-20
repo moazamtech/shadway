@@ -1,8 +1,19 @@
 "use client";
-import React, { useRef, useState, useEffect, useId, useCallback } from "react";
+import React, { useRef, useState, useEffect, useId, useCallback, useSyncExternalStore } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useTheme } from "next-themes";
+
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * The stroke colours follow the theme, and the server has no theme to read,
+ * so it paints the light ones and waits. The store answers the same question
+ * without the extra render an effect would cost.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
 
 export const TextHoverEffect = ({
   text,
@@ -20,7 +31,11 @@ export const TextHoverEffect = ({
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(false);
   const [maskPosition, setMaskPosition] = useState({ cx: "50%", cy: "50%" });
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  );
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const themeIsDark = mounted ? isDark : false;
@@ -35,10 +50,6 @@ export const TextHoverEffect = ({
   const gradientStops = themeIsDark
     ? ["#0241a7", "#0154a5", "#0241a7"]
     : ["#0241a7", "#0241a7", "#0241a7"];
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useGSAP(
     () => {

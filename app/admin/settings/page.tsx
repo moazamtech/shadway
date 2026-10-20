@@ -70,24 +70,35 @@ export default function AdminSettingsPage() {
   const selfId = session?.user?.id || "";
 
   useEffect(() => {
-    fetchAdmins();
-  }, []);
+    let cancelled = false;
 
-  const fetchAdmins = async () => {
-    try {
-      const response = await fetch("/api/admin/users");
-      if (!response.ok) {
-        throw new Error("Failed to fetch admins");
-      }
-      const data = await response.json();
-      setAdmins(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching admins:", error);
-      toast.error("Failed to fetch admins");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // The list of admins arrives after the first paint. Reading it from the
+    // promise keeps the fetch and the state in step: nothing lands once the
+    // page has gone, and the skeleton clears when the answer does.
+    fetch("/api/admin/users")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch admins");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setAdmins(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Error fetching admins:", error);
+        toast.error("Failed to fetch admins");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const isEditingSelf = useMemo(
     () => !!editingAdmin && editingAdmin._id === selfId,

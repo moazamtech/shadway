@@ -64,25 +64,38 @@ export default function VibeComponentsPage() {
   const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
-    fetchItems();
-  }, []);
+    let cancelled = false;
 
-  const fetchItems = async () => {
-    try {
-      const response = await fetch("/api/vibecode");
-      if (response.ok) {
-        const data = await response.json();
+    // The list arrives after the first paint. The request and the state are
+    // read together, so nothing lands once the page has gone and the
+    // skeleton clears when the answer does. A server that declines is
+    // reported as a refusal and a broken request as an error, which is how
+    // the two have always been told apart.
+    fetch("/api/vibecode")
+      .then((response) => {
+        if (!response.ok) {
+          if (!cancelled) toast.error("Failed to fetch vibecode components");
+          return null;
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled || data === null) return;
         setItems(Array.isArray(data) ? data : []);
-      } else {
-        toast.error("Failed to fetch vibecode components");
-      }
-    } catch (error) {
-      console.error("Error fetching vibecode components:", error);
-      toast.error("Error fetching vibecode components");
-    } finally {
-      setLoading(false);
-    }
-  };
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Error fetching vibecode components:", error);
+        toast.error("Error fetching vibecode components");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
