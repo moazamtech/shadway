@@ -1,14 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BrandMark } from "@/components/brand-mark";
+import { listComponents } from "@/lib/db/components";
+import { coverImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 interface AuthShellProps {
@@ -21,65 +17,130 @@ interface AuthShellProps {
 }
 
 /**
- * Shared frame for /login and /register.
+ * The frame for /login and /register.
  *
- * Keeps the marketplace's visual language: centred card, Shadway wordmark,
- * serif heading, muted subtitle, token-based palette so light and dark both
- * read well. The decorative glows are pointer-events-none and aria-hidden so
- * they never interfere with the form underneath.
+ * Two columns on a wide screen: the marketplace itself on the left, the form
+ * on the right. The left column is not decoration — it is the actual
+ * catalogue, the same covers the feed draws, so a stranger who has not signed
+ * in can see what they are signing in to before they type anything. On a
+ * phone the stage is gone and the form has the whole screen, because a phone
+ * has no room for a poster.
+ *
+ * The form column keeps the marketplace's own chrome: the app's mark, the
+ * app's type sizes, the app's field treatment, and a hairline rather than a
+ * card around it — the marketplace does not put its pages in cards, and a
+ * sign-in form is a page.
  */
-export function AuthShell({
+export async function AuthShell({
   title,
   subtitle,
   children,
   footer,
   className,
 }: AuthShellProps) {
-  return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 sm:px-6">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-15%] h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-foreground/[0.04] blur-3xl" />
-        <div className="absolute bottom-[-20%] right-[-10%] h-[320px] w-[320px] rounded-full bg-foreground/[0.03] blur-3xl" />
-      </div>
+  const covers = await listComponents({ sort: "popular", limit: 4 })
+    .then((rows) =>
+      rows
+        .filter((row) => Boolean(row.thumbnailUrl))
+        .map((row) => ({
+          title: row.title,
+          cover: coverImageUrl(row.thumbnailUrl, 640),
+        })),
+    )
+    .catch(() => []);
 
-      <Card
-        className={cn(
-          "w-full max-w-md gap-6 rounded-xl border-border/60 bg-card/80 py-8 shadow-sm backdrop-blur-xl",
-          className,
-        )}
+  return (
+    <main className="grid min-h-dvh bg-background lg:grid-cols-[1.05fr_0.95fr]">
+      {/* The stage — the marketplace, on the left of a wide screen. */}
+      <section
+        aria-hidden="true"
+        className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface p-10 lg:flex"
       >
-        <CardHeader className="flex flex-col items-center gap-3 px-6 text-center sm:px-8">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.5]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+            maskImage:
+              "radial-gradient(ellipse at 30% 20%, black 10%, transparent 70%)",
+          }}
+        />
+
+        <Link
+          href="/"
+          className="relative flex w-fit items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <BrandMark size={22} />
+          <span className="text-sm font-semibold tracking-tight text-foreground">
+            Shadway
+          </span>
+        </Link>
+
+        <div className="relative max-w-md">
+          <p className="text-[11px] font-semibold tracking-[0.22em] text-muted-foreground uppercase">
+            The shadcn component exchange
+          </p>
+          <p className="mt-3 text-2xl leading-tight font-semibold tracking-tight text-foreground">
+            Components you can install with one command, published by the people
+            who built them.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Every component is a real registry item: the source, its
+            dependencies and its preview, and an address the shadcn CLI installs
+            from.
+          </p>
+        </div>
+
+        {covers.length ? (
+          <div className="relative grid grid-cols-2 gap-3">
+            {covers.map((cover) => (
+              <div
+                key={cover.title}
+                className="overflow-hidden rounded-xl border border-border/60 bg-background"
+              >
+                <div className="relative aspect-[16/10] w-full">
+                  <Image
+                    src={cover.cover ?? ""}
+                    alt=""
+                    fill
+                    sizes="320px"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {/* The form. */}
+      <section className="flex flex-col justify-center px-5 py-10 sm:px-8 lg:px-12">
+        <div className="mx-auto w-full max-w-sm">
           <Link
             href="/"
-            className="flex w-fit items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="mb-8 flex w-fit items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           >
-            <Image
-              src="/logo.png"
-              width={32}
-              height={32}
-              alt="Shadway"
-              className="h-8 w-8 rounded-lg"
-            />
+            <BrandMark size={22} />
             <span className="text-sm font-semibold tracking-tight text-foreground">
               Shadway
             </span>
           </Link>
-          <CardTitle className="font-serif text-2xl tracking-tight text-balance sm:text-3xl">
+
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {title}
-          </CardTitle>
-          <CardDescription className="max-w-xs text-balance">
-            {subtitle}
-          </CardDescription>
-        </CardHeader>
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
 
-        <CardContent className="px-6 sm:px-8">{children}</CardContent>
-      </Card>
-
-      {footer ? (
-        <div className="mt-6 w-full max-w-md text-center text-sm text-muted-foreground">
-          {footer}
+          <div className="mt-7">{children}</div>
         </div>
-      ) : null}
+
+        {footer ? (
+          <div className="mx-auto mt-7 w-full max-w-sm text-center text-sm text-muted-foreground">
+            {footer}
+          </div>
+        ) : null}
+      </section>
     </main>
   );
 }

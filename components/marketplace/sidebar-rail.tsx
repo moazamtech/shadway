@@ -9,8 +9,6 @@ import {
   Home,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
-  Search,
   Settings,
   User,
 } from "lucide-react";
@@ -77,9 +75,14 @@ const TYPE = "text-[13.5px]/4 font-medium";
    label's ink (see RailRow). Hover lifts the ink to full as well, so a row
    you are about to click reads as lit before it is clicked. The focus ring
    is inset because the rows sit two pixels apart — an outset ring would
-   reach into the neighbouring rows and into the rail's own padding. */
+   reach into the neighbouring rows and into the rail's own padding.
+
+   The row is padded 10px, not the rail's 12: the invisible `::before` layer
+   below reaches the rail's edges and splits the gaps between neighbours, so a
+   click in the dead space between two rows still lands on one of them. That
+   is why the padding and the hit area are two different numbers. */
 const ROW =
-  `group/row relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg ${GUTTER} ${TYPE} text-foreground-soft transition-colors duration-150 ease-out group-hover/row:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
+  `group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 ${TYPE} text-foreground-soft transition-[padding,color] duration-150 ease-out group-hover/row:text-foreground before:absolute before:-inset-x-3 before:top-0 before:bottom-0 sidebar-collapsed:pl-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
 
 /* Width rides `--sidebar-width` (painted pre-hydration by the layout script,
    driven live by useSidebar), so drags track 1:1 and the collapse toggle
@@ -281,7 +284,6 @@ function RailRow({
 /* ------------------------------------------------------------------ rail -- */
 
 export function SidebarRail({
-  onSearch,
   onNavigate,
   activeCategory,
   className,
@@ -399,31 +401,15 @@ export function SidebarRail({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
-        {/* Primary pill. The glaze is a translucent background-image gradient
-            over the fill, so hover still animates the color beneath it. It
-            shares the rail's gutter and type with the rows below it — it is
-            the first of the same stack, not a separate control — and its
-            press scale is the one piece of real motion here, so it stands
-            down for anyone who asked for stillness. */}
-        <Link
-          href="/studio"
-          className={`relative inline-flex h-8 w-full cursor-pointer items-center justify-start gap-2 rounded-lg bg-primary bg-linear-to-b from-white/25 to-white/0 ${GUTTER} ${TYPE} text-primary-foreground transition-[background-color,scale] duration-150 ease-out outline-none hover:bg-(--primary-hover) focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100`}
-        >
-          <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-          <span className={FADE}>New component</span>
-        </Link>
+        {/* The nav sits on the same two-pixel pitch as the rows inside it, so
+            the column reads as one stack rather than as a list with a heading
+            above it. The negative margin pulls it up onto the brand row's
+            rhythm: eight pixels between the blocks, two between the rows.
 
-        <nav className="flex flex-col gap-0.5">
-          <RailRow
-            icon={Search}
-            label="Search"
-            onClick={onSearch}
-            trailing={
-              <kbd className="rounded border bg-muted px-1.5 font-sans text-[11px] leading-none text-muted-foreground">
-                ⌘K
-              </kbd>
-            }
-          />
+            There is no search row. ⌘K opens the palette from anywhere, and a
+            button that says what the keyboard already does is a button that
+            takes the top of the column to say it. */}
+        <nav className="-mt-1.5 flex flex-col gap-0.5">
           {navItems.map((item) => (
             <RailRow
               key={item.href}
@@ -435,7 +421,7 @@ export function SidebarRail({
           ))}
         </nav>
 
-        <Separator className="sidebar-glide mx-3 transition-[margin] sidebar-collapsed:mx-0" />
+        <Separator className="sidebar-glide mx-1.5 -my-1 transition-[margin] sidebar-collapsed:mx-0" />
 
         {/* Component list — the rail's thread-list analogue: grouped by
             category, scrollable in the leftover height. */}
@@ -464,7 +450,7 @@ export function SidebarRail({
                       : `/?category=${encodeURIComponent(group.slug)}`
                   }
                   className={cn(
-                    `flex h-6 items-center gap-2 ${GUTTER} text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sidebar-collapsed:hidden`,
+                    `flex h-5 items-center gap-2 ${GUTTER} text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sidebar-collapsed:hidden`,
                     activeCategory === group.slug && "text-foreground"
                   )}
                 >

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SidebarRail } from "@/components/marketplace/sidebar-rail";
+import { CommandPalette } from "@/components/marketplace/command-palette";
+import { PaletteProvider } from "@/components/marketplace/palette-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,11 +24,15 @@ import { cn } from "@/lib/utils";
  * The panel's first row is fixed chrome (an optional toolbar passed in, a
  * menu button on phones); everything under it is the page's own scroll
  * container, so the shell owns the only scrollbar the app shows.
+ *
+ * The palette lives here rather than on the feed, because ⌘K is a shortcut
+ * and a shortcut that only works on one page is a shortcut most people never
+ * learn. It is mounted once, for every page, and it opens what it is sent
+ * to.
  */
 export function AppShell({
   toolbar,
   children,
-  onSearch,
   activeCategory,
   contentClassName,
   panelClassName,
@@ -34,8 +41,6 @@ export function AppShell({
   toolbar?: React.ReactNode;
   /** The page body. It scrolls. */
   children: React.ReactNode;
-  /** ⌘K palette trigger for the rail's search row. */
-  onSearch?: () => void;
   /** Marks a category group as current in the rail's catalog. */
   activeCategory?: string;
   /** Applied to the scroll container inside the panel. */
@@ -44,14 +49,53 @@ export function AppShell({
   panelClassName?: string;
 }) {
   const [navOpen, setNavOpen] = React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * A new page starts at its top.
+   *
+   * The panel owns the scrollbar, and a scroll container keeps its offset
+   * when its contents change — so reading to the bottom of the feed and
+   * opening a component left the next page halfway down, with its header
+   * already scrolled away. The browser's own restoration does not apply to
+   * a container it does not own.
+   */
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
+
+  /**
+   * ⌘K / Ctrl+K opens the palette, from anywhere.
+   *
+   * The rail has no search row any more: a shortcut that is always there
+   * does not need a button, and the button was taking the top of the column.
+   */
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <div className="app-frame flex h-dvh w-full flex-col bg-background md:flex-row">
-      <SidebarRail
-        className="hidden md:flex"
-        onSearch={onSearch}
-        activeCategory={activeCategory}
-      />
+      <PaletteProvider
+        value={{
+          open: () => setPaletteOpen(true),
+          close: () => setPaletteOpen(false),
+        }}
+      >
+        <SidebarRail
+          className="hidden md:flex"
+          activeCategory={activeCategory}
+        />
 
       {/* Phones get the same rail in a drawer. */}
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
@@ -62,10 +106,6 @@ export function AppShell({
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarRail
             className="flex h-full w-full"
-            onSearch={() => {
-              setNavOpen(false);
-              onSearch?.();
-            }}
             onNavigate={() => setNavOpen(false)}
             activeCategory={activeCategory}
           />
@@ -93,6 +133,7 @@ export function AppShell({
           </header>
         ) : null}
         <div
+          ref={scrollRef}
           className={cn(
             "min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             contentClassName,
@@ -101,6 +142,16 @@ export function AppShell({
           {children}
         </div>
       </main>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={(slug) => {
+          setPaletteOpen(false);
+          router.push(`/c/${slug}`);
+        }}
+      />
+      </PaletteProvider>
     </div>
   );
 }

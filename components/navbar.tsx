@@ -79,14 +79,14 @@ export function Navbar() {
       {/* Main Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-transparent">
         <div className="relative flex flex-col justify-start items-center w-full">
-          <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-8 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
+          <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
             {/* Left vertical line - only show when not scrolled */}
            
             <div
               className={`self-stretch flex flex-col items-center relative z-10 transition-all duration-500 ${isScrolled ? "py-3" : "pt-6 pb-3"}`}
             >
               {/* Desktop Navigation - Minimalist Floating Design */}
-              <div className="hidden lg:flex items-center justify-center w-full">
+              <div className="hidden lg:flex h-14 items-center justify-center w-full">
                 <div className="flex items-center justify-between w-full max-w-6xl">
                   {/* Logo */}
                   <div className="flex items-center">
@@ -140,7 +140,7 @@ export function Navbar() {
                       <DropdownMenuContent
                         align="center"
                         sideOffset={8}
-                        className="w-80 rounded-xl p-1.5"
+                        className="w-80 rounded-xl"
                       >
                         {resourceItems.map((item) => {
                           const Icon = item.icon;
@@ -148,14 +148,14 @@ export function Navbar() {
                             <DropdownMenuItem
                               key={item.name}
                               asChild
-                              className="group/item items-start gap-3 rounded-lg px-2.5 py-2.5"
+                              className="items-start gap-3 rounded-lg px-2.5 py-2.5"
                             >
                               <Link href={item.href}>
-                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover/item:bg-primary/20">
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                                   <Icon className="size-4 text-primary" />
                                 </span>
                                 <span className="flex min-w-0 flex-col gap-1">
-                                  <span className="text-sm font-medium leading-none text-foreground transition-colors group-hover/item:text-primary">
+                                  <span className="text-sm font-medium leading-none">
                                     {item.name}
                                   </span>
                                   <span className="text-xs leading-relaxed text-muted-foreground">

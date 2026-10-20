@@ -9,7 +9,7 @@ import {
   useGridFilters,
   type ComponentGridItem,
 } from "@/components/marketplace/component-grid";
-import { CommandPalette } from "@/components/marketplace/command-palette";
+import { usePalette } from "@/components/marketplace/palette-context";
 import { AppShell } from "@/components/marketplace/app-shell";
 import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
 import { FEED_LIMIT } from "@/lib/feed";
@@ -29,7 +29,6 @@ export function ComponentExchangeHome({
   const [failed, setFailed] = useState(false);
   const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({});
   const [likedSlugs, setLikedSlugs] = useState<Record<string, boolean>>({});
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [openSlug, setOpenSlug] = useState<string | null>(null);
 
   // The grid's filters live here, not inside `<ComponentGrid>`, because half
@@ -47,18 +46,9 @@ export function ComponentExchangeHome({
     },
   });
 
-  // ⌘K / Ctrl+K opens the command palette.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-      if (e.key === "Escape") setPaletteOpen(false);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  // ⌘K / Ctrl+K opens the command palette, and the shell owns it — the
+  // shortcut works on every page, not only here.
+  const palette = usePalette();
 
   // Nothing to fetch when the server already rendered the feed: the grid is
   // on screen before this effect runs, and asking for the same page again
@@ -164,15 +154,7 @@ export function ComponentExchangeHome({
     [likedSlugs]
   );
 
-  const handlePaletteSelect = useCallback(
-    (slug: string) => {
-      setPaletteOpen(false);
-      router.push(`/c/${slug}`);
-    },
-    [router]
-  );
-
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const openPalette = useCallback(() => palette.open(), [palette]);
 
   const activeItem = useMemo(
     () => items.find((item) => item.slug === openSlug) ?? null,
@@ -203,12 +185,6 @@ export function ComponentExchangeHome({
 
   return (
     <>
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        onSelect={handlePaletteSelect}
-      />
-
       <ComponentDetailDialog
         item={activeItem}
         open={Boolean(openSlug)}
@@ -228,7 +204,6 @@ export function ComponentExchangeHome({
           raised surface panel beside it. The toolbar rides the panel's first
           row; the shell owns the scroll container. */}
       <AppShell
-        onSearch={openPalette}
         activeCategory={filters.category}
         toolbar={
           <>

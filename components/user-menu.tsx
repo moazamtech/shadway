@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Plus,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -179,6 +180,13 @@ export function UserMenu({
           <Link href={profileHref}>
             <Sparkles className="h-4 w-4" />
             Profile
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/studio">
+            <Plus className="h-4 w-4" />
+            New component
           </Link>
         </DropdownMenuItem>
 
