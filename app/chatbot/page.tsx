@@ -7,7 +7,6 @@ import {
 import { DotsLoader } from "@/components/loader";
 import {
   Message,
-  MessageAction,
   MessageActions,
   MessageContent,
 } from "@/components/message";
@@ -50,7 +49,6 @@ import {
   Copy,
   GraduationCap,
   ImagePlus,
-  MessageSquarePlus,
   Sparkles,
   Trash2,
   ThumbsDown,
@@ -216,6 +214,7 @@ export const MessageComponent = memo(
             {images.length > 0 && (
               <div className="flex flex-wrap justify-end gap-2 max-w-[80%]">
                 {images.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={i}
                     src={src}
@@ -410,18 +409,33 @@ function ConversationPromptInput() {
   };
 
   useEffect(() => {
-    const loaded = loadChatState();
-    if (!loaded || loaded.sessions.length === 0) {
-      createNewSession(MODELS[0].value);
-      return;
-    }
+    let cancelled = false;
 
-    const normalized = normalizeSessions(loaded.sessions);
-    setSessions(normalized);
-    const active =
-      normalized.find((s) => s.id === loaded.activeSessionId) ?? normalized[0];
-    setActiveSessionId(active?.id ?? "");
-    setSelectedModel(active?.model ?? MODELS[0].value);
+    // The saved conversation lives in localStorage, which the server cannot
+    // read. Restoring it is work the page does after its first paint, and
+    // the state that comes out of it has to land after that paint too, or
+    // the browser is asked to reconcile a conversation the server never
+    // sent.
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+
+      const loaded = loadChatState();
+      if (!loaded || loaded.sessions.length === 0) {
+        createNewSession(MODELS[0].value);
+        return;
+      }
+
+      const normalized = normalizeSessions(loaded.sessions);
+      setSessions(normalized);
+      const active =
+        normalized.find((s) => s.id === loaded.activeSessionId) ?? normalized[0];
+      setActiveSessionId(active?.id ?? "");
+      setSelectedModel(active?.model ?? MODELS[0].value);
+    });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -481,21 +495,46 @@ function ConversationPromptInput() {
   }, [sessions, activeSessionId]);
 
   useEffect(() => {
-    if (!activeSessionId) return;
-    upsertActiveSession({
-      model: selectedModel,
+    let cancelled = false;
+
+    // The model belongs to the session it was picked in. Writing it back is
+    // a follow-up to the choice rather than part of it, so it waits for the
+    // state to settle instead of running inside the effect that read it.
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      if (!activeSessionId) return;
+      upsertActiveSession({
+        model: selectedModel,
+      });
     });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedModel, activeSessionId]);
 
   useEffect(() => {
-    if (activeSessionId) return;
-    if (sessions.length > 0) {
-      setActiveSessionId(sessions[0].id);
-      setSelectedModel(sessions[0].model);
-      return;
-    }
-    createNewSession(MODELS[0].value);
+    let cancelled = false;
+
+    // A chat always has one session in front of it. When the last one is
+    // closed the page picks another, or opens a fresh one, and that answer
+    // is worked out after the state has settled so it reads the list as it
+    // is rather than as it was when the effect started.
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      if (activeSessionId) return;
+      if (sessions.length > 0) {
+        setActiveSessionId(sessions[0].id);
+        setSelectedModel(sessions[0].model);
+        return;
+      }
+      createNewSession(MODELS[0].value);
+    });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId, sessions.length]);
 
@@ -876,6 +915,7 @@ function ConversationPromptInput() {
                   <div className="flex flex-wrap gap-2 px-4 pt-4">
                     {images.map((img, i) => (
                       <div key={i} className="relative group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img}
                           alt="Preview"

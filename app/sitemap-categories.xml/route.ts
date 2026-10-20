@@ -2,17 +2,6 @@ import { NextResponse } from 'next/server'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
 
-// Helper function to escape XML entities
-function escapeXml(str: string): string {
-  if (!str) return ''
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-}
-
 export async function GET() {
   try {
     const { db } = await connectToDatabase()

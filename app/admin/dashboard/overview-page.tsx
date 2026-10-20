@@ -31,12 +31,17 @@ export default function OverviewPage() {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  // The moment the numbers arrived. A week is a moving target, and a render
+  // is not allowed to read the clock: the same render has to produce the same
+  // count however often it runs, or the tile flickers between two answers
+  // nobody can explain. Measuring the window from the fetch keeps it still.
+  const [fetchedAt, setFetchedAt] = useState(0);
 
   // Computed stats
   const stats: DashboardStats = useMemo(() => {
+    const weekAgo = fetchedAt - 7 * 24 * 60 * 60 * 1000;
     const recentlyAdded = websites.filter(website => {
-      const addedDate = new Date(website.createdAt || Date.now());
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const addedDate = new Date(website.createdAt || fetchedAt).getTime();
       return addedDate > weekAgo;
     }).length;
 
@@ -48,46 +53,59 @@ export default function OverviewPage() {
       totalSubmissions: submissions.length,
       pendingSubmissions: submissions.filter(s => s.status === 'pending').length
     };
-  }, [websites, submissions]);
+  }, [websites, submissions, fetchedAt]);
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+
+    // The dashboard reads two collections that live on the server, and the
+    // answer arrives after the first paint. Setting the state from the
+    // promise keeps the fetch and the state in step: nothing lands after the
+    // component has gone, and the loading state ends when the answer does.
+    const load = async () => {
+      try {
+        const [websitesRes, submissionsRes] = await Promise.all([
+          fetch('/api/websites'),
+          fetch('/api/submissions')
+        ]);
+
+        if (cancelled) return;
+
+        setFetchedAt(Date.now());
+
+        if (websitesRes.ok) {
+          const websitesData = await websitesRes.json();
+          setWebsites(websitesData);
+        }
+
+        if (submissionsRes.ok) {
+          const submissionsData = await submissionsRes.json();
+          setSubmissions(submissionsData);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [websitesRes, submissionsRes] = await Promise.all([
-        fetch('/api/websites'),
-        fetch('/api/submissions')
-      ]);
-
-      if (websitesRes.ok) {
-        const websitesData = await websitesRes.json();
-        setWebsites(websitesData);
-      }
-
-      if (submissionsRes.ok) {
-        const submissionsData = await submissionsRes.json();
-        setSubmissions(submissionsData);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Recent websites (last 5)
   const recentWebsites = useMemo(() => {
-    return websites
+    return [...websites]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 5);
   }, [websites]);
 
   // Recent submissions (last 5)
   const recentSubmissions = useMemo(() => {
-    return submissions
+    return [...submissions]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 5);
   }, [submissions]);

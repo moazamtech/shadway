@@ -13,7 +13,6 @@ import {
   MAX_PAGE_SIZE,
 } from "@/lib/db/components";
 import { getUserBookmarks } from "@/lib/db/marketplace";
-import { normalizeGroup } from "@/lib/categories";
 import { serializeCard } from "@/lib/serialize";
 import { ComponentGrid } from "@/components/marketplace/component-grid";
 import { AppShell } from "@/components/marketplace/app-shell";

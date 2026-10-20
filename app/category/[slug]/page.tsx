@@ -7,7 +7,6 @@ import { generateCategoryPageSEO, generateBreadcrumbSchema } from '@/lib/seo'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { StructuredData } from '@/components/structured-data'
-import { WebsiteCards } from '@/components/website-cards'
 import { addRefParameter } from '@/lib/utils/url'
 
 interface PageProps {
@@ -108,7 +107,7 @@ export default async function CategoryPage({ params }: PageProps) {
       </div>
 
       <div className="relative flex flex-col justify-start items-center w-full">
-        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-12 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
+        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-8 lg:max-w-[1270px] lg:w-[1360px] relative flex flex-col justify-start items-start">
           {/* Left vertical line with geometric elements */}
           <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-border z-0">
             <div className="absolute top-32 left-[-2px] w-1 h-1 bg-primary rounded-full opacity-60"></div>
@@ -252,6 +251,7 @@ export default async function CategoryPage({ params }: PageProps) {
                     <div className="h-full w-full bg-muted/50 backdrop-blur-sm rounded-xl overflow-hidden group-hover:bg-muted/50 transition-all dark:bg-muted/50 duration-300 flex flex-col">
                       {/* Image Section - OG Image proportions (16:9) */}
                       <div className="relative h-44 bg-muted/50 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={website.image}
                           alt={`${website.name} preview`}

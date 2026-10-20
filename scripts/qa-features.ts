@@ -204,7 +204,7 @@ async function main() {
     );
 
     // A new file has to reach the tree — it is how an author adds a helper.
-    const created = await page.evaluate(() => {
+    await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll("button")).find(
         (candidate) => (candidate.getAttribute("title") || "") === "New file",
       ) as HTMLButtonElement | undefined;

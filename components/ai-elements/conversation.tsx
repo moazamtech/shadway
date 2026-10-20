@@ -4,11 +4,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
-
-// Custom CSS for conversation scrolling - Hiding scrollbars
-const conversationScrollStyles = ""; // Moved to globals.css
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 

@@ -284,6 +284,7 @@ export default function VibeComponentsPage() {
                   <TableRow key={item._id || item.slug}>
                     <TableCell>
                       {item.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.thumbnailUrl}
                           alt={`${item.title} thumbnail`}

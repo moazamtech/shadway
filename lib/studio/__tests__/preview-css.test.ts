@@ -23,7 +23,7 @@
  * message anywhere.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import React, { act } from "react";
+import React, { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { usePreviewCss } from "@/lib/studio/use-preview-css";
@@ -31,8 +31,6 @@ import { usePreviewCss } from "@/lib/studio/use-preview-css";
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
-
-type Result = ReturnType<typeof usePreviewCss>;
 
 /**
  * Probe state is held in a hoisted *object*, not in module-level bindings.
@@ -42,6 +40,11 @@ type Result = ReturnType<typeof usePreviewCss>;
  * see that the write is only a channel back to the test, and a refactor that
  * genuinely wrote module state from a render would be a real bug. The existing
  * `sandpack-relatch` test keeps its recorder the same way.
+ *
+ * The write itself happens in an effect rather than in the render, which is
+ * what `react-hooks/immutability` asks for: a component must not change a
+ * value it does not own while it renders, and an effect says plainly that the
+ * hook has rendered and this is what it said.
  */
 const h = vi.hoisted(() => ({
   /** The value the hook reported on its most recent render. */
@@ -79,7 +82,10 @@ const BAD = { ok: false, body: { error: "Stylesheet compile failed (500)" } };
  * recreated rather than being reused.
  */
 function Probe({ files, style }: { files: Record<string, string>; style: string | undefined }) {
-  h.latest = usePreviewCss(files, style, { delay: 0 });
+  const result = usePreviewCss(files, style, { delay: 0 });
+  useEffect(() => {
+    h.latest = result;
+  }, [result]);
   return null;
 }
 
@@ -92,7 +98,10 @@ function Seeded({
   style: string | undefined;
   initialCss: string;
 }) {
-  h.latest = usePreviewCss(files, style, { initialCss, delay: 0 });
+  const result = usePreviewCss(files, style, { initialCss, delay: 0 });
+  useEffect(() => {
+    h.latest = result;
+  }, [result]);
   return null;
 }
 

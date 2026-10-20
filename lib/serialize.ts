@@ -85,17 +85,28 @@ export type SerializedCard = Omit<
  * document are not here to serialize in the first place.
  */
 export function serializeCard(component: ComponentCardDocument): SerializedCard {
-  const { _id, createdAt, updatedAt, publishedAt, ...rest } = component;
+  const { createdAt, updatedAt, publishedAt, ...rest } = component;
 
-  const out: SerializedCard = {
+  /**
+   * `_id` is dropped deliberately: it is never rendered, and leaving it in
+   * would mean shipping a 24-char ObjectId on every card in the feed. The row
+   * is a projection (`CARD_FIELDS`), so the author's source and the prebuilt
+   * preview document are not here to serialize in the first place.
+   *
+   * The card is built as a copy rather than by leaving the id out of the
+   * destructuring, because the row belongs to the caller and the payload is a
+   * different thing.
+   */
+  const card: SerializedCard & { _id?: unknown } = {
     ...rest,
     createdAt: createdAt ? new Date(createdAt).toISOString() : "",
     updatedAt: updatedAt ? new Date(updatedAt).toISOString() : "",
   };
+  delete card._id;
 
-  if (publishedAt) out.publishedAt = new Date(publishedAt).toISOString();
+  if (publishedAt) card.publishedAt = new Date(publishedAt).toISOString();
 
-  return out;
+  return card;
 }
 
 /**

@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CheckCircleIcon, StarIcon } from 'lucide-react';
 import Link from 'next/link';
-import { motion, Transition, Variants } from 'framer-motion';
+import { motion, Transition } from 'framer-motion';
 
 type FREQUENCY = 'monthly' | 'yearly';
 const frequencies: FREQUENCY[] = ['monthly', 'yearly'];

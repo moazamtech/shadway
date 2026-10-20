@@ -5,7 +5,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BrandMark } from "@/components/brand-mark";
 import { listComponents } from "@/lib/db/components";
 import { coverImageUrl } from "@/lib/images";
-import { cn } from "@/lib/utils";
 
 interface AuthShellProps {
   title: string;
@@ -13,7 +12,6 @@ interface AuthShellProps {
   children: React.ReactNode;
   /** Cross-links rendered under the card, e.g. "Sign in instead". */
   footer?: React.ReactNode;
-  className?: string;
 }
 
 /**
@@ -36,7 +34,6 @@ export async function AuthShell({
   subtitle,
   children,
   footer,
-  className,
 }: AuthShellProps) {
   const covers = await listComponents({ sort: "popular", limit: 4 })
     .then((rows) =>

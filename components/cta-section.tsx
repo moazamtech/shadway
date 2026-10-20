@@ -1,9 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Layers } from "lucide-react"
 import { StripeBgGuides } from "@/components/ui/StripeBg"
-import Link from "next/link"
 
 export function CTASection() {
   return (

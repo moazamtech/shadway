@@ -117,11 +117,14 @@ export function RegisterForm() {
       if (!result || result.error) {
         // Registration succeeded but auto sign-in did not. Send them to /login
         // with a success flag rather than leaving them stuck on this form.
-        window.location.href = "/login?registered=1";
+        router.replace("/login?registered=1");
         return;
       }
 
-      window.location.href = callbackUrl ?? "/studio";
+      // A client-side navigation, not a full page load: the session cookie
+      // was set by the sign-in above, and the browser carries it either way.
+      // The full load bought nothing but a flash of the login page.
+      router.replace(callbackUrl ?? "/studio");
     } catch {
       setFormError("Something went wrong. Please try again.");
       setIsLoading(false);

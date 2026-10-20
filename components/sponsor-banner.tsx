@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Website } from "@/lib/types"
 import { addRefParameter } from "@/lib/utils/url"
-import Image from "next/image"
 
 interface SponsorBannerProps {
   website: Website
@@ -100,6 +99,7 @@ export function SponsorBanner({ website }: SponsorBannerProps) {
 
                 {/* Main image container */}
                 <div className="relative bg-background border-2 border-amber-500/20 rounded-2xl overflow-hidden shadow-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={website.image}
                     alt={`${website.name} preview`}

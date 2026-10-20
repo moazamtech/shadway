@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2 } from 'lucide-react';
 import { Template, TemplateFormData } from '@/lib/types';
 import { TemplatesTable } from '../dashboard/components/templates-table';
 import { TemplateFormDialog } from '../dashboard/components/template-form-dialog';

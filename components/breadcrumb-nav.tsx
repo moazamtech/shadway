@@ -28,7 +28,7 @@ export function BreadcrumbNav({ items, className = '' }: BreadcrumbNavProps) {
           </Link>
         </li>
 
-        {items.map((item, index) => (
+        {items.map((item) => (
           <li key={item.href} className="flex items-center">
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 mx-2" />
             {item.current ? (

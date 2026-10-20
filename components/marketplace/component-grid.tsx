@@ -39,7 +39,6 @@ export type GridFilters = {
  * count instead of two widgets. What is left here is the one filter the grid
  * owns — the category — because the chips are drawn from the rows on screen
  * and have to be next to them.
- */
  *
  * The feed's filter box lives in the shell's fixed toolbar, which is a
  * different part of the tree from the cards it filters, so the state has to be

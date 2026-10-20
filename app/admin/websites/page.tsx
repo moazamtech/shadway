@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -26,11 +25,31 @@ interface WebsiteStats {
   recentlyAdded: number;
 }
 
+/**
+ * The website list, as the API serves it.
+ *
+ * The request sits outside the component so the first paint and the refresh
+ * button ask the same question and get the same answer: a list of websites or
+ * a failure, never a page that is half loaded.
+ */
+async function loadWebsites(): Promise<Website[]> {
+  const response = await fetch("/api/websites");
+  if (!response.ok) {
+    throw new Error("Failed to fetch websites");
+  }
+  return response.json();
+}
+
 export default function WebsitesPage() {
   // Core state
   const [websites, setWebsites] = useState<Website[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // The moment the list arrived. A week is a moving target, and a render is
+  // not allowed to read the clock: the same render has to produce the same
+  // count however often it runs, or the tile flickers between two answers
+  // nobody can explain. Measuring the window from the fetch keeps it still.
+  const [fetchedAt, setFetchedAt] = useState(0);
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -45,9 +64,9 @@ export default function WebsitesPage() {
 
   // Computed stats
   const stats: WebsiteStats = useMemo(() => {
+    const weekAgo = fetchedAt - 7 * 24 * 60 * 60 * 1000;
     const recentlyAdded = websites.filter((website) => {
-      const addedDate = new Date(website.createdAt || Date.now());
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const addedDate = new Date(website.createdAt || fetchedAt).getTime();
       return addedDate > weekAgo;
     }).length;
 
@@ -57,21 +76,36 @@ export default function WebsitesPage() {
       categoriesCount: new Set(websites.map((w) => w.category)).size,
       recentlyAdded,
     };
-  }, [websites]);
+  }, [websites, fetchedAt]);
 
   useEffect(() => {
-    fetchWebsites();
+    let cancelled = false;
+
+    // The list arrives after the first paint. Setting the state from the
+    // promise keeps the two in step: nothing lands once the page has gone,
+    // and the spinner ends when the answer does.
+    loadWebsites()
+      .then((data) => {
+        if (cancelled) return;
+        setFetchedAt(Date.now());
+        setWebsites(data);
+      })
+      .catch((error) => {
+        if (!cancelled) console.error("Error fetching websites:", error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchWebsites = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/websites");
-      if (!response.ok) {
-        throw new Error("Failed to fetch websites");
-      }
-      const data = await response.json();
-      setWebsites(data);
+      setWebsites(await loadWebsites());
     } catch (error) {
       console.error("Error fetching websites:", error);
     } finally {

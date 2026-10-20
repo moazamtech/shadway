@@ -29,16 +29,12 @@ import {
   XIcon,
   Code2Icon,
   FileCode2Icon,
-  CopyIcon,
   CheckIcon,
-  CodeIcon,
   EyeIcon,
   FileIcon,
   FileJson,
   Hash,
   Zap,
-  Maximize2Icon,
-  Minimize2Icon,
   PaperclipIcon,
   ChevronRight,
   Loader2,
@@ -69,7 +65,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StickToBottom } from "use-stick-to-bottom";
 import {
   BASE_PROJECT_FILES,
   SHADCN_PROJECT_FILES,
@@ -180,82 +175,6 @@ function ThinkingProcess({
   );
 }
 
-// Code Block Component with Copy Functionality
-function CodeBlock({
-  code,
-  language = "tsx",
-  onRun,
-  isActive,
-}: {
-  code: string;
-  language?: string;
-  onRun?: () => void;
-  isActive?: boolean;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      toast.success("Code copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error("Failed to copy code");
-    }
-  };
-
-  return (
-    <div className="relative group my-4 border border-border/60 bg-background overflow-hidden">
-      <div className="flex h-10 items-center justify-between px-4 w-full border-b border-border/60 bg-muted/10">
-        <div className="flex items-center gap-2">
-          <CodeIcon className="h-3 w-3 text-muted-foreground/50" />
-          <span className="text-[10px] font-mono font-semibold text-muted-foreground/50 uppercase tracking-[0.15em]">
-            {language}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          {onRun && (
-            <button
-              onClick={onRun}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] transition-colors border border-border/60",
-                isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30",
-              )}
-            >
-              <Zap className="h-3 w-3" />
-              {isActive ? "Running" : "Run"}
-            </button>
-          )}
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors border border-border/60 hover:bg-muted/30"
-          >
-            {copied ? (
-              <>
-                <CheckIcon className="h-3 w-3" />
-                Copied
-              </>
-            ) : (
-              <>
-                <CopyIcon className="h-3 w-3" />
-                Copy
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-      <div className="overflow-x-auto max-h-[500px] overflow-y-auto no-scrollbar">
-        <pre className="p-4 text-xs leading-relaxed font-mono">
-          <code className="text-foreground/80">{code}</code>
-        </pre>
-      </div>
-    </div>
-  );
-}
-
 // Smart AI-powered suggestions for component blocks
 type Suggestion = {
   icon?: string;
@@ -349,6 +268,218 @@ function pickFallbackSuggestions(excludeTitles: string[]) {
   const next = shuffled.slice(0, 6);
   return next.length > 0 ? next : SMART_SUGGESTIONS.slice(0, 6);
 }
+
+/**
+ * What the model wrote, read back out of the reply.
+ *
+ * The reply is a protocol rather than prose: the reasoning arrives in one
+ * tag, the files in another, and the rest is the message the reader sees.
+ * Parsing it is a pure reading of that text, so it belongs outside the
+ * component: nothing here depends on the page, and the functions can be
+ * the same on every render.
+ */
+const parseThinkingAndContent = (
+  text: string,
+): {
+  reasoning: string;
+  content: string;
+  code: string;
+  skills: string[];
+  files?: Record<string, string>;
+  entryFile?: string;
+} => {
+  // Extract skills from <skills> tags
+  const skillsRegex = /<skills>([\s\S]*?)<\/skills>/;
+  const skillsMatch = text.match(skillsRegex);
+  const skills = skillsMatch
+    ? skillsMatch[1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  // Extract reasoning from <think> tags
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+  const thinkMatches = [...text.matchAll(thinkRegex)];
+  const reasoning = thinkMatches.map((match) => match[1].trim()).join("\n\n");
+
+  // Extract code from <component> tags (loose for streaming)
+  const componentRegex = /<component>([\s\S]*?)(?:<\/component>|$)/;
+  const componentMatch = text.match(componentRegex);
+  const code = componentMatch ? componentMatch[1].trim() : "";
+
+  const extractFilesLoose = (input: string) => {
+    const filesStart = input.search(/<files\b/i);
+    const firstFileTag = input.search(/<(?:file|entry)\b/i);
+
+    // If we don't find <files> but we do find <file> or <entry>, we use that as the start
+    const start = filesStart !== -1 ? filesStart : firstFileTag;
+
+    if (start === -1)
+      return {
+        files: undefined as Record<string, string> | undefined,
+        entryFile: undefined as string | undefined,
+      };
+
+    const endTagIdx = input.search(/<\/files>/i);
+    const end =
+      endTagIdx !== -1 ? endTagIdx + "</files>".length : input.length;
+    const block = input.slice(start, end);
+
+    const entryAttr = block.match(/<files\b[^>]*\bentry=["']([^"']+)["']/i);
+    const rawEntry = (entryAttr?.[1] || "").trim();
+    let entryFile: string | undefined = rawEntry
+      ? rawEntry.startsWith("/")
+        ? rawEntry
+        : `/${rawEntry}`
+      : undefined;
+
+    const files: Record<string, string> = {};
+    // Handle <file path="..."> or <entry path="..."> or <file name="...">
+    const tagRegex =
+      /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["'][^>]*>/gi;
+    const matches = Array.from(block.matchAll(tagRegex));
+
+    for (let idx = 0; idx < matches.length; idx++) {
+      const m = matches[idx];
+      const path = String(m[1] || "").trim();
+      if (!path) continue;
+      const normalized = path.startsWith("/") ? path : `/${path}`;
+
+      const contentStart = (m.index ?? 0) + m[0].length;
+      const nextTagStart =
+        idx + 1 < matches.length
+          ? (matches[idx + 1].index ?? block.length)
+          : block.length;
+      let sliceEnd = nextTagStart;
+
+      // Look for either </file> or </entry>
+      const closeFileIdx = block.indexOf("</file>", contentStart);
+      const closeEntryIdx = block.indexOf("</entry>", contentStart);
+
+      let closeIdx = -1;
+      if (
+        closeFileIdx !== -1 &&
+        (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)
+      ) {
+        closeIdx = closeFileIdx;
+      } else {
+        closeIdx = closeEntryIdx;
+      }
+
+      if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
+
+      const content = block.slice(contentStart, sliceEnd).trim();
+      if (content) files[normalized] = content;
+    }
+
+    const finalFiles = Object.keys(files).length ? files : undefined;
+    if (!entryFile)
+      entryFile =
+        finalFiles?.["/entry.tsx"] ||
+        finalFiles?.["/App.tsx"] ||
+        (finalFiles ? Object.keys(finalFiles)[0] : undefined);
+    return { files: finalFiles, entryFile };
+  };
+
+  const { files: xmlFiles, entryFile } = extractFilesLoose(text);
+
+  // Fallback: if AI used markdown fences instead of <files>, extract code from them
+  let files = xmlFiles;
+  if (!files || Object.keys(files).length === 0) {
+    const fenceRegex = /```(?:tsx?|jsx?)\s*\n([\s\S]*?)```/g;
+    const fenceMatches = [...text.matchAll(fenceRegex)];
+    if (fenceMatches.length > 0) {
+      const fallbackFiles: Record<string, string> = {};
+      let detectedEntry: string | undefined;
+      for (const match of fenceMatches) {
+        const codeContent = match[1].trim();
+        if (!codeContent || codeContent.length < 20) continue;
+        const isApp = /export\s+default\s+function\s+(App|Header|Hero|Footer|Page|Layout)/.test(codeContent);
+        const path = isApp ? "/App.tsx" : `/Component_${Object.keys(fallbackFiles).length}.tsx`;
+        fallbackFiles[path] = codeContent;
+        if (!detectedEntry && isApp) detectedEntry = path;
+      }
+      if (Object.keys(fallbackFiles).length > 0) {
+        files = fallbackFiles;
+        if (!entryFile) {
+          const ef = detectedEntry || fallbackFiles["/App.tsx"] ? "/App.tsx" : Object.keys(fallbackFiles)[0];
+          const fallbackContent = fallbackFiles[ef || Object.keys(fallbackFiles)[0]] || "";
+          return {
+            reasoning,
+            content: fallbackContent.trim(),
+            code: fallbackContent,
+            skills,
+            files: fallbackFiles,
+            entryFile: ef,
+          };
+        }
+      }
+    }
+  }
+
+  // Remove all XML-like tags and their internal content from the displayed chat text
+  let content = text.replace(/<skills>[\s\S]*?<\/skills>/gi, "");
+  content = content.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
+  content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
+  content = content.replace(
+    /<(?:file|entry)\b[\s\S]*?(?:<\/(?:file|entry)>|$)/gi,
+    "",
+  );
+
+  // Aggressively remove any lingering markdown code fences to prevent "spillage" in chat
+  content = content.replace(/```[\s\S]*?(```|$)/g, "");
+
+  content = content.trim();
+
+  return { reasoning, content, code, skills, files, entryFile };
+};
+
+const extractArtifactsFromResponse = (
+  text: string,
+): {
+  code?: string;
+  files?: Record<string, string>;
+  entryFile?: string;
+  dependencies?: string[];
+  language: string;
+} => {
+  const { code, files, entryFile } = parseThinkingAndContent(text);
+  const dependencySources = files ? Object.values(files) : [code];
+  const dependencies = listAddedPackages(dependencySources);
+
+  if (files && Object.keys(files).length > 0) {
+    const entry =
+      (entryFile && files[entryFile] ? entryFile : undefined) ||
+      (files["/entry.tsx"] ? "/entry.tsx" : undefined) ||
+      (files["/App.tsx"] ? "/App.tsx" : undefined) ||
+      Object.keys(files)[0];
+    return {
+      files,
+      entryFile,
+      language: "tsx",
+      code: files[entry],
+      dependencies,
+    };
+  }
+
+  if (code) {
+    let sanitized = code;
+    const lines = sanitized.split("\n");
+    const halfLength = Math.floor(lines.length / 2);
+    if (halfLength > 10) {
+      const firstHalf = lines.slice(0, halfLength).join("\n");
+      const secondHalf = lines.slice(halfLength).join("\n");
+      if (firstHalf.trim() === secondHalf.trim()) {
+        sanitized = firstHalf.trim();
+      }
+    }
+    return { language: "tsx", code: sanitized, dependencies };
+  }
+
+  return { language: "tsx", dependencies };
+};
 
 export default function ComponentGeneratorPage() {
   const { resolvedTheme } = useTheme();
@@ -477,7 +608,7 @@ export default function ComponentGeneratorPage() {
       const fallback = pickFallbackSuggestions(excludeTitles);
       setActiveSuggestions(fallback);
       storeSuggestionHistory(fallback);
-    } catch (e) {
+    } catch {
       const fallback = pickFallbackSuggestions(excludeTitles);
       setActiveSuggestions(fallback);
       storeSuggestionHistory(fallback);
@@ -485,209 +616,6 @@ export default function ComponentGeneratorPage() {
       setIsRefreshingSuggestions(false);
     }
   }, [activeSuggestions]);
-
-  const parseThinkingAndContent = (
-    text: string,
-  ): {
-    reasoning: string;
-    content: string;
-    code: string;
-    skills: string[];
-    files?: Record<string, string>;
-    entryFile?: string;
-  } => {
-    // Extract skills from <skills> tags
-    const skillsRegex = /<skills>([\s\S]*?)<\/skills>/;
-    const skillsMatch = text.match(skillsRegex);
-    const skills = skillsMatch
-      ? skillsMatch[1]
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-
-    // Extract reasoning from <think> tags
-    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-    const thinkMatches = [...text.matchAll(thinkRegex)];
-    const reasoning = thinkMatches.map((match) => match[1].trim()).join("\n\n");
-
-    // Extract code from <component> tags (loose for streaming)
-    const componentRegex = /<component>([\s\S]*?)(?:<\/component>|$)/;
-    const componentMatch = text.match(componentRegex);
-    const code = componentMatch ? componentMatch[1].trim() : "";
-
-    const extractFilesLoose = (input: string) => {
-      const filesStart = input.search(/<files\b/i);
-      const firstFileTag = input.search(/<(?:file|entry)\b/i);
-
-      // If we don't find <files> but we do find <file> or <entry>, we use that as the start
-      const start = filesStart !== -1 ? filesStart : firstFileTag;
-
-      if (start === -1)
-        return {
-          files: undefined as Record<string, string> | undefined,
-          entryFile: undefined as string | undefined,
-        };
-
-      const endTagIdx = input.search(/<\/files>/i);
-      const end =
-        endTagIdx !== -1 ? endTagIdx + "</files>".length : input.length;
-      const block = input.slice(start, end);
-
-      const entryAttr = block.match(/<files\b[^>]*\bentry=["']([^"']+)["']/i);
-      const rawEntry = (entryAttr?.[1] || "").trim();
-      let entryFile: string | undefined = rawEntry
-        ? rawEntry.startsWith("/")
-          ? rawEntry
-          : `/${rawEntry}`
-        : undefined;
-
-      const files: Record<string, string> = {};
-      // Handle <file path="..."> or <entry path="..."> or <file name="...">
-      const tagRegex =
-        /<(?:file|entry)\s+(?:path|name)=["']([^"']+)["'][^>]*>/gi;
-      const matches = Array.from(block.matchAll(tagRegex));
-
-      for (let idx = 0; idx < matches.length; idx++) {
-        const m = matches[idx];
-        const path = String(m[1] || "").trim();
-        if (!path) continue;
-        const normalized = path.startsWith("/") ? path : `/${path}`;
-
-        const contentStart = (m.index ?? 0) + m[0].length;
-        const nextTagStart =
-          idx + 1 < matches.length
-            ? (matches[idx + 1].index ?? block.length)
-            : block.length;
-        let sliceEnd = nextTagStart;
-
-        // Look for either </file> or </entry>
-        const closeFileIdx = block.indexOf("</file>", contentStart);
-        const closeEntryIdx = block.indexOf("</entry>", contentStart);
-
-        let closeIdx = -1;
-        if (
-          closeFileIdx !== -1 &&
-          (closeEntryIdx === -1 || closeFileIdx < closeEntryIdx)
-        ) {
-          closeIdx = closeFileIdx;
-        } else {
-          closeIdx = closeEntryIdx;
-        }
-
-        if (closeIdx !== -1 && closeIdx < nextTagStart) sliceEnd = closeIdx;
-
-        const content = block.slice(contentStart, sliceEnd).trim();
-        if (content) files[normalized] = content;
-      }
-
-      const finalFiles = Object.keys(files).length ? files : undefined;
-      if (!entryFile)
-        entryFile =
-          finalFiles?.["/entry.tsx"] ||
-          finalFiles?.["/App.tsx"] ||
-          (finalFiles ? Object.keys(finalFiles)[0] : undefined);
-      return { files: finalFiles, entryFile };
-    };
-
-    const { files: xmlFiles, entryFile } = extractFilesLoose(text);
-
-    // Fallback: if AI used markdown fences instead of <files>, extract code from them
-    let files = xmlFiles;
-    if (!files || Object.keys(files).length === 0) {
-      const fenceRegex = /```(?:tsx?|jsx?)\s*\n([\s\S]*?)```/g;
-      const fenceMatches = [...text.matchAll(fenceRegex)];
-      if (fenceMatches.length > 0) {
-        const fallbackFiles: Record<string, string> = {};
-        let detectedEntry: string | undefined;
-        for (const match of fenceMatches) {
-          const codeContent = match[1].trim();
-          if (!codeContent || codeContent.length < 20) continue;
-          const isApp = /export\s+default\s+function\s+(App|Header|Hero|Footer|Page|Layout)/.test(codeContent);
-          const path = isApp ? "/App.tsx" : `/Component_${Object.keys(fallbackFiles).length}.tsx`;
-          fallbackFiles[path] = codeContent;
-          if (!detectedEntry && isApp) detectedEntry = path;
-        }
-        if (Object.keys(fallbackFiles).length > 0) {
-          files = fallbackFiles;
-          if (!entryFile) {
-            const ef = detectedEntry || fallbackFiles["/App.tsx"] ? "/App.tsx" : Object.keys(fallbackFiles)[0];
-            const fallbackContent = fallbackFiles[ef || Object.keys(fallbackFiles)[0]] || "";
-            return {
-              reasoning,
-              content: fallbackContent.trim(),
-              code: fallbackContent,
-              skills,
-              files: fallbackFiles,
-              entryFile: ef,
-            };
-          }
-        }
-      }
-    }
-
-    // Remove all XML-like tags and their internal content from the displayed chat text
-    let content = text.replace(/<skills>[\s\S]*?<\/skills>/gi, "");
-    content = content.replace(/<think>[\s\S]*?<\/think>/gi, "");
-    content = content.replace(/<files\b[\s\S]*?(<\/files>|$)/gi, "");
-    content = content.replace(/<component\b[\s\S]*?(<\/component>|$)/gi, "");
-    content = content.replace(
-      /<(?:file|entry)\b[\s\S]*?(?:<\/(?:file|entry)>|$)/gi,
-      "",
-    );
-
-    // Aggressively remove any lingering markdown code fences to prevent "spillage" in chat
-    content = content.replace(/```[\s\S]*?(```|$)/g, "");
-
-    content = content.trim();
-
-    return { reasoning, content, code, skills, files, entryFile };
-  };
-
-  const extractArtifactsFromResponse = (
-    text: string,
-  ): {
-    code?: string;
-    files?: Record<string, string>;
-    entryFile?: string;
-    dependencies?: string[];
-    language: string;
-  } => {
-    const { code, files, entryFile } = parseThinkingAndContent(text);
-    const dependencySources = files ? Object.values(files) : [code];
-    const dependencies = listAddedPackages(dependencySources);
-
-    if (files && Object.keys(files).length > 0) {
-      const entry =
-        (entryFile && files[entryFile] ? entryFile : undefined) ||
-        (files["/entry.tsx"] ? "/entry.tsx" : undefined) ||
-        (files["/App.tsx"] ? "/App.tsx" : undefined) ||
-        Object.keys(files)[0];
-      return {
-        files,
-        entryFile,
-        language: "tsx",
-        code: files[entry],
-        dependencies,
-      };
-    }
-
-    if (code) {
-      let sanitized = code;
-      const lines = sanitized.split("\n");
-      const halfLength = Math.floor(lines.length / 2);
-      if (halfLength > 10) {
-        const firstHalf = lines.slice(0, halfLength).join("\n");
-        const secondHalf = lines.slice(halfLength).join("\n");
-        if (firstHalf.trim() === secondHalf.trim()) {
-          sanitized = firstHalf.trim();
-        }
-      }
-      return { language: "tsx", code: sanitized, dependencies };
-    }
-
-    return { language: "tsx", dependencies };
-  };
 
   // File editing handlers
   const handleFileSelect = useCallback((path: string) => {
@@ -708,31 +636,6 @@ export default function ComponentGeneratorPage() {
     },
     [isProtectedSandboxPath],
   );
-
-  const handleSaveFile = useCallback(() => {
-    if (!selectedFile || !hasUnsavedChanges) return;
-
-    setGeneratedComponent((prev) => {
-      if (!prev) return prev;
-      const nextFiles = {
-        ...(prev.files || {}),
-        ...editedFiles,
-      };
-      const nextCode =
-        prev.entryFile && nextFiles[prev.entryFile]
-          ? nextFiles[prev.entryFile]
-          : prev.code;
-      return {
-        ...prev,
-        files: nextFiles,
-        code: nextCode,
-      };
-    });
-
-    setEditedFiles({});
-    setHasUnsavedChanges(false);
-    toast.success("File saved successfully!");
-  }, [selectedFile, hasUnsavedChanges, editedFiles]);
 
   // File operation handlers
   const handleFileAdd = useCallback(
@@ -823,7 +726,11 @@ export default function ComponentGeneratorPage() {
       setGeneratedComponent((prev) => {
         if (!prev || !prev.files) return prev;
 
-        const { [path]: _, ...restFiles } = prev.files;
+        // The file is taken out of the map by key. The map is copied first:
+        // the state object belongs to the last render, and editing it in
+        // place would change what that render saw.
+        const restFiles = { ...prev.files };
+        delete restFiles[path];
 
         // Clear selected file if it was deleted
         if (selectedFile === path) {
@@ -832,7 +739,8 @@ export default function ComponentGeneratorPage() {
 
         // Remove from edited files
         setEditedFiles((prevEdited) => {
-          const { [path]: __, ...restEdited } = prevEdited;
+          const restEdited = { ...prevEdited };
+          delete restEdited[path];
           return restEdited;
         });
 
@@ -938,7 +846,7 @@ export default function ComponentGeneratorPage() {
         : "AI-generated component built in Shadway.",
     );
     setIsPublishOpen(true);
-  }, [generatedComponent, getLastUserPrompt, mergedUserFiles]);
+  }, [generatedComponent, getLastUserPrompt]);
 
   const handleGeneratePublishDetails = useCallback(async () => {
     if (!generatedComponent) {

@@ -193,7 +193,6 @@ export function ComponentExchangeHome({
         }}
         saved={activeItem ? Boolean(savedSlugs[activeItem.slug]) : false}
         liked={activeItem ? Boolean(likedSlugs[activeItem.slug]) : false}
-        likeCount={activeItem?.likes ?? 0}
         onToggleSave={toggleSave}
         onToggleLike={toggleLike}
         onPrev={() => step(-1)}

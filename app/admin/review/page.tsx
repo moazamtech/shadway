@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Check, Code2, ExternalLink, Inbox, X } from "lucide-react";
+import { Check, Code2, Inbox, X } from "lucide-react";
 import { toast } from "sonner";
 
 /**

@@ -33,6 +33,18 @@ interface RegistryBlockProps {
   docsUrl?: string;
 }
 
+/**
+ * Whether the browser has taken over from the server.
+ *
+ * The editor and the theme belong to the browser: the server has no editor
+ * to hand over and no theme to read, so rendering them during the server
+ * pass would produce markup the client is about to throw away. The store
+ * answers false on the server and true once the browser is in charge.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
+
 export function RegistryBlock({
   name,
   title,
@@ -49,10 +61,20 @@ export function RegistryBlock({
   const [isCopied, setIsCopied] = useState(false);
   const [isInstallCopied, setIsInstallCopied] = useState(false);
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = React.useSyncExternalStore(
+    subscribeToNothing,
+    browserHasRendered,
+    serverHasRendered,
+  );
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [previewHeight, setPreviewHeight] = useState(800);
+  // The preview is reloaded by giving the frame a new name rather than by
+  // writing to the element behind React's back. The frame is torn down and
+  // built again, which is what the browser does when a frame is told to
+  // load its address a second time, and it leaves React in charge of what
+  // is on screen.
+  const [previewNonce, setPreviewNonce] = useState(0);
   const stageRef = React.useRef<HTMLDivElement>(null);
   const [stageWidth, setStageWidth] = React.useState(0);
 
@@ -80,10 +102,6 @@ export function RegistryBlock({
   const containerHeight = isPreview
     ? Math.max(160, visibleHeight)
     : 600;
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -482,6 +500,7 @@ export function RegistryBlock({
                     }}
                   >
                     <iframe
+                      key={previewNonce}
                       ref={iframeRef}
                       src={`/preview/${name}`}
                       style={{
@@ -509,11 +528,7 @@ export function RegistryBlock({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      if (iframeRef.current) {
-                        iframeRef.current.src = iframeRef.current.src;
-                      }
-                    }}
+                    onClick={() => setPreviewNonce((nonce) => nonce + 1)}
                     className="absolute bottom-4 right-4 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-dashed border-border hover:bg-background hover:border-primary/50 transition-all shadow-lg z-30 pointer-events-auto"
                     title="Reload Preview"
                   >

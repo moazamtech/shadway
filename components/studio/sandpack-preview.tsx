@@ -52,6 +52,14 @@ import { buildSandpackProject, type SandpackFiles } from "@/lib/studio/sandpack"
  * also what happens when the dependency set changes, since a new package has to
  * be installed before it can be imported.
  *
+ * The remount is a keyed one. The sandbox lives in a session component whose
+ * key carries the boot project, so a new build is a new component with new
+ * state — the boot files, what has been written into the sandbox, what the
+ * bundler has answered for — rather than state written over while rendering.
+ * The provider used to be keyed the same way and the latch beside it was done
+ * by hand during the render; the key does both, and does them before anything
+ * is committed, which is what the latch was reaching for.
+ *
  * ## Why edits go through the provider's own file state
  *
  * Sandpack's editor hot-loads by writing into provider state with `updateFile`;
@@ -163,12 +171,24 @@ function differs(previous: SandpackFiles, next: SandpackFiles): boolean {
  * after every render and closes over *this* render's props, so it is already
  * the newest one — and keeping a copy in a ref written during render is both
  * redundant and what `react-hooks/refs` forbids.
+ *
+ * The project rides along with the callback for the same reason. The pane has
+ * to compile what the author has just typed, and the render that produced this
+ * effect is the render that knows what that is: the project is handed over
+ * rather than read out of a ref that render would have had to keep current.
  */
-function SandboxBridge({ onSync }: { onSync: (sandpack: SandpackApi) => void }) {
+function SandboxBridge({
+  projectFiles,
+  onSync,
+}: {
+  /** The project as this render produced it. */
+  projectFiles: SandpackFiles;
+  onSync: (sandpack: SandpackApi, files: SandpackFiles) => void;
+}) {
   const { sandpack } = useSandpack();
 
   useEffect(() => {
-    onSync(sandpack);
+    onSync(sandpack, projectFiles);
   });
 
   return null;
@@ -343,19 +363,57 @@ function Sandbox({
    */
   const bootKey = `${reloadKey}|${installedKey}`;
 
+  return (
+    <SandboxSession
+      key={bootKey}
+      projectFiles={project.files}
+      customSetup={customSetup}
+      theme={theme}
+      className={className}
+    />
+  );
+}
+
+/**
+ * One sandbox, from the build it boots with to the next one.
+ *
+ * The session is mounted under a key that changes when the boot project
+ * changes — a package the sandbox has to install, or a manual reload — and
+ * everything that belongs to a build lives inside it: the project it booted
+ * from, what has been written into it since, and what the bundler has
+ * answered for.
+ *
+ * Remounting is how the next build starts, and it is a remount rather than a
+ * write during render because the state of a build belongs to the build. A
+ * changed key is a new component with new state, in place before anything is
+ * committed — which is exactly what the old latch did by hand, except that
+ * the decision is now React's and the compiler can see it.
+ */
+function SandboxSession({
+  projectFiles,
+  customSetup,
+  theme,
+  className,
+}: {
+  /** The project the sandbox boots from, and compiles against. */
+  projectFiles: SandpackFiles;
+  /** The packages the sandbox installs. */
+  customSetup: { dependencies: Record<string, string> };
+  theme: "light" | "dark";
+  className?: string;
+}) {
   /**
-   * The project the sandbox boots with, latched per mount.
+   * The project the sandbox boots with, latched for the life of the mount.
    *
-   * Assigning during render is deliberate: it is a one-shot latch, not derived
-   * state, and it has to be in place before the provider below is rendered. The
-   * latch also keeps the `files` prop identity stable between remounts — the
-   * provider resets its whole state, files included, whenever that identity
-   * changes.
+   * The latch also keeps the `files` prop identity stable between renders —
+   * the provider resets its whole state, files included, whenever that
+   * identity changes. It is state rather than a ref because it is read while
+   * rendering, and a ref read while rendering is what the compiler refuses.
    */
-  const bootRef = useRef<SandpackFiles>(project.files);
+  const [bootFiles] = useState(projectFiles);
 
   /** The project as last written into the sandbox. */
-  const pushedRef = useRef<SandpackFiles>(project.files);
+  const pushedRef = useRef<SandpackFiles>(projectFiles);
 
   /** The bundler client the sync currently hands work to, kept current. */
   const apiRef = useRef<SandpackApi | null>(null);
@@ -367,7 +425,7 @@ function Sandbox({
    * two are normally the same compile apart, but a reply is the only evidence
    * the project landed, and the watchdog below retries on the gap between them.
    */
-  const ackedRef = useRef<SandpackFiles>(project.files);
+  const ackedRef = useRef<SandpackFiles>(projectFiles);
 
   /** The last moment the bundler said anything at all. */
   const lastReplyRef = useRef(0);
@@ -391,33 +449,15 @@ function Sandbox({
   const retryCountRef = useRef(0);
 
   /**
-   * Re-latch whenever the boot key changes.
+   * The project as it stands, kept current by the sync.
    *
-   * A dependency change (or a manual reload through `reloadKey`) remounts the
-   * provider via `key`, and it has to boot from the project as it is *now* —
-   * not from whatever it booted with the first time.
-   *
-   * Doing this during render rather than in an effect is the whole point:
-   * effects run child-first, so the bridge's sync fires before a parent effect
-   * could run, sees `pushedRef` still holding the pre-remount project, finds no
-   * diff and drops the update — leaving the sandbox on its stale boot build
-   * until the author types again. Re-latching here means the fresh boot is
-   * already current, and that first sync is a correct no-op instead of a
-   * redundant recompile.
+   * The compile that is scheduled now has to carry the project as it is when
+   * it fires, not the one that was current when it was scheduled — otherwise
+   * a burst of keystrokes would compile the first of them and leave the rest
+   * for the next round. The sync hands the project over on every render, so
+   * the value here is the one the author last typed.
    */
-  const bootKeyRef = useRef(bootKey);
-  if (bootKeyRef.current !== bootKey) {
-    bootKeyRef.current = bootKey;
-    bootRef.current = project.files;
-    pushedRef.current = project.files;
-    ackedRef.current = project.files;
-    retryCountRef.current = 0;
-    bootedRef.current = false;
-    lastSendRef.current = 0;
-  }
-
-  const projectRef = useRef(project);
-  projectRef.current = project;
+  const projectFilesRef = useRef<SandpackFiles>(projectFiles);
 
   const pushProject = useCallback((api: SandpackApi, next: SandpackFiles) => {
     if (!differs(pushedRef.current, next)) return;
@@ -489,12 +529,12 @@ function Sandbox({
       const lastHeard = Math.max(lastReplyRef.current, lastSendRef.current);
       if (Date.now() - lastHeard < ACK_TIMEOUT) return;
       if (retryCountRef.current >= ACK_RETRIES) return;
-      if (!differs(ackedRef.current, projectRef.current.files)) return;
+      if (!differs(ackedRef.current, projectFilesRef.current)) return;
       if (!apiRef.current) return;
 
       retryCountRef.current += 1;
       console.warn("[sandpack] the bundler never answered; resending the project");
-      pushProject(apiRef.current, projectRef.current.files);
+      pushProject(apiRef.current, projectFilesRef.current);
     }, 1000);
     return () => window.clearInterval(timer);
   }, [pushProject]);
@@ -517,7 +557,7 @@ function Sandbox({
     const api = pendingRef.current;
     if (!api) return;
     lastCompileRef.current = Date.now();
-    pushProject(api, projectRef.current.files);
+    pushProject(api, projectFilesRef.current);
   }, [pushProject]);
 
   // A queued compile must not outlive the pane: the client it names will be
@@ -530,12 +570,14 @@ function Sandbox({
   );
 
   const handleSync = useCallback(
-    (api: SandpackApi) => {
+    (api: SandpackApi, files: SandpackFiles) => {
+      // The project as it stands, handed over by the render that produced it.
+      projectFilesRef.current = files;
       apiRef.current = api;
       pendingRef.current = api;
 
       // Nothing to compile is nothing to schedule.
-      if (!differs(pushedRef.current, projectRef.current.files)) return;
+      if (!differs(pushedRef.current, files)) return;
 
       // A window is already open, and it will pick this up.
       if (timerRef.current !== null) return;
@@ -556,9 +598,8 @@ function Sandbox({
 
   return (
     <SandpackProvider
-      key={bootKey}
       template={SANDBOX_TEMPLATE}
-      files={bootRef.current}
+      files={bootFiles}
       customSetup={customSetup}
       theme={theme}
       options={PROVIDER_OPTIONS}
@@ -576,7 +617,7 @@ function Sandbox({
         showNavigator={false}
       />
 
-      <SandboxBridge onSync={handleSync} />
+      <SandboxBridge projectFiles={projectFiles} onSync={handleSync} />
     </SandpackProvider>
   );
 }

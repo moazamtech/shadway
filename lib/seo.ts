@@ -236,24 +236,6 @@ function generateUniqueWebsiteDescription(website: Website): string {
   return selected.length > 160 ? selected.substring(0, 160) + '...' : selected
 }
 
-function getCategoryDescription(category: string): string {
-  const categoryDescriptions: { [key: string]: string } = {
-    'dashboard': 'admin dashboard',
-    'saas': 'SaaS application',
-    'ecommerce': 'e-commerce platform',
-    'blog': 'blogging platform',
-    'portfolio': 'portfolio website',
-    'landing page': 'landing page',
-    'app': 'web application',
-    'marketplace': 'marketplace platform',
-    'community': 'community platform',
-    'analytics': 'analytics dashboard',
-    'social': 'social network'
-  }
-
-  return categoryDescriptions[category.toLowerCase()] || category
-}
-
 export function generateCategoryPageSEO(category: string, count: number): Metadata {
   const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1)
 

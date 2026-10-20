@@ -79,6 +79,18 @@ import {
 // Provider Context & Types
 // ============================================================================
 
+/**
+ * A file part without the id the attachment list minted for it.
+ *
+ * The id belongs to the list rather than to the message: it is what React
+ * keys the row by, and the parts handed to `onSubmit` are plain file parts.
+ */
+function withoutLocalId(file: FileUIPart & { id: string }): FileUIPart {
+  const part: FileUIPart & { id?: string } = { ...file };
+  delete part.id;
+  return part;
+}
+
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
@@ -284,6 +296,7 @@ export function PromptInputAttachment({
       {...props}
     >
       {mediaType === "image" ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           alt={data.filename || "attachment"}
           className="size-full rounded-md object-cover"
@@ -554,36 +567,57 @@ export const PromptInput = ({
     [matchesAccept, maxFiles, maxFileSize, onError]
   );
 
-  const add = usingProvider
-    ? (files: File[] | FileList) => controller.attachments.add(files)
-    : addLocal;
+  // The provider and the local list answer the same four questions, so the
+  // four functions are chosen once and kept. A new function on every render
+  // would make every effect that depends on them run again on every render,
+  // and would hand the surrounding context a new object each time, so the
+  // whole tree underneath would redraw for nothing.
+  const add = useMemo(
+    () =>
+      usingProvider
+        ? (files: File[] | FileList) => controller.attachments.add(files)
+        : addLocal,
+    [usingProvider, controller, addLocal]
+  );
 
-  const remove = usingProvider
-    ? (id: string) => controller.attachments.remove(id)
-    : (id: string) =>
-        setItems((prev) => {
-          const found = prev.find((file) => file.id === id);
-          if (found?.url) {
-            URL.revokeObjectURL(found.url);
-          }
-          return prev.filter((file) => file.id !== id);
-        });
+  const remove = useMemo(
+    () =>
+      usingProvider
+        ? (id: string) => controller.attachments.remove(id)
+        : (id: string) =>
+            setItems((prev) => {
+              const found = prev.find((file) => file.id === id);
+              if (found?.url) {
+                URL.revokeObjectURL(found.url);
+              }
+              return prev.filter((file) => file.id !== id);
+            }),
+    [usingProvider, controller]
+  );
 
-  const clear = usingProvider
-    ? () => controller.attachments.clear()
-    : () =>
-        setItems((prev) => {
-          for (const file of prev) {
-            if (file.url) {
-              URL.revokeObjectURL(file.url);
-            }
-          }
-          return [];
-        });
+  const clear = useMemo(
+    () =>
+      usingProvider
+        ? () => controller.attachments.clear()
+        : () =>
+            setItems((prev) => {
+              for (const file of prev) {
+                if (file.url) {
+                  URL.revokeObjectURL(file.url);
+                }
+              }
+              return [];
+            }),
+    [usingProvider, controller]
+  );
 
-  const openFileDialog = usingProvider
-    ? () => controller.attachments.openFileDialog()
-    : openFileDialogLocal;
+  const openFileDialog = useMemo(
+    () =>
+      usingProvider
+        ? () => controller.attachments.openFileDialog()
+        : openFileDialogLocal,
+    [usingProvider, controller, openFileDialogLocal]
+  );
 
   // Let provider know about our hidden file input so external menus can call openFileDialog()
   useEffect(() => {
@@ -708,7 +742,8 @@ export const PromptInput = ({
 
     // Convert blob URLs to data URLs asynchronously
     Promise.all(
-      files.map(async ({ id, ...item }) => {
+      files.map(async (file) => {
+        const item = withoutLocalId(file);
         if (item.url && item.url.startsWith("blob:")) {
           return {
             ...item,
@@ -740,7 +775,7 @@ export const PromptInput = ({
             controller.textInput.clear();
           }
         }
-      } catch (error) {
+      } catch {
         // Don't clear on error - user may want to retry
       }
     });
@@ -1142,7 +1177,14 @@ export const PromptInputSpeechButton = ({
       };
 
       recognitionRef.current = speechRecognition;
-      setRecognition(speechRecognition);
+
+      // The button becomes usable once the recogniser exists. The answer
+      // belongs to the browser rather than to the setup, so it is handed
+      // over after the effect has finished rather than from inside it.
+      void Promise.resolve().then(() => {
+        if (recognitionRef.current !== speechRecognition) return;
+        setRecognition(speechRecognition);
+      });
     }
 
     return () => {

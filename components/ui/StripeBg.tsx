@@ -60,9 +60,11 @@ export function StripeBgGuides({
       : columnCount
     return [...Array(count)]
   }, [columnCount, responsive, windowWidth, minColumnWidth])
-  const [activeColumns, setActiveColumns] = useState<boolean[]>(
-    columns.map(() => true)
-  )
+  const [randomized, setRandomized] = useState<{
+    source: boolean[]
+    active: boolean[]
+  } | null>(null)
+  const allActive = useMemo(() => columns.map(() => true), [columns])
   const getRandomColumns = useCallback(() => {
     const newActiveColumns = columns.map(() => Math.random() < 0.5)
     const activeCount = newActiveColumns.filter(Boolean).length
@@ -86,18 +88,24 @@ export function StripeBgGuides({
     }
   }, [])
   useEffect(() => {
-    setActiveColumns(columns.map(() => true))
-  }, [columns])
-  useEffect(() => {
-    if (randomize && animated) {
-      const intervalId = setInterval(() => {
-        setActiveColumns(getRandomColumns())
-      }, randomInterval)
-      return () => clearInterval(intervalId)
-    } else {
-      setActiveColumns(columns.map(() => true))
-    }
+    if (!randomize || !animated) return
+    const intervalId = setInterval(() => {
+      setRandomized({ source: columns, active: getRandomColumns() })
+    }, randomInterval)
+    return () => clearInterval(intervalId)
   }, [randomize, animated, randomInterval, getRandomColumns, columns])
+  // Which columns are lit.
+  //
+  // A draw belongs to the columns it was made for. When the columns change,
+  // or when the lights are not meant to wander at all, every column is lit
+  // again and the draw is forgotten; the next draw replaces it. Working it
+  // out here keeps the answer in one place, instead of letting an effect
+  // write the answer down and a later render read it back.
+  const activeColumns = useMemo(() => {
+    if (!randomize || !animated) return allActive
+    if (!randomized || randomized.source !== columns) return allActive
+    return randomized.active
+  }, [randomize, animated, allActive, randomized, columns])
   const getAnimationVariants = useCallback(() => {
     const variants = {
       "top-to-bottom": {

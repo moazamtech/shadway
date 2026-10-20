@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       if (!response.ok)
         throw new Error(`Fetch blocked: ${response.status} ${response.statusText}`);
       html = await response.text();
-    } catch (err) {
+    } catch {
       console.warn(`Fetch failed for ${normalizedUrl}. Using Puppeteer fallback...`);
       html = ''; // we won't fallback to puppeteer here (handled in screenshot logic)
     }

@@ -1,11 +1,9 @@
-import { type ReactNode, useEffect, useState, useRef } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
   GrainGradient,
-  StaticRadialGradient,
   Dithering,
-  GodRays,
 } from "@paper-design/shaders-react";
 import React from "react";
 

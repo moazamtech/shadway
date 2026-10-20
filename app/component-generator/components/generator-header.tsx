@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Code2Icon,
-  Maximize2Icon,
-  Minimize2Icon,
   XIcon,
   Zap,
 } from "lucide-react";

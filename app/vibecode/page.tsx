@@ -69,21 +69,29 @@ export default function VibecodePage() {
     });
   }, [items, query, activeCategory]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [query, activeCategory]);
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  // A search that matches fewer items leaves the page number pointing past
+  // the end of the list. The page on screen is the one that exists, and the
+  // number kept in state is corrected the moment the reader moves, so the
+  // pager never offers a page the gallery cannot fill.
+  const page = Math.min(currentPage, totalPages);
   const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const start = (page - 1) * ITEMS_PER_PAGE;
     return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, currentPage]);
+  }, [filtered, page]);
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  // A narrower search starts again from the first page. The reset belongs to
+  // the search that caused it, not to an effect that has to notice the
+  // search afterwards and correct the page in a second pass.
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    setCurrentPage(1);
+  };
+
+  const changeCategory = (next: string) => {
+    setActiveCategory(next);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -116,7 +124,7 @@ export default function VibecodePage() {
                     <Search className="mr-2.5 h-4 w-4 text-muted-foreground" />
                     <input
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => changeQuery(e.target.value)}
                       placeholder="Search components..."
                       className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/70"
                     />
@@ -131,7 +139,7 @@ export default function VibecodePage() {
                     {categories.map((category) => (
                       <button
                         key={category}
-                        onClick={() => setActiveCategory(category)}
+                        onClick={() => changeCategory(category)}
                         className={`
                           px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border
                           ${
@@ -218,21 +226,19 @@ export default function VibecodePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
                     >
                       Previous
                     </Button>
                     <span className="px-3 py-1 text-xs font-mono text-muted-foreground">
-                      Page {currentPage} / {totalPages}
+                      Page {page} / {totalPages}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(Math.min(totalPages, page + 1))}
+                      disabled={page === totalPages}
                     >
                       Next
                     </Button>

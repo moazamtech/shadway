@@ -84,8 +84,10 @@ export function LoginForm() {
         callbackUrl ??
         (session?.user?.role === "admin" ? "/admin/dashboard" : "/studio");
 
-      // Full navigation so the new session cookie is picked up by middleware.
-      window.location.href = destination;
+      // A client-side navigation: the session cookie was set by the sign-in
+      // above, and the browser carries it either way. The full load bought
+      // nothing but a flash of the page on the way out.
+      router.replace(destination);
     } catch {
       setFormError("Something went wrong. Please try again.");
       setIsLoading(false);

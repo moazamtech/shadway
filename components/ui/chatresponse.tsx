@@ -11,11 +11,6 @@ import {
   CodeBlockHeader,
   CodeBlockItem,
   type CodeBlockProps,
-  CodeBlockSelect,
-  CodeBlockSelectContent,
-  CodeBlockSelectItem,
-  CodeBlockSelectTrigger,
-  CodeBlockSelectValue,
 } from '@/components/codeblock';
 import type { HTMLAttributes, ReactElement, ReactNode } from 'react';
 import React, { isValidElement, memo, useEffect } from 'react';
@@ -25,9 +20,6 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { cn } from '@/lib/utils';
 import 'katex/dist/katex.min.css';
-
-// Custom CSS for chat scrolling and VS Code-like styles
-const chatStyles = ""; // Moved to global CSS
 
 // Type definitions
 interface CodeElementProps {
@@ -95,78 +87,93 @@ const getFilename = (lang: string, code: string): string => {
   return filenameMap[detectedLang] || 'Component.tsx';
 };
 
+/**
+ * The DOM attributes for one markdown element.
+ *
+ * `react-markdown` hands every renderer the `node` it built the element from,
+ * and a DOM element cannot take it: spread onto an `<ol>` it becomes an
+ * unknown attribute, and React complains about it in the console of every
+ * reader who opens a chat. The renderer signature is fixed, so the node is
+ * taken off here rather than left in the props the element is given.
+ */
+function domProps(props: CodeElementProps): Omit<CodeElementProps, "className" | "children"> {
+  const rest = { ...props };
+  delete rest.node;
+  return rest;
+}
+
 // Type-safe React Markdown components
 const components: Components = {
-  ol: ({ node, children, className, ...props }: CodeElementProps) => (
-    <ol className={cn('ml-6 list-decimal space-y-2 my-4 text-foreground/90', className)} {...props}>
+  ol: ({ children, className, ...props }: CodeElementProps) => (
+    <ol className={cn('ml-6 list-decimal space-y-2 my-4 text-foreground/90', className)} {...domProps(props)}>
       {children}
     </ol>
   ),
 
-  li: ({ node, children, className, ...props }: CodeElementProps) => (
-    <li className={cn('pl-2 leading-relaxed text-foreground/90', className)} {...props}>
+  li: ({ children, className, ...props }: CodeElementProps) => (
+    <li className={cn('pl-2 leading-relaxed text-foreground/90', className)} {...domProps(props)}>
       {children}
     </li>
   ),
 
-  ul: ({ node, children, className, ...props }: CodeElementProps) => (
-    <ul className={cn('ml-6 list-disc space-y-2 my-4 text-foreground/90', className)} {...props}>
+  ul: ({ children, className, ...props }: CodeElementProps) => (
+    <ul className={cn('ml-6 list-disc space-y-2 my-4 text-foreground/90', className)} {...domProps(props)}>
       {children}
     </ul>
   ),
 
-  strong: ({ node, children, className, ...props }: CodeElementProps) => (
-    <strong className={cn('font-semibold text-foreground', className)} {...props}>
+  strong: ({ children, className, ...props }: CodeElementProps) => (
+    <strong className={cn('font-semibold text-foreground', className)} {...domProps(props)}>
       {children}
     </strong>
   ),
 
-  a: ({ node, children, className, href, ...props }: CodeElementProps & { href?: string }) => (
+  a: ({ children, className, href, ...props }: CodeElementProps & { href?: string }) => (
     <a
       className={cn('font-medium text-primary underline decoration-primary/30 hover:decoration-primary/100 transition-colors', className)}
       rel="noreferrer"
       target="_blank"
       href={href}
-      {...props}
+      {...domProps(props)}
     >
       {children}
     </a>
   ),
 
-  h1: ({ node, children, className, ...props }: CodeElementProps) => (
+  h1: ({ children, className, ...props }: CodeElementProps) => (
     <h1
       className={cn('mt-8 mb-4 font-bold text-3xl text-foreground tracking-tight', className)}
-      {...props}
+      {...domProps(props)}
     >
       {children}
     </h1>
   ),
 
-  h2: ({ node, children, className, ...props }: CodeElementProps) => (
+  h2: ({ children, className, ...props }: CodeElementProps) => (
     <h2
       className={cn('mt-8 mb-4 font-bold text-2xl text-foreground tracking-tight border-b border-border/40 pb-2', className)}
-      {...props}
+      {...domProps(props)}
     >
       {children}
     </h2>
   ),
 
-  h3: ({ node, children, className, ...props }: CodeElementProps) => (
-    <h3 className={cn('mt-6 mb-3 font-semibold text-xl text-foreground tracking-tight', className)} {...props}>
+  h3: ({ children, className, ...props }: CodeElementProps) => (
+    <h3 className={cn('mt-6 mb-3 font-semibold text-xl text-foreground tracking-tight', className)} {...domProps(props)}>
       {children}
     </h3>
   ),
 
-  p: ({ node, children, className, ...props }: CodeElementProps) => (
-    <p className={cn('mb-4 leading-relaxed text-foreground font-sans tracking-tight', className)} {...props}>
+  p: ({ children, className, ...props }: CodeElementProps) => (
+    <p className={cn('mb-4 leading-relaxed text-foreground font-sans tracking-tight', className)} {...domProps(props)}>
       {children}
     </p>
   ),
 
-  blockquote: ({ node, children, className, ...props }: CodeElementProps) => (
+  blockquote: ({ children, className, ...props }: CodeElementProps) => (
     <blockquote
       className={cn('border-l-4 border-primary/50 pl-6 py-2 my-6 bg-muted/30 italic text-muted-foreground', className)}
-      {...props}
+      {...domProps(props)}
     >
       {children}
     </blockquote>
@@ -225,7 +232,6 @@ const components: Components = {
           </CodeBlockFiles>
           <div className="flex items-center gap-2">
             <CodeBlockCopyButton
-              onCopy={() => {}}
               className="text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
             />
           </div>
@@ -246,52 +252,52 @@ const components: Components = {
     );
   },
 
-  table: ({ node, children, className, ...props }: CodeElementProps) => (
+  table: ({ children, className, ...props }: CodeElementProps) => (
     <div className="my-6 overflow-x-auto rounded-lg border border-border/40">
-      <table className={cn('w-full border-collapse', className)} {...props}>
+      <table className={cn('w-full border-collapse', className)} {...domProps(props)}>
         {children}
       </table>
     </div>
   ),
 
-  thead: ({ node, children, className, ...props }: CodeElementProps) => (
-    <thead className={cn('bg-muted/40 border-b border-border/40', className)} {...props}>
+  thead: ({ children, className, ...props }: CodeElementProps) => (
+    <thead className={cn('bg-muted/40 border-b border-border/40', className)} {...domProps(props)}>
       {children}
     </thead>
   ),
 
-  tr: ({ node, children, className, ...props }: CodeElementProps) => (
-    <tr className={cn('border-b border-border/20 hover:bg-muted/20 transition-colors', className)} {...props}>
+  tr: ({ children, className, ...props }: CodeElementProps) => (
+    <tr className={cn('border-b border-border/20 hover:bg-muted/20 transition-colors', className)} {...domProps(props)}>
       {children}
     </tr>
   ),
 
-  th: ({ node, children, className, ...props }: CodeElementProps) => (
-    <th className={cn('px-4 py-3 text-left font-semibold text-foreground text-sm', className)} {...props}>
+  th: ({ children, className, ...props }: CodeElementProps) => (
+    <th className={cn('px-4 py-3 text-left font-semibold text-foreground text-sm', className)} {...domProps(props)}>
       {children}
     </th>
   ),
 
-  td: ({ node, children, className, ...props }: CodeElementProps) => (
-    <td className={cn('px-4 py-3 text-foreground/80 text-sm', className)} {...props}>
+  td: ({ children, className, ...props }: CodeElementProps) => (
+    <td className={cn('px-4 py-3 text-foreground/80 text-sm', className)} {...domProps(props)}>
       {children}
     </td>
   ),
 
-  code: ({ node, children, className, ...props }: CodeElementProps) => (
+  code: ({ children, className, ...props }: CodeElementProps) => (
     <code
       className={cn(
         'rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[0.9em] font-medium text-foreground',
         className
       )}
-      {...props}
+      {...domProps(props)}
     >
       {children}
     </code>
   ),
 
-  hr: ({ node, className, ...props }: CodeElementProps) => (
-    <hr className={cn('my-8 border-border/40', className)} {...props} />
+  hr: ({ className, ...props }: CodeElementProps) => (
+    <hr className={cn('my-8 border-border/40', className)} {...domProps(props)} />
   ),
 };
 

@@ -35,10 +35,7 @@ export function useCyclePhase({ active, cycleMsBase, speed = 1 }: UseCyclePhaseO
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    if (!active) {
-      setPhase(0);
-      return;
-    }
+    if (!active) return;
 
     const safeSpeed = speed > 0 ? speed : 1;
     const raw = cycleMsBase / safeSpeed;
@@ -53,7 +50,15 @@ export function useCyclePhase({ active, cycleMsBase, speed = 1 }: UseCyclePhaseO
     };
 
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      // The run is over, so the phase rests at the top. Resetting it when
+      // the run ends rather than when the next one is asked for keeps the
+      // resting value out of the effect that starts the cycle: an effect
+      // that has to write the answer down before it can stop makes every
+      // render that follows it wait for a second pass.
+      setPhase(0);
+    };
   }, [active, cycleMsBase, speed]);
 
   return phase;
@@ -124,7 +129,6 @@ export function useSteppedCycle({
     if (!active) {
       activeRef.current = false;
       currentStepRef.current = idleStep;
-      setStep(idleStep);
       return;
     }
 
@@ -143,7 +147,14 @@ export function useSteppedCycle({
     };
 
     updateStep(performance.now());
-    return subscribeFrame(updateStep);
+    const stop = subscribeFrame(updateStep);
+    return () => {
+      stop();
+      // The run is over, so the step rests where a stopped run rests.
+      // Resetting it at the end of the run keeps the effect that watches
+      // the clock free of any work of its own.
+      setStep(idleStep);
+    };
   }, [active, cycleMs, idleStep, safeSteps, stepMs]);
 
   return active ? step : idleStep;

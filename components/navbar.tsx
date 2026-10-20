@@ -105,7 +105,7 @@ export function Navbar() {
                           alt="Shadway Logo"
                         />
                         <div className="flex flex-col">
-                          <span className="font-bold text-lg text-foreground leading-none">
+                          <span className="text-sm font-semibold tracking-tight text-foreground leading-none">
                             Shadway
                           </span>
                         </div>
@@ -115,7 +115,7 @@ export function Navbar() {
 
                   {/* Navigation Links */}
                   <div
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl backdrop-blur-md transition-all duration-300 ${
+                    className={`flex items-center space-x-2 px-6 py-2 rounded-xl backdrop-blur-md transition-all duration-300 ${
                       isScrolled
                         ? "bg-background/60 border border-border/30"
                         : "bg-background/40 border border-border/20"
@@ -140,7 +140,7 @@ export function Navbar() {
                       <DropdownMenuContent
                         align="center"
                         sideOffset={8}
-                        className="w-80 rounded-xl p-1.5"
+                        className="w-80 rounded-xl"
                       >
                         {resourceItems.map((item) => {
                           const Icon = item.icon;
@@ -148,14 +148,14 @@ export function Navbar() {
                             <DropdownMenuItem
                               key={item.name}
                               asChild
-                              className="group/item items-start gap-3 rounded-lg px-2.5 py-2.5"
+                              className="cursor-pointer items-start gap-3 px-2.5 py-2.5"
                             >
                               <Link href={item.href}>
-                                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover/item:bg-primary/20">
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                                   <Icon className="size-4 text-primary" />
                                 </span>
                                 <span className="flex min-w-0 flex-col gap-1">
-                                  <span className="text-sm font-medium leading-none transition-colors group-hover/item:text-primary">
+                                  <span className="text-sm font-medium leading-none">
                                     {item.name}
                                   </span>
                                   <span className="text-xs leading-relaxed text-muted-foreground">
@@ -217,7 +217,7 @@ export function Navbar() {
                   {/* Mobile Logo */}
                   <Link href="/">
                     <div
-                      className={`flex items-center space-x-2 backdrop-blur-xl rounded-2xl px-3 py-2 border shadow-lg transition-all duration-500 cursor-pointer ${
+                      className={`flex items-center space-x-2 backdrop-blur-xl rounded-xl px-3 py-2 border shadow-sm transition-all duration-500 cursor-pointer ${
                         isScrolled
                           ? "bg-background/20 border-border/10"
                           : "bg-background/40 border-border/20"
@@ -229,7 +229,7 @@ export function Navbar() {
                         height={42}
                         alt="Shadway Logo"
                       />
-                      <span className="font-bold text-base text-foreground">
+                      <span className="text-sm font-semibold tracking-tight text-foreground">
                         Shadway
                       </span>
                     </div>
@@ -242,7 +242,7 @@ export function Navbar() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-10 px-3 backdrop-blur-xl border transition-all duration-300 rounded-2xl shadow-lg ${
+                        className={`h-10 px-3 backdrop-blur-xl border transition-all duration-300 rounded-xl shadow-sm ${
                           isScrolled
                             ? "bg-background/20 border-border/10 hover:bg-background/40"
                             : "bg-background/40 border-border/20 hover:bg-background/60"
@@ -271,7 +271,7 @@ export function Navbar() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-10 w-10 backdrop-blur-xl border transition-all duration-300 rounded-2xl shadow-lg ${
+                        className={`h-10 w-10 backdrop-blur-xl border transition-all duration-300 rounded-xl shadow-sm ${
                           isScrolled
                             ? "bg-background/20 border-border/10 hover:bg-background/40"
                             : "bg-background/40 border-border/20 hover:bg-background/60"
@@ -301,7 +301,7 @@ export function Navbar() {
                   }`}
                 >
                   <div
-                    className={`flex flex-col gap-2 backdrop-blur-xl rounded-2xl p-3 border shadow-lg transition-all duration-500 ${
+                    className={`flex flex-col gap-2 backdrop-blur-xl rounded-xl p-3 border shadow-sm transition-all duration-500 ${
                       isScrolled
                         ? "bg-background/20 border-border/10"
                         : "bg-background/40 border-border/20"

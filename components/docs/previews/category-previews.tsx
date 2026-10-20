@@ -2,15 +2,8 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { 
-  Layers, 
-  Layout, 
-  Grid, 
-  Lock, 
-  Sidebar, 
-  BarChart, 
-  Table as TableIcon,
-  Terminal,
+import {
+  Lock,
   Sparkles,
   Image as ImageIcon,
   UploadCloud,

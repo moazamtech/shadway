@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, DollarSign, Globe, Code } from "lucide-react";
+import { Loader2, Code } from "lucide-react";
 import { Template, TemplateFormData } from "@/lib/types";
 import { fetchSiteMetadata } from "@/lib/metadata-fetcher";
 
@@ -220,6 +220,7 @@ export function TemplateFormDialog({
             {/* Image Preview */}
             <div className="mt-2">
               {formData.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={formData.image}
                   alt="Template preview"

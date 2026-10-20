@@ -69,29 +69,10 @@ function log(label: string, ok: boolean, extra = "") {
   if (!ok) failures += 1;
 }
 
-interface TestUser {
-  email: string;
-  password: string;
-  name: string;
-  id: string;
-  jar: CookieJar;
-}
-
 interface SessionPayload {
   user?: {
     id?: string;
   };
-}
-
-async function register(email: string, password: string, name: string) {
-  const res = await fetch(`${BASE}/api/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, name }),
-  });
-  if (!res.ok) throw new Error(`register ${email}: ${res.status}`);
-  const data = await res.json();
-  return String(data.id);
 }
 
 async function login(email: string, password: string): Promise<CookieJar> {
@@ -142,8 +123,6 @@ async function login(email: string, password: string): Promise<CookieJar> {
 
 async function main() {
   const clientState = await connectToDatabase();
-  let owner: TestUser | null = null;
-  const other: TestUser | null = null;
   let slug: string | null = null;
 
   try {
@@ -177,7 +156,6 @@ async function main() {
   const otherId = otherIns.insertedId.toString();
 
     await login(ownerEmail, password);
-    owner = { email: ownerEmail, password, name: "QA Owner", id: ownerId, jar };
 
     const sessionRes = await request("/api/auth/session");
     const sessionJson = await sessionRes.json().catch(() => ({}));

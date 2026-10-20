@@ -432,7 +432,7 @@ export const CodeBlockFilename = ({
   const { value: activeValue } = useContext(CodeBlockContext);
   const defaultIcon = Object.entries(filenameIconMap).find(([pattern]) => {
     const regex = new RegExp(
-      `^$\{pattern.replace(/\\/g, '\\\\').replace(/\./g, '\\.').replace(/\*/g, '.*')\}$`
+      `^${pattern.replace(/\\/g, '\\\\').replace(/\./g, '\\.').replace(/\*/g, '.*')}$`
     );
     return regex.test(children as string);
   })?.[1];
@@ -444,7 +444,10 @@ export const CodeBlockFilename = ({
 
   return (
     <div
-      className="flex items-center gap-2 bg-secondary px-4 py-1.5 text-muted-foreground text-xs"
+      className={cn(
+        'flex items-center gap-2 bg-secondary px-4 py-1.5 text-muted-foreground text-xs',
+        className
+      )}
       {...props}
     >
       {Icon && <Icon className="h-4 w-4 shrink-0" />}

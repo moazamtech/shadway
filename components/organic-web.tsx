@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
     motion,
     useSpring,
@@ -37,6 +37,43 @@ type CrossData = {
     opacity: number;
 };
 
+/**
+ * The strands, scattered.
+ *
+ * A web is not laid out, it is thrown: every strand gets its own drift,
+ * weight and thickness. That scattering is not something a render may do,
+ * because a render that scatters draws a different web every time it runs
+ * and the strands would crawl under the reader's eyes. The strands are
+ * drawn once, when the rope is measured, and drawn again only when the
+ * rope changes height.
+ */
+function drawFan(height: number): StrandData[] {
+    return Array.from({ length: 30 }).map(() => ({
+        yOffset: (Math.random() - 0.5) * (height * 1.3),
+        controlOffset: (Math.random() - 0.5) * 120,
+        thickness: 3 + Math.random() * 5, // THICKER (3-8px)
+        splitPercent: 0.55 + Math.random() * 0.2,
+        opacity: 0.85 + Math.random() * 0.15 // High opacity
+    }));
+}
+
+/**
+ * The threads crossing to the far edge.
+ *
+ * These are drawn once and stay: they belong to the web rather than to the
+ * rope, so they keep their shape while the rope is dragged around.
+ */
+function drawWebbing(): CrossData[] {
+    return Array.from({ length: 18 }).map(() => ({
+        startX: 0.65 + Math.random() * 0.25,
+        startY: (Math.random() - 0.5) * 300,
+        endX: 0.75 + Math.random() * 0.25,
+        endY: (Math.random() - 0.5) * 400,
+        thickness: 1.5 + Math.random() * 3, // THICKER
+        opacity: 0.6 + Math.random() * 0.4
+    }));
+}
+
 export const OrganicWeb: React.FC<OrganicWebProps> = ({
     viewport,
     isDragging,
@@ -45,25 +82,40 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 1000, height: 600 });
+    // The strands belong to a height, and the height starts at -1 because
+    // there is no height yet: the first measurement always finds one that
+    // differs, so the web is drawn rather than left empty.
+    const [fan, setFan] = useState<{ height: number; strands: StrandData[] }>({
+        height: -1,
+        strands: []
+    });
+    const [webbing, setWebbing] = useState<CrossData[]>([]);
 
     // Use ResizeObserver for accurate sizing
     useEffect(() => {
-        if (!containerRef.current) return;
-        setDimensions({
-            width: containerRef.current.clientWidth || 1000,
-            height: containerRef.current.clientHeight || 600
-        });
+        const container = containerRef.current;
+        if (!container) return;
+
+        const measure = (width: number, height: number) => {
+            setDimensions({ width, height });
+            setFan((previous) =>
+                previous.height === height
+                    ? previous
+                    : { height, strands: drawFan(height) }
+            );
+        };
+
+        measure(container.clientWidth || 1000, container.clientHeight || 600);
+        setWebbing(drawWebbing());
+
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 if (entry.contentRect.width > 0) {
-                    setDimensions({
-                        width: entry.contentRect.width,
-                        height: entry.contentRect.height
-                    });
+                    measure(entry.contentRect.width, entry.contentRect.height);
                 }
             }
         });
-        observer.observe(containerRef.current);
+        observer.observe(container);
         return () => observer.disconnect();
     }, []);
 
@@ -71,7 +123,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
 
     // --- Physics Logic ---
     const widthMV = useMotionValue(dimensions.width);
-    useEffect(() => widthMV.set(dimensions.width), [dimensions.width]);
+    useEffect(() => widthMV.set(dimensions.width), [dimensions.width, widthMV]);
 
     const active = isDragging || isPulling;
     const animationRef = useRef<AnimationPlaybackControls | null>(null);
@@ -101,7 +153,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
                 });
             }
         }
-    }, [viewport, active, dimensions.width]);
+    }, [viewport, active, dimensions.width, handleX]);
 
     const handleY = dimensions.height / 2;
 
@@ -128,31 +180,6 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
         }
         return 1;
     });
-
-    // Splatter - Always visible
-    const messOpacity = 1.0;
-
-    // --- Splatter Data ---
-    const splatterFan = useMemo(() => {
-        return Array.from({ length: 30 }).map(() => ({
-            yOffset: (Math.random() - 0.5) * (dimensions.height * 1.3),
-            controlOffset: (Math.random() - 0.5) * 120,
-            thickness: 3 + Math.random() * 5, // THICKER (3-8px)
-            splitPercent: 0.55 + Math.random() * 0.2,
-            opacity: 0.85 + Math.random() * 0.15 // High opacity
-        }));
-    }, [dimensions.height]);
-
-    const crossWebbing = useMemo(() => {
-        return Array.from({ length: 18 }).map(() => ({
-            startX: 0.65 + Math.random() * 0.25,
-            startY: (Math.random() - 0.5) * 300,
-            endX: 0.75 + Math.random() * 0.25,
-            endY: (Math.random() - 0.5) * 400,
-            thickness: 1.5 + Math.random() * 3, // THICKER
-            opacity: 0.6 + Math.random() * 0.4
-        }));
-    }, []);
 
     // --- Main Rope Generator ---
     const mainRopePath = useTransform([handleX, sagX, widthMV], (values) => {
@@ -199,7 +226,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
                     />
 
                     {/* Splatter Fan - Always fully visible when web is active */}
-                    {splatterFan.map((strand, i) => (
+                    {fan.strands.map((strand, i) => (
                         <SplatterStrand
                             key={`strand-${i}`}
                             handleX={handleX}
@@ -212,7 +239,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
                     ))}
 
                     {/* Cross Webbing - Always fully visible when web is active */}
-                    {crossWebbing.map((web, i) => (
+                    {webbing.map((web, i) => (
                         <CrossWeb
                             key={`web-${i}`}
                             handleX={handleX}

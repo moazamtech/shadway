@@ -6,8 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   BadgeCheck,
   ExternalLink,
-  Eye,
-  Heart,
   Loader2,
   Package,
   Plus,

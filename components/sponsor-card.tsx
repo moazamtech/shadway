@@ -145,6 +145,7 @@ export function SponsorCard({ website, tier, index }: SponsorCardProps) {
 
             {/* Image Section */}
             <div className="relative h-48 overflow-hidden rounded-xl border border-white/10 bg-black/5 dark:bg-white/5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={website.image}
                 alt={`${website.name} preview`}

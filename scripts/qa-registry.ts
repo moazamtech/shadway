@@ -35,7 +35,6 @@ import { buildComponentBundle } from "../lib/preview/build";
 import { SHADCN_FILES } from "../lib/preview/template/bundle";
 import { installedPathFor } from "../lib/preview/shadcn-ui";
 import { compileProjectCssCached } from "../lib/preview/tailwind";
-import { BASE_PROJECT_FILES } from "../lib/preview/project-files";
 import { SANDBOX_PACKAGE_VERSIONS, collectNpmDependencies } from "../lib/studio/deps";
 import { buildSandpackProject } from "../lib/studio/sandpack";
 import { DEFAULT_STYLE_CODE } from "../lib/studio/starter";

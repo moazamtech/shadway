@@ -9,7 +9,7 @@ export function addRefParameter(url: string, ref: string = 'shadway'): string {
     const urlObj = new URL(url)
     urlObj.searchParams.set('ref', ref)
     return urlObj.toString()
-  } catch (error) {
+  } catch {
     // If URL parsing fails, append parameter manually
     const separator = url.includes('?') ? '&' : '?'
     return `${url}${separator}ref=${encodeURIComponent(ref)}`

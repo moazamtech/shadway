@@ -15,9 +15,7 @@ import { MongoClient, Db } from "mongodb";
  */
 
 declare global {
-  // eslint-disable-next-line no-var
   var __shadwayMongoClient: MongoClient | undefined;
-  // eslint-disable-next-line no-var
   var __shadwayMongoPromise: Promise<MongoClient> | undefined;
 }
 

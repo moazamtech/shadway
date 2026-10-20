@@ -191,7 +191,7 @@ export function WebsiteReorderDialog({
                   </Button>
                 </div>
               ) : (
-                (searchTerm ? filteredWebsites : reorderedWebsites).map((website, index) => {
+                (searchTerm ? filteredWebsites : reorderedWebsites).map((website) => {
                   // Get the actual index in the full list for proper reordering
                   const actualIndex = reorderedWebsites.findIndex(w => w._id === website._id);
                   return (

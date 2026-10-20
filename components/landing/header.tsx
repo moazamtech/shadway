@@ -55,10 +55,10 @@ export function LandingHeader() {
           isSticky ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >
-        <div className="flex h-16 items-center justify-between bg-background px-6 md:bg-transparent lg:px-12">
+        <div className="flex h-14 items-center justify-between bg-background px-4 md:bg-transparent lg:px-8">
           <Link href="/" className="flex items-center gap-2.5">
             <Image src="/logo.png" width={22} height={22} alt="Shadway" />
-            <span className="font-serif text-lg tracking-tight">Shadway</span>
+            <span className="text-sm font-semibold tracking-tight">Shadway</span>
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
@@ -118,7 +118,7 @@ export function LandingHeader() {
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <nav className="flex flex-col gap-1 px-6 py-4">
+              <nav className="flex flex-col gap-1 px-4 py-4">
                 {NAV_LINKS.map((link) => (
                   <Link
                     key={link.href}
@@ -155,7 +155,7 @@ export function LandingHeader() {
             exit={{ y: -20 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
           >
-            <div className="relative transition-none overflow-hidden rounded-full border border-border/40 bg-background/70 shadow-lg shadow-primary/5 backdrop-blur-xl">
+            <div className="relative transition-none overflow-hidden rounded-full border border-border/40 bg-background/70 shadow-sm backdrop-blur-xl">
               {/* Top highlight */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-primary/30 to-transparent" />
 
@@ -238,7 +238,7 @@ export function LandingHeader() {
             <AnimatePresence>
               {mobileOpen && (
                 <motion.div
-                  className="mt-2 overflow-hidden rounded-2xl border border-border/40 bg-background/70 shadow-lg shadow-primary/5 backdrop-blur-xl md:hidden"
+                  className="mt-2 overflow-hidden rounded-xl border border-border/40 bg-background/70 shadow-sm backdrop-blur-xl md:hidden"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}

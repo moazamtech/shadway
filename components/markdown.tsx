@@ -249,6 +249,7 @@ const INITIAL_COMPONENTS: Partial<Components> = {
   // Images
   img: ({ src, alt, className, ...props }) => (
     <span className="my-4 block">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt || ""}

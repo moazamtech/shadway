@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -28,7 +28,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,7 +58,6 @@ export function ComponentDetailDialog({
   onOpenChange,
   saved,
   liked,
-  likeCount,
   onToggleSave,
   onToggleLike,
   onPrev,
@@ -70,7 +68,6 @@ export function ComponentDetailDialog({
   onOpenChange: (open: boolean) => void;
   saved: boolean;
   liked: boolean;
-  likeCount: number;
   onToggleSave: (slug: string) => void;
   onToggleLike: (slug: string) => void;
   /** Steps to the previous or next component in the grid. */
@@ -86,20 +83,50 @@ export function ComponentDetailDialog({
   const origin = useOrigin();
   const { resolvedTheme } = useTheme();
   const [copied, setCopied] = useState<string | null>(null);
-  const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
 
-  // Reset the copied state each time a new component opens.
+  /**
+   * The copied marker belongs to the showing it was made in.
+   *
+   * A dialog that is closed and opened again is a new showing, and the
+   * component on the stage may be another one entirely, so the marker is
+   * counted per showing rather than kept for the life of the component.
+   * React resets a value when something changes by comparing it with the value
+   * from the previous render, so the previous showing is what has to be kept —
+   * and the marker is cleared in the render that notices the change, before
+   * anything is committed.
+   */
+  const [showings, setShowings] = useState(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setShowings((count) => count + 1);
+  }
+
   const activeSlug = item?.slug;
-  useEffect(() => {
-    if (open) {
-      setCopied(null);
-    }
-  }, [open, activeSlug]);
+  const showing = `${showings}|${activeSlug ?? ""}`;
+  const [copiedShowing, setCopiedShowing] = useState(showing);
+  if (copiedShowing !== showing) {
+    setCopiedShowing(showing);
+    setCopied(null);
+  }
 
-  // The preview follows the site theme until the reader overrides it.
-  useEffect(() => {
-    if (resolvedTheme) setPreviewTheme(resolvedTheme === "dark" ? "dark" : "light");
-  }, [resolvedTheme]);
+  /**
+   * The preview follows the site theme until the reader overrides it.
+   *
+   * The override is remembered together with the theme it was made against, so
+   * the reader's own choice holds for as long as the site stays as it is and
+   * a change of the site theme takes the preview back — which is what the
+   * reader asked for when they switched the site over.
+   */
+  const [previewOverride, setPreviewOverride] = useState<{
+    theme: "light" | "dark";
+    against: string | undefined;
+  } | null>(null);
+  const siteTheme = resolvedTheme === "dark" ? "dark" : "light";
+  const previewTheme =
+    previewOverride && previewOverride.against === resolvedTheme
+      ? previewOverride.theme
+      : siteTheme;
 
   // The dialog renders nothing when there is no component to show.
   if (!item) return null;
@@ -321,7 +348,12 @@ export function ComponentDetailDialog({
 
           <button
             type="button"
-            onClick={() => setPreviewTheme((t) => (t === "dark" ? "light" : "dark"))}
+            onClick={() =>
+              setPreviewOverride({
+                theme: previewTheme === "dark" ? "light" : "dark",
+                against: resolvedTheme,
+              })
+            }
             title={`Preview in ${previewTheme === "dark" ? "light" : "dark"}`}
             className="flex h-7 w-7 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
           >

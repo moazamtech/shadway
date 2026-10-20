@@ -64,7 +64,12 @@ export async function GET(request: NextRequest) {
             const files = Array.isArray(item.files)
               ? item.files.map((f: RegistryFileEntry) => {
                   const ft = f.type === "component" ? "registry:component" : f.type
-                  const { target, ...rest } = f
+                  // `target` is the shadcn CLI's install path and the published
+                  // schema has no room for it, so it is dropped from the entry.
+                  // The copy is what gets edited: the parsed index is shared by
+                  // every request that reads it.
+                  const rest = { ...f }
+                  delete rest.target
                   return {
                     ...rest,
                     type: ft,

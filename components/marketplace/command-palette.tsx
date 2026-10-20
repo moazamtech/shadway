@@ -70,15 +70,35 @@ export function CommandPalette({
   const [items, setItems] = useState<PaletteItem[]>([]);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(open);
   const [sort, setSort] = useState<Sort>("latest");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * The palette opens empty.
+   *
+   * The query, the active row and the loading flag belong to a showing, not
+   * to the component: a palette that comes back with the last search still
+   * typed into it is a palette that has forgotten what it was for. React
+   * resets a value when something changes by comparing it with the value from
+   * the previous render, so the previous showing is what has to be kept — and
+   * the state is adjusted in the render that notices the change, before
+   * anything is committed.
+   */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      setQuery("");
+      setActiveIndex(0);
+      setLoading(true);
+    }
+  }
 
   // Load items once when opened.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
     fetch("/api/components?sort=latest&limit=100", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { items: [] }))
       .then((data) => {
@@ -94,12 +114,9 @@ export function CommandPalette({
     };
   }, [open]);
 
-  // Reset state each time the palette opens.
+  // Focus the input after the dialog mounts.
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setActiveIndex(0);
-    // Focus the input after the dialog mounts.
     const frame = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [open]);

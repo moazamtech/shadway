@@ -207,9 +207,12 @@ export function ComponentStudio({
   /** The repository import dialog. */
   const [showImport, setShowImport] = useState(false);
   const [showEditor, setShowEditor] = useState(true);
-  const [installedPackages, setInstalledPackages] = useState<Record<string, string>>(() =>
-    Object.fromEntries((initial?.dependencies ?? []).map((name) => [name, ""]))
-  );
+  /** The packages the component was published with. */
+  const [publishedPackages] = useState<string[]>(() => [...(initial?.dependencies ?? [])]);
+  /** The versions the registry has answered for. */
+  const [packageVersions, setPackageVersions] = useState<Record<string, string>>({});
+  /** The packages the author has taken out of the sandbox. */
+  const [removedPackages, setRemovedPackages] = useState<string[]>([]);
   /** The detected-packages panel at the foot of the tree. */
   const [showPackages, setShowPackages] = useState(true);
   const [publishing, setPublishing] = useState(false);
@@ -218,56 +221,85 @@ export function ComponentStudio({
   const [registryFiles, setRegistryFiles] = useState<Record<string, string> | null>(null);
   const [openingPath, setOpeningPath] = useState<string | null>(null);
 
-  // Auto-detect newly imported packages from debouncedFiles
-  useEffect(() => {
-    const fileList = Object.entries(debouncedFiles).map(([p, content]) => ({ path: p, content }));
-    const detected = collectNpmDependencies(fileList);
-    const missing = detected.filter(
-      (pkg) =>
-        !installedPackages[pkg] &&
-        pkg !== "next" &&
-        pkg !== "react" &&
-        pkg !== "react-dom" &&
-        pkg !== "react/jsx-runtime"
+  /**
+   * The packages the author's own code imports.
+   *
+   * Read off the files rather than remembered, because the sandbox installs
+   * exactly what the code mentions and a package the author has just typed
+   * into an import has to be installed before the preview can run it.
+   */
+  const detectedPackages = useMemo(() => {
+    const fileList = Object.entries(debouncedFiles).map(([path, content]) => ({
+      path,
+      content,
+    }));
+    return collectNpmDependencies(fileList).filter(
+      (name) =>
+        name !== "next" &&
+        name !== "react" &&
+        name !== "react-dom" &&
+        name !== "react/jsx-runtime"
     );
+  }, [debouncedFiles]);
 
-    if (missing.length === 0) return;
-
-    // Add the package right away, so the sandbox reinstalls the moment the
-    // author's code mentions it rather than after the registry round trip.
-    // The version is refined in the background: `latest` for anything unknown,
-    // the pinned range for the packages this site is built against.
-    setInstalledPackages((prev) => {
-      const next = { ...prev };
-      for (const pkg of missing) {
-        if (!next[pkg]) next[pkg] = sandboxPackageVersion(pkg);
-      }
-      return next;
-    });
-
-    for (const pkg of missing) {
-      void (async () => {
-        try {
-          const res = await fetch(`/api/registry/resolve-package?name=${encodeURIComponent(pkg)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.version) {
-              setInstalledPackages((prev) => ({ ...prev, [pkg]: data.version }));
-            }
-          }
-        } catch {
-          // Keep the optimistic version; the sandbox already installed it.
-        }
-      })();
+  /**
+   * The packages the sandbox installs.
+   *
+   * Two things decide the set: what the code imports, and what the component
+   * was published with. Both are known while rendering, so the set is derived
+   * rather than accumulated — a package the code mentions is installed the
+   * moment the code says so, and the panel under the tree cannot drift from
+   * what the sandbox is actually running.
+   *
+   * A package the author removes comes back if the code still imports it:
+   * the import is the reason the package is there, and the sandbox cannot run
+   * the code without it.
+   */
+  const installedPackages = useMemo(() => {
+    const next: Record<string, string> = {};
+    for (const name of publishedPackages) {
+      if (!removedPackages.includes(name)) next[name] = packageVersions[name] ?? "";
     }
-  }, [debouncedFiles, installedPackages]);
+    for (const name of detectedPackages) {
+      next[name] = packageVersions[name] ?? "";
+    }
+    return next;
+  }, [publishedPackages, removedPackages, detectedPackages, packageVersions]);
+
+  /**
+   * The version the registry knows for a package.
+   *
+   * Asked once per package and kept: the answer is the version the sandbox
+   * will install, and a package that has been asked about is not asked again
+   * every time the author types. A lookup that fails is not retried either —
+   * the sandbox installs the pinned range instead, and the panel shows that.
+   */
+  const askedPackagesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const asked = askedPackagesRef.current;
+    const unresolved = detectedPackages.filter(
+      (name) => !packageVersions[name] && !asked.has(name)
+    );
+    if (unresolved.length === 0) return;
+
+    for (const name of unresolved) {
+      asked.add(name);
+      void fetch(`/api/registry/resolve-package?name=${encodeURIComponent(name)}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          if (data?.version) {
+            setPackageVersions((prev) => ({ ...prev, [name]: data.version }));
+          }
+        })
+        .catch(() => {
+          // The sandbox installs the pinned range instead, and the panel
+          // shows that.
+        });
+    }
+  }, [detectedPackages, packageVersions]);
 
   function removePackage(name: string) {
-    setInstalledPackages((prev) => {
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
+    setRemovedPackages((prev) => (prev.includes(name) ? prev : [...prev, name]));
   }
 
   const { resolvedTheme } = useTheme();
@@ -283,7 +315,15 @@ export function ComponentStudio({
     setPreviewTheme(resolvedTheme === "dark" ? "dark" : "light");
   }, [resolvedTheme]);
 
-  const lastSaved = useRef(
+  /**
+   * The last snapshot that reached the server.
+   *
+   * State rather than a ref, because the studio asks whether the project is
+   * dirty while it renders — the save button, the status pill and the
+   * auto-save all need the answer — and a ref read during render is what the
+   * compiler refuses to reason about.
+   */
+  const [lastSaved, setLastSaved] = useState(() =>
     JSON.stringify(projectPayload(initialFiles, initial?.title ?? ""))
   );
 
@@ -301,7 +341,7 @@ export function ComponentStudio({
   const saveProject = useCallback(
     async (next: string) => {
       if (!slug || savingRef.current) return;
-      if (next === lastSaved.current) return;
+      if (next === lastSaved) return;
 
       savingRef.current = true;
       setSaveState("saving");
@@ -312,7 +352,7 @@ export function ComponentStudio({
           body: JSON.stringify(JSON.parse(next)),
         });
         if (!response.ok) throw new Error("save failed");
-        lastSaved.current = next;
+        setLastSaved(next);
         setSaveState("saved");
       } catch {
         setSaveState("error");
@@ -320,7 +360,7 @@ export function ComponentStudio({
         savingRef.current = false;
       }
     },
-    [slug]
+    [slug, lastSaved]
   );
 
   const saveClick = useCallback(() => {
@@ -367,13 +407,13 @@ export function ComponentStudio({
   // so leaving the studio never loses work.
   useEffect(() => {
     if (!slug) return;
-    if (snapshot === lastSaved.current) return;
+    if (snapshot === lastSaved) return;
 
     const id = window.setTimeout(() => void saveProject(snapshot), 1200);
     return () => window.clearTimeout(id);
-  }, [snapshot, slug, saveProject]);
+  }, [snapshot, slug, saveProject, lastSaved]);
 
-  const dirty = snapshot !== lastSaved.current;
+  const dirty = snapshot !== lastSaved;
 
   /**
    * The project the stylesheet is compiled from.

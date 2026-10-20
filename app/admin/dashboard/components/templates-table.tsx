@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Edit, Trash2, ExternalLink, Star, DollarSign } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, ExternalLink, Star } from 'lucide-react';
 import { Template } from '@/lib/types';
 import Image from 'next/image';
 
