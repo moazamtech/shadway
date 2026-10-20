@@ -330,7 +330,7 @@ export default function ComponentDetailClient() {
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground lg:h-dvh lg:min-h-0">
       {/* Top bar: brand → author crumb → actions. */}
-      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1.5 border-b border-border bg-background px-3 lg:static lg:gap-2 lg:px-4">
+      <header className="sticky top-0 z-40 flex h-12 shrink-0 items-center gap-1.5 border-b border-border bg-background px-3 lg:static lg:gap-2 lg:px-4">
         <Link
           href="/"
           className="flex shrink-0 items-center gap-2"
@@ -350,7 +350,7 @@ export default function ComponentDetailClient() {
           href={`/u/${item.author.username}`}
           className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-accent"
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[9px] font-bold uppercase text-muted-foreground">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[10px] font-bold uppercase text-muted-foreground">
             {item.author.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -485,7 +485,7 @@ export default function ComponentDetailClient() {
           ) : null}
 
           {tab === "install" ? (
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 lg:p-6">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 lg:px-6">
               <InstallTabs
                 slug={item.slug}
                 dependencies={item.dependencies}
@@ -514,7 +514,7 @@ export default function ComponentDetailClient() {
         </section>
 
         {/* Info rail: author, actions, stats, install, metadata. */}
-        <aside className="w-full shrink-0 space-y-5 p-4 lg:w-[360px] lg:min-h-0 lg:space-y-6 lg:overflow-y-auto lg:border-l lg:border-border lg:p-5">
+        <aside className="w-full shrink-0 space-y-5 px-4 py-5 lg:w-[360px] lg:min-h-0 lg:space-y-5 lg:overflow-y-auto lg:border-l lg:border-border lg:px-6">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold uppercase text-muted-foreground">
               {item.author.avatar ? (
