@@ -129,71 +129,45 @@ export function Navbar() {
                       </Link>
                     ))}
 
-                    {/* Resources Dropdown - Hover Based */}
-                    <div
-                      className="relative group"
-                      onMouseEnter={() => {
-                        if (dropdownTimeout) {
-                          clearTimeout(dropdownTimeout);
-                          setDropdownTimeout(null);
-                        }
-                        const timeout = setTimeout(() => {
-                          setShowDesktopDropdown(true);
-                        }, 150);
-                        setDropdownTimeout(timeout);
-                      }}
-                      onMouseLeave={() => {
-                        if (dropdownTimeout) {
-                          clearTimeout(dropdownTimeout);
-                          setDropdownTimeout(null);
-                        }
-                        const timeout = setTimeout(() => {
-                          setShowDesktopDropdown(false);
-                        }, 200);
-                        setDropdownTimeout(timeout);
-                      }}
-                    >
-                      <button className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-background/50 cursor-pointer inline-flex items-center gap-1.5">
-                        Resources
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 transition-transform duration-300 ${showDesktopDropdown ? "rotate-180" : ""}`}
-                        />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      <div
-                        className={`absolute top-full left-1/2 -translate-x-1/2 mt-3 w-80 transition-all duration-300 ease-out ${
-                          showDesktopDropdown
-                            ? "opacity-100 translate-y-0 pointer-events-auto"
-                            : "opacity-0 -translate-y-2 pointer-events-none"
-                        }`}
+                    {/* Resources Dropdown - the app's own menu primitive */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="group px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-background/50 cursor-pointer inline-flex items-center gap-1.5">
+                          Resources
+                          <ChevronDown className="w-3.5 h-3.5 transition-transform duration-300 group-data-[state=open]:rotate-180" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="center"
+                        sideOffset={8}
+                        className="w-80 rounded-xl p-1.5"
                       >
-                        <div className="p-3 rounded-2xl backdrop-blur-2xl bg-background/98 border border-border/60 shadow-xl ring-1 ring-black/5">
-                          <div className="space-y-1">
-                            {resourceItems.map((item, index) => {
-                              const Icon = item.icon;
-                              return (
-                                <Link key={item.name} href={item.href}>
-                                  <div className="group/item flex items-start gap-3 p-3.5 rounded-xl hover:bg-accent/50 transition-all duration-200 cursor-pointer hover:shadow-sm">
-                                    <div className="p-2.5 rounded-xl bg-primary/10 shrink-0 group-hover/item:bg-primary/20 transition-colors">
-                                      <Icon className="w-4.5 h-4.5 text-primary" />
-                                    </div>
-                                    <div className="flex-1 min-w-0 pt-0.5">
-                                      <div className="font-semibold text-sm text-foreground group-hover/item:text-primary transition-colors">
-                                        {item.name}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                        {item.description}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                        {resourceItems.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <DropdownMenuItem
+                              key={item.name}
+                              asChild
+                              className="group/item items-start gap-3 rounded-lg px-2.5 py-2.5"
+                            >
+                              <Link href={item.href}>
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover/item:bg-primary/20">
+                                  <Icon className="size-4 text-primary" />
+                                </span>
+                                <span className="flex min-w-0 flex-col gap-1">
+                                  <span className="text-sm font-medium leading-none text-foreground transition-colors group-hover/item:text-primary">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-xs leading-relaxed text-muted-foreground">
+                                    {item.description}
+                                  </span>
+                                </span>
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {/* Actions */}

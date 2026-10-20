@@ -62,11 +62,11 @@ export default async function CollectionsPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1500px] px-4 py-10 lg:px-6">
+      <div className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
         <div className="mb-8 flex items-center gap-3">
           <Library className="h-5 w-5" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Collections</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Collections</h1>
             <p className="text-sm text-muted-foreground">
               Curated shelves of components for the job you are doing.
             </p>

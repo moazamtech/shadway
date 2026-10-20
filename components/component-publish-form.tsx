@@ -194,7 +194,7 @@ export function ComponentPublishForm() {
       </div>
 
       <div className="space-y-3">
-        <div className="rounded-2xl border p-3">
+        <div className="rounded-xl border p-3">
           <h2 className="mb-3 text-sm font-semibold">Live preview</h2>
           {code.trim() ? (
             <ComponentPreview
