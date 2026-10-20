@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Editor from "@monaco-editor/react";
+import Editor, { type BeforeMount, type Monaco } from "@monaco-editor/react";
 import {
   Monitor,
   Tablet,
@@ -194,9 +194,9 @@ export function RegistryBlock({
     );
   };
 
-  const monacoRef = React.useRef<any>(null);
+  const monacoRef = React.useRef<Monaco | null>(null);
 
-  const handleBeforeMount = (monaco: any) => {
+  const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
     // Custom High-Fidelity Dark Theme
     monaco.editor.defineTheme("shadway-dark", {

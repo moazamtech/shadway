@@ -1,4 +1,4 @@
-import { streamText, tool, stepCountIs, type LanguageModel } from "ai";
+import { streamText, tool, stepCountIs, type LanguageModel, type ModelMessage } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 
 /** The gateway package targets a newer AI SDK major; cast at the boundary. */
@@ -12,6 +12,16 @@ export const runtime = "nodejs";
 
 const MODEL_CONFIG_ID = "ai_generate_component_model";
 const SYSTEM_PROMPT_CONFIG_ID = "ai_generate_component_system_prompt";
+
+/**
+ * A turn of the conversation the client sent along.
+ *
+ * The model takes a discriminated union of messages, so the role has to be
+ * one of the two the studio sends rather than an open string.
+ */
+type ConversationTurn =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string };
 
 function normalizeModelId(input: string) {
   const trimmed = input.trim();
@@ -528,7 +538,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const { prompt, conversationHistory, projectContext } = await req.json();
+    const { prompt, conversationHistory, projectContext } = (await req.json()) as {
+      prompt: string;
+      conversationHistory?: { role: string; content: string }[];
+      projectContext?: unknown;
+    };
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: "Prompt is required" }), {
@@ -591,15 +605,18 @@ Usage rules:
 - Your response should be: brief explanation text, then <files> block. Nothing else.
 `;
 
-    const messages = [
+    const messages: ModelMessage[] = [
       { role: "system", content: systemPrompt + skillsSystemNote },
       ...(projectContext
         ? [{ role: "user" as const, content: String(projectContext) }]
         : []),
-      ...(conversationHistory || []).map((msg: any) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      })),
+      ...(conversationHistory || []).map(
+        (msg) =>
+          ({
+            role: msg.role,
+            content: msg.content,
+          }) as ConversationTurn
+      ),
       { role: "user", content: prompt },
     ];
 
@@ -641,10 +658,11 @@ Usage rules:
     return result.toTextStreamResponse({
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API Error:", error);
-    const status = error.status || 500;
-    const message = error.message || "Something went wrong";
+    const failure = error as { status?: number; message?: string };
+    const status = failure.status || 500;
+    const message = failure.message || "Something went wrong";
 
     return new Response(JSON.stringify({ error: message }), {
       status,

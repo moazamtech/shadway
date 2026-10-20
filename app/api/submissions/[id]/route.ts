@@ -5,6 +5,9 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Submission } from '@/lib/types';
 import { ObjectId } from 'mongodb';
 
+/** Submissions are keyed by ObjectId in Mongo even though the shared type says string. */
+type SubmissionDoc = Omit<Submission, '_id'> & { _id?: ObjectId };
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,7 +23,7 @@ export async function PUT(
       );
     }
 
-    const data = await request.json();
+    const data = (await request.json()) as Partial<Submission>;
     const { status } = data;
 
     if (!status || !['pending', 'approved', 'rejected'].includes(status)) {
@@ -31,10 +34,10 @@ export async function PUT(
     }
 
     const { db } = await connectToDatabase();
-    const submissions = db.collection<Submission>('submissions');
+    const submissions = db.collection<SubmissionDoc>('submissions');
 
     const result = await submissions.updateOne(
-      { _id: new ObjectId(id) as any },
+      { _id: new ObjectId(id) },
       {
         $set: {
           status,
@@ -76,9 +79,9 @@ export async function DELETE(
     }
 
     const { db } = await connectToDatabase();
-    const submissions = db.collection<Submission>('submissions');
+    const submissions = db.collection<SubmissionDoc>('submissions');
 
-    const result = await submissions.deleteOne({ _id: new ObjectId(id) as any });
+    const result = await submissions.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

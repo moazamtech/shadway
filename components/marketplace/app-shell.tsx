@@ -74,7 +74,7 @@ export function AppShell({
 
       <main
         className={cn(
-          "raised relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface md:my-2 md:mr-2 md:rounded-lg md:border md:border-border",
+          "raised relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface md:mx-2 md:my-2 md:rounded-lg md:border md:border-border",
           panelClassName
         )}
       >
@@ -92,7 +92,12 @@ export function AppShell({
             {toolbar}
           </header>
         ) : null}
-        <div className={cn("min-h-0 flex-1 overflow-y-auto", contentClassName)}>
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            contentClassName,
+          )}
+        >
           {children}
         </div>
       </main>

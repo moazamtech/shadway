@@ -5,33 +5,49 @@ import { CategoryPageHeader } from "./_header";
 import { CATEGORIES_CONFIG } from "@/lib/docs-config";
 import type { ComponentRegistry } from "@/lib/types";
 
+/**
+ * The registry index lists the blocks it ships and nothing else: the name
+ * points at the block's own JSON file, the category is what filters it here.
+ */
+type RegistryEntry = {
+  name: string;
+  type: string;
+  category: string;
+};
+
 async function getComponents(category: string): Promise<ComponentRegistry[]> {
   const registryPath = path.join(process.cwd(), "registry/registry.json");
-  const registry = JSON.parse(await fs.readFile(registryPath, "utf-8"));
+  const registry = JSON.parse(
+    await fs.readFile(registryPath, "utf-8"),
+  ) as { items: RegistryEntry[] };
 
   const isAll = category.toLowerCase() === "all";
-  const items: any[] = isAll
+  const items: RegistryEntry[] = isAll
     ? registry.items
     : registry.items.filter(
-        (item: any) =>
+        (item) =>
           (item.category || "ui").toLowerCase() === category.toLowerCase(),
       );
 
   const components = await Promise.all(
-    items.map(async (item: any) => {
+    items.map(async (item): Promise<ComponentRegistry | null> => {
       try {
         const jsonPath = path.join(
           process.cwd(),
           `registry/${item.name}.json`,
         );
-        return JSON.parse(await fs.readFile(jsonPath, "utf-8"));
+        return JSON.parse(
+          await fs.readFile(jsonPath, "utf-8"),
+        ) as ComponentRegistry;
       } catch {
         return null;
       }
     }),
   );
 
-  return components.filter(Boolean);
+  return components.filter(
+    (component): component is ComponentRegistry => component !== null,
+  );
 }
 
 export default async function CategoryPage({

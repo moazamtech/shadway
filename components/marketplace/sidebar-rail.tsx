@@ -406,7 +406,7 @@ export function SidebarRail({
           <span className={FADE}>New component</span>
         </Link>
 
-        <nav className="-mt-1.5 flex flex-col gap-0.5">
+        <nav className="flex flex-col gap-0.5">
           <RailRow
             icon={Search}
             label="Search"
@@ -428,13 +428,13 @@ export function SidebarRail({
           ))}
         </nav>
 
-        <Separator className="sidebar-glide mx-1.5 transition-[margin] sidebar-collapsed:mx-0" />
+        <Separator className="sidebar-glide mx-3 transition-[margin] sidebar-collapsed:mx-0" />
 
         {/* Component list — the rail's thread-list analogue: grouped by
             category, scrollable in the leftover height. */}
         <nav
           aria-label="Components"
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5 pb-1"
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {catalog === null ? (
             <div className="flex flex-col gap-1">

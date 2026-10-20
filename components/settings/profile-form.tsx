@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { coverImageUrl } from "@/lib/images";
 import {
   AVATAR_ACCEPT,
   avatarMessage,
@@ -317,16 +318,16 @@ export function ProfileForm({
         <div className="space-y-2">
           <Label>Profile photo</Label>
           <div className="flex items-center gap-4">
-            <span className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-well ring-1 ring-border">
+            <span className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-well ring-1 ring-border">
               {preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={preview}
+                  src={coverImageUrl(preview, 192)}
                   alt=""
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="text-sm font-semibold text-muted-foreground">
+                <span className="text-sm font-semibold text-primary">
                   {initials(name || handle)}
                 </span>
               )}

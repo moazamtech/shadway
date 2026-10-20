@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Plus, ArrowUpDown, RefreshCw } from "lucide-react";
-import { Website } from "@/lib/types";
+import { Website, WebsiteFormData } from "@/lib/types";
 import { AdminLayout } from "../components";
 import {
   SearchFilter,
@@ -112,7 +112,7 @@ export default function WebsitesPage() {
   }, [websites]);
 
   // Event handlers
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: WebsiteFormData) => {
     setSubmitting(true);
     try {
       const url = editingWebsite

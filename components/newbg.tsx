@@ -870,7 +870,7 @@ export default function OilShader() {
 
     let last = performance.now();
     let raf = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     // Sim params.
     const VELOCITY_DISSIPATION = 0.6; // viscosity feel

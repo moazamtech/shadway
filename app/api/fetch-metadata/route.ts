@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     if (!url)
       return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
 
-    let normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
     const parsedUrl = new URL(normalizedUrl);
     const hostname = parsedUrl.hostname.toLowerCase();
 
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
       favicon: faviconUrl,
       url: normalizedUrl,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching metadata:', error);
     return NextResponse.json(
       {

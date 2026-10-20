@@ -3,28 +3,50 @@ import path from "path";
 import { CATEGORIES_CONFIG } from "@/lib/docs-config";
 import { BlocksGrid } from "./_grid";
 
+/**
+ * The registry index lists the blocks it ships and nothing else: the name
+ * points at the block's own JSON file, the category is what groups it here.
+ */
+type RegistryEntry = {
+  name: string;
+  type: string;
+  category: string;
+};
+
+/** One category on the page, with the count of blocks filed under it. */
+type CategoryBucket = {
+  name: string;
+  count: number;
+  originalCategory: string;
+};
+
 async function getRegistryCategories() {
   const registryPath = path.join(process.cwd(), "registry/registry.json");
-  const registry = JSON.parse(await fs.readFile(registryPath, "utf-8"));
-  return registry.items as any[];
+  const registry = JSON.parse(
+    await fs.readFile(registryPath, "utf-8"),
+  ) as { items: RegistryEntry[] };
+  return registry.items;
 }
 
 export default async function BlocksPage() {
   const items = await getRegistryCategories();
 
-  const registryCategoriesMap = items.reduce((acc: any, item: any) => {
-    const cat = item.category || "other";
-    if (!acc[cat]) {
-      const configName = CATEGORIES_CONFIG.find(
-        (c) => c.name.toLowerCase() === cat.toLowerCase()
-      )?.name;
-      acc[cat] = { name: configName || (cat.charAt(0).toUpperCase() + cat.slice(1)), count: 0, originalCategory: cat.toLowerCase() };
-    }
-    acc[cat].count++;
-    return acc;
-  }, {});
+  const registryCategoriesMap = items.reduce<Record<string, CategoryBucket>>(
+    (acc, item) => {
+      const cat = item.category || "other";
+      if (!acc[cat]) {
+        const configName = CATEGORIES_CONFIG.find(
+          (c) => c.name.toLowerCase() === cat.toLowerCase()
+        )?.name;
+        acc[cat] = { name: configName || (cat.charAt(0).toUpperCase() + cat.slice(1)), count: 0, originalCategory: cat.toLowerCase() };
+      }
+      acc[cat].count++;
+      return acc;
+    },
+    {},
+  );
 
-  const dynamicCategories = Object.values(registryCategoriesMap).map((cat: any) => {
+  const dynamicCategories = Object.values(registryCategoriesMap).map((cat) => {
     const config = CATEGORIES_CONFIG.find(
       (c) => c.name.toLowerCase() === cat.name.toLowerCase(),
     ) || { description: `Collection of ${cat.name} blocks and components.` };

@@ -9,11 +9,12 @@ import {
     Terminal,
     Sparkles,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export interface CategoryConfig {
     name: string;
     description: string;
-    icon: any;
+    icon: LucideIcon;
     blocks?: number; // Optional as it might be dynamic
 }
 

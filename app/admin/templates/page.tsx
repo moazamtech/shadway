@@ -4,11 +4,23 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Filter, Loader2 } from 'lucide-react';
-import { Template } from '@/lib/types';
+import { Template, TemplateFormData } from '@/lib/types';
 import { TemplatesTable } from '../dashboard/components/templates-table';
 import { TemplateFormDialog } from '../dashboard/components/template-form-dialog';
 import { AdminLayout } from '../components/admin-layout';
 import { toast } from 'sonner';
+
+/**
+ * The templates endpoint has served the price in two shapes over its life: a
+ * bare number and an object wrapping the amount. The stored type only knows
+ * the first one, so the counters below read the second through this shape
+ * rather than casting the value to `any` at every use.
+ */
+type StoredPrice = number | { amount: number };
+
+function priceAmount(price: StoredPrice): number {
+  return typeof price === 'object' ? price.amount : price;
+}
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -45,7 +57,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleCreateTemplate = async (formData: any) => {
+  const handleCreateTemplate = async (formData: TemplateFormData) => {
     setFormLoading(true);
     try {
       const response = await fetch('/api/templates', {
@@ -72,7 +84,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleEditTemplate = async (formData: any) => {
+  const handleEditTemplate = async (formData: TemplateFormData) => {
     if (!editingTemplate?._id) return;
 
     setFormLoading(true);
@@ -188,14 +200,14 @@ export default function TemplatesPage() {
           </div>
           <div className="bg-card p-4 rounded-lg border">
             <div className="text-2xl font-bold">{templates.filter(t => {
-              const price = typeof t.price === 'object' ? (t.price as any).amount : t.price;
+              const price = priceAmount(t.price as StoredPrice);
               return price === 0;
             }).length}</div>
             <div className="text-sm text-muted-foreground">Free Templates</div>
           </div>
           <div className="bg-card p-4 rounded-lg border">
             <div className="text-2xl font-bold">{templates.filter(t => {
-              const price = typeof t.price === 'object' ? (t.price as any).amount : t.price;
+              const price = priceAmount(t.price as StoredPrice);
               return price > 0;
             }).length}</div>
             <div className="text-sm text-muted-foreground">Paid Templates</div>

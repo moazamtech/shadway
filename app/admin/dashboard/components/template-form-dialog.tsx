@@ -12,16 +12,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, DollarSign, Globe, Code } from "lucide-react";
-import { Template } from "@/lib/types";
+import { Template, TemplateFormData } from "@/lib/types";
 import { fetchSiteMetadata } from "@/lib/metadata-fetcher";
 
 interface TemplateFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: TemplateFormData) => Promise<void>;
   template?: Template | null;
   isLoading?: boolean;
 }
+
+/**
+ * Rows written before the price was flattened still carry `{ amount }`.
+ */
+type LegacyTemplate = Omit<Template, "price"> & {
+  price?: number | { amount?: number };
+};
 
 export function TemplateFormDialog({
   isOpen,
@@ -43,6 +50,7 @@ export function TemplateFormDialog({
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
   useEffect(() => {
     if (template) {
+      const legacy = template as LegacyTemplate;
       setFormData({
         name: template.name || "",
         description: template.description || "",
@@ -50,9 +58,9 @@ export function TemplateFormDialog({
         demoUrl: template.demoUrl || "",
         purchaseUrl: template.purchaseUrl || "",
         price:
-          typeof template.price === "object"
-            ? (template.price as any).amount
-            : template.price || 0,
+          typeof legacy.price === "object"
+            ? (legacy.price.amount as number)
+            : legacy.price || 0,
         featured: template.featured || false,
         sequence: template.sequence || 0,
       });

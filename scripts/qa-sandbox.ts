@@ -17,7 +17,10 @@ async function main() {
   await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
 
   const results = await page.evaluate(async () => {
-    (globalThis as any).__name = (fn: unknown) => fn;
+    const sandboxGlobal = globalThis as typeof globalThis & {
+      __name?: (fn: unknown) => unknown;
+    };
+    sandboxGlobal.__name = (fn: unknown) => fn;
     const out: { name: string; ok: boolean; error: string }[] = [];
 
     const makeBlob = (code: string) => URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
@@ -38,10 +41,11 @@ async function main() {
 
         const onMsg = (event: MessageEvent) => {
           if (!event.data || typeof event.data !== "object") return;
-          if ((event.data as any).type === "probe") {
+          const data = event.data as { type?: string; value?: unknown };
+          if (data.type === "probe") {
             window.removeEventListener("message", onMsg);
             iframe.remove();
-            const ok = (event.data as any).value === "DEP-OK";
+            const ok = data.value === "DEP-OK";
             const rec = { name, ok, error: ok ? "" : "bad value" };
             out.push(rec);
             resolve(rec);

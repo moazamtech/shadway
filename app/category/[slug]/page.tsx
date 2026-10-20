@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Website } from '@/lib/types'
 import { generateCategoryPageSEO, generateBreadcrumbSchema } from '@/lib/seo'
@@ -99,7 +100,7 @@ export default async function CategoryPage({ params }: PageProps) {
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="category-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3"/>
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--border)" strokeWidth="0.5" opacity="0.3"/>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#category-grid)" />
@@ -146,7 +147,7 @@ export default async function CategoryPage({ params }: PageProps) {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8">
           {/* Breadcrumb */}
           <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-8">
-            <a href="/" className="hover:text-foreground transition-colors">Home</a>
+            <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
             <span>/</span>
             <span>Categories</span>
             <span>/</span>
@@ -155,12 +156,12 @@ export default async function CategoryPage({ params }: PageProps) {
 
           {/* Header Section with geometric decorations */}
           <div className="w-full max-w-[937px] lg:w-[937px] flex flex-col justify-center items-center gap-6 mb-12 mx-auto relative">
-            <div className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative">
+            <div className="w-full max-w-[600px] text-center flex justify-center flex-col text-foreground break-words text-[24px] xs:text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[1.1] sm:leading-[1.15] md:leading-[1.2] font-serif px-2 sm:px-4 md:px-0 whitespace-nowrap relative">
               <span className="relative">
                 {categoryTitle} Websites
                 {/* Subtle underline decoration */}
                 <svg className="absolute -bottom-2 left-1/2 transform -translate-x-1/2" width="280" height="8" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M0,4 Q70,2 140,4 T280,4" stroke="hsl(var(--primary))" strokeWidth="1" fill="none" opacity="0.3" />
+                  <path d="M0,4 Q70,2 140,4 T280,4" stroke="var(--primary)" strokeWidth="1" fill="none" opacity="0.3" />
                 </svg>
               </span>
             </div>
@@ -211,7 +212,7 @@ export default async function CategoryPage({ params }: PageProps) {
                       width="100"
                       height="100"
                       rx="3"
-                      stroke="hsl(var(--border))"
+                      stroke="var(--border)"
                       strokeWidth="0.5"
                       strokeDasharray="2 2"
                       fill="none"
@@ -221,26 +222,26 @@ export default async function CategoryPage({ params }: PageProps) {
                     {/* Corner geometric elements */}
                     <g className="opacity-40">
                       {/* Top-left corner */}
-                      <line x1="0" y1="8" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                      <line x1="8" y1="0" x2="8" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                      <line x1="0" y1="8" x2="8" y2="8" stroke="var(--border)" strokeWidth="0.3" />
+                      <line x1="8" y1="0" x2="8" y2="8" stroke="var(--border)" strokeWidth="0.3" />
 
                       {/* Top-right corner */}
-                      <line x1="92" y1="0" x2="92" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                      <line x1="92" y1="8" x2="100" y2="8" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                      <line x1="92" y1="0" x2="92" y2="8" stroke="var(--border)" strokeWidth="0.3" />
+                      <line x1="92" y1="8" x2="100" y2="8" stroke="var(--border)" strokeWidth="0.3" />
 
                       {/* Bottom-left corner */}
-                      <line x1="0" y1="92" x2="8" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                      <line x1="8" y1="92" x2="8" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                      <line x1="0" y1="92" x2="8" y2="92" stroke="var(--border)" strokeWidth="0.3" />
+                      <line x1="8" y1="92" x2="8" y2="100" stroke="var(--border)" strokeWidth="0.3" />
 
                       {/* Bottom-right corner */}
-                      <line x1="92" y1="92" x2="100" y2="92" stroke="hsl(var(--border))" strokeWidth="0.3" />
-                      <line x1="92" y1="92" x2="92" y2="100" stroke="hsl(var(--border))" strokeWidth="0.3" />
+                      <line x1="92" y1="92" x2="100" y2="92" stroke="var(--border)" strokeWidth="0.3" />
+                      <line x1="92" y1="92" x2="92" y2="100" stroke="var(--border)" strokeWidth="0.3" />
                     </g>
 
                     {/* Grid pattern overlay */}
                     <defs>
                       <pattern id={`grid-${index}`} width="10" height="10" patternUnits="userSpaceOnUse">
-                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="hsl(var(--border))" strokeWidth="0.2" className="opacity-20"/>
+                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="var(--border)" strokeWidth="0.2" className="opacity-20"/>
                       </pattern>
                     </defs>
                     <rect width="100" height="100" fill={`url(#grid-${index})`} className="opacity-30" />

@@ -12,13 +12,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
-import { Website } from '@/lib/types';
+import { Website, WebsiteFormData } from '@/lib/types';
 import { fetchSiteMetadata } from '@/lib/metadata-fetcher';
 
 interface WebsiteFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: WebsiteFormData) => Promise<void>;
   website?: Website | null;
   isLoading?: boolean;
 }

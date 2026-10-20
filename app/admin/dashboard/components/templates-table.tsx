@@ -31,6 +31,15 @@ import { MoreHorizontal, Edit, Trash2, ExternalLink, Star, DollarSign } from 'lu
 import { Template } from '@/lib/types';
 import Image from 'next/image';
 
+/**
+ * Rows written before the price was flattened still carry `{ amount }`, and
+ * rows written before the demo URL was flattened still carry `links.demo`.
+ */
+type LegacyTemplate = Omit<Template, 'price'> & {
+  price?: number | { amount?: number };
+  links?: { demo?: string };
+};
+
 interface TemplatesTableProps {
   templates: Template[];
   onEdit: (template: Template) => void;
@@ -56,7 +65,8 @@ export function TemplatesTable({ templates, onEdit, onDelete }: TemplatesTablePr
 
   const getPriceDisplay = (template: Template) => {
     // Handle both old and new price formats
-    const price = typeof template.price === 'object' ? (template.price as any).amount : template.price;
+    const legacy = template as LegacyTemplate;
+    const price = typeof legacy.price === 'object' ? legacy.price.amount : legacy.price;
 
     if (price === 0) {
       return <Badge variant="secondary" className="bg-green-100 text-green-800">Free</Badge>;
@@ -147,7 +157,7 @@ export function TemplatesTable({ templates, onEdit, onDelete }: TemplatesTablePr
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
-                        onClick={() => window.open(template.demoUrl || (template as any).links?.demo, '_blank')}
+                        onClick={() => window.open(template.demoUrl || (template as LegacyTemplate).links?.demo, '_blank')}
                         className="cursor-pointer"
                       >
                         <ExternalLink className="mr-2 h-4 w-4" />
@@ -182,7 +192,7 @@ export function TemplatesTable({ templates, onEdit, onDelete }: TemplatesTablePr
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the template
-              "{templateToDelete?.name}" and remove all associated data.
+              &quot;{templateToDelete?.name}&quot; and remove all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

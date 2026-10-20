@@ -37,8 +37,26 @@ const CornerPlusIcons = () => (
 )
 
 interface TemplateCardProps {
-  template: Template
+  template: CardTemplate
   index: number
+}
+
+/**
+ * The templates endpoint has served two things the stored `Template` type does
+ * not describe: a price that can arrive wrapped in an object, and a `links`
+ * block carrying the demo and purchase URLs. Older rows can also be missing
+ * the price entirely, so all three shapes are read here instead of being cast
+ * to `any` at each use.
+ */
+type CardPrice = number | { amount: number } | null | undefined
+
+type CardTemplate = Omit<Template, 'price'> & {
+  price: CardPrice
+  links?: { demo?: string; purchase?: string }
+}
+
+function priceAmount(price: CardPrice) {
+  return typeof price === 'object' && price !== null ? price.amount : price
 }
 
 function TemplateCard({ template }: TemplateCardProps) {
@@ -47,9 +65,7 @@ function TemplateCard({ template }: TemplateCardProps) {
 
   const getPriceDisplay = () => {
     // Handle both number and object price formats
-    const price = typeof template.price === 'object' && template.price !== null
-      ? (template.price as any).amount
-      : template.price;
+    const price = priceAmount(template.price)
 
     if (price === 0) {
       return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Free</Badge>
@@ -144,7 +160,7 @@ function TemplateCard({ template }: TemplateCardProps) {
                 size="sm"
                 variant="outline"
                 className="flex-1 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
-                onClick={() => window.open(template.demoUrl || (template as any).links?.demo, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(template.demoUrl || template.links?.demo, '_blank', 'noopener,noreferrer')}
               >
                 <Globe className="w-3 h-3 mr-1" />
                 Demo
@@ -153,14 +169,14 @@ function TemplateCard({ template }: TemplateCardProps) {
                 size="sm"
                 className={cn(
                   "flex-1 text-xs text-white dark:text-gray-900 font-medium",
-                  (typeof template.price === 'object' && template.price !== null ? (template.price as any).amount : template.price) === 0
+                  (priceAmount(template.price) === 0)
                     ? "bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/30"
                     : "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md shadow-primary/30"
                 )}
-                onClick={() => window.open(template.purchaseUrl || (template as any).links?.purchase, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(template.purchaseUrl || template.links?.purchase, '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink className="w-3 h-3 mr-1" />
-                {(typeof template.price === 'object' && template.price !== null ? (template.price as any).amount : template.price) === 0 ? 'Download' : 'Get Template'}
+                {priceAmount(template.price) === 0 ? 'Download' : 'Get Template'}
               </Button>
             </div>
           </div>

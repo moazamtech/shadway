@@ -490,8 +490,8 @@ describe("what the boot project has to carry", () => {
     // The project's own imports plus everything the barrel re-exports.
     expect(specifiers.size).toBeGreaterThan(0);
     for (const specifier of specifiers) {
-      const module = `/node_modules/${specifier}.js`;
-      expect(paths, specifier).toContain(module);
+      const shimPath = `/node_modules/${specifier}.js`;
+      expect(paths, specifier).toContain(shimPath);
     }
   });
 

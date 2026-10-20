@@ -43,6 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { coverImageUrl } from "@/lib/images";
 import { useOrigin } from "@/hooks/use-origin";
 import { BundledPreview } from "@/components/preview/bundled-preview";
 import { ComponentCodeTabs } from "@/components/marketplace/component-code-tabs";
@@ -341,7 +342,7 @@ export default function ComponentDetailClient() {
           </span>
         </Link>
 
-        <span aria-hidden className="px-0.5 text-sm text-border select-none">
+        <span aria-hidden className="px-0.5 text-sm text-muted-foreground select-none">
           /
         </span>
 
@@ -353,7 +354,7 @@ export default function ComponentDetailClient() {
             {item.author.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={item.author.avatar}
+                src={coverImageUrl(item.author.avatar, 96)}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -515,11 +516,11 @@ export default function ComponentDetailClient() {
         {/* Info rail: author, actions, stats, install, metadata. */}
         <aside className="w-full shrink-0 space-y-5 p-4 lg:w-[360px] lg:min-h-0 lg:space-y-6 lg:overflow-y-auto lg:border-l lg:border-border lg:p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-xs font-bold uppercase text-muted-foreground">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold uppercase text-muted-foreground">
               {item.author.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={item.author.avatar}
+                  src={coverImageUrl(item.author.avatar, 96)}
                   alt=""
                   className="h-full w-full object-cover"
                 />

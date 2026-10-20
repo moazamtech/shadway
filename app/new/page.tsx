@@ -1,6 +1,7 @@
 import { ComponentPublishForm } from "@/components/component-publish-form";
 import { Button } from "@/components/ui/button";
 import { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Publish a component | Shadway",
@@ -20,7 +21,7 @@ export default function PublishComponentPage() {
             </p>
           </div>
           <Button variant="outline" asChild>
-            <a href="/studio">Open full studio</a>
+            <Link href="/studio">Open full studio</Link>
           </Button>
         </div>
         <ComponentPublishForm />

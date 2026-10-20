@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Bookmark, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/brand-mark";
-import { RelativeTime } from "@/components/marketplace/relative-time";
 import { coverImageUrl, previewVideoUrl } from "@/lib/images";
 
 export type MarketplaceCardItem = {
@@ -131,7 +130,7 @@ export function ComponentCard({
       {/* Cover — the video only mounts while the pointer is over the card,
           exactly like a card catalogue that never streams off-screen. */}
       <div
-        className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/50 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/20 group-hover:shadow-[0_10px_40px_-16px_rgba(0,0,0,0.5)]"
+        className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/50 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/25 group-hover:shadow-[0_6px_18px_-14px_rgba(0,0,0,0.45)]"
         onMouseEnter={() => item.videoUrl && setVideoLoaded(true)}
         onMouseLeave={() => setVideoLoaded(false)}
         onTouchStart={() => item.videoUrl && setVideoLoaded(true)}
@@ -159,7 +158,7 @@ export function ComponentCard({
 
         {/* Category badge */}
         {item.category ? (
-          <span className="absolute top-2 left-2 z-20 rounded-full border border-border/30 bg-background/70 px-2 py-0.5 text-[9px] font-semibold tracking-[0.14em] text-foreground/70 uppercase backdrop-blur-sm">
+          <span className="absolute top-2 left-2 z-20 rounded-full border border-border/30 bg-background/70 px-2 py-0.5 text-[10px] font-semibold tracking-[0.14em] text-foreground/70 uppercase backdrop-blur-sm">
             {item.category}
           </span>
         ) : null}
@@ -214,8 +213,7 @@ export function ComponentCard({
           were the same name and the same age repeated down a column of thirty
           covers. The title is still on the cover's own link (`aria-label`), on
           the detail page, on the profile and in the rail; what the grid needed
-          was the image alone, aligned edge to edge. */}
-    </article>
+          was the image alone, aligned edge to edge. */}    </article>
   );
 }
 

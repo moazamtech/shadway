@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { coverImageUrl } from "@/lib/images";
 
 export type ProfileTab = {
   id: string;
@@ -39,7 +40,7 @@ function initialsFor(name: string): string {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border px-3 py-2">
+    <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
       <p className="text-base leading-6 font-semibold tabular-nums">{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
@@ -117,7 +118,7 @@ export function ProfileBody({
               {avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={avatar}
+                  src={coverImageUrl(avatar, 192)}
                   alt=""
                   className="h-full w-full object-cover"
                 />
@@ -200,7 +201,7 @@ export function ProfileBody({
 
         {/* Work */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border">
+          <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab) => {
               const active = tab.id === activeTab;
               return (

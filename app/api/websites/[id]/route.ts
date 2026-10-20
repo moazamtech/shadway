@@ -5,6 +5,9 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Website } from '@/lib/types';
 import { ObjectId } from 'mongodb';
 
+/** Websites are keyed by ObjectId in Mongo even though the shared type says string. */
+type WebsiteDoc = Omit<Website, '_id'> & { _id?: ObjectId };
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,9 +15,9 @@ export async function GET(
   try {
     const { id } = await params;
     const { db } = await connectToDatabase();
-    const websites = db.collection<Website>('websites');
+    const websites = db.collection<WebsiteDoc>('websites');
 
-    const website = await websites.findOne({ _id: new ObjectId(id) as any });
+    const website = await websites.findOne({ _id: new ObjectId(id) });
 
     if (!website) {
       return NextResponse.json(
@@ -48,7 +51,7 @@ export async function PUT(
       );
     }
 
-    const data = await request.json();
+    const data = (await request.json()) as Partial<Website>;
     const { name, description, url, image, category, tags, featured, sequence } = data;
 
     if (!name || !description || !url || !image || !category) {
@@ -59,7 +62,7 @@ export async function PUT(
     }
 
     const { db } = await connectToDatabase();
-    const websites = db.collection<Website>('websites');
+    const websites = db.collection<WebsiteDoc>('websites');
 
     const updateData = {
       name,
@@ -74,7 +77,7 @@ export async function PUT(
     };
 
     const result = await websites.updateOne(
-      { _id: new ObjectId(id) as any },
+      { _id: new ObjectId(id) },
       { $set: updateData }
     );
 
@@ -111,9 +114,9 @@ export async function DELETE(
     }
 
     const { db } = await connectToDatabase();
-    const websites = db.collection<Website>('websites');
+    const websites = db.collection<WebsiteDoc>('websites');
 
-    const result = await websites.deleteOne({ _id: new ObjectId(id) as any });
+    const result = await websites.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

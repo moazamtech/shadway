@@ -153,7 +153,7 @@ export default function SubmitPage() {
                   </h2>
 
                   <p className="text-muted-foreground mb-10 text-base sm:text-lg leading-relaxed">
-                    Your submission has been received successfully. We'll review it and get back to you soon.
+                    Your submission has been received successfully. We&apos;ll review it and get back to you soon.
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">

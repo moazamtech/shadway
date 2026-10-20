@@ -5,6 +5,11 @@ import path from "path"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+interface RegistryIndexItem {
+  name: string;
+  type: "registry:component";
+}
+
 export async function GET() {
   try {
     const registryDir = path.join(process.cwd(), "registry")
@@ -13,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ name: "shadway", items: [] })
     }
 
-    const items: any[] = []
+    const items: RegistryIndexItem[] = []
 
     for (const file of fs.readdirSync(registryDir)) {
       if (file.endsWith(".json") && file !== "registry.json") {

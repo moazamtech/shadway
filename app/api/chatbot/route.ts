@@ -21,6 +21,18 @@ type Message = {
   reasoning_details?: unknown;
 };
 
+/**
+ * The wire format of a message, as OpenRouter takes it.
+ *
+ * `reasoning_details` is an OpenRouter extension, so it does not exist on the
+ * SDK's own message type and has to travel alongside it.
+ */
+type ChatMessage = {
+  role: Message["role"];
+  content: Message["content"];
+  reasoning_details?: unknown;
+};
+
 // Models that support reasoning
 const REASONING_MODELS = [
   "deepseek/deepseek-r1:free",
@@ -37,32 +49,39 @@ export async function POST(req: Request) {
 
   const supportsReasoning = REASONING_MODELS.includes(model);
 
+  const chatMessages: ChatMessage[] = messages.map((m) => {
+    const msg: ChatMessage = {
+      role: m.role,
+      content: m.content,
+    };
+    if (m.reasoning_details) {
+      msg.reasoning_details = m.reasoning_details;
+    }
+    return msg;
+  });
+
+  /**
+   * The SDK's message type does not know about OpenRouter's `reasoning` flag,
+   * and the content this route accepts is looser than the SDK's own, so the
+   * request is asserted into the streaming parameter type.
+   */
   const stream = await getClient().chat.completions.create({
     model,
-    messages: messages.map((m) => {
-      const msg: any = {
-        role: m.role,
-        content: m.content,
-      };
-      if (m.reasoning_details) {
-        msg.reasoning_details = m.reasoning_details;
-      }
-      return msg;
-    }),
+    messages: chatMessages,
     stream: true,
     ...(supportsReasoning ? { reasoning: { enabled: true } } : {}),
-  } as any);
+  } as unknown as OpenAI.Chat.ChatCompletionCreateParamsStreaming);
 
   const encoder = new TextEncoder();
 
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        if (!stream || typeof (stream as any)[Symbol.asyncIterator] !== 'function') {
+        if (!stream || typeof stream[Symbol.asyncIterator] !== 'function') {
           throw new Error("Response is not a stream");
         }
 
-        for await (const chunk of (stream as any)) {
+        for await (const chunk of stream) {
           const choice = chunk.choices[0];
           const content = choice?.delta?.content;
 
@@ -72,8 +91,8 @@ export async function POST(req: Request) {
           }
 
           // Handle reasoning_details if present
-          const delta = choice?.delta as any;
-          if (delta?.reasoning_details) {
+          const delta = choice?.delta;
+          if (delta && "reasoning_details" in delta && delta.reasoning_details) {
             const reasoningData = `r:${JSON.stringify(delta.reasoning_details)}\n`;
             controller.enqueue(encoder.encode(reasoningData));
           }

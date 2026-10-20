@@ -17,8 +17,8 @@ import {
   CodeBlockSelectTrigger,
   CodeBlockSelectValue,
 } from '@/components/codeblock';
-import type { HTMLAttributes, ReactNode } from 'react';
-import React, { memo, useEffect } from 'react';
+import type { HTMLAttributes, ReactElement, ReactNode } from 'react';
+import React, { isValidElement, memo, useEffect } from 'react';
 import ReactMarkdown, { type Options, type Components } from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -31,10 +31,9 @@ const chatStyles = ""; // Moved to global CSS
 
 // Type definitions
 interface CodeElementProps {
-  node?: any;
+  node?: unknown;
   className?: string;
   children?: ReactNode;
-  [key: string]: any;
 }
 
 interface PreElementProps extends CodeElementProps {
@@ -175,8 +174,9 @@ const components: Components = {
 
   pre: ({ className, children }: PreElementProps) => {
     const childrenArray = React.Children.toArray(children);
-    const codeElement: any = childrenArray.find(
-      (child: any) => child?.type === 'code'
+    const codeElement = childrenArray.find(
+      (child): child is ReactElement<{ children?: ReactNode }> =>
+        isValidElement(child) && child.type === 'code'
     );
 
     if (!codeElement) {

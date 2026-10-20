@@ -103,6 +103,7 @@ export function PricingFrequencyToggle({
 		>
 			{frequencies.map((freq) => (
 				<button
+					key={freq}
 					onClick={() => setFrequency(freq)}
 					className="relative px-4 py-1 text-sm capitalize"
 				>
@@ -255,7 +256,7 @@ export function BorderTrail({
   onAnimationComplete,
   style,
 }: BorderTrailProps) {
-  const BASE_TRANSITION: any = {
+  const BASE_TRANSITION: Transition = {
     repeat: Infinity,
     duration: 5,
     ease: 'linear',

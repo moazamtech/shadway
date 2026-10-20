@@ -186,7 +186,7 @@ export function CommandPalette({
           ))}
         </div>
 
-        <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
+        <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {loading && items.length === 0 ? (
             <div className="space-y-2 p-2">
               {Array.from({ length: 4 }).map((_, i) => (

@@ -17,7 +17,7 @@ export function Contact() {
             <div className="space-y-4">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">Get in touch</h2>
               <p className="text-base sm:text-lg text-muted-foreground font-light leading-relaxed">
-                Have a project in mind? We'd love to hear from you. 
+                Have a project in mind? We&apos;d love to hear from you. 
                 Our team usually responds within 24 hours.
               </p>
             </div>

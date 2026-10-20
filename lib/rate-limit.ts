@@ -85,7 +85,7 @@ export function getClientIP(request: NextRequest): string {
   }
 
   // Fallback to connection remote address
-  return (request as any).ip || 'unknown';
+  return (request as NextRequest & { ip?: string }).ip || 'unknown';
 }
 
 // Cleanup expired entries every hour

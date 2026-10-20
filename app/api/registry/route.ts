@@ -5,6 +5,17 @@ import path from "path"
 export const dynamic = "force-static"
 export const revalidate = 3600 // Revalidate every hour
 
+interface RegistryFileEntry {
+  type?: string
+  target?: string
+  [key: string]: unknown
+}
+
+interface RegistryItemEntry {
+  files?: RegistryFileEntry[]
+  [key: string]: unknown
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const component = searchParams.get("component")
@@ -49,9 +60,9 @@ export async function GET(request: NextRequest) {
 
       // Sanitize item file types to match shadcn schema
       const sanitizedItems = Array.isArray(items)
-        ? items.map((item: any) => {
+        ? items.map((item: RegistryItemEntry) => {
             const files = Array.isArray(item.files)
-              ? item.files.map((f: any) => {
+              ? item.files.map((f: RegistryFileEntry) => {
                   const ft = f.type === "component" ? "registry:component" : f.type
                   const { target, ...rest } = f
                   return {

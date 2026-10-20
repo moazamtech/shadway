@@ -19,6 +19,14 @@ import bcrypt from "bcryptjs";
 const BASE = process.env.BASE ?? "http://localhost:3000";
 
 type CookieJar = Record<string, string>;
+
+/**
+ * `getSetCookie` is the only way to read every `Set-Cookie` off a response
+ * without the first one shadowing the rest, but it only exists on newer
+ * runtimes, so the call is guarded rather than assumed.
+ */
+type HeadersWithSetCookie = Headers & { getSetCookie?: () => string[] };
+
 const jar: CookieJar = {};
 function cookieHeader() {
   return Object.entries(jar)
@@ -26,10 +34,9 @@ function cookieHeader() {
     .join("; ");
 }
 function collectCookies(res: Response) {
+  const headers = res.headers as HeadersWithSetCookie;
   const raw: string[] =
-    typeof (res.headers as any).getSetCookie === "function"
-      ? (res.headers as any).getSetCookie()
-      : [];
+    typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
   for (const cookie of raw) {
     const first = cookie.split(";")[0];
     const idx = first.indexOf("=");
@@ -70,6 +77,12 @@ interface TestUser {
   jar: CookieJar;
 }
 
+interface SessionPayload {
+  user?: {
+    id?: string;
+  };
+}
+
 async function register(email: string, password: string, name: string) {
   const res = await fetch(`${BASE}/api/register`, {
     method: "POST",
@@ -84,10 +97,9 @@ async function register(email: string, password: string, name: string) {
 async function login(email: string, password: string): Promise<CookieJar> {
   const localJar: CookieJar = {};
   const localCollect = (res: Response) => {
+    const headers = res.headers as HeadersWithSetCookie;
     const raw: string[] =
-      typeof (res.headers as any).getSetCookie === "function"
-        ? (res.headers as any).getSetCookie()
-        : [];
+      typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
     for (const cookie of raw) {
       const first = cookie.split(";")[0];
       const idx = first.indexOf("=");
@@ -131,7 +143,7 @@ async function login(email: string, password: string): Promise<CookieJar> {
 async function main() {
   const clientState = await connectToDatabase();
   let owner: TestUser | null = null;
-  let other: TestUser | null = null;
+  const other: TestUser | null = null;
   let slug: string | null = null;
 
   try {
@@ -224,9 +236,9 @@ async function main() {
     await login(otherEmail, password);
     const otherSessionRes = await request("/api/auth/session");
     const otherSessionText = await otherSessionRes.text();
-    let otherSessionJson: any = {};
+    let otherSessionJson: SessionPayload = {};
     try {
-      otherSessionJson = JSON.parse(otherSessionText);
+      otherSessionJson = JSON.parse(otherSessionText) as SessionPayload;
     } catch {
       console.log("NON-OWNER SESSION RAW:", otherSessionRes.status, otherSessionText.slice(0, 300));
     }

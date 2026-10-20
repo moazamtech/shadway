@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { coverImageUrl } from "@/lib/images";
 import {
   Dialog,
   DialogContent,
@@ -180,7 +181,7 @@ export function ComponentDetailDialog({
           >
             {current.author.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={current.author.avatar} alt="" className="h-full w-full object-cover" />
+              <img src={coverImageUrl(current.author.avatar, 96)} alt="" className="h-full w-full object-cover" />
             ) : (
               current.author.username.slice(0, 2)
             )}
@@ -189,7 +190,7 @@ export function ComponentDetailDialog({
             {current.title}
           </span>
           {current.category ? (
-            <span className="hidden shrink-0 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-medium tracking-[0.1em] text-white/70 uppercase sm:inline">
+            <span className="hidden shrink-0 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-medium tracking-[0.1em] text-white/70 uppercase sm:inline">
               {current.category}
             </span>
           ) : null}
@@ -256,7 +257,7 @@ export function ComponentDetailDialog({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-sm transition-colors hover:bg-blue-500 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+                className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground shadow-sm transition-colors hover:bg-(--primary-hover) focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
               >
                 {copied === "code" || copied === "code+demo" ? (
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />

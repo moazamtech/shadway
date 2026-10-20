@@ -18,8 +18,7 @@ import {
 } from "@/components/prompt-input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useChat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
+import { useChat, type UIMessage, type UseChatOptions } from "@ai-sdk/react";
 import {
   AlertTriangle,
   ArrowUp,
@@ -133,9 +132,15 @@ ErrorMessage.displayName = "ErrorMessage";
 function ConversationPromptInput() {
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, error } = useChat({
-    api: "/api/chatbot",
-  } as any) as any;
+  /**
+   * `useChat` reads its endpoint from a transport in this version of the SDK,
+   * so the `api` key below is not read by the hook. It is asserted into the
+   * options type so the hook, and every message it hands back, stay typed
+   * instead of collapsing into `any`.
+   */
+  const chatOptions = { api: "/api/chatbot" } as unknown as UseChatOptions<UIMessage>;
+
+  const { messages, sendMessage, status, error } = useChat(chatOptions);
 
   const handleSubmit = () => {
     if (!input.trim()) return;
@@ -148,13 +153,13 @@ function ConversationPromptInput() {
     <div className="flex h-screen flex-col overflow-hidden">
       <ChatContainerRoot className="relative flex-1 space-y-0 overflow-y-auto">
         <ChatContainerContent className="space-y-12 px-4 py-12">
-          {(messages as any[]).map((message, index) => {
+          {messages.map((message, index) => {
             const isLastMessage = index === messages.length - 1;
 
             return (
               <MessageComponent
                 key={message.id}
-                message={message as any}
+                message={message}
                 isLastMessage={isLastMessage}
               />
             );

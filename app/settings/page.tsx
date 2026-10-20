@@ -49,14 +49,14 @@ export default async function SettingsPage() {
             <Link href={`/u/${handle}`}>Public profile</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/u/${handle}`}>Your work</Link>
+            <Link href={`/u/${handle}?tab=saved`}>Saved</Link>
           </Button>
         </div>
       }
     >
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             Account settings
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

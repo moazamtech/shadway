@@ -335,7 +335,7 @@ export function ComponentGrid({
           pictures is two rows too many. */}
       <div
         className={cn(
-          "mb-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1",
+          "mb-4 flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           chips === "rail" && "md:hidden"
         )}
       >
@@ -392,7 +392,7 @@ export function ComponentGrid({
         ) : (
           /* Nothing on the page yet: this is the wait, and it should look
              like the site rather than like a broken layout. */
-          <BrandLoader className="min-h-[420px] rounded-xl" />
+          <BrandLoader className="min-h-[320px] rounded-xl" />
         )
       ) : state.visible.length ? (
         <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">

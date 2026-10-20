@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useRef, useMemo, useEffect, useState } from 'react';
-import { motion, useSpring, useTransform, useMotionValue, animate } from 'framer-motion';
+import {
+    motion,
+    useSpring,
+    useTransform,
+    useMotionValue,
+    animate,
+    type AnimationPlaybackControls,
+    type MotionValue,
+} from 'framer-motion';
 
 interface OrganicWebProps {
     viewport: number;
@@ -9,6 +17,25 @@ interface OrganicWebProps {
     isPulling: boolean;
     theme: string | undefined;
 }
+
+/** The strands that fan out of the rope's tip. */
+type StrandData = {
+    yOffset: number;
+    controlOffset: number;
+    thickness: number;
+    splitPercent: number;
+    opacity: number;
+};
+
+/** The threads that cross between the rope and the far edge. */
+type CrossData = {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    thickness: number;
+    opacity: number;
+};
 
 export const OrganicWeb: React.FC<OrganicWebProps> = ({
     viewport,
@@ -27,7 +54,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
             height: containerRef.current.clientHeight || 600
         });
         const observer = new ResizeObserver((entries) => {
-            for (let entry of entries) {
+            for (const entry of entries) {
                 if (entry.contentRect.width > 0) {
                     setDimensions({
                         width: entry.contentRect.width,
@@ -47,7 +74,7 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
     useEffect(() => widthMV.set(dimensions.width), [dimensions.width]);
 
     const active = isDragging || isPulling;
-    const animationRef = useRef<any>(null);
+    const animationRef = useRef<AnimationPlaybackControls | null>(null);
 
     // 1. Handle X - Manually controlled for "Hybrid" tracking
     // Instant when active, Spring-animated when released
@@ -212,7 +239,21 @@ export const OrganicWeb: React.FC<OrganicWebProps> = ({
 };
 
 // Sub-components need to accept MotionValues!
-const SplatterStrand = ({ handleX, handleY, width, height, strandData, color }: any) => {
+const SplatterStrand = ({
+    handleX,
+    handleY,
+    width,
+    height,
+    strandData,
+    color,
+}: {
+    handleX: MotionValue<number>;
+    handleY: number;
+    width: number;
+    height: number;
+    strandData: StrandData;
+    color: string;
+}) => {
     const path = useTransform(handleX, (x: number) => {
         const startX = x + 12;
 
@@ -258,7 +299,19 @@ const SplatterStrand = ({ handleX, handleY, width, height, strandData, color }: 
     );
 };
 
-const CrossWeb = ({ handleX, width, height, data, color }: any) => {
+const CrossWeb = ({
+    handleX,
+    width,
+    height,
+    data,
+    color,
+}: {
+    handleX: MotionValue<number>;
+    width: number;
+    height: number;
+    data: CrossData;
+    color: string;
+}) => {
     const path = useTransform(handleX, (x: number) => {
         const startX = x + 12;
         const x1 = startX + (width - startX) * data.startX;

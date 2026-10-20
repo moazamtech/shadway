@@ -3,6 +3,17 @@ import path from "path";
 
 const registryDir = path.join(process.cwd(), "registry");
 
+interface RegistryIndexItem {
+  name: string;
+  type?: string;
+  category?: string;
+}
+
+interface RegistryIndex {
+  name: string;
+  items: RegistryIndexItem[];
+}
+
 export function ensureDir() {
   if (!fs.existsSync(registryDir)) fs.mkdirSync(registryDir, { recursive: true });
 }
@@ -46,11 +57,11 @@ export async function saveComponent({ name, title, description, category, code }
 
   // 3️⃣ Update global registry.json
   const registryFile = path.join(registryDir, "registry.json");
-  const registry = fs.existsSync(registryFile)
+  const registry = (fs.existsSync(registryFile)
     ? JSON.parse(fs.readFileSync(registryFile, "utf8"))
-    : { name: "shadway", items: [] };
+    : { name: "shadway", items: [] }) as RegistryIndex;
 
-  if (!registry.items.find((i: any) => i.name === name)) {
+  if (!registry.items.find((i) => i.name === name)) {
     registry.items.push({
       name,
       type: item.type,
