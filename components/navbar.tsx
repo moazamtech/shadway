@@ -140,7 +140,7 @@ export function Navbar() {
                       <DropdownMenuContent
                         align="center"
                         sideOffset={8}
-                        className="w-80 rounded-xl"
+                        className="w-80 rounded-xl p-1.5"
                       >
                         {resourceItems.map((item) => {
                           const Icon = item.icon;
@@ -148,14 +148,14 @@ export function Navbar() {
                             <DropdownMenuItem
                               key={item.name}
                               asChild
-                              className="items-start gap-3 rounded-lg px-2.5 py-2.5"
+                              className="group/item items-start gap-3 rounded-lg px-2.5 py-2.5"
                             >
                               <Link href={item.href}>
-                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover/item:bg-primary/20">
                                   <Icon className="size-4 text-primary" />
                                 </span>
                                 <span className="flex min-w-0 flex-col gap-1">
-                                  <span className="text-sm font-medium leading-none">
+                                  <span className="text-sm font-medium leading-none transition-colors group-hover/item:text-primary">
                                     {item.name}
                                   </span>
                                   <span className="text-xs leading-relaxed text-muted-foreground">

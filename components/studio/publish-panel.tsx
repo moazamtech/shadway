@@ -23,6 +23,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -421,10 +430,10 @@ export function PublishPanel({
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1100px] gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-6">
+      <div className="mx-auto grid max-w-[1100px] gap-8 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:py-8">
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-xl font-semibold tracking-tight">
               {isUpdate ? "Update your component" : "Describe your component"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -434,8 +443,8 @@ export function PublishPanel({
 
           <label className="block space-y-1.5 text-sm font-medium">
             Title
-            <input
-              className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+            <Input
+              className="h-8"
               value={meta.title}
               onChange={(e) => setMeta({ ...meta, title: e.target.value })}
               placeholder="Animated gradient button"
@@ -449,7 +458,7 @@ export function PublishPanel({
               package.json. */}
           <div className="space-y-1.5 text-sm font-medium">
             <label htmlFor="publish-slug">Registry URL</label>
-            <div className="flex h-10 items-center rounded-lg border border-border/60 bg-background px-3 text-sm transition-colors focus-within:border-primary/60">
+            <div className="flex h-8 items-center rounded-lg bg-transparent px-3 text-sm ring-1 ring-border transition-shadow focus-within:ring-2 focus-within:ring-ring">
               <span className="shrink-0 select-none text-muted-foreground/70">
                 /r/
               </span>
@@ -505,8 +514,8 @@ export function PublishPanel({
 
           <label className="block space-y-1.5 text-sm font-medium">
             Description
-            <textarea
-              className="min-h-24 w-full rounded-lg border border-border/60 bg-background p-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+            <Textarea
+              className="min-h-24"
               value={meta.description}
               onChange={(e) => setMeta({ ...meta, description: e.target.value })}
               placeholder="A button with an animated gradient border and loading state."
@@ -516,21 +525,25 @@ export function PublishPanel({
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5 text-sm font-medium">
               Category
-              <select
-                className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-primary/60"
+              <Select
                 value={meta.category}
-                onChange={(e) => setMeta({ ...meta, category: e.target.value })}
+                onValueChange={(value) => setMeta({ ...meta, category: value })}
               >
                 {/* The taxonomy, not a hand-maintained list. The old six
                     options were the shape the registry used to have; two of
                     them (`block`, `marketing`) disagreed with each other, and
                     `shadcn add` had no type for any of the rest. */}
-                {CATEGORY_GROUPS.map((group) => (
-                  <option key={group.slug} value={group.slug}>
-                    {group.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_GROUPS.map((group) => (
+                    <SelectItem key={group.slug} value={group.slug}>
+                      {group.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {/* What the group means, under the control. A native <select>
                   shows one line per option and that line is also the closed
                   control's own label, so the explanation cannot live inside
@@ -544,8 +557,8 @@ export function PublishPanel({
 
             <label className="block space-y-1.5 text-sm font-medium">
               Tags
-              <input
-                className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/60"
+              <Input
+                className="h-8"
                 value={meta.tags}
                 onChange={(e) => setMeta({ ...meta, tags: e.target.value })}
                 placeholder="button, animation"
@@ -619,7 +632,7 @@ export function PublishPanel({
               }`}
             >
               <div className="flex flex-wrap items-center gap-2.5">
-                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-xs font-medium transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
+                <label className="flex h-8 cursor-pointer items-center gap-2 rounded-lg bg-transparent px-2.5 text-xs font-medium ring-1 ring-border transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
                   {uploading === "image" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                   ) : (
@@ -634,7 +647,7 @@ export function PublishPanel({
                   />
                 </label>
 
-                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background px-3 text-xs font-medium transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
+                <label className="flex h-8 cursor-pointer items-center gap-2 rounded-lg bg-transparent px-2.5 text-xs font-medium ring-1 ring-border transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-accent">
                   {uploading === "video" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                   ) : (
