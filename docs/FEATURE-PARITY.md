@@ -23,6 +23,7 @@
 | Owner controls (PATCH/DELETE) | owner endpoints | Present | `app/api/components/[slug]/route.ts` (PATCH/DELETE, 401/403/200 verified) | — | — |
 | Install (CLI / v0 / Lovable / Bolt + download) | install tabs | Present | `components/marketplace/install-tabs.tsx` | — | — |
 | Registry endpoint (`/r/<slug>`) | `/r/<slug>` | Present | `app/r/[slug]/route.ts` + `lib/registry/index.ts`; installed for real by `scripts/qa-install.ts` | — | — |
+| Two-level taxonomy, asked for at publish time | categories | Present | `lib/categories.ts` — a group (UI components, marketing blocks) and a kind (button, hero, contact); the publish form asks for both and the route refuses a component without a kind, so the shelf is made of things a reader can look for | — | — |
 
 ## Studio
 
@@ -33,6 +34,7 @@
 | Live local preview (no remote bundler) | `sandbox` | Present | `components/studio/sandpack-preview.tsx`, `lib/preview/build.ts` | — | — |
 | Separate publish page | `publish` | Present | `components/studio/publish-panel.tsx` | — | — |
 | Import a component from a repository | — | Present | `app/api/studio/import-github/route.ts`, `components/studio/import-github-dialog.tsx` — a repository is listed by folder, the author picks the files, the paths are rewritten to the project's | — | — |
+| Import a component from another registry | — | Present | `app/api/studio/import-registry/route.ts`, `lib/studio/registry-reference.ts` — the address, the name (`@acme/button`) or the whole install command (`npx shadcn@latest add @acme/button`, in the `pnpm dlx`, `bunx` and `yarn dlx` spellings too) all name the same item; the item's registry dependencies come with it, so the component is whole | — | — |
 | Creator earnings and payout address | — | Present | `app/api/payouts/**`, `components/settings/payouts-panel.tsx`, `app/admin/payouts/page.tsx` | — | — |
 | Weekly payout run | — | Present | `app/api/admin/payouts/run/route.ts` — plans the week, writes the batch, claims the earnings; the signing key is not in the app | — | — |
 | AI-assisted generation / chat | `magic`, `magic-chat` | Partial | `app/component-generator/page.tsx`, `app/vibecode/*` — generation exists; no interactive refine chat | L | P1 |

@@ -1,18 +1,24 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
+import MonacoEditor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import type * as Monaco from "monaco-editor";
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-      Loading editor...
-    </div>
-  ),
-});
+/**
+ * The editor is imported rather than loaded on demand.
+ *
+ * A chunk that is fetched after the page is up is a chunk the development
+ * server has not compiled yet, and compiling it changes the list of runtime
+ * chunks — which the browser is told about by reloading the page. The studio
+ * is the one surface where a reload is expensive: the sandbox is torn down
+ * and built again, and the author watches their component disappear and come
+ * back. So the editor is part of the page's own bundle, compiled with it.
+ *
+ * The editor itself is still loaded in the browser, from the same place
+ * Monaco has always been loaded from, and the waiting is shown by the editor
+ * itself rather than by a placeholder around it.
+ */
 
 type Props = {
   path: string;
@@ -255,6 +261,11 @@ export function StudioEditor({
       language={language}
       value={value}
       theme={activeTheme}
+      loading={
+        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+          Loading editor...
+        </div>
+      }
       beforeMount={(monaco) => {
         // Runs before the editor instance exists, so the theme is already
         // registered on the first paint — no light flash, no fallback theme.
@@ -324,7 +335,6 @@ export function StudioEditor({
         quickSuggestions: { other: true, comments: false, strings: false },
         suggest: { showWords: true },
       }}
-      loading={<div className="p-4 text-xs text-muted-foreground">Loading editor...</div>}
     />
   );
 }

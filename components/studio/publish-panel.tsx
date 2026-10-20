@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { slugify, slugMessage, slugProblem } from "@/lib/component-slug";
@@ -47,16 +46,12 @@ import { coverImageUrl } from "@/lib/images";
 
 /**
  * The sandbox is the same engine the studio previews with, so what the author
- * approves here is literally the build the marketplace will serve. Code-split
- * and client-only, like the studio's copy.
+ * approves here is literally the build the marketplace will serve. It is part
+ * of the studio's bundle rather than a chunk fetched later, because a chunk
+ * that appears changes the list of runtime chunks — which the browser is told
+ * about by reloading the page, and a reload here tears the sandbox down.
  */
-const SandpackPreviewPane = dynamic(
-  () =>
-    import("@/components/studio/sandpack-preview").then(
-      (mod) => mod.SandpackPreviewPane
-    ),
-  { ssr: false }
-);
+import { SandpackPreviewPane } from "@/components/studio/sandpack-preview";
 
 export type PublishMeta = {
   title: string;

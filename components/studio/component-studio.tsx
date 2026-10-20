@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
@@ -160,13 +159,18 @@ function buildTree(files: Record<string, string>): TreeNode[] {
 /* --------------------------------------------------------- the preview -- */
 
 /**
- * Sandpack is a large client-only dependency, so it is code-split and never
- * rendered on the server — the studio still loads from HTML alone.
+ * The sandbox is part of the studio's own bundle.
+ *
+ * It used to be fetched after the page was up, which in development meant the
+ * server compiling a chunk nobody had asked for yet — and a chunk that
+ * appears changes the list of runtime chunks, which the browser is told
+ * about by reloading the page. The studio is the one surface where a reload
+ * is expensive: the sandbox is torn down and built again, and the author
+ * watches their component disappear and come back. In production the split
+ * saved nothing — the studio is a page of its own, and the marketplace never
+ * loads it.
  */
-const SandpackPreviewPane = dynamic(
-  () => import("@/components/studio/sandpack-preview").then((mod) => mod.SandpackPreviewPane),
-  { ssr: false }
-);
+import { SandpackPreviewPane } from "@/components/studio/sandpack-preview";
 
 export function ComponentStudio({
   slug,

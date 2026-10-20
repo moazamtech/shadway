@@ -189,35 +189,19 @@ async function main() {
     log("the editor loads", editorReady);
 
     /**
-     * The new file, pasted rather than typed.
+     * The new file, put into the editor without a keystroke.
      *
-     * Monaco offers completions while a word is being typed, and it closes
-     * every bracket the moment one is opened — so a typed sentence arrives
-     * with brackets of its own and characters missing, which is Monaco being
-     * helpful and the check measuring something else entirely. A paste is
-     * taken literally, which is what a check about the live edit wants.
+     * Monaco is a good editor and a fussy one: it closes every bracket the
+     * moment one is opened, it offers completions while a word is being
+     * typed, and a paste needs a clipboard a headless browser will not
+     * always grant. Text inserted without a key event arrives as it was
+     * written, which is what a check about the live edit wants.
      */
-    await page
-      .evaluate((text) => {
-        const holder = document.createElement("textarea");
-        holder.value = text;
-        holder.setAttribute("readonly", "");
-        holder.style.position = "fixed";
-        holder.style.top = "-1000px";
-        document.body.appendChild(holder);
-        holder.select();
-        document.execCommand("copy");
-        holder.remove();
-      }, EDIT_SOURCE)
-      .catch(() => undefined);
-
     await page.click(".monaco-editor .view-lines");
     await page.keyboard.down("Control");
     await page.keyboard.press("KeyA");
     await page.keyboard.up("Control");
-    await page.keyboard.down("Control");
-    await page.keyboard.press("KeyV");
-    await page.keyboard.up("Control");
+    await page.keyboard.sendCharacter(EDIT_SOURCE);
     await page.keyboard.press("Escape");
 
     /**
@@ -260,6 +244,9 @@ async function main() {
         );
         break;
       }
+    }
+    if (!painted) {
+      console.log(`  the preview still shows: ${(await frames(page)).slice(0, 200)}`);
     }
     log("the preview repaints with the edit", painted, `marker=${marker}`);
 
