@@ -173,7 +173,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 lg:px-6">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Components</h1>
@@ -404,7 +404,7 @@ export function StudioDashboard({ items }: { items: StudioItem[] }) {
               if (event.key === "Enter" && !creating) void createDraft();
             }}
             placeholder="Animated gradient button"
-            className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-sm outline-none transition-colors focus:border-primary/60"
+            className="h-8 w-full rounded-lg bg-transparent px-3 text-sm ring-1 ring-border transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <DialogFooter>

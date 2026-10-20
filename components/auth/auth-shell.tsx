@@ -44,7 +44,7 @@ export function AuthShell({
 
       <Card
         className={cn(
-          "w-full max-w-md gap-6 rounded-2xl border-border/60 bg-card/80 py-8 shadow-sm backdrop-blur-xl",
+          "w-full max-w-md gap-6 rounded-xl border-border/60 bg-card/80 py-8 shadow-sm backdrop-blur-xl",
           className,
         )}
       >
@@ -60,7 +60,7 @@ export function AuthShell({
               alt="Shadway"
               className="h-8 w-8 rounded-lg"
             />
-            <span className="font-serif text-lg tracking-tight text-foreground">
+            <span className="text-sm font-semibold tracking-tight text-foreground">
               Shadway
             </span>
           </Link>
@@ -90,13 +90,13 @@ export function AuthFormSkeleton() {
     <div aria-hidden className="space-y-5">
       <div className="space-y-2">
         <Skeleton className="h-4 w-14" />
-        <Skeleton className="h-9 w-full rounded-md" />
+        <Skeleton className="h-8 w-full rounded-md" />
       </div>
       <div className="space-y-2">
         <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-9 w-full rounded-md" />
+        <Skeleton className="h-8 w-full rounded-md" />
       </div>
-      <Skeleton className="h-9 w-full rounded-md" />
+      <Skeleton className="h-8 w-full rounded-md" />
     </div>
   );
 }
