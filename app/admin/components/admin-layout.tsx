@@ -1,79 +1,82 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { useSession } from 'next-auth/react';
-import { Loader2 } from 'lucide-react';
-
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
+import { ReactNode } from "react";
+import { useSession } from "next-auth/react";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { AppSidebar } from './app-sidebar';
+  ClipboardCheck,
+  Code,
+  CreditCard,
+  Eye,
+  FileText,
+  Globe,
+  Home,
+  Layers,
+  Settings,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
+
+import { AppShell } from "@/components/marketplace/app-shell";
+import { BrandLoader } from "@/components/brand-loader";
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
+/**
+ * The admin is a set of places in the same column.
+ *
+ * It used to be a second application: its own sidebar primitive, its own
+ * header, its own spacing, a different accent, and a different idea of what a
+ * page looks like. An administrator moving between the marketplace and the
+ * panel should be moving between two rooms of the same building — the same
+ * rail, the same panel, the same palette, the same account menu at the foot.
+ *
+ * So the admin is now the marketplace's shell with a different set of places
+ * in it, and the rail that carries them is the same rail.
+ */
+const ADMIN_NAV: { title: string; href: string; icon: LucideIcon }[] = [
+  { title: "Dashboard", href: "/admin/dashboard", icon: Home },
+  { title: "Review queue", href: "/admin/review", icon: ClipboardCheck },
+  { title: "Submissions", href: "/admin/submissions", icon: FileText },
+  { title: "Components", href: "/admin/components", icon: Code },
+  { title: "Vibe components", href: "/admin/vibe-components", icon: Layers },
+  { title: "Websites", href: "/admin/websites", icon: Globe },
+  { title: "Templates", href: "/admin/templates", icon: Code },
+  { title: "Payouts", href: "/admin/payouts", icon: CreditCard },
+  { title: "AI models", href: "/admin/ai-models", icon: Sparkles },
+  { title: "Library", href: "/docs", icon: Eye },
+  { title: "Settings", href: "/admin/settings", icon: Settings },
+];
+
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { data: session, status } = useSession();
 
-  // Loading state
-  if (status === 'loading') {
+  // The session is still being read: the panel is not drawn on a guess.
+  if (status === "loading" || !session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Let middleware handle authentication - just render if we get here
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Authenticating...</p>
-        </div>
-      </div>
+      <BrandLoader
+        className="min-h-dvh"
+        label={status === "loading" ? "Loading" : "Authenticating"}
+      />
     );
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar user={session.user} />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/admin/dashboard">
-                    Admin
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Dashboard</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {children}
+    <AppShell
+      nav={ADMIN_NAV}
+      toolbar={
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            Admin
+          </p>
+          <p className="truncate text-sm font-semibold tracking-tight">
+            {session.user.name || session.user.email}
+          </p>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      }
+    >
+      <div className="space-y-6 p-4 lg:p-6">{children}</div>
+    </AppShell>
   );
 }

@@ -98,7 +98,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 700));
 
     const dialogText = await page.evaluate(() => {
-      const dialog = document.querySelector('[role="dialog"]');
+      const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
       return dialog ? dialog.innerText : "";
     });
     log("the new-component dialog opens", opened && dialogText.length > 0);

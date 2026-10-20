@@ -78,7 +78,7 @@ export default function ReviewPage() {
 
     // The queue arrives after the first paint, so the request and the state
     // are read together: nothing lands once the page has gone, and the
-    // badge stops counting down the moment the answer does.
+    // badge counts the queue the moment the answer does.
     fetch("/api/admin/review", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Failed to load the review queue");
@@ -142,7 +142,7 @@ export default function ReviewPage() {
       <div className="p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Review queue</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Review queue</h1>
             <p className="text-muted-foreground">
               Components users submitted for publishing. Nothing goes live
               without your call.

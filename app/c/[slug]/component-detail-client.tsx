@@ -70,6 +70,8 @@ type Item = {
   likes: number;
   bookmarks?: number;
   category?: string;
+  /** The name of the built preview, so the frame can be asked for by name. */
+  previewHash?: string;
   createdAt?: string;
   /** Present (and not "published") only for the owner or an admin. */
   status?: "draft" | "pending" | "published" | "hidden" | "flagged";
@@ -461,6 +463,7 @@ export default function ComponentDetailClient() {
               <BundledPreview
                 slug={item.slug}
                 height="100%"
+                version={item.previewHash}
                 poster={item.thumbnailUrl}
               />
               <Tooltip>
@@ -698,6 +701,7 @@ export default function ComponentDetailClient() {
               <BundledPreview
                 slug={item.slug}
                 height="100%"
+                version={item.previewHash}
                 poster={item.thumbnailUrl}
               />
             </div>

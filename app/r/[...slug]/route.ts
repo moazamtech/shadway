@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildRegistryItem } from "@/lib/registry";
+import { incrementComponentMetric } from "@/lib/db/components";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,6 +60,21 @@ export async function GET(
     if (!item) {
       return NextResponse.json({ error: "Component not found" }, { status: 404 });
     }
+
+    /**
+     * An install is the CLI asking for the item.
+     *
+     * The registry is the only place a component can be installed from, so a
+     * request for it is the closest thing this product has to a download. The
+     * count is written in the background: the CLI is waiting on the answer,
+     * and a counter must never be the reason an install is slow.
+     *
+     * Only the item that was asked for counts. A component that pulls in a
+     * dependency is installed as part of that install, not instead of it.
+     */
+    void incrementComponentMetric(segments[segments.length - 1], "installs").catch(
+      () => {},
+    );
 
     return NextResponse.json(item, {
       headers: {

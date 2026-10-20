@@ -134,17 +134,31 @@ const ShineEffect = ({ isPressed }: { isPressed: boolean }) => {
   );
 };
  
+/**
+ * Whether the device answers to a finger rather than a pointer.
+ *
+ * The shine and the lift are a pointer's business — a finger has no hover
+ * state to answer with, and a button that brightens under a thumb reads as
+ * a button that is stuck down. Only the browser can be asked, and the
+ * server has nothing to ask with, so the answer there is no; the store
+ * hands over the browser's answer the moment the browser is in charge.
+ */
+const subscribeToNothing = () => () => {};
+const deviceIsTouch = () =>
+  "ontouchstart" in window || navigator.maxTouchPoints > 0;
+const serverHasNoTouch = () => false;
+
 export const MetalButton = React.forwardRef<
   HTMLButtonElement,
   MetalButtonProps
 >(({ children, className, variant = "default", ...props }, ref) => {
   const [isPressed, setIsPressed] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
-  const [isTouchDevice, setIsTouchDevice] = React.useState(false);
- 
-  React.useEffect(() => {
-    setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
-  }, []);
+  const isTouchDevice = React.useSyncExternalStore(
+    subscribeToNothing,
+    deviceIsTouch,
+    serverHasNoTouch,
+  );
  
   const buttonText = children || "Button";
   const variants = metalButtonVariants(

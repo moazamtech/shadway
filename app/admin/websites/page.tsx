@@ -283,7 +283,7 @@ export default function WebsitesPage() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Websites</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Websites</h1>
             <p className="text-muted-foreground">
               Manage your component library websites and monitor performance
             </p>

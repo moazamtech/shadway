@@ -111,7 +111,7 @@ export function MyComponent() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">New Component</h1>
+          <h1 className="text-xl font-semibold tracking-tight">New Component</h1>
           <p className="text-muted-foreground">
             Create and register a new component in your library.
           </p>

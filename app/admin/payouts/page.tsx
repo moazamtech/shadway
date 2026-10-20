@@ -301,7 +301,7 @@ export default function PayoutsPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Payout addresses</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Payout addresses</h1>
             <p className="text-muted-foreground">
               Verify the Base address each creator is paid at. An address is never paid before
               it is approved here.

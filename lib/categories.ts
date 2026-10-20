@@ -74,14 +74,19 @@ function tags(group: string, entries: ReadonlyArray<readonly [string, string]>):
 export const CATEGORY_TAGS: readonly CategoryTag[] = [
   ...tags("marketing", [
     ["announcement", "Announcements"],
+    ["auth", "Auth"],
     ["background", "Backgrounds"],
+    ["banner", "Banners"],
+    ["bento", "Bento Grids"],
     ["border", "Borders"],
     ["call-to-action", "Calls to Action"],
     ["clients", "Clients"],
     ["comparison", "Comparisons"],
+    ["contact", "Contacts"],
     ["dock", "Docks"],
     ["features", "Features"],
     ["footer", "Footers"],
+    ["header", "Headers"],
     ["hero", "Heroes"],
     ["hook", "Hooks"],
     ["image", "Images"],
@@ -166,6 +171,26 @@ export function findGroup(slug: string): CategoryGroup | null {
 }
 
 /**
+ * The sub-categories of a group.
+ *
+ * A group is a shelf; the sub-categories are the kinds of thing on it. A
+ * reader who wants a button should not have to know that buttons are filed
+ * under "UI components", and a reader who wants a hero should not have to
+ * know that heroes are filed under "marketing blocks" — the shelf is the
+ * coarse way in and the kind is the fine one.
+ */
+export function tagsForGroup(group: string): readonly CategoryTag[] {
+  const key = group.trim().toLowerCase();
+  return CATEGORY_TAGS.filter((tag) => tag.group === key);
+}
+
+/** The sub-category a stored tag names, or `null`. */
+export function findTag(slug: string): CategoryTag | null {
+  const key = slug.trim().toLowerCase();
+  return CATEGORY_TAGS.find((tag) => tag.slug === key) ?? null;
+}
+
+/**
  * The group any stored value belongs to.
  *
  * Every component already in the database was filed under one of the ad-hoc
@@ -209,12 +234,6 @@ export function storedCategoriesFor(group: string): string[] {
   // The canonical slug is listed even when no alias spells it, so the result is
   // never empty for a real group.
   return [target, ...aliases.filter((alias) => alias !== target)];
-}
-
-/** The tag a slug names, or `null` when it is not one of ours. */
-export function findTag(slug: string): CategoryTag | null {
-  const key = slug.trim().toLowerCase();
-  return CATEGORY_TAGS.find((tag) => tag.slug === key) ?? null;
 }
 
 /** How a value reads when we do not recognise it — never blank. */

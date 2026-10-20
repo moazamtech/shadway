@@ -2,18 +2,17 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import {
-  Bookmark,
   Home,
+  Layers,
+  Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
-  User,
+  Shapes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { findGroup, normalizeGroup } from "@/lib/categories";
+import { findGroup, normalizeGroup, tagsForGroup } from "@/lib/categories";
 import { Separator } from "@/components/ui/separator";
 import { BrandMark } from "@/components/brand-mark";
 import { UserMenu } from "@/components/user-menu";
@@ -104,49 +103,54 @@ type RailNavItem = {
 };
 
 /**
- * The Profile row is the one entry with no fixed destination.
+ * The rail's places.
  *
- * There is one profile page, and it lives at `/u/<handle>`, because a profile is
- * a public thing: the address a visitor can open is the address its owner
- * should land on, and the extra tabs an owner gets are panes on that same page
- * rather than a second page with its own copy of the same components. `/profile`
- * still resolves — it is in links people have saved, so it 307s here — but a row
- * that pointed at a redirect and then illuminated nothing would be a navigation
- * control that forgets where you are standing.
+ * One row, because the rail is a list of *places* and the feed is the only
+ * place that is not a category. Everything about the person reading it — their
+ * profile, what they have saved, the studio, the settings — belongs to the
+ * account menu at the foot of the column, where the account itself is; a
+ * second copy of it halfway up the rail is two places to keep in step and
+ * nothing to gain.
  *
- * The handle comes from `useSession` rather than a prop because `AppShell`
- * mounts this rail twice (desktop column and phone drawer) and every page passes
- * through it; a prop would have to be threaded from all of them to be read here.
+ * The admin is a different set of places in the same column, so the rail
+ * takes its navigation rather than insisting on its own.
  */
-const PROFILE_PATH = "/profile";
-
-const NAV: RailNavItem[] = [
-  { title: "Home", href: "/", icon: Home, exact: true },
-  { title: "Bookmarks", href: "/bookmarks", icon: Bookmark },
-  { title: "Profile", href: PROFILE_PATH, icon: User },
-  { title: "Settings", href: "/settings", icon: Settings },
-];
-type CatalogItem = {
-  title: string;
-  slug: string;
-  /**
-   * How many times it has been installed.
-   *
-   * It orders the rail — the most-installed component of a group comes first —
-   * and it is not printed: a column of zeroes next to a list of names is
-   * noise, and the number that matters is the one in the group's own header.
-   */
-  installs: number;
-};
-
+const NAV: RailNavItem[] = [{ title: "Home", href: "/", icon: Home, exact: true }];
 type CatalogGroup = {
   slug: string;
   label: string;
-  items: CatalogItem[];
+  /** How many published components are filed under it. */
+  count: number;
+  /** The kinds of thing on this shelf, and how many of each there are. */
+  tags: { slug: string; label: string; count: number }[];
 };
 
-/** The rail's list reads the same feed endpoint as the grid it sits next to,
- *  so the two can never drift. */
+/**
+ * The mark beside a category.
+ *
+ * The rail's rows are identified by their icons, so the categories need one
+ * too: a shape for "the things you drop into an app" and a different one for
+ * "the sections a landing page is made of". A category that is only a word is
+ * a label; a category with a shape is a place.
+ */
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  ui: Shapes,
+  marketing: Megaphone,
+};
+
+/**
+ * The rail's categories.
+ *
+ * The rail is a column of places, not a second catalogue: it used to list
+ * individual components under each category, which made the sidebar a copy of
+ * the feed with two fewer columns and a different sort. Now it lists the
+ * categories themselves, with the number of components in each, and the
+ * grid does the rest.
+ *
+ * The counts come from the same feed endpoint the grid reads, so the number
+ * beside a category is the number of cards behind it rather than a number
+ * kept somewhere else.
+ */
 function useRailCatalog(): CatalogGroup[] | null {
   const [groups, setGroups] = React.useState<CatalogGroup[] | null>(null);
 
@@ -157,42 +161,42 @@ function useRailCatalog(): CatalogGroup[] | null {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("feed"))))
       .then((data) => {
         if (cancelled || !Array.isArray(data.items)) return;
-        const map = new Map<string, CatalogGroup>();
-        for (const item of data.items as Array<{
-          title?: string;
-          slug?: string;
-          category?: string;
-          installs?: number;
-        }>) {
-          if (!item.slug || !item.title) continue;
+        const counts = new Map<string, number>();
+        const tagCounts = new Map<string, Map<string, number>>();
+        for (const item of data.items as Array<{ category?: string; tags?: string[] }>) {
           /* Key on the taxonomy's group, not on the stored string. Every
-             component in the database was filed under one of the ad-hoc
-             lists, so keying on the raw value gave the rail a "hero"
-             section and a "blocks" section and a "marketing" section — three
-             sections over one category, each linking to a different query
-             than the header count implies. normalizeGroup is what folds them
-             back together, and findGroup is what turns the key back into
-             something worth reading. The feed still decides what appears:
-             an empty group is simply absent, because it is never seeded. */
+             component in the database was filed under one of the ad-hoc lists,
+             so keying on the raw value gave the rail a "hero" section and a
+             "blocks" section and a "marketing" section — three sections over
+             one category, each counting a different set than the header
+             implies. normalizeGroup is what folds them back together, and
+             findGroup is what turns the key back into something worth
+             reading. */
           const slug = normalizeGroup(item.category);
-          const group =
-            map.get(slug) ??
-            ({
-              slug,
-              label: findGroup(slug)?.title ?? slug,
-              items: [],
-            } satisfies CatalogGroup);
-          group.items.push({
-            title: item.title,
-            slug: item.slug,
-            installs: typeof item.installs === "number" ? item.installs : 0,
-          });
-          map.set(slug, group);
+          counts.set(slug, (counts.get(slug) ?? 0) + 1);
+
+          const group = tagCounts.get(slug) ?? new Map<string, number>();
+          for (const tag of item.tags ?? []) {
+            const key = tag.trim().toLowerCase();
+            if (!key) continue;
+            group.set(key, (group.get(key) ?? 0) + 1);
+          }
+          tagCounts.set(slug, group);
         }
         setGroups(
-          Array.from(map.values())
-            .sort((a, b) => b.items.length - a.items.length)
-            .slice(0, 8)
+          Array.from(counts.entries())
+            .map(([slug, count]) => ({
+              slug,
+              label: findGroup(slug)?.title ?? slug,
+              count,
+              tags: tagsForGroup(slug).map((tag) => ({
+                slug: tag.slug,
+                label: tag.title,
+                count: tagCounts.get(slug)?.get(tag.slug) ?? 0,
+              })),
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8),
         );
       })
       .catch(() => {
@@ -216,6 +220,7 @@ function RailRow({
   href,
   onClick,
   trailing,
+  variant = "row",
   className,
 }: {
   icon?: React.ComponentType<{ className?: string }>;
@@ -224,8 +229,16 @@ function RailRow({
   href?: string;
   onClick?: () => void;
   trailing?: React.ReactNode;
+  /**
+   * "sub" is a row nested under another row — the kinds of thing on a shelf.
+   * It has no icon of its own: the indentation says what it is, and an icon
+   * per sub-category would be forty little drawings in a column.
+   */
+  variant?: "row" | "sub";
   className?: string;
 }) {
+  const sub = variant === "sub";
+
   const body = (
     <>
       {/* A selected row does not inherit the hover/press pair — it overrides
@@ -243,7 +256,7 @@ function RailRow({
           <RowIcon className="h-4 w-4" />
         </span>
       ) : null}
-      <span className={FADE}>{label}</span>
+      <span className={cn(FADE, sub && "text-[13px] text-muted-foreground")}>{label}</span>
       {trailing !== undefined ? (
         <span
           className={cn(
@@ -257,12 +270,21 @@ function RailRow({
     </>
   );
 
+  const row = cn(
+    ROW,
+    active && "text-foreground",
+    // A sub-row is indented to the shelf's content edge, so the eye reads
+    // the nesting without a line or a box to draw it.
+    sub && "h-7 pl-7 text-[13px] text-muted-foreground",
+    className,
+  );
+
   if (href) {
     return (
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={cn(ROW, active && "text-foreground", className)}
+        className={row}
       >
         {body}
       </Link>
@@ -274,7 +296,7 @@ function RailRow({
       type="button"
       onClick={onClick}
       aria-current={active ? "true" : undefined}
-      className={cn(ROW, active && "text-foreground", className)}
+      className={row}
     >
       {body}
     </button>
@@ -286,19 +308,29 @@ function RailRow({
 export function SidebarRail({
   onNavigate,
   activeCategory,
+  activeTag,
+  nav,
   className,
 }: {
-  /** ⌘K palette trigger — the row doubles as the Search affordance. */
-  onSearch?: () => void;
   /** Called after a link click; the mobile drawer uses it to close itself. */
   onNavigate?: () => void;
+  /** The category the feed is showing, so the rail can light it. */
   activeCategory?: string;
+  /** The sub-category the feed is showing, so the rail can light it. */
+  activeTag?: string;
+  /**
+   * The rail's places, when they are not the marketplace's.
+   *
+   * The admin is a different set of places in the same column, and giving it
+   * the same column — the same width, the same rows, the same account menu at
+   * the foot — is what makes the admin part of this product rather than a
+   * second one wearing a different skin.
+   */
+  nav?: RailNavItem[];
   className?: string;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const catalog = useRailCatalog();
-  const { data: session } = useSession();
   const {
     collapsed,
     width,
@@ -308,47 +340,10 @@ export function SidebarRail({
     onResizeDoubleClick,
   } = useSidebar();
 
-  const handle = (session?.user as { username?: string } | undefined)?.username;
-  const profileHref = handle
-    ? `/u/${encodeURIComponent(handle)}`
-    : PROFILE_PATH;
-
-  /**
-   * Bookmarks are a tab on the profile, not a page of their own.
-   *
-   * The owner's saved work lives in the same pane as the work they published —
-   * it is the same person, and it is the same list with a different filter. So
-   * the row points at `?tab=saved` on the profile, and the separate
-   * `/bookmarks` page redirects there rather than being a second rendering of
-   * the same list.
-   */
-  const bookmarksHref = handle
-    ? `/u/${encodeURIComponent(handle)}?tab=saved`
-    : "/bookmarks";
-
-  const navItems = React.useMemo(
-    () =>
-      NAV.map((item) => {
-        if (item.href === PROFILE_PATH) return { ...item, href: profileHref };
-        if (item.href === "/bookmarks") return { ...item, href: bookmarksHref };
-        return item;
-      }),
-    [profileHref, bookmarksHref]
-  );
+  const navItems = nav ?? NAV;
 
   const isActive = (item: RailNavItem) =>
-    item.href === profileHref
-      ? // The profile and its saved tab are the same page, so the two rows
-        // cannot both be lit: the tab decides which one is. `/profile` is
-        // included for the instant before the redirect resolves.
-        pathname === profileHref || pathname === PROFILE_PATH
-        ? searchParams.get("tab") !== "saved"
-        : false
-      : item.href === bookmarksHref
-        ? pathname === profileHref && searchParams.get("tab") === "saved"
-        : item.exact
-          ? pathname === item.href
-          : pathname.startsWith(item.href);
+    item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
   return (
     <aside
@@ -423,15 +418,18 @@ export function SidebarRail({
 
         <Separator className="sidebar-glide mx-1.5 -my-1 transition-[margin] sidebar-collapsed:mx-0" />
 
-        {/* Component list — the rail's thread-list analogue: grouped by
-            category, scrollable in the leftover height. */}
+        {/* Categories — the rail's lower half. They are the places the feed
+            can be narrowed to, so they are rows like every other row in the
+            column, not a second list of what is already on the page. A rail
+            that was given its own navigation has no categories to offer. */}
+        {nav ? null : (
         <nav
-          aria-label="Components"
+          aria-label="Categories"
           className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {catalog === null ? (
             <div className="flex flex-col gap-1">
-              {Array.from({ length: 5 }).map((_, index) => (
+              {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
                   className={`flex h-8 items-center gap-2.5 ${GUTTER}`}
@@ -441,39 +439,54 @@ export function SidebarRail({
               ))}
             </div>
           ) : (
-            catalog.map((group) => (
-              <div key={group.slug} className="flex flex-col gap-0.5">
-                <Link
-                  href={
-                    group.slug === "all"
-                      ? "/"
-                      : `/?category=${encodeURIComponent(group.slug)}`
-                  }
-                  className={cn(
-                    `flex h-5 items-center gap-2 ${GUTTER} text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sidebar-collapsed:hidden`,
-                    activeCategory === group.slug && "text-foreground"
-                  )}
-                >
-                  <span className="truncate">{group.label}</span>
-                  <span className="ml-auto tabular-nums">
-                    {group.items.length}
-                  </span>
-                </Link>
-                {[...group.items]
-                  .sort((a, b) => b.installs - a.installs)
-                  .slice(0, 6)
-                  .map((item) => (
+            <>
+              <span
+                className={`px-3 pt-1 text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/70 uppercase sidebar-collapsed:hidden`}
+              >
+                Categories
+              </span>
+              <div className="flex flex-col gap-0.5">
+                {catalog.map((group) => (
+                  <div key={group.slug} className="flex flex-col gap-0.5">
                     <RailRow
-                      key={item.slug}
-                      label={item.title}
-                      href={`/c/${item.slug}`}
-                      active={pathname === `/c/${item.slug}`}
+                      icon={CATEGORY_ICONS[group.slug] ?? Layers}
+                      label={group.label}
+                      href={`/?category=${encodeURIComponent(group.slug)}`}
+                      active={activeCategory === group.slug && !activeTag}
+                      trailing={
+                        <span className="text-[11px] tabular-nums text-muted-foreground/80">
+                          {group.count}
+                        </span>
+                      }
                     />
-                  ))}
+                    {/* The kinds of thing on the shelf, indented under it.
+                        A shelf of forty buttons is not browsable; a shelf of
+                        "buttons" and "inputs" is. */}
+                    <div className="flex flex-col gap-px">
+                      {group.tags.map((tag) => (
+                        <RailRow
+                          key={tag.slug}
+                          label={tag.label}
+                          href={`/?category=${encodeURIComponent(group.slug)}&tag=${encodeURIComponent(tag.slug)}`}
+                          active={activeTag === tag.slug}
+                          variant="sub"
+                          trailing={
+                            tag.count > 0 ? (
+                              <span className="text-[10px] tabular-nums text-muted-foreground/60">
+                                {tag.count}
+                              </span>
+                            ) : null
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))
+            </>
           )}
         </nav>
+        )}
       </div>
 
       <UserMenu variant="row" />

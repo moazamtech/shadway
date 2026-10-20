@@ -8,6 +8,7 @@ import {
   type JSX,
   memo,
   useMemo,
+  useState,
 } from "react";
 
 export type TextShimmerProps = {
@@ -25,10 +26,23 @@ const ShimmerComponent = ({
   duration = 2,
   spread = 2,
 }: TextShimmerProps) => {
-  const MotionComponent = useMemo(
-    () => motion.create(Component as keyof JSX.IntrinsicElements),
-    [Component],
+  /**
+   * The tag the shimmer wears, and the component that wears it.
+   *
+   * A motion component built during render is a new component on every
+   * pass, and React starts it from nothing each time: the sweep begins
+   * again and whatever the element held is lost. The component is built
+   * once and kept, and a tag that arrives later replaces it rather than
+   * the shimmer going on wearing the old one.
+   */
+  const [MotionComponent, setMotionComponent] = useState(() =>
+    motion.create(Component as keyof JSX.IntrinsicElements),
   );
+  const [tag, setTag] = useState<ElementType>(Component);
+  if (tag !== Component) {
+    setTag(Component);
+    setMotionComponent(motion.create(Component as keyof JSX.IntrinsicElements));
+  }
 
   const dynamicSpread = useMemo(
     () => (children?.length ?? 0) * spread,

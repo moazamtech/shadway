@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-<import { requireSession } from "@/lib/auth/require-session";
+import { requireSession } from "@/lib/auth/require-session";
 import {
   groupByDirectory,
   joinRepoPath,
@@ -321,7 +321,7 @@ async function handle(request: Request): Promise<NextResponse> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-<  /**
+  /**
    * A session is required. The route reads a repository the caller names, and
    * the deployment's GitHub budget is finite: without a login, an endpoint
    * that fetches whatever it is told to fetch is a way to spend it. The studio

@@ -34,6 +34,8 @@ export function AppShell({
   toolbar,
   children,
   activeCategory,
+  activeTag,
+  nav,
   contentClassName,
   panelClassName,
 }: {
@@ -43,6 +45,17 @@ export function AppShell({
   children: React.ReactNode;
   /** Marks a category group as current in the rail's catalog. */
   activeCategory?: string;
+  /** Marks a sub-category as current in the rail's catalog. */
+  activeTag?: string;
+  /**
+   * The rail's places, when they are not the marketplace's.
+   *
+   * The admin is a different set of places in the same column, and giving it
+   * the same column — the same width, the same rows, the same account menu at
+   * the foot — is what makes the admin part of this product rather than a
+   * second one wearing a different skin.
+   */
+  nav?: { title: string; href: string; icon: React.ComponentType<{ className?: string }> }[];
   /** Applied to the scroll container inside the panel. */
   contentClassName?: string;
   /** Escape hatch for pages that manage their own panel padding. */
@@ -95,6 +108,8 @@ export function AppShell({
         <SidebarRail
           className="hidden md:flex"
           activeCategory={activeCategory}
+          activeTag={activeTag}
+          nav={nav}
         />
 
       {/* Phones get the same rail in a drawer. */}
@@ -108,6 +123,8 @@ export function AppShell({
             className="flex h-full w-full"
             onNavigate={() => setNavOpen(false)}
             activeCategory={activeCategory}
+            activeTag={activeTag}
+            nav={nav}
           />
         </SheetContent>
       </Sheet>

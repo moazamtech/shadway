@@ -71,6 +71,17 @@ interface MeshBackgroundProps {
 }
 
 /**
+ * Whether the browser has taken over from the server.
+ *
+ * A shader is a canvas, and a canvas is the one thing a server cannot send.
+ * The mesh is left out of the server's answer entirely and painted by the
+ * browser instead; the store says which of the two is in charge right now.
+ */
+const subscribeToNothing = () => () => {};
+const browserHasRendered = () => true;
+const serverHasRendered = () => false;
+
+/**
  * Mesh Background Component
  *
  * A beautiful, animated mesh gradient background component built with WebGL shaders.
@@ -95,17 +106,6 @@ interface MeshBackgroundProps {
  * }
  * ```
  */
-/**
- * Whether the browser has taken over from the server.
- *
- * A shader is a canvas, and a canvas is the one thing a server cannot send.
- * The mesh is left out of the server's answer entirely and painted by the
- * browser instead; the store says which of the two is in charge right now.
- */
-const subscribeToNothing = () => () => {};
-const browserHasRendered = () => true;
-const serverHasRendered = () => false;
-
 export function MeshBackground({
   colors = ["#72b9bb", "#b5d9d9", "#ffd1bd", "#ffebe0", "#8cc5b8", "#dbf4a4"],
   distortion = 0.8,

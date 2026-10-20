@@ -216,7 +216,7 @@ export default function AdminSettingsPage() {
     <AdminLayout>
       <div className="space-y-8">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-balance">
+          <h1 className="text-xl font-semibold tracking-tight text-balance">
             Admin Settings
           </h1>
           <p className="text-muted-foreground text-pretty">

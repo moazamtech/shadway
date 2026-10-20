@@ -13,6 +13,14 @@ type Props = {
   className?: string;
   theme?: "light" | "dark";
   /**
+   * The name of the built document — the hash the publish build was given.
+   *
+   * With it, the frame is asked for by name and the answer may be kept
+   * forever; without it, the frame is asked for by slug and the browser has
+   * to come back and ask whether it has changed.
+   */
+  version?: string;
+  /**
    * The author's cover. Painted immediately, underneath the frame, so the
    * largest surface on the detail page is a picture of the component from the
    * first frame instead of a loader.
@@ -41,6 +49,7 @@ export function BundledPreview({
   height = 240,
   className,
   theme = "light",
+  version,
   poster,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -55,8 +64,21 @@ export function BundledPreview({
    * together: the poster is under the frame whenever the frame that is on
    * screen is not the frame that finished loading.
    */
-  const frameKey = `${slug}|${theme}|${PREVIEW_BUILD_VERSION}`;
+  const frameKey = `${slug}|${theme}|${version ?? PREVIEW_BUILD_VERSION}`;
   const loaded = loadedFrame === frameKey;
+
+  /**
+   * The address of the document.
+   *
+   * The build's own name goes into it when there is one, so the browser may
+   * keep the answer: a URL that names its contents cannot be stale, so it
+   * never has to be checked. Without a name the URL carries the builder's
+   * version instead, and the browser asks — a round trip that answers "nothing
+   * changed" every time.
+   */
+  const src = `/api/components/preview?slug=${encodeURIComponent(slug)}&theme=${theme}&v=${
+    version ?? PREVIEW_BUILD_VERSION
+  }`;
 
   const cover = coverImageUrl(poster);
 
@@ -103,7 +125,7 @@ export function BundledPreview({
         key={frameKey}
         ref={frameRef}
         title={`${slug} preview`}
-        src={`/api/components/preview?slug=${encodeURIComponent(slug)}&theme=${theme}&v=${PREVIEW_BUILD_VERSION}`}
+        src={src}
         onLoad={() => setLoadedFrame(frameKey)}
         loading="lazy"
         sandbox="allow-scripts allow-same-origin"

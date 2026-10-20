@@ -16,6 +16,7 @@
 | Publish (build-once bundle + static cover) | `apps/web/publish`, `app/api/bundle` | Present | `components/studio/publish-panel.tsx`, `lib/preview/bundle.ts`, `app/api/components/route.ts` | — | — |
 | Auth-gated publish | middleware + Clerk | Present | `app/api/components/route.ts` (`requireSession`), 401 verified | — | — |
 | Discover feed (grid, search, filters) | `apps/web/app/page` | Present | `components/component-exchange-home.tsx` — the grid, the ⌘K palette (search + sort) and the category rail | — | — |
+| Command palette on every page | likely | Present | `components/marketplace/app-shell.tsx` owns the palette and the ⌘K binding, so the shortcut is not a per-page feature | — | — |
 | Component detail (Preview/Code/Install) | `apps/web/c/[component]` | Present | `app/c/[slug]/page.tsx`, `components/marketplace/component-detail-client.tsx` | — | — |
 | Fullscreen showcase from the feed | `apps/web/...` | Present | `components/marketplace/component-detail-dialog.tsx` — the page dims, the component takes the screen, the chevrons step through the grid, the copy menu takes the source, the page link, the registry address or the published document | — | — |
 | Published document at its own address | `cdn/…/bundle.<ts>.html?theme=` | Present | `app/p/[slug]/route.ts` — the built component, with `?theme=dark` for the dark copy of the same bytes | — | — |
@@ -32,6 +33,8 @@
 | Live local preview (no remote bundler) | `sandbox` | Present | `components/studio/sandpack-preview.tsx`, `lib/preview/build.ts` | — | — |
 | Separate publish page | `publish` | Present | `components/studio/publish-panel.tsx` | — | — |
 | Import a component from a repository | — | Present | `app/api/studio/import-github/route.ts`, `components/studio/import-github-dialog.tsx` — a repository is listed by folder, the author picks the files, the paths are rewritten to the project's | — | — |
+| Creator earnings and payout address | — | Present | `app/api/payouts/**`, `components/settings/payouts-panel.tsx`, `app/admin/payouts/page.tsx` | — | — |
+| Weekly payout run | — | Present | `app/api/admin/payouts/run/route.ts` — plans the week, writes the batch, claims the earnings; the signing key is not in the app | — | — |
 | AI-assisted generation / chat | `magic`, `magic-chat` | Partial | `app/component-generator/page.tsx`, `app/vibecode/*` — generation exists; no interactive refine chat | L | P1 |
 
 ## Marketplace surfaces

@@ -77,10 +77,7 @@ export function usePreviewCss(
   );
 
   /** The project whose stylesheet `css` holds. */
-  const compiled = useRef<string | null>(
-    // A stylesheet that arrived with the first render is already current.
-    firstProject,
-  );
+  const compiled = useRef<string | null>(firstProject);
 
   /**
    * The last project a compile was *attempted* for, successful or not.

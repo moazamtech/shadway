@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrandLoader } from "@/components/brand-loader";
@@ -11,7 +13,7 @@ import {
   ComponentCard,
   type MarketplaceCardItem,
 } from "@/components/marketplace/component-card";
-import { normalizeGroup } from "@/lib/categories";
+import { CATEGORY_GROUPS, findGroup, findTag, normalizeGroup } from "@/lib/categories";
 
 /** A row a grid can paint. The feed's own item type widened this to nothing. */
 export type ComponentGridItem = MarketplaceCardItem;
@@ -20,9 +22,12 @@ export type GridFilters = {
   /** The selected chip, or "all". */
   category: string;
   setCategory: (next: string) => void;
+  /** The selected sub-category, or "" for all of them. */
+  tag: string;
+  setTag: (next: string) => void;
   /** What the chips can offer, "all" included. */
   categories: string[];
-  /** Everything the group scope and the chips let through. */
+  /** Everything the group scope, the chips and the sub-category let through. */
   visible: ComponentGridItem[];
   /** True while something is narrowing the grid down. */
   isFiltering: boolean;
@@ -55,17 +60,24 @@ export function useGridFilters({
   items,
   group,
   defaultCategory = "all",
+  defaultTag = "",
   onCategoryChange,
+  onTagChange,
 }: {
   items: ComponentGridItem[];
   /** Restricts the grid to one taxonomy group before any filter runs. */
   group?: string;
   /** The category to start on, re-read whenever it changes. */
   defaultCategory?: string;
+  /** The sub-category to start on, re-read whenever it changes. */
+  defaultTag?: string;
   /** Told about every chip press, so a parent can put it in the URL. */
   onCategoryChange?: (next: string) => void;
+  /** Told about every sub-category press, so a parent can put it in the URL. */
+  onTagChange?: (next: string) => void;
 }): GridFilters {
   const [category, setCategoryState] = useState(defaultCategory);
+  const [tag, setTagState] = useState(defaultTag);
 
   // The rail's category links navigate to /?category=… — keep the chip state
   // reading from the URL so deep links and rail clicks stay in sync.
@@ -91,6 +103,27 @@ export function useGridFilters({
     [onCategoryChange]
   );
 
+  // The sub-category travels in the URL beside the category, so a link to a
+  // button and a link to the shelf it sits on are two different places.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setTagState(defaultTag);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultTag]);
+
+  const setTag = useCallback(
+    (next: string) => {
+      setTagState(next);
+      onTagChange?.(next);
+    },
+    [onTagChange]
+  );
+
   // The group is a scope, not a chip: it decides what this grid is for before
   // any filter runs, so the chips below it are derived from what is left. A
   // chips row counting rows the group already excluded is the same "the header
@@ -101,46 +134,78 @@ export function useGridFilters({
     return items.filter((item) => normalizeGroup(item.category) === wanted);
   }, [items, group]);
 
-  // Categories are derived from the live rows so the chips never lie: a chip
-  // nothing can satisfy is a chip that only ever empties the grid.
+  /**
+   * The chips are the two shelves, and nothing else.
+   *
+   * They used to be the raw stored categories, which meant the row read "hero"
+   * and "pricing" beside "ui" — the ad-hoc lists the database was written
+   * with, not the taxonomy the site is organised by. The chips are now the
+   * groups, so the row says the same thing as the rail and the same thing as
+   * the address in the bar.
+   *
+   * A group that has nothing on it is not offered: a chip that can only ever
+   * empty the grid is a chip that lies.
+   */
   const categories = useMemo(() => {
-    const keys = new Set<string>();
+    const present = new Set<string>();
     for (const item of scoped) {
-      const value = item.category?.trim().toLowerCase();
-      if (value) keys.add(value);
+      present.add(normalizeGroup(item.category));
     }
-    return ["all", ...Array.from(keys).sort()];
+    return [
+      "all",
+      ...CATEGORY_GROUPS.filter((group) => present.has(group.slug)).map(
+        (group) => group.slug,
+      ),
+    ];
   }, [scoped]);
 
   const visible = useMemo(() => {
-    if (category === "all") return scoped;
-    /* Both sides of the comparison go through the taxonomy. The rail now
-       links the canonical groups, so `?category=marketing` has to mean
-       "everything filed as a marketing block" — a component stored as
-       `hero` or `block` included. Raw string equality said otherwise, and the
-       result was a header that counted twelve and a grid that showed
-       four. normalizeGroup is idempotent and total, so the raw chip
-       values below still resolve to the bucket they always did. */
-    return scoped.filter((item) => {
-      const sameGroup =
-        normalizeGroup(item.category) === normalizeGroup(category);
-      const taggedAsCategory = item.tags.some(
-        (tag) => tag.toLowerCase() === category
-      );
-      return sameGroup || taggedAsCategory;
-    });
-  }, [scoped, category]);
+    const byCategory =
+      category === "all"
+        ? scoped
+        : /* Both sides of the comparison go through the taxonomy. The rail now
+             links the canonical groups, so `?category=marketing` has to mean
+             "everything filed as a marketing block" — a component stored as
+             `hero` or `block` included. Raw string equality said otherwise,
+             and the result was a header that counted twelve and a grid that
+             showed four. normalizeGroup is idempotent and total, so the raw
+             chip values below still resolve to the bucket they always did. */
+          scoped.filter((item) => {
+            const sameGroup =
+              normalizeGroup(item.category) === normalizeGroup(category);
+            const taggedAsCategory = item.tags.some(
+              (value) => value.toLowerCase() === category,
+            );
+            return sameGroup || taggedAsCategory;
+          });
+
+    if (!tag) return byCategory;
+
+    /**
+     * The sub-category is a tag on the component, and a component may carry
+     * several. The comparison is case-insensitive and reads the stored tag as
+     * it is, because a tag is written by a person and a person writes
+     * "Button" as often as "button".
+     */
+    const wanted = tag.trim().toLowerCase();
+    return byCategory.filter((item) =>
+      item.tags.some((value) => value.trim().toLowerCase() === wanted),
+    );
+  }, [scoped, category, tag]);
 
   const clear = useCallback(() => {
     setCategory("all");
-  }, [setCategory]);
+    setTag("");
+  }, [setCategory, setTag]);
 
   return {
     category,
     setCategory,
+    tag,
+    setTag,
     categories,
     visible,
-    isFiltering: category !== "all",
+    isFiltering: category !== "all" || tag !== "",
     clear,
   };
 }
@@ -271,17 +336,38 @@ export function ComponentGrid({
             key={cat}
             type="button"
             aria-pressed={state.category === cat}
-            onClick={() => state.setCategory(cat)}
+            onClick={() => {
+              // Picking a shelf clears the sub-category: the kinds on it are
+              // the shelf's, and a button that did not belong to the shelf
+              // that is now open would be a filter nothing can satisfy.
+              if (cat !== state.category) state.setTag("");
+              state.setCategory(cat);
+            }}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1 text-xs capitalize transition",
+              "shrink-0 rounded-full border px-3 py-1 text-xs transition",
               state.category === cat
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            {cat}
+            {cat === "all"
+              ? "All"
+              : (findGroup(cat)?.title ?? cat)}
           </button>
         ))}
+        {state.tag ? (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            {findTag(state.tag)?.title ?? state.tag}
+            <button
+              type="button"
+              onClick={() => state.setTag("")}
+              aria-label="Clear the sub-category"
+              className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ) : null}
       </div>
 
       {loading ? (

@@ -100,6 +100,14 @@ export const CARD_FIELDS = {
   createdAt: 1,
   updatedAt: 1,
   publishedAt: 1,
+  /**
+   * The name of the built preview.
+   *
+   * A hash is a few characters, and it is what lets the preview be asked for
+   * by name: a URL that carries the name of its contents cannot be stale, so
+   * the browser keeps it and never comes back to ask whether it has changed.
+   */
+  previewHash: 1,
   // Cursors are built from the tiebreaker, so it travels with the row.
   _id: 1,
 } as const;
@@ -122,6 +130,19 @@ export const SOURCE_FIELDS = {
   previewHtml: 0,
   previewHash: 0,
   previewVersion: 0,
+} as const;
+
+/**
+ * The fields a page needs to *show* a component.
+ *
+ * The built document is the one field too heavy to hand out: it is the whole
+ * component, compiled, and it is served from its own address. The hash that
+ * names that build is not heavy — it is a few characters — and a page that
+ * knows it can ask for the document by name, which is what lets the browser
+ * keep it forever instead of asking whether it has changed.
+ */
+export const DETAIL_FIELDS = {
+  previewHtml: 0,
 } as const;
 
 /**

@@ -23,6 +23,7 @@ export function ComponentExchangeHome({
   const router = useRouter();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category") ?? "all";
+  const tagParam = searchParams.get("tag") ?? "";
 
   const [items, setItems] = useState<ComponentGridItem[]>(initialItems ?? []);
   const [loading, setLoading] = useState(!initialItems?.length);
@@ -39,10 +40,21 @@ export function ComponentExchangeHome({
   const filters = useGridFilters({
     items,
     defaultCategory: categoryParam,
+    defaultTag: tagParam,
     onCategoryChange: (next) => {
       router.replace(next === "all" ? "/" : `/?category=${next}`, {
         scroll: false,
       });
+    },
+    onTagChange: (next) => {
+      // The sub-category travels beside the category: a link to a button
+      // inside the UI components is a different place from the shelf it sits
+      // on, and the address has to be able to say which.
+      const query = new URLSearchParams();
+      if (categoryParam !== "all") query.set("category", categoryParam);
+      if (next) query.set("tag", next);
+      const search = query.toString();
+      router.replace(search ? `/?${search}` : "/", { scroll: false });
     },
   });
 
@@ -83,7 +95,7 @@ export function ComponentExchangeHome({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [seeded]);
 
   // Restore saved and liked components for signed-in users.
   useEffect(() => {
@@ -204,6 +216,7 @@ export function ComponentExchangeHome({
           row; the shell owns the scroll container. */}
       <AppShell
         activeCategory={filters.category}
+        activeTag={filters.tag}
         toolbar={
           <>
             <Button

@@ -20,6 +20,15 @@ export type MarketplaceCardItem = {
   likes: number;
   category?: string;
   createdAt?: string;
+  /**
+   * The name of the built preview.
+   *
+   * The preview is a document that was compiled once, and this hash is its
+   * name. A frame asked for by name is immutable, so the browser keeps it
+   * and never asks whether it has changed — the name changes instead, when the
+   * component does.
+   */
+  previewHash?: string;
 };
 
 /**
