@@ -4,12 +4,16 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ChevronRight,
   Home,
   Layers,
   Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
   Shapes,
+  Sparkles,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { findGroup, normalizeGroup, tagsForGroup } from "@/lib/categories";
@@ -115,7 +119,12 @@ type RailNavItem = {
  * The admin is a different set of places in the same column, so the rail
  * takes its navigation rather than insisting on its own.
  */
-const NAV: RailNavItem[] = [{ title: "Home", href: "/", icon: Home, exact: true }];
+const NAV: RailNavItem[] = [
+  { title: "Home", href: "/", icon: Home, exact: true },
+  { title: "Studio", href: "/studio", icon: Sparkles },
+  { title: "Profile", href: "/profile", icon: User },
+  { title: "Settings", href: "/settings", icon: Settings },
+];
 type CatalogGroup = {
   slug: string;
   label: string;
@@ -251,6 +260,25 @@ function RailRow({
             "bg-foreground/10 group-hover/row:bg-foreground/15 group-active/row:bg-foreground/15"
         )}
       />
+      {/*
+        The place you are, marked at the edge of the column.
+
+        A filled pill is the chat app's way of saying "this one", and it is
+        the right way for a list of conversations. A catalogue is a different
+        thing: the reader is looking for a place, and a place is marked by a
+        line in the margin of the map beside it. The line sits on the rail's
+        own edge, so it reads as the column's margin rather than as another
+        part of the button.
+      */}
+      {active ? (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary",
+            sub ? "-left-3" : "-left-3"
+          )}
+        />
+      ) : null}
       {RowIcon ? (
         <span className="relative shrink-0">
           <RowIcon className="h-4 w-4" />
@@ -341,6 +369,15 @@ export function SidebarRail({
   } = useSidebar();
 
   const navItems = nav ?? NAV;
+
+  /**
+   * Which shelves are open.
+   *
+   * A shelf is a thing you open, so the rail remembers which ones you left
+   * folded: a reader who only ever works in the components does not want the
+   * marketing blocks to take half the column every time they come back.
+   */
+  const [openShelves, setOpenShelves] = React.useState<Record<string, boolean>>({});
 
   const isActive = (item: RailNavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -440,29 +477,70 @@ export function SidebarRail({
             </div>
           ) : (
             <>
-              <span
-                className={`px-3 pt-1 text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/70 uppercase sidebar-collapsed:hidden`}
-              >
-                Categories
-              </span>
+              {/* The shelf, drawn as a shelf: the label, then a hairline that
+                  runs to the edge of the column. A heading that is a word
+                  floating in space is a caption; a heading with a rule
+                  attached to it is a shelf, and the rail below it is what is
+                  on it. */}
+              <div className="flex items-center gap-2.5 pt-1 pl-3 sidebar-collapsed:hidden">
+                <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/70 uppercase">
+                  The catalogue
+                </span>
+                <span aria-hidden className="h-px flex-1 bg-border/70" />
+              </div>
               <div className="flex flex-col gap-0.5">
-                {catalog.map((group) => (
+                {catalog.map((group) => {
+                  const open = openShelves[group.slug] ?? true;
+                  return (
                   <div key={group.slug} className="flex flex-col gap-0.5">
-                    <RailRow
-                      icon={CATEGORY_ICONS[group.slug] ?? Layers}
-                      label={group.label}
-                      href={`/?category=${encodeURIComponent(group.slug)}`}
-                      active={activeCategory === group.slug && !activeTag}
-                      trailing={
-                        <span className="text-[11px] tabular-nums text-muted-foreground/80">
-                          {group.count}
-                        </span>
-                      }
-                    />
-                    {/* The kinds of thing on the shelf, indented under it.
-                        A shelf of forty buttons is not browsable; a shelf of
-                        "buttons" and "inputs" is. */}
-                    <div className="flex flex-col gap-px">
+                    <div className="flex items-center gap-0.5">
+                      <RailRow
+                        icon={CATEGORY_ICONS[group.slug] ?? Layers}
+                        label={group.label}
+                        href={`/?category=${encodeURIComponent(group.slug)}`}
+                        active={activeCategory === group.slug && !activeTag}
+                        className="w-auto min-w-0 flex-1"
+                        trailing={
+                          <span className="rounded-full bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                            {group.count}
+                          </span>
+                        }
+                      />
+                      {/*
+                        The shelf opens and closes.
+                        A shelf with forty kinds on it is a wall, and the
+                        reader wants the shelf itself to be the thing they
+                        click. So the row goes to the shelf and the chevron
+                        beside it folds the shelf away.
+                      */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenShelves((current) => ({
+                            ...current,
+                            [group.slug]: !open,
+                          }))
+                        }
+                        aria-expanded={open}
+                        aria-label={`${open ? "Collapse" : "Expand"} ${group.label}`}
+                        className="flex h-7 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform duration-150",
+                            open && "rotate-90",
+                          )}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
+                    {/* The kinds of thing on the shelf, hung off it by a
+                        hairline. A shelf of forty buttons is not browsable; a
+                        shelf of "buttons" and "inputs" is, and the line says
+                        they belong to the shelf above them rather than being
+                        a list of their own. */}
+                    {open ? (
+                    <div className="relative ml-9 flex flex-col gap-px before:absolute before:top-0 before:bottom-3 before:left-0 before:w-px before:bg-border/60">
                       {group.tags.map((tag) => (
                         <RailRow
                           key={tag.slug}
@@ -480,8 +558,10 @@ export function SidebarRail({
                         />
                       ))}
                     </div>
+                    ) : null}
                   </div>
-                ))}
+                );
+                })}
               </div>
             </>
           )}

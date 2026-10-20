@@ -126,6 +126,22 @@ export function PublishPanel({
     // registry ships another.
     category: normalizeGroup(initialMeta?.category ?? "ui"),
   });
+  /**
+   * The kind of thing this is.
+   *
+   * The category says which shelf it goes on — the components or the marketing
+   * blocks — and the sub-category says what kind of thing it is: a button, a
+   * hero, a contact. A registry of "UI components" with nothing in it that
+   * says what it is cannot be browsed by anyone who is not its author, so the
+   * sub-category is not a nicety: it is what the shelf is made of, and
+   * publishing asks for it.
+   */
+  const [subCategory, setSubCategory] = useState<string>(
+    initialMeta?.tags
+      ?.split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .find((tag) => tagsInGroup(normalizeGroup(initialMeta?.category ?? "ui")).some((known) => known.slug === tag)) ?? "",
+  );
   const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -527,12 +543,14 @@ export function PublishPanel({
               Category
               <Select
                 value={meta.category}
-                onValueChange={(value) => setMeta({ ...meta, category: value })}
+                onValueChange={(value) => {
+                  setMeta((prev) => ({ ...prev, category: value }));
+                  // The sub-category belongs to a shelf, so changing the shelf
+                  // takes it with it: a hero is not a button, and the two
+                  // choices cannot be left disagreeing.
+                  setSubCategory("");
+                }}
               >
-                {/* The taxonomy, not a hand-maintained list. The old six
-                    options were the shape the registry used to have; two of
-                    them (`block`, `marketing`) disagreed with each other, and
-                    `shadcn add` had no type for any of the rest. */}
                 <SelectTrigger className="h-8 w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -556,28 +574,40 @@ export function PublishPanel({
             </label>
 
             <label className="block space-y-1.5 text-sm font-medium">
-              Tags
-              <Input
-                className="h-8"
-                value={meta.tags}
-                onChange={(e) => setMeta({ ...meta, tags: e.target.value })}
-                placeholder="button, animation"
-              />
+              Sub-category
+              <Select
+                value={subCategory}
+                onValueChange={setSubCategory}
+              >
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue placeholder="What kind of thing is it?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groupTags.map((tag) => (
+                    <SelectItem key={tag.slug} value={tag.slug}>
+                      {tag.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {groupTags.length} kinds of{" "}
+                {selectedGroup?.title.toLowerCase() ?? "thing"} — this is what
+                the shelf is filed under.
+              </span>
             </label>
           </div>
 
-          {/* The taxonomy, made clickable. It sits below the field rather than
-              inside it so the field stays exactly as it was — free text, still
-              editable, still authoritative — and this only ever writes that same
-              string back. Typing "animation" still works; typing something the
-              taxonomy has never heard of still ships, because these chips are a
-              way to reach the canonical slugs without memorizing them, not a
-              whitelist that rejects the rest. */}
+          {/* The taxonomy, made clickable. These are the *other* kinds — the
+              sub-category above is the one the component is filed under, and
+              these are the words a person would also look for. Picking one
+              writes it into the extra-tags field, so the two controls cannot
+              drift into disagreeing about what is tagged. */}
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               {selectedGroup?.title ?? "This component"} · {groupTags.length}{" "}
-              canonical tags. Pick one to add it, pick it again to drop it — the
-              field above stays yours either way.
+              kinds. Add the ones that describe it as well — pick one to add it,
+              pick it again to drop it.
             </p>
             <div className="flex flex-wrap gap-1.5">
               {groupTags.map((tag) => {

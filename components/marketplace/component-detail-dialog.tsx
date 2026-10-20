@@ -18,6 +18,7 @@ import {
   Moon,
   Share2,
   Sun,
+  Terminal,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -237,12 +238,25 @@ export function ComponentDetailDialog({
           ) : null}
         </div>
 
-        {/* The stage. */}
-        <div className="flex min-h-0 flex-1 items-center justify-center px-3 pt-16 pb-28 sm:px-6 sm:pt-20 sm:pb-32">
-          <div className="relative h-full w-full max-w-[1400px] overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl">
+        {/* The stage.
+            A component is a picture of a screen, so the stage is a screen:
+            sixteen by nine, the shape of the thing the author designed for.
+            Its width is the smallest of three answers — the space it has, the
+            cap we want it to have, and the width a sixteen-by-nine box can be
+            at the height that is left after the chrome — so it is never
+            cropped on a short window and never so wide that the component
+            beside it is a thumbnail of itself. */}
+        <div className="flex min-h-0 flex-1 items-center justify-center px-3 pt-14 pb-24 sm:px-6 sm:pt-16 sm:pb-28">
+          <div
+            className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl"
+            style={{
+              width: "min(100%, 1180px, calc((100dvh - 11rem) * 16 / 9))",
+            }}
+          >
             <BundledPreview
               slug={current.slug}
               height="100%"
+              version={current.previewHash}
               theme={previewTheme}
               poster={current.thumbnailUrl}
             />
@@ -300,12 +314,20 @@ export function ComponentDetailDialog({
                 type="button"
                 className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground shadow-sm transition-colors hover:bg-(--primary-hover) focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
               >
-                {copied === "code" || copied === "code+demo" ? (
+                {copied === "code" ||
+                copied === "code+demo" ||
+                copied === "install" ||
+                copied === "command" ? (
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                 )}
-                {copied === "code" || copied === "code+demo" ? "Copied" : "Copy code"}
+                {copied === "code" ||
+                copied === "code+demo" ||
+                copied === "install" ||
+                copied === "command"
+                  ? "Copied"
+                  : "Copy"}
                 <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </DropdownMenuTrigger>
@@ -343,6 +365,22 @@ export function ComponentDetailDialog({
                   <p className="text-sm font-medium">Copy registry URL</p>
                   <p className="text-xs text-muted-foreground">
                     The address the shadcn CLI installs from.
+                  </p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  void copy(
+                    `npx shadcn@latest add "${registryUrl}"`,
+                    "command",
+                  )
+                }
+              >
+                <Terminal className="h-4 w-4" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-medium">Copy install command</p>
+                  <p className="text-xs text-muted-foreground">
+                    The whole line, ready to paste into a terminal.
                   </p>
                 </div>
               </DropdownMenuItem>
