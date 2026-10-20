@@ -11,6 +11,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 import Image from "next/image";
@@ -20,10 +26,6 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showMobileNav, setShowMobileNav] = useState(false);
   const [showResourcesDropdown, setShowResourcesDropdown] = useState(false);
-  const [showDesktopDropdown, setShowDesktopDropdown] = useState(false);
-  const [dropdownTimeout, setDropdownTimeout] = useState<NodeJS.Timeout | null>(
-    null,
-  );
 
   useEffect(() => {
     const handleScroll = () => {

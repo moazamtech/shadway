@@ -671,20 +671,36 @@ export default function ComponentDetailClient() {
                 /r/{item.slug}
               </dd>
             </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Document</dt>
+              <dd>
+                <Link
+                  href={`/p/${item.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="max-w-[180px] truncate font-mono text-xs underline-offset-4 hover:underline"
+                >
+                  /p/{item.slug}
+                </Link>
+              </dd>
+            </div>
           </dl>
         </aside>
       </div>
 
-      {/* Fullscreen preview */}
+      {/* Fullscreen preview — the same stage the feed's showcase uses, so the
+          two places that show a component full size look like each other. */}
       <Dialog open={fullscreen} onOpenChange={setFullscreen}>
-        <DialogContent className="max-w-none gap-0 overflow-hidden p-0 sm:max-w-[min(1400px,94vw)]">
+        <DialogContent className="fixed inset-0 top-0 left-0 h-dvh max-h-none w-screen max-w-none translate-none gap-0 overflow-hidden rounded-none border-0 bg-black/75 p-0 backdrop-blur-sm sm:max-w-none">
           <DialogTitle className="sr-only">{item.title} preview</DialogTitle>
-          <div className="h-[min(860px,88vh)] w-full">
-            <BundledPreview
-              slug={item.slug}
-              height="100%"
-              poster={item.thumbnailUrl}
-            />
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-8">
+            <div className="h-full w-full max-w-[1400px] overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+              <BundledPreview
+                slug={item.slug}
+                height="100%"
+                poster={item.thumbnailUrl}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

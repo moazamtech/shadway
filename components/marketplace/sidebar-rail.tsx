@@ -126,7 +126,14 @@ const NAV: RailNavItem[] = [
 type CatalogItem = {
   title: string;
   slug: string;
-  count: number;
+  /**
+   * How many times it has been installed.
+   *
+   * It orders the rail — the most-installed component of a group comes first —
+   * and it is not printed: a column of zeroes next to a list of names is
+   * noise, and the number that matters is the one in the group's own header.
+   */
+  installs: number;
 };
 
 type CatalogGroup = {
@@ -175,7 +182,7 @@ function useRailCatalog(): CatalogGroup[] | null {
           group.items.push({
             title: item.title,
             slug: item.slug,
-            count: typeof item.installs === "number" ? item.installs : 0,
+            installs: typeof item.installs === "number" ? item.installs : 0,
           });
           map.set(slug, group);
         }
@@ -467,7 +474,7 @@ export function SidebarRail({
                   </span>
                 </Link>
                 {[...group.items]
-                  .sort((a, b) => b.count - a.count)
+                  .sort((a, b) => b.installs - a.installs)
                   .slice(0, 6)
                   .map((item) => (
                     <RailRow
@@ -475,7 +482,6 @@ export function SidebarRail({
                       label={item.title}
                       href={`/c/${item.slug}`}
                       active={pathname === `/c/${item.slug}`}
-                      trailing={item.count}
                     />
                   ))}
               </div>
