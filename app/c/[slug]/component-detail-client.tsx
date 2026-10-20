@@ -283,8 +283,18 @@ export default function ComponentDetailClient() {
         }),
       });
       if (!res.ok) throw new Error("failed");
+      // The server is the answer: it says whether the component is saved, and
+      // the button follows it.
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.saved === "boolean") {
+        setSaved(data.saved);
+        setBookmarkCount((count) =>
+          count + (data.saved === next ? 0 : data.saved ? 1 : -1),
+        );
+      }
     } catch {
       setSaved(!next);
+      setBookmarkCount((count) => count + (next ? -1 : 1));
     }
   }
 

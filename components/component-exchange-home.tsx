@@ -139,6 +139,12 @@ export function ComponentExchangeHome({
           }),
         });
         if (!res.ok) throw new Error("failed");
+        // The server is the answer. The button has already moved, and it moves
+        // back if the server says otherwise.
+        const data = await res.json().catch(() => ({}));
+        if (typeof data.saved === "boolean") {
+          setSavedSlugs((prev) => ({ ...prev, [slug]: data.saved }));
+        }
       } catch {
         setSavedSlugs((prev) => ({ ...prev, [slug]: wasSaved }));
       }
