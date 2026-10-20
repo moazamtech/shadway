@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Globe, Tag, Sparkles, Zap } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import Script from "next/script";
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -125,8 +126,10 @@ export default async function WebsitePage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-x-hidden">
       <StructuredData type="creativework" data={{ website }} />
-      <script
+      <Script
+        id="shadway-breadcrumb"
         type="application/ld+json"
+        strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(breadcrumbSchema, null, 2)
         }}

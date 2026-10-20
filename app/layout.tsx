@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "@vscode/codicons/dist/codicon.css";
@@ -99,9 +100,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Restores the rail's width/collapsed state before first paint, so
-            the shell never flashes its default geometry. */}
-        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_SCRIPT }} />
         <link
           rel="icon"
           href="/favicon-32x32.png"
@@ -131,6 +129,20 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} ${playfairDisplay.variable} font-sans antialiased`}
       >
         <Providers>
+          {/* Restores the rail's width/collapsed state before first paint, so
+              the shell never flashes its default geometry.
+
+              It is a `next/script` rather than a script element of our own,
+              because a script rendered by React is a script the browser
+              refuses to run on the client — and it is exactly the client
+              render, when the rail is being restored, that has to run it.
+              The strategy puts it in the document itself, ahead of the
+              paint, where a script belongs. */}
+          <Script
+            id="shadway-sidebar-state"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{ __html: SIDEBAR_SCRIPT }}
+          />
           <StructuredData type="website" />
           <StructuredData type="organization" />
           {children}

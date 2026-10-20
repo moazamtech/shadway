@@ -1,5 +1,6 @@
 'use client'
 
+import Script from 'next/script'
 import { Website } from '@/lib/types'
 import { generateWebsiteSlug } from '@/lib/slug'
 
@@ -132,9 +133,20 @@ export function StructuredData({ type, data }: StructuredDataProps) {
 
   if (!structuredData) return null
 
+  /**
+   * The data a reader's search engine reads, and nothing else.
+   *
+   * It is a `next/script` rather than a script element of our own because
+   * React will not run a script it renders on the client — and a script
+   * rendered on the client is a console error on every navigation, which
+   * buries the errors that matter. The strategy puts the document in the
+   * page itself, where a crawler and a browser both find it.
+   */
   return (
-    <script
+    <Script
+      id="shadway-structured-data"
       type="application/ld+json"
+      strategy="beforeInteractive"
       dangerouslySetInnerHTML={{
         __html: JSON.stringify(structuredData, null, 2)
       }}

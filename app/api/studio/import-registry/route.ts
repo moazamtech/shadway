@@ -991,7 +991,34 @@ async function handle(request: Request): Promise<NextResponse> {
     throw error;
   }
 
-  const imported = await importReferences(references, defaultNetwork);
+  /**
+   * The items the author kept.
+   *
+   * A command may name several items, and the CLI installs every one of them
+   * — but a person who pastes a command they found on a page usually wants
+   * the one the page was about. The names that were kept come back from the
+   * studio, and a name that is not among the ones the command named is
+   * ignored: the choice is about which of *these* to take.
+   */
+  const chosen = Array.isArray(body.select)
+    ? new Set(body.select.map((name: unknown) => String(name)))
+    : null;
+
+  const wanted = chosen
+    ? references.filter((reference) => {
+        if (reference.kind === "url") return chosen.has(reference.value);
+        const name = reference.namespace
+          ? `@${reference.namespace}/${reference.name}`
+          : reference.name;
+        return chosen.has(name) || chosen.has(reference.name);
+      })
+    : references;
+
+  if (!wanted.length) {
+    throw new ImportError(400, "None of the items the command names were kept.");
+  }
+
+  const imported = await importReferences(wanted, defaultNetwork);
 
   return NextResponse.json({ ok: true, ...imported });
 }

@@ -360,16 +360,40 @@ function Sandbox({
    * dependency set remounts the sandbox — and the boot project is latched per
    * mount, so the rebuild starts from the current project rather than from
    * whatever it booted with the first time.
+   *
+   * The boot project is state rather than the current one, because a remount
+   * has to boot from something fixed: the project as it stood when the
+   * sandbox was last started. A sandbox that boots from a moving target
+   * would change under itself.
    */
-  const bootKey = `${reloadKey}|${installedKey}`;
+  const [bootProject, setBootProject] = useState<SandpackFiles>(project.files);
+  const [bootNonce, setBootNonce] = useState(0);
+
+  /**
+   * The sandbox gave up on an edit, and is started again from the new code.
+   *
+   * A bundler that is sent an update while it is compiling drops it without a
+   * word, and the pane cannot tell that from a bundler that simply has not
+   * answered yet. When the wait has gone on too long, the honest answer is
+   * that the edit did not land — and the way to make it land is to build the
+   * project again, which is what the author would have done by hand.
+   */
+  const restartWith = useCallback((files: SandpackFiles) => {
+    setBootProject(files);
+    setBootNonce((value) => value + 1);
+  }, []);
+
+  const bootKey = `${reloadKey}|${installedKey}|${bootNonce}`;
 
   return (
     <SandboxSession
       key={bootKey}
+      bootFiles={bootProject}
       projectFiles={project.files}
       customSetup={customSetup}
       theme={theme}
       className={className}
+      onRestart={restartWith}
     />
   );
 }
@@ -390,30 +414,36 @@ function Sandbox({
  * the decision is now React's and the compiler can see it.
  */
 function SandboxSession({
+  bootFiles,
   projectFiles,
   customSetup,
   theme,
   className,
+  onRestart,
 }: {
   /** The project the sandbox boots from, and compiles against. */
+  bootFiles: SandpackFiles;
+  /** The project as it stands, which is what the author has just typed. */
   projectFiles: SandpackFiles;
   /** The packages the sandbox installs. */
   customSetup: { dependencies: Record<string, string> };
   theme: "light" | "dark";
   className?: string;
+  /** Called when the bundler has not taken an edit, so the sandbox can start again. */
+  onRestart: (files: SandpackFiles) => void;
 }) {
-  /**
-   * The project the sandbox boots with, latched for the life of the mount.
-   *
-   * The latch also keeps the `files` prop identity stable between renders —
-   * the provider resets its whole state, files included, whenever that
-   * identity changes. It is state rather than a ref because it is read while
-   * rendering, and a ref read while rendering is what the compiler refuses.
-   */
-  const [bootFiles] = useState(projectFiles);
-
   /** The project as last written into the sandbox. */
-  const pushedRef = useRef<SandpackFiles>(projectFiles);
+  const pushedRef = useRef<SandpackFiles>(bootFiles);
+
+  /**
+   * The project the bundler could have compiled.
+   *
+   * A write sent while the bundler was still booting is a write it never
+   * saw, so it cannot be the one a later reply is answering. This is the
+   * project as it was when the *last* write the bundler was ready for was
+   * sent, and it is what a reply is taken to acknowledge.
+   */
+  const sentRef = useRef<SandpackFiles>(bootFiles);
 
   /** The bundler client the sync currently hands work to, kept current. */
   const apiRef = useRef<SandpackApi | null>(null);
@@ -425,7 +455,7 @@ function SandboxSession({
    * two are normally the same compile apart, but a reply is the only evidence
    * the project landed, and the watchdog below retries on the gap between them.
    */
-  const ackedRef = useRef<SandpackFiles>(projectFiles);
+  const ackedRef = useRef<SandpackFiles>(bootFiles);
 
   /** The last moment the bundler said anything at all. */
   const lastReplyRef = useRef(0);
@@ -471,7 +501,35 @@ function SandboxSession({
 
     pushedRef.current = { ...next };
     lastSendRef.current = Date.now();
+
+    /**
+     * A write the bundler was ready for is a write it can answer.
+     *
+     * The write that was made while it was still booting is not one it can
+     * have seen, and a reply that arrives afterwards is answering the build
+     * before it — not this one.
+     */
+    if (readyRef.current) sentRef.current = { ...next };
   }, []);
+
+  /**
+   * Whether the bundler has finished a compile and can take another.
+   *
+   * The provider sends an update only to a client that is *done*, and a
+   * client that is still compiling is skipped without a word. An edit that
+   * arrives in that window is therefore dropped: the file state holds it,
+   * the bundler never hears about it, and the preview keeps showing the
+   * previous build. This is the whole of why an edit sometimes needs a
+   * reload — the author types while the sandbox is still booting, the
+   * update is dropped, and nothing ever asks for it again.
+   *
+   * So the project is held here until the bundler says it is done, and
+   * pushed then.
+   */
+  const readyRef = useRef(false);
+
+  /** The project waiting for the bundler to be ready for it. */
+  const heldRef = useRef<SandpackFiles | null>(null);
 
   /**
    * The bundler says something. A reply is the only evidence that a write landed.
@@ -500,14 +558,35 @@ function SandboxSession({
           (data.action === "show-error" || data.action === "notification"));
 
       if (terminal) {
-        ackedRef.current = pushedRef.current;
+        /**
+         * The reply answers the write the bundler was ready for.
+         *
+         * Not the write that was sent while it was booting — that one it never
+         * saw, and counting it as answered is how an edit gets lost without
+         * anybody noticing.
+         */
+        ackedRef.current = sentRef.current;
         retryCountRef.current = 0;
+
+        /**
+         * The bundler is free to take another build.
+         *
+         * Whatever was held back while it was busy goes now, and it goes
+         * through the provider's own state, so the compile is addressed to
+         * the client the bundler actually answered on.
+         */
+        readyRef.current = true;
+        const held = heldRef.current;
+        heldRef.current = null;
+        if (held && apiRef.current && differs(pushedRef.current, held)) {
+          pushProject(apiRef.current, held);
+        }
       }
     };
 
     window.addEventListener("message", onReply);
     return () => window.removeEventListener("message", onReply);
-  }, []);
+  }, [pushProject]);
 
   /**
    * The write that never lands is retried.
@@ -521,11 +600,25 @@ function SandboxSession({
   const ACK_TIMEOUT = 6000;
   const ACK_RETRIES = 3;
 
+  /**
+   * How long an edit may wait for the bundler before the sandbox is started
+   * again from the new code.
+   *
+   * A bundler that drops an update says nothing, so the only way to tell a
+   * dropped edit from a slow one is to stop waiting. Four seconds is longer
+   * than a build of a small component takes and shorter than an author will
+   * sit and watch a preview that has not moved.
+   */
+  const RESTART_AFTER = 4000;
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       // Silence before the first reply is the container booting, not a write
       // that was dropped. Resending into a cold sandbox only delays it.
       if (!bootedRef.current) return;
+      // A bundler that is still compiling drops what it is sent, so a resend
+      // into a busy one is a resend into nowhere.
+      if (!readyRef.current) return;
       const lastHeard = Math.max(lastReplyRef.current, lastSendRef.current);
       if (Date.now() - lastHeard < ACK_TIMEOUT) return;
       if (retryCountRef.current >= ACK_RETRIES) return;
@@ -538,6 +631,36 @@ function SandboxSession({
     }, 1000);
     return () => window.clearInterval(timer);
   }, [pushProject]);
+
+  /**
+   * The edit that did not land, and the sandbox started again from it.
+   *
+   * The bundler drops an update that arrives while it is compiling, and it
+   * does not say so. The pane cannot tell that from a bundler that has simply
+   * not answered yet, so the two are told apart by waiting: an edit that has
+   * not been answered for long enough is not going to be, and the honest
+   * answer is to build the project again — which is what the author would
+   * have done by hand, and the reason nobody should have to.
+   */
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!bootedRef.current) return;
+      if (!differs(ackedRef.current, projectFilesRef.current)) return;
+      /**
+       * The bundler has been quiet since the write.
+       *
+       * A bundler that is compiling says so — it sends a status and a state
+       * while it works — so silence means the write was dropped rather than
+       * that a build is in progress.
+       */
+      const lastHeard = Math.max(lastReplyRef.current, lastSendRef.current);
+      if (Date.now() - lastHeard < RESTART_AFTER) return;
+
+      console.warn("[sandpack] the edit did not reach the preview; building it again");
+      onRestart(projectFilesRef.current);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [onRestart]);
 
   /**
    * The compile window.
@@ -578,6 +701,20 @@ function SandboxSession({
 
       // Nothing to compile is nothing to schedule.
       if (!differs(pushedRef.current, files)) return;
+
+      /**
+       * The bundler is still compiling.
+       *
+       * The provider sends an update only to a client that has finished its
+       * last build, and a client that is busy is skipped without a word. The
+       * project is therefore held rather than written, and written when the
+       * bundler says it is done — otherwise the edit is dropped and the
+       * preview keeps showing the build before it.
+       */
+      if (!readyRef.current) {
+        heldRef.current = files;
+        return;
+      }
 
       // A window is already open, and it will pick this up.
       if (timerRef.current !== null) return;

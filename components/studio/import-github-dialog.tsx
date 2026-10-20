@@ -87,6 +87,18 @@ type RegistryImport = {
   skipped: { path: string; reason: string }[];
 };
 
+/**
+ * How an item is named when the author chooses between them.
+ *
+ * The command names the item the way the registry does, and that is the name
+ * the route is given back, so a choice made in the dialog is the same choice
+ * the server reads.
+ */
+function itemLabel(item: RegistryItem): string {
+  if (item.name) return item.name;
+  return item.url ?? "item";
+}
+
 /** The page a demo is rendered by. */
 const DEMO_PATH = "/app/page.tsx";
 
@@ -288,6 +300,7 @@ export function ImportGithubDialog({
   const [source, setSource] = useState<"github" | "registry">("github");
   const [listed, setListed] = useState<Listed | null>(null);
   const [imported, setImported] = useState<RegistryImport | null>(null);
+  const [kept, setKept] = useState<Record<string, boolean>>({});
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -354,12 +367,14 @@ export function ImportGithubDialog({
     }
 
     const items: RegistryItem[] = Array.isArray(data.items)
-      ? data.items.map((found: { name: string; type?: string; url?: string }) => ({
-          name: found.name,
-          type: found.type,
-          url: found.url,
-          files: [],
-        }))
+      ? data.items.map(
+          (found: { name: string; type?: string; url?: string; files?: RegistryFile[] }) => ({
+            name: found.name,
+            type: found.type,
+            url: found.url,
+            files: Array.isArray(found.files) ? found.files : [],
+          })
+        )
       : [];
 
     setImported({
@@ -372,6 +387,15 @@ export function ImportGithubDialog({
         ? data.skipped
         : (items.flatMap((found) => found.skipped ?? []) as { path: string; reason: string }[]),
     });
+
+    /**
+     * Every item is kept until the author says otherwise.
+     *
+     * A command that names one item has nothing to choose between; a command
+     * that names several has, and the choice starts with all of them taken
+     * because that is what the command asked for.
+     */
+    setKept(Object.fromEntries(items.map((found) => [itemLabel(found), true])));
   }
 
   async function load() {
@@ -438,8 +462,25 @@ export function ImportGithubDialog({
   /** The item's files, taken whole. */
   function runRegistryImport() {
     if (!imported) return;
+
+    /**
+     * The items the author kept.
+     *
+     * A command may name several, and only the ones that are kept are
+     * brought in. The building blocks they are made of come with them — they
+     * are the same files whichever item is taken, and a component without them
+     * does not run.
+     */
+    const chosen = imported.items.filter((found) => kept[itemLabel(found)] !== false);
+    if (imported.items.length > 1 && !chosen.length) {
+      setError("Keep at least one of the items the command names.");
+      return;
+    }
+
     const files = [
-      ...projectFilesForRegistry(imported.files, { allowDemo: true }),
+      ...chosen.flatMap((found) =>
+        projectFilesForRegistry(found.files, { allowDemo: true })
+      ),
       ...projectFilesForRegistry(imported.registryFiles, { allowDemo: false }),
     ];
     if (!files.length) {
@@ -582,6 +623,38 @@ export function ImportGithubDialog({
                   ? ` · ${imported.dependencies.length} package${imported.dependencies.length === 1 ? "" : "s"}`
                   : ""}
               </p>
+
+              {imported.items.length > 1 ? (
+                <div className="rounded-lg border border-border/60">
+                  <p className="border-b border-border/40 px-3 py-2 text-xs text-muted-foreground">
+                    The command names {imported.items.length} items. Keep the ones
+                    you want — the rest stay where they are.
+                  </p>
+                  {imported.items.map((found) => {
+                    const label = itemLabel(found);
+                    return (
+                      <label
+                        key={label}
+                        className="flex items-center gap-2.5 border-b border-border/40 px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <Checkbox
+                          checked={kept[label] !== false}
+                          onCheckedChange={(checked) =>
+                            setKept((current) => ({ ...current, [label]: checked === true }))
+                          }
+                          aria-label={label}
+                        />
+                        <span className="truncate">{label}</span>
+                        {found.type ? (
+                          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                            {found.type}
+                          </span>
+                        ) : null}
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
 
               {registryFiles.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">

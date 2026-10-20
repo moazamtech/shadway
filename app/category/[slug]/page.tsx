@@ -8,6 +8,7 @@ import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { StructuredData } from '@/components/structured-data'
 import { addRefParameter } from '@/lib/utils/url'
+import Script from "next/script";
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -88,8 +89,10 @@ export default async function CategoryPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-x-hidden">
       <StructuredData type="collection" data={{ websites }} />
-      <script
+      <Script
+        id="shadway-breadcrumb"
         type="application/ld+json"
+        strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(breadcrumbSchema, null, 2)
         }}
