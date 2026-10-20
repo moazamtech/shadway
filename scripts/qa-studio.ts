@@ -63,7 +63,7 @@ async function main() {
           description: "A fixture for the studio dashboard check.",
           code: ["export function QaStudioFixture() {", "  return <div />;", "}"].join("\n"),
           category: "ui",
-          tags: ["qa"],
+          tags: ["button", "qa"],
         }),
       });
       const data = await response.json().catch(() => ({}));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, resolveAuthor } from "@/lib/auth/require-session";
 import { createComponent, slugify } from "@/lib/db/components";
 import { STARTER_FILES, DEFAULT_COMPONENT_PATH, DEFAULT_DEMO_PATH, DEFAULT_STYLE_PATH } from "@/lib/studio/starter";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 
 export const runtime = "nodejs";
 
@@ -12,9 +13,9 @@ export const runtime = "nodejs";
  * studio — the same lifecycle as a sandbox on any component workbench.
  */
 export async function POST(request: NextRequest) {
-  if (!process.env.MONGODB_URI) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json(
-      { error: "Database is not configured. Set MONGODB_URI to create drafts." },
+      { error: "Database is not configured. Set DATABASE_URL to create drafts." },
       { status: 503 }
     );
   }

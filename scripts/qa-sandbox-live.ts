@@ -110,7 +110,7 @@ async function main() {
             // element and the check measures the wrong failure.
             code: `export default function MyComponent() {\n  return <h1>${marker}</h1>;\n}\n`,
             category: "ui",
-            tags: ["qa"],
+            tags: ["button", "qa"],
           }),
         });
         const data = await response.json().catch(() => ({}));

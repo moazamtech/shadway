@@ -6,6 +6,7 @@ import { isAdmin as sessionIsAdmin } from "@/lib/session";
 import { getComponentBySlugAnyStatus } from "@/lib/db/components";
 import { compileProjectCssCached } from "@/lib/preview/tailwind";
 import { ComponentStudio } from "@/components/studio/component-studio";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_CODE,
@@ -40,7 +41,7 @@ export default async function StudioProjectPage({
   if (!session?.user) {
     redirect(`/login?callbackUrl=/studio/${slug}`);
   }
-  if (!process.env.MONGODB_URI) {
+  if (!isDatabaseConfigured()) {
     notFound();
   }
 

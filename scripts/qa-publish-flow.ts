@@ -100,6 +100,8 @@ type Fixture = {
   title: string;
   description: string;
   category: "ui" | "marketing";
+  /** The kind of thing it is — the file it goes in on the shelf. */
+  subCategory: string;
   dependencies: string[];
   code: string;
   files?: { path: string; content: string }[];
@@ -124,6 +126,7 @@ const FIXTURES: Fixture[] = [
   {
     marker: "QA-MOTION-A1",
     title: "QA Motion Banner",
+    subCategory: "carousel",
     description: "A spring-animated banner built on motion.",
     category: "ui",
     dependencies: ["motion"],
@@ -150,6 +153,7 @@ export default function MotionBanner() {
   {
     marker: "QA-DIALOG-B2",
     title: "QA Confirm Dialog",
+    subCategory: "modal-dialog",
     description: "A destructive confirmation inside a Radix dialog.",
     category: "ui",
     dependencies: ["@radix-ui/react-dialog", "lucide-react"],
@@ -187,6 +191,7 @@ export default function ConfirmDialog() {
   {
     marker: "QA-ICONS-C3",
     title: "QA Icon Wall",
+    subCategory: "icons",
     description: "A grid of lucide icons rendered through a map.",
     category: "ui",
     dependencies: ["lucide-react"],
@@ -232,6 +237,7 @@ export default function IconWall() {
   {
     marker: "QA-ASSET-D4",
     title: "QA Asset Card",
+    subCategory: "card",
     description: "next/image and next/link inside a card.",
     category: "ui",
     dependencies: ["lucide-react"],
@@ -271,6 +277,7 @@ export default function AssetCard() {
   {
     marker: "QA-MULTI-E5",
     title: "QA Multi File Stat",
+    subCategory: "number",
     description: "A component that imports its own helper module.",
     category: "ui",
     dependencies: [],
@@ -314,6 +321,7 @@ export function formatCount(value: number): string {
   {
     marker: "QA-CDN-F6",
     title: "QA Framework Row",
+    subCategory: "table",
     description: "Icons from a package the server does not have installed.",
     category: "ui",
     dependencies: ["react-icons"],
@@ -346,6 +354,7 @@ export default function FrameworkRow() {
   {
     marker: "QA-MOTION-HERO",
     title: "QA Motion Hero",
+    subCategory: "hero",
     description: "A hero section with staggered motion and a gradient headline.",
     category: "marketing",
     dependencies: ["motion", "lucide-react"],
@@ -450,6 +459,7 @@ export default function MotionHero() {
   {
     marker: "QA-LANDING-PAGE",
     title: "QA Landing Page",
+    subCategory: "features",
     description: "A full landing page: nav, hero, feature grid, quote and footer in one file.",
     category: "marketing",
     dependencies: ["motion", "lucide-react"],
@@ -719,7 +729,7 @@ async function main() {
           title: fixture.title,
           description: fixture.description,
           category: fixture.category,
-          tags: ["qa", "publish-flow"],
+          tags: [fixture.subCategory, "qa", "publish-flow"],
           dependencies: fixture.dependencies,
           componentPath: "/components/component.tsx",
           code: fixture.code,
@@ -940,7 +950,7 @@ async function main() {
           title: `${body.title} (Renamed)`,
           description: body.description,
           category: body.category,
-          tags: ["qa", "publish-flow"],
+          tags: [body.subCategory, "qa", "publish-flow"],
           dependencies: body.dependencies,
           componentPath: "/components/component.tsx",
           code: body.code,

@@ -222,7 +222,7 @@ async function main() {
           "}",
         ].join("\n"),
         category: "ui",
-        tags: ["qa", "profile"],
+        tags: ["button", "qa", "profile"],
       }),
     });
     const pubBody = await pubRes.json().catch(() => ({}));

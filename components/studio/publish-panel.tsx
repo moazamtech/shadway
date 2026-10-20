@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
-import { CATEGORY_GROUPS, findGroup, normalizeGroup, tagsInGroup } from "@/lib/categories";
+import { CATEGORY_GROUPS, findGroup, findTag, normalizeGroup, tagsInGroup } from "@/lib/categories";
 import { projectPayload, resolveComponentPath } from "@/lib/studio/project";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
 import { coverImageUrl } from "@/lib/images";
@@ -204,6 +204,34 @@ export function PublishPanel({
    */
   const groupTags = useMemo(() => tagsInGroup(meta.category), [meta.category]);
 
+  /**
+   * The kinds offered as extras: everything on the shelf except the one the
+   * component is filed under.
+   *
+   * The sub-category is the file it goes in, and offering it again as a chip
+   * would let the author say two things at once — filed under a button, and
+   * filed under a hero — which the shelf cannot show.
+   */
+  const extraTags = useMemo(
+    () => groupTags.filter((tag) => tag.slug !== subCategory),
+    [groupTags, subCategory]
+  );
+
+  /**
+   * The tags the record is stored with.
+   *
+   * The sub-category leads, because it is the file the component goes in, and
+   * the rest follow as the words a reader would also look for. Both live in
+   * the same list because the shelf, the link and the search all read the
+   * tags: a component filed under a hero is found by the hero, and by
+   * "announcement" as well.
+   */
+  const publishTags = useMemo(() => {
+    const chosen = subCategory.trim().toLowerCase();
+    const extras = tagList.map((tag) => tag.trim().toLowerCase()).filter(Boolean);
+    return [...new Set([chosen, ...extras].filter(Boolean))];
+  }, [subCategory, tagList]);
+
   /** Append or remove one slug, leaving the field's own format intact. */
   function toggleTag(slug: string) {
     setMeta((prev) => {
@@ -215,6 +243,28 @@ export function PublishPanel({
       const next = current.some((tag) => tag.toLowerCase() === key)
         ? current.filter((tag) => tag.toLowerCase() !== key)
         : [...current, slug];
+      return { ...prev, tags: next.join(", ") };
+    });
+  }
+
+  /**
+   * File the component under a kind, and let go of the one it was under.
+   *
+   * A draft that was filed under a button and is now filed under a hero must
+   * not still be tagged as a button, or the shelf offers it under both and the
+   * fine way in stops being fine.
+   */
+  function chooseSubCategory(slug: string) {
+    setSubCategory(slug);
+    setMeta((prev) => {
+      const current = prev.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const next = current.filter((tag) => {
+        const known = findTag(tag);
+        return !known || known.slug !== subCategory;
+      });
       return { ...prev, tags: next.join(", ") };
     });
   }
@@ -304,6 +354,11 @@ export function PublishPanel({
         throw new Error("Write your component before publishing.");
       }
       if (!meta.title.trim()) throw new Error("Give your component a title.");
+      if (!subCategory) {
+        throw new Error(
+          "Say what kind of thing it is — pick a sub-category — before publishing."
+        );
+      }
       if (slugIssue) throw new Error(slugIssue);
 
       // Build + screenshot: the component is compiled with the same bundler
@@ -347,10 +402,7 @@ export function PublishPanel({
           draftSlug: slug,
           title: meta.title,
           description: meta.description,
-          tags: meta.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags: publishTags,
           dependencies,
           category: meta.category,
           componentPath: payload.componentPath,
@@ -548,7 +600,7 @@ export function PublishPanel({
                   // The sub-category belongs to a shelf, so changing the shelf
                   // takes it with it: a hero is not a button, and the two
                   // choices cannot be left disagreeing.
-                  setSubCategory("");
+                  chooseSubCategory("");
                 }}
               >
                 <SelectTrigger className="h-8 w-full">
@@ -577,7 +629,7 @@ export function PublishPanel({
               Sub-category
               <Select
                 value={subCategory}
-                onValueChange={setSubCategory}
+                onValueChange={chooseSubCategory}
               >
                 <SelectTrigger className="h-8 w-full">
                   <SelectValue placeholder="What kind of thing is it?" />
@@ -598,19 +650,19 @@ export function PublishPanel({
             </label>
           </div>
 
-          {/* The taxonomy, made clickable. These are the *other* kinds — the
-              sub-category above is the one the component is filed under, and
-              these are the words a person would also look for. Picking one
-              writes it into the extra-tags field, so the two controls cannot
-              drift into disagreeing about what is tagged. */}
+          {/* The other kinds, made clickable. The sub-category above is the
+              file this goes in; these are the words a person would also look
+              for, and picking one adds it to the record. The kind already
+              chosen is not offered again, so the two controls cannot say two
+              different things about what this is. */}
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              {selectedGroup?.title ?? "This component"} · {groupTags.length}{" "}
-              kinds. Add the ones that describe it as well — pick one to add it,
-              pick it again to drop it.
+              {selectedGroup?.title ?? "This component"} · {extraTags.length}{" "}
+              other kinds. Add the ones that describe it too — pick one to add
+              it, pick it again to drop it.
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {groupTags.map((tag) => {
+              {extraTags.map((tag) => {
                 const on = selectedTags.has(tag.slug);
                 return (
                   <button

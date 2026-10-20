@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getComponentsCollection } from "@/lib/db/components";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 
 // Helper function to escape XML entities
 function escapeXml(str: string): string {
@@ -14,7 +15,7 @@ function escapeXml(str: string): string {
 
 export async function GET() {
   try {
-    if (!process.env.MONGODB_URI) {
+    if (!isDatabaseConfigured()) {
       return new NextResponse("<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>", {
         headers: { "Content-Type": "application/xml" },
       });

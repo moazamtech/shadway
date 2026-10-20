@@ -12,11 +12,18 @@ import { collectNpmDependencies } from "@/lib/studio/deps";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
 import { serializeCard } from "@/lib/serialize";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
+import {
+  findGroup,
+  findTag,
+  normalizeGroup,
+  tagsInGroup,
+} from "@/lib/categories";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  if (!process.env.MONGODB_URI) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ items: [], count: 0, degraded: true });
   }
 
@@ -56,9 +63,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!process.env.MONGODB_URI) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json(
-      { error: "Database is not configured. Set MONGODB_URI to enable publishing." },
+      { error: "Database is not configured. Set DATABASE_URL to enable publishing." },
       { status: 503 }
     );
   }
@@ -106,6 +113,37 @@ export async function POST(request: NextRequest) {
     // appears in the marketplace. Admins still publish their own directly.
     const submissionStatus = isAdmin ? ("published" as const) : ("pending" as const);
 
+    /**
+     * The kind of thing it is.
+     *
+     * A shelf with nothing in it that says what it holds cannot be browsed
+     * by anyone who is not its author, so the sub-category is part of what a
+     * component *is* rather than a label an author may or may not add. It is
+     * refused here rather than in the form because the form is only one of
+     * the doors into this route, and a component that arrived without one
+     * would sit on the shelf with nothing to file it under.
+     */
+    const group = normalizeGroup(String(body.category || "ui"));
+    const tags: string[] = Array.isArray(body.tags)
+      ? body.tags.map((tag: unknown) => String(tag))
+      : [];
+    const subCategory = tags
+      .map((tag) => findTag(tag))
+      .find((tag) => tag !== null && tag.group === group);
+
+    if (!subCategory) {
+      const shelf = findGroup(group)?.title ?? "this shelf";
+      return NextResponse.json(
+        {
+          error: `Pick a sub-category before publishing — a component needs to say what kind of thing it is, so it can be filed on ${shelf}.`,
+          code: "SUB_CATEGORY_REQUIRED",
+          group,
+          options: tagsInGroup(group).map((tag) => tag.slug),
+        },
+        { status: 400 }
+      );
+    }
+
     const publishFields = {
       name: String(body.name || title).replace(/\s+/g, "-"),
       title,
@@ -117,8 +155,8 @@ export async function POST(request: NextRequest) {
       files: Array.isArray(body.files) ? body.files : undefined,
       thumbnailUrl: body.thumbnailUrl ? String(body.thumbnailUrl) : undefined,
       videoUrl: body.videoUrl ? String(body.videoUrl) : undefined,
-      category: String(body.category || "ui"),
-      tags: Array.isArray(body.tags) ? body.tags : [],
+      category: group,
+      tags,
       dependencies: Array.isArray(body.dependencies) ? body.dependencies : [],
       devDependencies: Array.isArray(body.devDependencies) ? body.devDependencies : [],
       registryDependencies: Array.isArray(body.registryDependencies)

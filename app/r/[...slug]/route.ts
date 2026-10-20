@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildRegistryItem } from "@/lib/registry";
 import { incrementComponentMetric } from "@/lib/db/components";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string[] }> }
 ) {
-  if (!process.env.MONGODB_URI) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ error: "Database is not configured" }, { status: 503 });
   }
 

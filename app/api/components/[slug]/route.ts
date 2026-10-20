@@ -8,6 +8,7 @@ import {
   DETAIL_FIELDS,
 } from "@/lib/db/components";
 import { requireSession } from "@/lib/auth/require-session";
+import { isDatabaseConfigured } from "@/lib/db/postgres";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const decoded = decodeURIComponent(slug);
 
-  // Graceful fallback for local/demo environments without MongoDB.
-  if (!process.env.MONGODB_URI) {
+  // Graceful fallback for local/demo environments without a database.
+  if (!isDatabaseConfigured()) {
     const registryPath = path.join(process.cwd(), "registry", `${decoded}.json`);
     if (fs.existsSync(registryPath)) {
       try {

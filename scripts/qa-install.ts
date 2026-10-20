@@ -495,7 +495,7 @@ async function main() {
           code: fixture.code,
           componentPath: "/components/component.tsx",
           files: fixture.files,
-          tags: ["qa", "install"],
+          tags: ["button", "qa", "install"],
           thumbnailUrl: buildBody.thumbnailUrl,
         }),
       });

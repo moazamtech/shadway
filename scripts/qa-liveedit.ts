@@ -67,7 +67,7 @@ async function main() {
             "}",
           ].join("\n"),
           category: "ui",
-          tags: ["qa"],
+          tags: ["button", "qa"],
         }),
       });
       const data = await response.json().catch(() => ({}));
