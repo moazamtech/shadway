@@ -193,6 +193,7 @@ export default async function AuthorPage({
         activeTab={activeTab}
         tabs={tabs}
         stats={stats}
+        savedCount={saved.length}
       >
         {/* A grid is one page of a library, while the stat tiles above count
             the whole registry — the count used to be made from this very

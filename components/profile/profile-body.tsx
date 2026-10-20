@@ -69,6 +69,7 @@ export function ProfileBody({
   activeTab,
   basePath,
   stats,
+  savedCount,
   children,
 }: {
   handle: string;
@@ -85,6 +86,13 @@ export function ProfileBody({
   /** The page a tab link points at; defaults to the current one. */
   basePath: string;
   stats: { components: number; views: number; likes: number; installs: number };
+  /**
+   * How many components the owner has saved.
+   *
+   * Only the owner has a saved list, so only the owner is shown a tile for it;
+   * a visitor is shown nothing about what other people keep.
+   */
+  savedCount?: number;
   children: ReactNode;
 }) {
   const joined = formatJoined(joinedAt);
@@ -196,6 +204,9 @@ export function ProfileBody({
             <Stat label="Views" value={formatCount(stats.views)} />
             <Stat label="Likes" value={formatCount(stats.likes)} />
             <Stat label="Installs" value={formatCount(stats.installs)} />
+            {isOwner ? (
+              <Stat label="Saved" value={formatCount(savedCount ?? 0)} />
+            ) : null}
           </div>
         </aside>
 
