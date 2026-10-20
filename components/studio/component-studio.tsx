@@ -211,6 +211,17 @@ export function ComponentStudio({
   /** The repository import dialog. */
   const [showImport, setShowImport] = useState(false);
   const [showEditor, setShowEditor] = useState(true);
+  /**
+   * Where the cursor is, for the status bar.
+   *
+   * The editor reports it as the author moves, and the bar says it in the
+   * words every editor says it in.
+   */
+  const [cursor, setCursor] = useState<{
+    line: number;
+    column: number;
+    selected: number;
+  } | null>(null);
   /** The packages the component was published with. */
   const [publishedPackages] = useState<string[]>(() => [...(initial?.dependencies ?? [])]);
   /** The versions the registry has answered for. */
