@@ -608,11 +608,12 @@ function SandboxSession({
    * again from the new code.
    *
    * A bundler that drops an update says nothing, so the only way to tell a
-   * dropped edit from a slow one is to stop waiting. Four seconds is longer
-   * than a build of a small component takes and shorter than an author will
-   * sit and watch a preview that has not moved.
+   * dropped edit from a slow one is to stop waiting. The clock only runs
+   * while the bundler is quiet — a bundler that is compiling says so — so
+   * this is the time an edit spends in a silence, not the time it spends
+   * being built.
    */
-  const RESTART_AFTER = 4000;
+  const RESTART_AFTER = 3000;
 
   useEffect(() => {
     const timer = window.setInterval(() => {
