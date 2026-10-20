@@ -257,15 +257,35 @@ export function GridSortSelect({
 }
 
 /**
+ * The grid's columns.
+ *
+ * Two rules, and both of them are about the card rather than the window.
+ *
+ * The column count follows the *container*, not the viewport: the feed paints
+ * these cards across a whole shell panel and a profile paints the same cards
+ * in the narrow column beside the author's bio, and a grid that counted the
+ * window gave the same component a different size on each surface.
+ *
+ * The track is capped at `22.5rem`. A `1fr` track is always exactly as wide as
+ * the space it is given, so with two containers of different widths the same
+ * card came out two sizes — 1fr cannot be equal in two boxes that are not
+ * equal, and the two boxes here are 1134px and 814px wide. Capping the track
+ * makes the card one size in both, and leaves the container to decide how many
+ * of them fit. `minmax(0, …)` keeps a narrow container from overflowing: below
+ * the width a card needs, it shrinks rather than spilling out of its column.
+ */
+const GRID_CLASSES =
+  "grid grid-cols-1 gap-5 @[520px]:grid-cols-[repeat(2,minmax(0,22.5rem))] @[900px]:grid-cols-[repeat(3,minmax(0,22.5rem))] @[1200px]:grid-cols-[repeat(4,minmax(0,22.5rem))]";
+
+/**
  * The searchable, sortable, category-filtered card grid.
  *
  * The feed had all of this inline in one component that was otherwise about
  * fetching, ⌘K and the detail dialog — so the second page that needed a grid
  * had no way to have one, and a creator's library was a wall of cards with no
  * way to narrow it. This is that grid, lifted out whole: the same search box,
- * chips, sort control, skeleton and empty state, and the same breakpoints,
- * because a card grid that changed its column count between pages would read
- * as two products.
+ * chips, sort control, skeleton and empty state, and the same card, because a
+ * card grid that changed its card between pages would read as two products.
  *
  * Hand it `filters` when the controls have to live somewhere else — the feed
  * puts them in the shell's fixed toolbar, above the scroll container — and it
@@ -329,7 +349,16 @@ export function ComponentGrid({
   const state = filters ?? own;
 
   return (
-    <>
+    /* The grid measures its container, not the window.
+     *
+     * The feed paints these cards across a whole shell panel; a profile
+     * paints the same cards in the narrow column beside the author's bio.
+     * Asking the viewport for the column count meant the same component was
+     * one size on the feed and another on the profile — the same shelf with
+     * two different boxes on it. `@container` makes the grid ask the box it
+     * is in: the feed's panel and the profile's column each get the columns
+     * that fit *them*, and the card is the same size on both. */
+    <div className="@container">
       {/* The count and the categories, on one line: they are the same
           question — "what is in here" — and two rows of pills above a grid of
           pictures is two rows too many. */}
@@ -372,7 +401,7 @@ export function ComponentGrid({
              in the background: the shape of the grid is worth keeping, so the
              page does not jump when the answer arrives. */
           <div
-            className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4"
+            className={GRID_CLASSES}
             aria-busy="true"
             aria-label="Loading components"
           >
@@ -395,7 +424,7 @@ export function ComponentGrid({
           <BrandLoader className="min-h-[320px] rounded-xl" />
         )
       ) : state.visible.length ? (
-        <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">
+        <div className={GRID_CLASSES}>
           {state.visible.map((item) => (
             <ComponentCard
               key={item.slug}
@@ -448,6 +477,6 @@ export function ComponentGrid({
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 }

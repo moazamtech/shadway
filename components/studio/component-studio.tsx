@@ -15,6 +15,7 @@ import {
   FilePlus2,
   FileText,
   Folder,
+  Github,
   Loader2,
   Maximize2,
   Minimize2,
@@ -35,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
 import { PublishPanel } from "@/components/studio/publish-panel";
+import { ImportGithubDialog } from "@/components/studio/import-github-dialog";
 import type { PreviewFiles } from "@/lib/preview/files";
 import type { PreviewFileInput } from "@/lib/preview/shadcn-ui";
 import { SHADCN_FILE_PATHS } from "@/lib/preview/template/names";
@@ -202,6 +204,8 @@ export function ComponentStudio({
     "/components/ui": true,
   });
   const [showExplorer, setShowExplorer] = useState(true);
+  /** The repository import dialog. */
+  const [showImport, setShowImport] = useState(false);
   const [showEditor, setShowEditor] = useState(true);
   const [installedPackages, setInstalledPackages] = useState<Record<string, string>>(() =>
     Object.fromEntries((initial?.dependencies ?? []).map((name) => [name, ""]))
@@ -859,6 +863,13 @@ export function ComponentStudio({
               <div className="ml-auto flex items-center gap-0.5">
                 <button
                   className={ICON_BUTTON}
+                  onClick={() => setShowImport(true)}
+                  title="Import from a repository"
+                >
+                  <Github className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className={ICON_BUTTON}
                   onClick={() => startNewFile(null)}
                   title="New file"
                 >
@@ -1175,6 +1186,22 @@ export function ComponentStudio({
           </div>
         </section>
       </div>
+
+      <ImportGithubDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImport={(incoming) => {
+          setFiles((prev) => {
+            const next = { ...prev };
+            for (const file of incoming) next[file.path] = file.content;
+            return next;
+          });
+          // Open what came in, so the author is looking at the thing they
+          // just fetched rather than at the page they started from.
+          const first = incoming.find((file) => file.path.startsWith("/components/"));
+          if (first) setActivePath(first.path);
+        }}
+      />
     </div>
   );
 }
