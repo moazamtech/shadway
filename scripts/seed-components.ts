@@ -1,7 +1,7 @@
 import "dotenv/config";
 import fs from "fs";
 import path from "path";
-import { count, eq } from "drizzle-orm";
+import { count } from "drizzle-orm";
 
 import { db } from "../lib/db/postgres";
 import { components } from "../lib/db/schema";

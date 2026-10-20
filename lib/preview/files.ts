@@ -2,6 +2,7 @@ import { importSpecifier } from "@/lib/studio/project";
 import {
   DEFAULT_COMPONENT_PATH,
   DEFAULT_DEMO_PATH,
+  DEFAULT_STYLE_CODE,
   DEFAULT_STYLE_PATH,
   storedProjectPath,
 } from "@/lib/studio/starter";
@@ -81,7 +82,16 @@ export function componentSourceFiles(component: {
     component.styleCode?.trim() &&
     !base.some((file) => file.path === DEFAULT_STYLE_PATH)
   ) {
-    base.push({ path: DEFAULT_STYLE_PATH, content: component.styleCode });
+    /**
+     * The stylesheet, unless it is the one everybody starts with.
+     *
+     * A stylesheet the author did not touch is the platform's, and shipping
+     * it means shipping a file the consumer already has — or worse, one that
+     * overwrites the theme their project is built on. What the author
+     * changed is what travels; what they did not is not theirs to send.
+     */
+    const authored = component.styleCode.trim() !== DEFAULT_STYLE_CODE.trim();
+    if (authored) base.push({ path: DEFAULT_STYLE_PATH, content: component.styleCode });
   }
 
   if (!base.some((file) => file.path === DEFAULT_DEMO_PATH)) {

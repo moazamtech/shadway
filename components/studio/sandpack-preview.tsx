@@ -338,8 +338,27 @@ function Sandbox({
    */
   const [installedNames, setInstalledNames] = useState<string[]>([]);
 
+  /**
+   * What the sandbox boots from.
+   *
+   * A new package cannot be added to a running bundler, so *growing* the
+   * dependency set remounts the sandbox — and the build that starts has to
+   * start from the project as it stands now, not from whatever the sandbox
+   * booted with the first time.
+   *
+   * The boot project is state rather than the current one, because a remount
+   * has to boot from something fixed: the project as it stood when the
+   * sandbox was last started. A sandbox that boots from a moving target
+   * would change under itself.
+   */
+  const [bootProject, setBootProject] = useState<SandpackFiles>(project.files);
+  const [bootNonce, setBootNonce] = useState(0);
+
   if (!requestedDependencies.every((name) => installedNames.includes(name))) {
     setInstalledNames([...new Set([...installedNames, ...requestedDependencies])].sort());
+    // The new build starts from the project as it is now, because the old
+    // one is about to be thrown away.
+    setBootProject(project.files);
   }
 
   const installedKey = installedNames.join("\n");
@@ -352,22 +371,6 @@ function Sandbox({
     }),
     [installedNames]
   );
-
-  /**
-   * What the sandbox boots from.
-   *
-   * A new package cannot be added to a running bundler, so *growing* the
-   * dependency set remounts the sandbox — and the boot project is latched per
-   * mount, so the rebuild starts from the current project rather than from
-   * whatever it booted with the first time.
-   *
-   * The boot project is state rather than the current one, because a remount
-   * has to boot from something fixed: the project as it stood when the
-   * sandbox was last started. A sandbox that boots from a moving target
-   * would change under itself.
-   */
-  const [bootProject, setBootProject] = useState<SandpackFiles>(project.files);
-  const [bootNonce, setBootNonce] = useState(0);
 
   /**
    * The sandbox gave up on an edit, and is started again from the new code.

@@ -1,10 +1,9 @@
 import "dotenv/config";
 
 import { db } from "../lib/db/postgres";
-import { components } from "../lib/db/schema";
 import { syncAuthorAvatar } from "../lib/db/components";
 import { users } from "../lib/db/schema";
-import { isNotNull, ne } from "drizzle-orm";
+import { isNotNull } from "drizzle-orm";
 
 /**
  * Brings the author pictures on existing components back in step with the

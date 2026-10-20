@@ -1060,8 +1060,27 @@ export function ComponentStudio({
                   onRun={reloadPreview}
                   projectFiles={files}
                   packages={Object.keys(installedPackages)}
+                  onCursor={setCursor}
                 />
               )}
+            </div>
+
+            {/* The status bar. Every editor has one, and every editor uses it
+                for the same two things: where the cursor is, and what is
+                selected. It is the one place the editor can say something
+                the file itself cannot. */}
+            <div className="flex h-6 shrink-0 items-center gap-3 border-t border-border/60 px-3 text-[11px] text-muted-foreground">
+              <span className="truncate font-mono">{activePath}</span>
+              <span className="ml-auto flex shrink-0 items-center gap-3">
+                {cursor && cursor.selected > 0 ? (
+                  <span>{cursor.selected} selected</span>
+                ) : null}
+                <span>
+                  Ln {cursor?.line ?? 1}, Col {cursor?.column ?? 1}
+                </span>
+                <span className="capitalize">{languageFor(activePath)}</span>
+                <span>UTF-8</span>
+              </span>
             </div>
           </section>
         )}

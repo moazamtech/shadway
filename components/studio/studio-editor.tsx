@@ -31,6 +31,8 @@ type Props = {
   projectFiles: Record<string, string>;
   /** npm packages already installed in the sandbox. */
   packages: string[];
+  /** Where the cursor is, for the status bar. */
+  onCursor?: (position: { line: number; column: number; selected: number }) => void;
 };
 
 const DARK_THEME = "shadway-dark";
@@ -243,6 +245,7 @@ export function StudioEditor({
   onRun,
   projectFiles,
   packages,
+  onCursor,
 }: Props) {
   const { resolvedTheme } = useTheme();
   // The editor follows the app theme, exactly like the rest of the studio.
@@ -313,6 +316,36 @@ export function StudioEditor({
           ],
           run: (instance) => instance.trigger("keyboard", "redo", null),
         });
+
+        /**
+         * Where the cursor is.
+         *
+         * A status bar that says nothing is a bar; one that says where the
+         * cursor is tells the author where they are in a file they are
+         * editing, which is the one piece of information an editor has that
+         * the code itself does not.
+         */
+        const report = () => {
+          const position = editor.getPosition();
+          const selection = editor.getSelection();
+          onCursor?.({
+            line: position?.lineNumber ?? 1,
+            column: position?.column ?? 1,
+            selected: selection
+              ? selection.startLineNumber === selection.endLineNumber &&
+                selection.startColumn === selection.endColumn
+                ? 0
+                : Math.abs(selection.endColumn - selection.startColumn)
+              : 0,
+          });
+        };
+        report();
+        const cursorSubscription = editor.onDidChangeCursorPosition(report);
+        const selectionSubscription = editor.onDidChangeCursorSelection(report);
+        return () => {
+          cursorSubscription.dispose();
+          selectionSubscription.dispose();
+        };
       }}
       options={{
         minimap: { enabled: false },

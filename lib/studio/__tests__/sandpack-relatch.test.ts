@@ -43,6 +43,13 @@ vi.mock("@codesandbox/sandpack-react", async () => {
       h.renders.push({ files: props.files, customSetup: props.customSetup });
       react.useEffect(() => {
         h.mounts++;
+        // The bundler says when it has finished a build, and the pane holds an
+        // edit back until it does: a bundler that is compiling drops what it
+        // is sent. The real bundler says so, so the mock says so.
+        window.postMessage(
+          { codesandbox: true, type: "done", compilatonError: false },
+          "*"
+        );
       }, []);
       return react.createElement(react.Fragment, null, props.children);
     },
@@ -104,7 +111,7 @@ describe("SandpackPreviewPane boot latch", () => {
     root = createRoot(container);
   });
 
-  it("boots from the current project after a dependency remount, not the first mount", () => {
+  it("boots from the current project after a dependency remount, not the first mount", async () => {
     const A = project("A");
     // The edited project, and a package the author just imported.
     const B = project("B");
@@ -122,10 +129,24 @@ describe("SandpackPreviewPane boot latch", () => {
         )
       );
 
+    /**
+     * The bundler saying it is free.
+     *
+     * The pane holds an edit back while the bundler is compiling, because a
+     * bundler that is compiling drops what it is sent — so the mock has to
+     * say when it has finished, the way the real one does.
+     */
+    const bundlerIsFree = async () => {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
     // 1. First mount: boots the project as written.
     render(A, []);
     expect(lastBoot()[PAGE]).toContain(">A<");
     expect(h.renders[0].customSetup).toEqual({ dependencies: {} });
+    await bundlerIsFree();
 
     // 2. An edit, no dependency change: the provider is NOT remounted, so it
     //    keeps its original boot project and the edit is delivered imperatively.
