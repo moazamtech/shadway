@@ -14,11 +14,19 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 const COLLAPSED_KEY = "sidebar-collapsed";
 const WIDTH_KEY = "sidebar-width";
 
-/** Default expanded width — matches the old `w-64` (16rem). */
-export const SIDEBAR_DEFAULT_WIDTH = 256;
-export const SIDEBAR_COLLAPSED_WIDTH = 64;
-export const SIDEBAR_MIN_WIDTH = 220;
-export const SIDEBAR_MAX_WIDTH = 440;
+/**
+ * The rail's widths.
+ *
+ * The expanded rail is fourteen rem: enough for a name, an icon and a count,
+ * and no more. A rail is a column of places, and a column of places that takes
+ * a quarter of the window is a column that is being read instead of the
+ * catalogue beside it. The collapsed rail is the width of a row of icons and
+ * nothing else.
+ */
+export const SIDEBAR_DEFAULT_WIDTH = 224;
+export const SIDEBAR_COLLAPSED_WIDTH = 52;
+export const SIDEBAR_MIN_WIDTH = 200;
+export const SIDEBAR_MAX_WIDTH = 400;
 export const SIDEBAR_SNAP_THRESHOLD = 14;
 
 export function clampSidebarWidth(width: number) {

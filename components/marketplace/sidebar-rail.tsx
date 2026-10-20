@@ -81,7 +81,7 @@ const TYPE = "text-[13.5px]/4 font-medium";
    click in the dead space between two rows still lands on one of them. That
    is why the padding and the hit area are two different numbers. */
 const ROW =
-  `group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 ${TYPE} text-foreground-soft transition-[padding,color] duration-150 ease-out group-hover/row:text-foreground before:absolute before:-inset-x-3 before:top-0 before:bottom-0 sidebar-collapsed:pl-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
+  `group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 ${TYPE} text-foreground-soft transition-[padding,color] duration-150 ease-out group-hover/row:text-foreground before:absolute before:-inset-x-3 before:top-0 before:bottom-0 sidebar-collapsed:pl-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
 
 /* Width rides `--sidebar-width` (painted pre-hydration by the layout script,
    driven live by useSidebar), so drags track 1:1 and the collapse toggle
@@ -275,7 +275,7 @@ function RailRow({
     active && "text-foreground",
     // A sub-row is indented to the shelf's content edge, so the eye reads
     // the nesting without a line or a box to draw it.
-    sub && "h-7 pl-7 text-[13px] text-muted-foreground",
+    sub && "h-7 pl-7 text-[13px] text-muted-foreground sidebar-collapsed:hidden",
     className,
   );
 
@@ -354,7 +354,7 @@ export function SidebarRail({
            While a drag is live the width must track the pointer 1:1, so the
            glide comes off for the duration. */
         "group/sidebar relative shrink-0 flex-col gap-2 pt-3 pb-2",
-        "w-[var(--sidebar-width,16rem)] px-3",
+        "w-[var(--sidebar-width,14rem)] px-3",
         resizing ? "" : GLIDE,
         className
       )}
@@ -362,7 +362,7 @@ export function SidebarRail({
     >
       {/* Brand + collapse toggle. The toggle sits in-flow expanded but
           overlays the mark when collapsed, crossfading on hover. */}
-      <div className="sidebar-glide relative flex h-7 items-center px-1.5 transition-[padding] sidebar-collapsed:pl-2.5">
+      <div className="sidebar-glide relative flex h-7 items-center px-1.5 transition-[padding] sidebar-collapsed:pl-1">
         <Link
           href="/"
           className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"

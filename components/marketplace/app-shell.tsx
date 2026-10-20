@@ -131,8 +131,13 @@ export function AppShell({
 
       <main
         className={cn(
-          "raised relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface md:mx-2 md:my-2 md:rounded-lg md:border md:border-border",
-          panelClassName
+          /* The panel is attached to the rail: the hairline down its left edge
+             is the divider between the two, and a gap there would put a strip
+             of canvas between a column and the thing it is next to. The
+             rounded corner is on the other three sides, where the canvas
+             shows. */
+          "raised relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface md:my-2 md:mr-2 md:rounded-lg md:border md:border-border",
+          panelClassName,
         )}
       >
         {toolbar !== undefined ? (
