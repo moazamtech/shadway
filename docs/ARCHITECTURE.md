@@ -108,3 +108,18 @@ that runs against a real server and a real browser — they publish fixtures,
 install with the real CLI, sign in, and read the database back. They are the
 only way to know the whole chain works, and each one names the failure it
 exists to catch.
+
+The maintenance jobs live beside them and are worth knowing about:
+
+| Script | What it does |
+|---|---|
+| `migrate-to-neon.ts` | Copies the catalogue out of the old database and into Postgres. Safe to run again. |
+| `seed-components.ts` | Writes the two reference components, and only into an empty table. |
+| `clean-components.ts` | Empties the catalogue. |
+| `sync-author-avatars.ts` | Puts the account's picture back on the components that were published before it had one. |
+| `qa-catalogue.ts` | Every published component answers on its page, serves its document in both themes, and its registry item has files. |
+| `qa-install.ts` | The real shadcn CLI installs a component and a block into a scratch project, and every import resolves. |
+| `qa-publish-flow.ts` | Eight fixtures build, publish and read back; a broken import is refused with the compiler's own message. |
+| `qa-payouts.ts` / `qa-payout-run.ts` | The earnings, the address review, and the weekly run — including that a creator cannot approve their own address. |
+| `qa-media.ts` / `qa-video.ts` | The cover is an image, the demo loop is a video the card plays on hover, and HTML is not media. |
+| `qa-sandbox-live.ts` | The sandbox boots on its own and an edit reaches the preview without a reload. |

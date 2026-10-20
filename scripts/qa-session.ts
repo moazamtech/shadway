@@ -2,8 +2,15 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import type { Page } from "puppeteer";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import {
+  createAccount,
+  deleteAccount,
+  findAccountByEmail,
+  planUsername,
+} from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { components as componentsTable } from "../lib/db/schema";
+import { sql } from "drizzle-orm";
 
 /**
  * A signed-in browser for the checks that need one.
@@ -29,37 +36,38 @@ export type QaAccount = {
 };
 
 export async function createQaAccount(role: "user" | "admin" = "admin"): Promise<QaAccount> {
-  const { db } = await connectToDatabase();
   const suffix = Math.random().toString(36).slice(2, 8);
   const email = `qa-session-${suffix}@shadway.test`;
   const username = await planUsername(email, "QA Session");
 
-  await db.collection("users").insertOne({
+  const account = await createAccount({
     email,
     password: await bcrypt.hash(PASSWORD, 12),
     name: "QA Session",
     username,
     role,
-    createdAt: new Date(),
-    updatedAt: new Date(),
   });
 
-  const account = await db.collection("users").findOne({ email });
   return {
     email,
     password: PASSWORD,
     username,
-    userId: account?._id?.toString() ?? "",
+    userId: account._id ?? "",
   };
 }
 
 export async function removeQaAccount(email: string): Promise<void> {
-  const { db } = await connectToDatabase();
-  const account = await db.collection("users").findOne({ email });
-  if (account?._id) {
-    await db.collection("components").deleteMany({ "author.userId": account._id.toString() });
-  }
-  await db.collection("users").deleteMany({ email });
+  const account = await findAccountByEmail(email);
+  if (!account?._id) return;
+
+  // The components an account published are removed with it: the author is
+  // a record on the component, so the two are cleaned up together.
+  await db()
+    .delete(componentsTable)
+    .where(
+      sql`${componentsTable.author}->>'userId' = ${account._id}`,
+    );
+  await deleteAccount(account._id);
 }
 
 /**

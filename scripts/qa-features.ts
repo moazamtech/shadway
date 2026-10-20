@@ -2,9 +2,11 @@ import "dotenv/config";
 import fs from "fs";
 import puppeteer from "puppeteer";
 import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { users as usersTable } from "../lib/db/schema";
+import { createAccount, planUsername } from "../lib/db/users";
 
 /**
  * The surfaces a component is judged on.
@@ -58,20 +60,27 @@ function log(label: string, ok: boolean, extra = "") {
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
+  const client = db();
   const suffix = Math.random().toString(36).slice(2, 8);
   const email = `qa-features-${suffix}@shadway.test`;
-  const users = db.collection("users");
 
+  /**
+   * The account is written into the database the application reads.
+   *
+   * The studio refuses to open somebody else's work to a stranger, so this
+   * check needs a signed-in account with the right to be there. Seeding it
+   * directly is what keeps the run clear of the sign-in rate limiter, and it
+   * has to be seeded where the application looks: an account in a store
+   * nothing reads signs nobody in, and the studio would answer with the
+   * sign-in page instead of the editor.
+   */
   try {
-    await users.insertOne({
+    await createAccount({
       email,
       password: await bcrypt.hash(PASSWORD, 12),
       name: "QA Features",
       username: await planUsername(email, "QA Features"),
       role: "admin",
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     const csrf = await (await request("/api/auth/csrf")).json();
@@ -254,7 +263,14 @@ async function main() {
 
     await browser.close();
   } finally {
-    await users.deleteMany({ email }).catch(() => {});
+    /**
+     * The account goes and nothing else is touched.
+     *
+     * The handle it was given is unique, so an account left behind would
+     * keep that handle out of the next run's reach — and the next run would
+     * quietly mint a different one instead of failing.
+     */
+    await client.delete(usersTable).where(eq(usersTable.email, email)).catch(() => {});
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

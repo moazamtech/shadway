@@ -9,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * The schema.
@@ -114,7 +115,20 @@ export const components = pgTable(
   },
   (table) => [
     uniqueIndex("components_slug_key").on(table.slug),
-    index("components_author_username_idx").on(table.author),
+    /**
+     * The author is a record, and the two things anyone looks up in it are
+     * the handle and the account.
+     *
+     * The index is on the *values* rather than on the whole record: an index
+     * on the record itself would be a copy of every author's name and picture
+     * in the table, and a lookup by handle would still have to read the whole
+     * record to find out. Postgres indexes an expression, so the index is
+     * written against the value — the two of them are created by
+     * `scripts/db-indexes.ts`, because a schema diff cannot carry an
+     * expression and a push would drop it.
+     */
+    index("components_author_username_idx").on(sql`(${table.author}->>'username')`),
+    index("components_author_user_id_idx").on(sql`(${table.author}->>'userId')`),
     index("components_feed_idx").on(table.status, table.visibility, table.createdAt),
   ],
 );

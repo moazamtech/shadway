@@ -1,5 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "./postgres";
 import {
   config,
@@ -443,5 +442,3 @@ export async function listSubmissionsByStatus(status: string): Promise<Submissio
 export function idsInOrder(ids: string[]): string[] {
   return ids.filter(Boolean);
 }
-
-export { and, inArray };

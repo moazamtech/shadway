@@ -2,9 +2,8 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import puppeteer from "puppeteer";
 import fs from "fs";
+import { neon } from "@neondatabase/serverless";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { createAccount, deleteAccount } from "../lib/db/users";
 import { BASE, PASSWORD, signIn } from "./qa-session";
 
 const CHROME = [
@@ -18,8 +17,11 @@ const CHROME = [
  * The studio is the one place where a keystroke has to travel from the editor,
  * through the bundler, into an iframe and back onto the screen. Two things
  * have to be true at once: the preview has to arrive on its own, and an edit
- * has to reach it. This opens the studio, watches the preview pane until it
- * says something, then types into the editor and watches the pane again.
+ * has to reach it.
+ *
+ * The dev server is shared, so the page can be reloaded underneath the check
+ * by anything that writes into the repository. The check waits for the page to
+ * go quiet before it starts measuring, and says so when it does.
  */
 
 let failures = 0;
@@ -28,30 +30,23 @@ function log(label: string, ok: boolean, extra = "") {
   if (!ok) failures += 1;
 }
 
-function stamp(start: number) {
-  return `${((Date.now() - start) / 1000).toFixed(1)}s`;
-}
+const MARKER = "SANDBOX-START";
+const EDITED = "SANDBOX-LIVE-OK";
 
-/** What the preview pane is showing right now. */
 async function paneState(page: import("puppeteer").Page) {
   return page.evaluate(() => {
     const section = Array.from(document.querySelectorAll("section")).find((node) =>
       (node.textContent || "").includes("Preview"),
     );
     const root = section ?? document.body;
-    const iframes = Array.from(root.querySelectorAll("iframe"));
-    const spinners = Array.from(root.querySelectorAll("svg")).filter((node) =>
-      (node.className.baseVal || "").includes("lucide-loader"),
-    );
     return {
-      iframes: iframes.length,
-      spinner: spinners.length,
-      text: (root.innerText || "").replace(/\s+/g, " ").trim().slice(0, 240),
+      iframes: root.querySelectorAll("iframe").length,
+      overlays: root.querySelectorAll(".sp-overlay").length,
+      text: (root.innerText || "").replace(/\s+/g, " ").trim().slice(0, 220),
     };
   });
 }
 
-/** The text inside every frame on the page. */
 async function frames(page: import("puppeteer").Page) {
   const texts = await Promise.all(
     page
@@ -69,14 +64,13 @@ async function frames(page: import("puppeteer").Page) {
 async function main() {
   const suffix = Math.random().toString(36).slice(2, 8);
   const email = `qa-sandbox-${suffix}@shadway.test`;
-  const password = PASSWORD;
+  const userId = crypto.randomUUID();
+  const sql = neon(process.env.DATABASE_URL ?? "");
 
-  const account = await createAccount({
-    email,
-    password: await bcrypt.hash(password, 12),
-    name: "QA Sandbox",
-    role: "admin",
-  });
+  await sql`
+    INSERT INTO users (id, email, password, name, username, role, created_at, updated_at)
+    VALUES (${userId}, ${email}, ${await bcrypt.hash(PASSWORD, 12)}, ${"QA Sandbox"}, ${`qa-sandbox-${suffix}`}, ${"admin"}, now(), now())
+  `;
 
   try {
     const browser = await puppeteer.launch({
@@ -88,39 +82,43 @@ async function main() {
     await page.setViewport({ width: 1500, height: 950 });
 
     const errors: string[] = [];
-    const logs: string[] = [];
-    page.on("console", (message) => {
-      const text = message.text();
-      if (message.type() === "error") errors.push(text.slice(0, 200));
-      else logs.push(`${message.type()}: ${text.slice(0, 200)}`);
+    let loads = 0;
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(m.text().slice(0, 300));
     });
-    page.on("pageerror", (error) => errors.push(String(error).slice(0, 200)));
+    page.on("pageerror", (e) => errors.push(String(e).slice(0, 300)));
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) loads += 1;
+    });
 
-    await signIn(page, email, password);
+    await signIn(page, email, PASSWORD);
     await page.goto(`${BASE}/api/health`, {
       waitUntil: "domcontentloaded",
       timeout: 120_000,
     });
 
-    const published = await page.evaluate(async (base) => {
-      const response = await fetch(`${base}/api/components`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "QA Sandbox Live",
-          description: "A fixture for the sandbox live-edit check.",
-          code: [
-            "export function QaSandboxLive() {",
-            "  return <h1>SANDBOX-START</h1>;",
-            "}",
-          ].join("\n"),
-          category: "ui",
-          tags: ["qa"],
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      return { status: response.status, slug: data?.item?.slug ?? null };
-    }, BASE);
+    const published = await page.evaluate(
+      async (base, marker) => {
+        const response = await fetch(`${base}/api/components`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "QA Sandbox Fixture",
+            description: "A fixture for the sandbox live-edit check.",
+            // The starter demo imports the component as a *default* export, so
+            // the fixture has to be one or the preview renders an undefined
+            // element and the check measures the wrong failure.
+            code: `export default function MyComponent() {\n  return <h1>${marker}</h1>;\n}\n`,
+            category: "ui",
+            tags: ["qa"],
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { status: response.status, slug: data?.item?.slug ?? null };
+      },
+      BASE,
+      MARKER,
+    );
     log("the fixture component is published", published.status === 201, `slug=${published.slug}`);
 
     if (!published.slug) {
@@ -128,45 +126,53 @@ async function main() {
       return;
     }
 
-    const start = Date.now();
     await page.goto(`${BASE}/studio/${published.slug}`, {
       waitUntil: "domcontentloaded",
       timeout: 120_000,
     });
-    console.log(`  navigated at ${stamp(start)}  url=${page.url()}`);
+
+    // ---- wait for the page to go quiet ------------------------------------
+    let quiet = 0;
+    let seen = loads;
+    for (let i = 0; i < 60 && quiet < 10; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (loads === seen) quiet += 1;
+      else {
+        quiet = 0;
+        seen = loads;
+      }
+    }
+    console.log(`the page settled after ${loads} document loads`);
 
     // ---- the preview has to arrive on its own -----------------------------
+    const start = Date.now();
     let previewSeen = false;
     let previewAt = 0;
-    let firstSpinner = 0;
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 120; i++) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       let state: Awaited<ReturnType<typeof paneState>>;
       try {
         state = await paneState(page);
-      } catch (error) {
-        console.log(
-          `  ${stamp(start)}  (the page navigated: ${String(error).slice(0, 80)})`,
-        );
+      } catch {
+        console.log(`  ${((Date.now() - start) / 1000).toFixed(1)}s  (navigated)`);
         continue;
       }
       const text = await frames(page);
-      if (!firstSpinner && state.spinner > 0) firstSpinner = Date.now() - start;
-      if (text.includes("SANDBOX-START")) {
+      if (text.includes(MARKER)) {
         previewSeen = true;
         previewAt = Date.now() - start;
-        console.log(`  the preview rendered at ${stamp(start)} (${(previewAt / 1000).toFixed(1)}s)`);
-        console.log(`  pane state: ${JSON.stringify(state)}`);
+        console.log(
+          `  the preview rendered at ${(previewAt / 1000).toFixed(1)}s  iframes=${state.iframes} overlays=${state.overlays}`,
+        );
         break;
       }
       if (i % 5 === 4) {
         console.log(
-          `  ${stamp(start)}  iframes=${state.iframes} spinner=${state.spinner} text=${JSON.stringify(state.text.slice(0, 120))}`,
+          `  ${((Date.now() - start) / 1000).toFixed(1)}s  iframes=${state.iframes} overlays=${state.overlays}  ${JSON.stringify(state.text.slice(0, 160))}`,
         );
       }
     }
     log("the preview arrives on its own", previewSeen, `at ${(previewAt / 1000).toFixed(1)}s`);
-    if (firstSpinner) console.log(`  the loading spinner was up from ${(firstSpinner / 1000).toFixed(1)}s`);
 
     await page.screenshot({ path: "tmp-sandbox-before.png" });
 
@@ -181,15 +187,15 @@ async function main() {
     await page.keyboard.press("KeyA");
     await page.keyboard.up("Control");
     await page.keyboard.type(
-      "export function QaSandboxLive() { return <h1>SANDBOX-LIVE-OK</h1>; }",
+      `export default function MyComponent() { return <h1>${EDITED}</h1>; }`,
     );
 
     const editorValue = await page
-      .$eval("textarea", (element) => (element as HTMLTextAreaElement).value)
+      .$eval(".monaco-editor textarea", (element) => (element as HTMLTextAreaElement).value)
       .catch(() => "");
     log(
       "the editor holds what was typed",
-      editorValue.includes("SANDBOX-LIVE-OK"),
+      editorValue.includes(EDITED),
       editorValue.slice(0, 60),
     );
 
@@ -198,7 +204,7 @@ async function main() {
     for (const wait of [1000, 1500, 2000, 3000, 4000, 5000, 6000]) {
       await new Promise((resolve) => setTimeout(resolve, wait));
       const text = await frames(page);
-      if (text.includes("SANDBOX-LIVE-OK")) {
+      if (text.includes(EDITED)) {
         painted = true;
         console.log(
           `  the preview repainted ${((Date.now() - editStart) / 1000).toFixed(1)}s after the edit`,
@@ -210,25 +216,21 @@ async function main() {
 
     await page.screenshot({ path: "tmp-sandbox-after.png" });
 
+    console.log(`  document loads: ${loads}`);
     console.log(`  console errors: ${errors.length}`);
-    for (const error of errors.slice(0, 6)) console.log(`    ${error}`);
-    console.log(`  console logs: ${logs.length}`);
-    for (const entry of logs.slice(0, 10)) console.log(`    ${entry}`);
+    for (const error of errors.slice(0, 8)) console.log(`    ${error}`);
 
     await browser.close();
   } finally {
-    const { db } = await connectToDatabase();
-    await db
-      .collection("components")
-      .deleteMany({ "author.email": email } as Record<string, unknown>);
-    await deleteAccount(account._id ?? account.email);
+    await sql`DELETE FROM components WHERE author ->> 'userId' = ${userId}`;
+    await sql`DELETE FROM users WHERE id = ${userId}`;
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);
-  process.exit(failures === 0 ? 0 : 1);
+  process.exitCode = failures === 0 ? 0 : 1;
 }
 
 main().catch((error) => {
   console.error("FATAL:", String(error).slice(0, 600));
-  process.exit(1);
+  process.exitCode = 1;
 });

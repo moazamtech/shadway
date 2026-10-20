@@ -13,7 +13,7 @@ import { Template } from '@/lib/types';
  */
 function asDocument(row: Template & { id?: string }): Template {
   const { id, ...document } = row;
-  return { ...document, _id: id };
+  return { _id: id, ...document };
 }
 
 /**

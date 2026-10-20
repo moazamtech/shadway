@@ -651,8 +651,14 @@ function conditionFor(field: string, value: unknown): SQL | undefined {
   const column = COLUMN_BY_FIELD[field as DocumentField];
   if (!column) return undefined;
 
-  if (value instanceof Date || value instanceof RegExp) {
+  if (value instanceof Date) {
     return sql`${column} = ${value}`;
+  }
+
+  if (value instanceof RegExp) {
+    // A pattern is a pattern on both sides: the same expression, matched the
+    // same way, case included.
+    return sql`${column} ~ ${value.source}`;
   }
 
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
@@ -873,7 +879,9 @@ export async function getComponentsCollection(): Promise<ComponentCollection> {
     async deleteOne(filter) {
       const where = whereFor(filter);
       const query = client.delete(components);
-      const deleted = where ? await query.where(where).returning({ id: components.id }) : await query.returning({ id: components.id });
+      const deleted = where
+        ? await query.where(where).returning({ id: components.id })
+        : await query.returning({ id: components.id });
       return { deletedCount: deleted.length };
     },
 
@@ -881,6 +889,12 @@ export async function getComponentsCollection(): Promise<ComponentCollection> {
       return { toArray: () => runAggregation<T>(pipeline) };
     },
 
+    /**
+     * Nothing to build.
+     *
+     * The indexes belong to the schema, and the schema is applied by the
+     * migration rather than by a request that happens to want a document.
+     */
     async createIndexes() {
       return [];
     },

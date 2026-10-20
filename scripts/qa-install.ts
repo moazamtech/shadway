@@ -1,5 +1,4 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -7,8 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import puppeteer from "puppeteer";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { BASE, createQaAccount, removeQaAccount } from "./qa-session";
 
 /**
  * The other half of the registry contract: what a consumer actually gets.
@@ -39,7 +37,6 @@ import { planUsername } from "../lib/db/users";
  *   npx tsx scripts/qa-install.ts
  */
 
-const BASE = process.env.BASE ?? "http://localhost:3000";
 const CLI = path.join(process.cwd(), "node_modules", "shadcn", "dist", "index.js");
 const INSTALL_BUDGET_MS = 300_000;
 
@@ -447,30 +444,23 @@ const HOST = new Set(["react", "react-dom", "next"]);
 async function main() {
   if (!existsSync(CLI)) throw new Error(`shadcn CLI not found at ${CLI}`);
 
-  const { db } = await connectToDatabase();
-  const users = db.collection("users");
-  const components = db.collection("components");
-
   const suffix = Math.random().toString(36).slice(2, 8);
-  const email = `qa-install-${suffix}@example.com`;
-  const password = `qa-${suffix}-Passw0rd!`;
-  const handle = await planUsername(email, "QA Install");
-
-  await users.insertOne({
-    email,
-    password: await bcrypt.hash(password, 12),
-    name: "QA Install",
-    username: handle,
-    role: "admin",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  const published: string[] = [];
   let scratch: string | null = null;
 
+  /**
+   * The publisher's account, in the database the application reads.
+   *
+   * The CLI installs what the registry serves, and the registry serves what
+   * the application stored, so the account that publishes has to be an account
+   * the application knows about. One minted in a database it no longer reads
+   * would publish nothing, and the install below would then be checking an
+   * empty shelf.
+   */
+  const account = await createQaAccount("admin");
+  const handle = account.username;
+
   try {
-    await login(email, password);
+    await login(account.email, account.password);
     const session = await (await request("/api/auth/session")).json().catch(() => ({}));
     if (!session?.user?.id) throw new Error("could not sign in as the fixture admin");
     log("fixture admin signs in", true, `username=${handle}`);
@@ -513,7 +503,6 @@ async function main() {
         log(`${label} publishes`, false, `status=${publishRes.status}`);
         continue;
       }
-      published.push(slug);
 
       if (fixture === UI_FIXTURE) {
         const hydration = await checkHydration(`${BASE}/`, fixture.title);
@@ -646,8 +635,9 @@ async function main() {
     }
   } finally {
     if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => {});
-    if (published.length) await components.deleteMany({ slug: { $in: published } });
-    await users.deleteOne({ email });
+    // The published components go with the account that published them: the
+    // author is a record on the component, so the two are removed together.
+    await removeQaAccount(account.email);
   }
 
   console.log("");

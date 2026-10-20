@@ -1,7 +1,10 @@
 import "dotenv/config";
 
-import { connectToDatabase } from "../lib/mongodb";
+import { db } from "../lib/db/postgres";
+import { components } from "../lib/db/schema";
 import { syncAuthorAvatar } from "../lib/db/components";
+import { users } from "../lib/db/schema";
+import { isNotNull, ne } from "drizzle-orm";
 
 /**
  * Brings the author pictures on existing components back in step with the
@@ -19,19 +22,17 @@ import { syncAuthorAvatar } from "../lib/db/components";
  */
 
 async function main() {
-  const { db } = await connectToDatabase();
+  const client = db();
 
-  const users = db.collection("users");
-  const withAvatar = await users
-    .find({ avatar: { $exists: true, $nin: ["", null] } })
-    .project({ avatar: 1 })
-    .toArray();
+  const withAvatar = await client
+    .select({ id: users.id, avatar: users.avatar })
+    .from(users)
+    .where(isNotNull(users.avatar));
 
   let touched = 0;
   for (const user of withAvatar) {
-    const id = user._id.toString();
-    const avatar = user.avatar as string;
-    await syncAuthorAvatar(id, avatar);
+    if (!user.avatar) continue;
+    await syncAuthorAvatar(user.id, user.avatar);
     touched += 1;
   }
 

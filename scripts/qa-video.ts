@@ -1,9 +1,10 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 import puppeteer from "puppeteer";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { components as componentsTable } from "../lib/db/schema";
+import { BASE, createQaAccount, removeQaAccount } from "./qa-session";
 
 /**
  * The demo video, end to end.
@@ -23,8 +24,6 @@ import { planUsername } from "../lib/db/users";
  *   npx tsx scripts/qa-video.ts
  */
 
-const BASE = process.env.BASE ?? "http://localhost:3000";
-const PASSWORD = "qa-video-1234";
 const SAMPLE =
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
@@ -55,21 +54,33 @@ function log(label: string, ok: boolean, extra = "") {
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
-  const suffix = Math.random().toString(36).slice(2, 8);
-  const email = `qa-video-${suffix}@shadway.test`;
-  const users = db.collection("users");
+  /**
+   * The account the video is hung on.
+   *
+   * The component it is hung on is a real one from the catalogue, so the
+   * account has to be one the application knows about: the session decides
+   * whether the edit is allowed, and a session minted for an account the
+   * application cannot find signs nobody in.
+   */
+  const account = await createQaAccount("admin");
+
+  /**
+   * The video the catalogue already carried, if it carried one.
+   *
+   * The check borrows a real component and gives it back afterwards, and
+   * giving it back means putting back what was there rather than what this
+   * run happened to leave. A catalogue that quietly loses a video to a test is
+   * a catalogue nobody trusts.
+   */
+  let originalVideoUrl: string | null = null;
 
   try {
-    await users.insertOne({
-      email,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Video",
-      username: await planUsername(email, "QA Video"),
-      role: "admin",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const existing = await db()
+      .select({ videoUrl: componentsTable.videoUrl })
+      .from(componentsTable)
+      .where(eq(componentsTable.slug, SLUG))
+      .limit(1);
+    originalVideoUrl = existing[0]?.videoUrl ?? null;
 
     const csrf = await (await request("/api/auth/csrf")).json();
     await request("/api/auth/callback/credentials", {
@@ -77,8 +88,8 @@ async function main() {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         csrfToken: csrf.csrfToken,
-        email,
-        password: PASSWORD,
+        email: account.email,
+        password: account.password,
         callbackUrl: `${BASE}/`,
         json: "true",
       }).toString(),
@@ -170,7 +181,20 @@ async function main() {
     });
     log("the video is taken back off the component", cleared.status === 200);
   } finally {
-    await users.deleteMany({ email }).catch(() => {});
+    /**
+     * The catalogue is put back whatever happened above.
+     *
+     * The edit is the only thing this run changes about a component that
+     * belongs to somebody else, and a run that dies halfway through would
+     * otherwise leave a video on a card that never had one — a broken row that
+     * outlives the check that made it.
+     */
+    await request(`/api/components/${SLUG}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoUrl: originalVideoUrl }),
+    }).catch(() => {});
+    await removeQaAccount(account.email).catch(() => {});
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

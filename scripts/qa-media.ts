@@ -1,7 +1,6 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 
-import { connectToDatabase } from "../lib/mongodb";
+import { BASE, createQaAccount, removeQaAccount } from "./qa-session";
 
 /**
  * Component media, end to end.
@@ -28,8 +27,6 @@ import { connectToDatabase } from "../lib/mongodb";
  *   npx tsx scripts/qa-media.ts
  */
 
-const BASE = process.env.BASE ?? "http://localhost:3000";
-const PASSWORD = "qa-media-1234";
 const SAMPLE_VIDEO =
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 
@@ -74,30 +71,26 @@ function mediaBody(bytes: Uint8Array, type: string, filename: string, kind: stri
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
-  const suffix = Math.random().toString(36).slice(2, 8);
-  const email = `qa-media-${suffix}@shadway.test`;
-  const users = db.collection("users");
+  /**
+   * A publisher's account, in the database the application reads.
+   *
+   * The upload route asks the session who is calling, and the session is only
+   * worth anything if the account behind it exists where the application
+   * looks for accounts. An account written somewhere the application no
+   * longer reads would sign nobody in, and every check below would be reading
+   * a stranger's answer.
+   */
+  const account = await createQaAccount("user");
 
   try {
-    await users.insertOne({
-      email,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Media",
-      username: `qa-media-${suffix}`,
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
     const csrf = await (await request("/api/auth/csrf")).json();
     await request("/api/auth/callback/credentials", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         csrfToken: csrf.csrfToken,
-        email,
-        password: PASSWORD,
+        email: account.email,
+        password: account.password,
         callbackUrl: `${BASE}/`,
         json: "true",
       }).toString(),
@@ -168,7 +161,7 @@ async function main() {
     });
     log("HTML is not media", html.status === 415, `status=${html.status}`);
   } finally {
-    await users.deleteMany({ email }).catch(() => {});
+    await removeQaAccount(account.email).catch(() => {});
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

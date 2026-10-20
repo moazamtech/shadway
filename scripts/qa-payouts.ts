@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
-import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { payoutAccounts, payoutAccruals } from "../lib/db/schema";
 import { recordAccrual } from "../lib/db/payouts";
+import { BASE, createQaAccount, removeQaAccount, type QaAccount } from "./qa-session";
 
 /**
  * The payout rail, end to end.
@@ -28,9 +29,6 @@ import { recordAccrual } from "../lib/db/payouts";
  * Run with a dev server up:
  *   npx tsx scripts/qa-payouts.ts
  */
-
-const BASE = process.env.BASE ?? "http://localhost:3000";
-const PASSWORD = "qa-payout-1234";
 
 type CookieJar = Record<string, string>;
 const jar: CookieJar = {};
@@ -106,43 +104,33 @@ async function sessionUser() {
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
   const suffix = randomBytes(4).toString("hex");
-  const creatorEmail = `qa-payout-${suffix}@shadway.test`;
-  const adminEmail = `qa-payout-admin-${suffix}@shadway.test`;
-  const creatorHandle = await planUsername(creatorEmail, "QA Payout");
-  const now = new Date();
-
-  const users = db.collection("users");
-  const accounts = db.collection("payout_accounts");
-  const accruals = db.collection("payout_accruals");
 
   let creatorId = "";
 
+  /**
+   * The two accounts the rail is walked with.
+   *
+   * Both live in the table the application reads, because the ledger is
+   * keyed by the id the session carries: an account the application cannot
+   * find is an account with no ledger, and every balance below would be
+   * somebody else's zero.
+   *
+   * They are made inside the block that cleans up after them, because an
+   * account made and then abandoned is an account that stays.
+   */
+  let creator: QaAccount | null = null;
+  let admin: QaAccount | null = null;
+
   try {
-    await users.insertOne({
-      email: creatorEmail,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Payout",
-      username: creatorHandle,
-      role: "user",
-      createdAt: now,
-      updatedAt: now,
-    });
-    await users.insertOne({
-      email: adminEmail,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Payout Admin",
-      username: await planUsername(adminEmail, "QA Payout Admin"),
-      role: "admin",
-      createdAt: now,
-      updatedAt: now,
-    });
+    creator = await createQaAccount("user");
+    admin = await createQaAccount("admin");
+    const creatorHandle = creator.username;
 
     // --- the creator -------------------------------------------------------
-    await login(creatorEmail, PASSWORD);
-    const creator = await sessionUser();
-    creatorId = creator?.id ?? "";
+    await login(creator.email, creator.password);
+    const session = await sessionUser();
+    creatorId = session?.id ?? "";
     log("creator signs in", Boolean(creatorId));
 
     const empty = await (await request("/api/payouts")).json().catch(() => ({}));
@@ -189,7 +177,7 @@ async function main() {
 
     // --- the admin ---------------------------------------------------------
     await logout();
-    await login(adminEmail, PASSWORD);
+    await login(admin.email, admin.password);
     log("admin signs in", Boolean(await sessionUser()));
 
     const list = await (await request("/api/admin/payout-accounts")).json().catch(() => ({}));
@@ -222,7 +210,7 @@ async function main() {
 
     // --- back to the creator ----------------------------------------------
     await logout();
-    await login(creatorEmail, PASSWORD);
+    await login(creator.email, creator.password);
 
     const verified = await (await request("/api/payouts")).json().catch(() => ({}));
     log("the creator sees the address verified", verified?.balance?.addressStatus === "verified");
@@ -285,9 +273,18 @@ async function main() {
       )
     );
   } finally {
-    await accounts.deleteMany({ creatorId }).catch(() => {});
-    await accruals.deleteMany({ creatorId }).catch(() => {});
-    await users.deleteMany({ email: { $in: [creatorEmail, adminEmail] } }).catch(() => {});
+    /**
+     * The ledger is emptied of this run and the accounts go with it.
+     *
+     * The rows are addressed by the creator they belong to, so the cleanup
+     * removes the accruals and the address this run wrote and nothing else —
+     * a ledger that keeps a dead creator's earnings is a ledger that pays
+     * somebody who no longer exists.
+     */
+    await db().delete(payoutAccounts).where(eq(payoutAccounts.creatorId, creatorId)).catch(() => {});
+    await db().delete(payoutAccruals).where(eq(payoutAccruals.creatorId, creatorId)).catch(() => {});
+    if (creator) await removeQaAccount(creator.email).catch(() => {});
+    if (admin) await removeQaAccount(admin.email).catch(() => {});
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

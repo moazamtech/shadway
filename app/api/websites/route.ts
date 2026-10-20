@@ -13,7 +13,7 @@ import { Website } from '@/lib/types';
  */
 function asDocument(row: Website & { id?: string }): Website {
   const { id, ...document } = row;
-  return { ...document, _id: id };
+  return { _id: id, ...document };
 }
 
 /**

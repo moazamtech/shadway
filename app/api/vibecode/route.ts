@@ -60,9 +60,9 @@ function estimatePayloadSize(payload: Record<string, unknown>) {
 /**
  * The author's record, as the API has always answered with it.
  *
- * The column holds the record as JSON, and the rows that were copied across
- * carry it as a JSON string inside that, so it is unwrapped here. A record
- * that is already an object is left alone.
+ * The column holds the record as JSON. A row that was written while the
+ * column was text carries the record as a JSON string inside it, so it is
+ * unwrapped here; a record that is already an object is left alone.
  */
 function authorOf(value: unknown): VibecodeComponent["createdBy"] {
   if (value && typeof value === "object") {
@@ -99,7 +99,7 @@ type VibecodeDocument = Omit<
 
 function asDocument(row: typeof vibecode.$inferSelect): VibecodeDocument {
   const { id, createdBy, ...document } = row;
-  return { ...document, _id: id, createdBy: authorOf(createdBy) };
+  return { _id: id, ...document, createdBy: authorOf(createdBy) };
 }
 
 /**

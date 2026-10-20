@@ -1,8 +1,9 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
+import { count, eq, type SQL } from "drizzle-orm";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { components as componentsTable } from "../lib/db/schema";
+import { BASE, createQaAccount, removeQaAccount } from "./qa-session";
 
 /**
  * The publish pipeline, end to end, over components that look like real ones.
@@ -28,8 +29,6 @@ import { planUsername } from "../lib/db/users";
  * Run with a dev server up:
  *   npx tsx scripts/qa-publish-flow.ts
  */
-
-const BASE = process.env.BASE ?? "http://localhost:3000";
 
 /** A build is a bundler pass plus a headless render. */
 const BUILD_BUDGET_MS = 90_000;
@@ -626,38 +625,41 @@ export default function Broken() {
 `,
 };
 
-async function main() {
-  const { db } = await connectToDatabase();
-  const suffix = Math.random().toString(36).slice(2, 7);
-  const email = `qa-flow-${suffix}@shadway.test`;
-  const password = "qa-password-1234";
-  const handle = await planUsername(email, "QA Flow");
+/**
+ * How many components the table holds for a condition.
+ *
+ * The old check asked the collection for a count; the table is asked the same
+ * question, and the answer is the same number for the same reason: a fixture
+ * that was never stored is a row that is not there.
+ */
+async function countComponents(where: SQL): Promise<number> {
+  const rows = await db().select({ n: count() }).from(componentsTable).where(where);
+  return rows[0]?.n ?? 0;
+}
 
-  const users = db.collection("users");
-  const components = db.collection("components");
+async function main() {
+  const suffix = Math.random().toString(36).slice(2, 7);
   const published: string[] = [];
 
-  try {
-    /**
-     * An admin, deliberately.
-     *
-     * A regular account's publish is `status: "pending"` and stays off every
-     * public surface until review — correct, and covered by `qa-profile.ts`.
-     * Here the subject is the build and the published document, so the fixture
-     * takes the path that publishes immediately; going through review would mean
-     * testing the same pipeline one approval later.
-     */
-    await users.insertOne({
-      email,
-      password: await bcrypt.hash(password, 12),
-      name: "QA Flow",
-      username: handle,
-      role: "admin",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+  /**
+   * An admin, deliberately.
+   *
+   * A regular account's publish is `status: "pending"` and stays off every
+   * public surface until review — correct, and covered by `qa-profile.ts`.
+   * Here the subject is the build and the published document, so the fixture
+   * takes the path that publishes immediately; going through review would mean
+   * testing the same pipeline one approval later.
+   *
+   * The account is written to the table the application reads, so the publish
+   * below is a publish the application can actually see: a fixture left in the
+   * database it used to live in would fail every assertion here for a reason
+   * that has nothing to do with publishing.
+   */
+  const account = await createQaAccount("admin");
+  const handle = account.username;
 
-    await login(email, password);
+  try {
+    await login(account.email, account.password);
     const session = await (await request("/api/auth/session")).json().catch(() => ({}));
     if (!session?.user?.id) throw new Error("could not sign in as the fixture admin");
     log("fixture admin signs in", true, `username=${handle}`);
@@ -922,7 +924,7 @@ async function main() {
     );
     log(
       "the broken component was not stored",
-      (await components.countDocuments({ title: BROKEN.title })) === 0
+      (await countComponents(eq(componentsTable.title, BROKEN.title))) === 0
     );
 
     // --- 8. one republish, to prove the address is stable ----------------
@@ -952,7 +954,7 @@ async function main() {
       );
       log(
         "the old address is gone, not duplicated",
-        (await components.countDocuments({ slug: first })) === 0
+        (await countComponents(eq(componentsTable.slug, first))) === 0
       );
       if (updateBody?.item?.slug) published[0] = updateBody.item.slug;
     }
@@ -969,11 +971,15 @@ async function main() {
      * assertion failed" and "here is the document" is most of the debugging.
      */
     if (process.env.KEEP !== "1") {
-      if (published.length) {
-        await components.deleteMany({ slug: { $in: published } });
-      }
-      await components.deleteMany({ title: { $regex: /^QA / }, slug: { $regex: new RegExp(suffix) } });
-      await users.deleteMany({ email });
+      /**
+       * The components go with the account.
+       *
+       * Every component this run published carries the fixture's id in its
+       * author record, so the account and the rows that name it are removed
+       * together — and exactly the components this run wrote go with it, which
+       * a delete by title or by slug only ever approximates.
+       */
+      await removeQaAccount(account.email);
     } else {
       console.log(`\n  kept fixtures for @${handle} (suffix ${suffix})`);
     }

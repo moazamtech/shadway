@@ -1,9 +1,10 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
+import { and, count, eq, type SQL } from "drizzle-orm";
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { db } from "../lib/db/postgres";
+import { payoutAccounts, payoutAccruals, payoutBatches } from "../lib/db/schema";
 import { recordAccrual } from "../lib/db/payouts";
+import { BASE, createQaAccount, removeQaAccount, type QaAccount } from "./qa-session";
 
 /**
  * The weekly run, end to end.
@@ -23,9 +24,6 @@ import { recordAccrual } from "../lib/db/payouts";
  * Run with a dev server up:
  *   npx tsx scripts/qa-payout-run.ts
  */
-
-const BASE = process.env.BASE ?? "http://localhost:3000";
-const PASSWORD = "qa-run-1234";
 
 const jar: Record<string, string> = {};
 
@@ -67,57 +65,64 @@ async function login(email: string, password: string) {
   });
 }
 
+/**
+ * How many batches the ledger holds.
+ *
+ * The check asks the table the same question the collection was asked, and
+ * the answer is the same number for the same reason: a batch that was never
+ * written is a row that is not there.
+ */
+async function countBatches(where?: SQL): Promise<number> {
+  const query = db().select({ n: count() }).from(payoutBatches);
+  const rows = where ? await query.where(where) : await query;
+  return rows[0]?.n ?? 0;
+}
+
 async function main() {
-  const { db } = await connectToDatabase();
   const suffix = Math.random().toString(36).slice(2, 8);
-  const creatorEmail = `qa-run-${suffix}@shadway.test`;
-  const adminEmail = `qa-run-admin-${suffix}@shadway.test`;
-  const users = db.collection("users");
-  const accounts = db.collection("payout_accounts");
-  const accruals = db.collection("payout_accruals");
-  const batches = db.collection("payout_batches");
 
   let creatorId = "";
   let periodStart = "";
   let periodEnd = "";
 
-  try {
-    await users.insertOne({
-      email: creatorEmail,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Run",
-      username: await planUsername(creatorEmail, "QA Run"),
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    await users.insertOne({
-      email: adminEmail,
-      password: await bcrypt.hash(PASSWORD, 12),
-      name: "QA Run Admin",
-      username: await planUsername(adminEmail, "QA Run Admin"),
-      role: "admin",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+  /**
+   * The two accounts the run is walked with.
+   *
+   * The ledger is keyed by the id the session carries, so both accounts have
+   * to live in the table the application reads: an account the application
+   * cannot find is an account with no ledger, and the batch below would be
+   * planned for a creator who does not exist.
+   *
+   * They are made inside the block that cleans up after them, because an
+   * account made and then abandoned is an account that stays.
+   */
+  let creator: QaAccount | null = null;
+  let admin: QaAccount | null = null;
 
-    await login(creatorEmail, PASSWORD);
-    const creator = await (await request("/api/auth/session")).json();
-    creatorId = creator?.user?.id ?? "";
+  try {
+    creator = await createQaAccount("user");
+    admin = await createQaAccount("admin");
+
+    await login(creator.email, creator.password);
+    const session = await (await request("/api/auth/session")).json();
+    creatorId = session?.user?.id ?? "";
     log("a creator signs in", Boolean(creatorId));
 
     // A verified address, so the batch has somewhere to send the money.
     const wallet = `0x${"ab".repeat(20)}`;
-    await accounts.insertOne({
-      creatorId,
-      address: wallet,
-      chain: "base",
-      status: "verified",
-      requestedAt: new Date(),
-      verifiedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const requestedAt = new Date();
+    await db()
+      .insert(payoutAccounts)
+      .values({
+        creatorId,
+        address: wallet,
+        chain: "base",
+        status: "verified",
+        requestedAt,
+        verifiedAt: requestedAt,
+        createdAt: requestedAt,
+        updatedAt: requestedAt,
+      });
 
     // A week of earnings: 12 USDC, which clears the 5 USDC minimum.
     const now = new Date();
@@ -126,7 +131,7 @@ async function main() {
 
     const accrual = await recordAccrual({
       creatorId,
-      username: creator?.user?.username,
+      username: session?.user?.username,
       amountMinor: "12000000",
       reason: "install",
       source: "admin",
@@ -145,9 +150,9 @@ async function main() {
     });
     log("a creator cannot run the batch", forbidden.status === 401, `status=${forbidden.status}`);
 
-    await login(adminEmail, PASSWORD);
-    const admin = await (await request("/api/auth/session")).json();
-    log("an admin signs in", admin?.user?.role === "admin");
+    await login(admin.email, admin.password);
+    const adminSession = await (await request("/api/auth/session")).json();
+    log("an admin signs in", adminSession?.user?.role === "admin");
 
     // 2. The preview says what would be paid, and writes nothing.
     const preview = await request(
@@ -171,7 +176,7 @@ async function main() {
       `totals=${previewBody.plan?.totals?.owedMinor ?? "none"}`,
     );
 
-    const batchesBefore = await batches.countDocuments({});
+    const batchesBefore = await countBatches();
     log("the preview wrote no batch", batchesBefore === 0, `batches=${batchesBefore}`);
 
     // 3. The run itself.
@@ -192,7 +197,14 @@ async function main() {
     );
     log("nothing was left unclaimed", (runBody.unclaimed ?? []).length === 0);
 
-    const written = await batches.findOne({ runId: runBody.runId }).catch(() => null);
+    const written = (
+      await db()
+        .select()
+        .from(payoutBatches)
+        .where(eq(payoutBatches.runId, runBody.runId ?? ""))
+        .limit(1)
+        .catch(() => [])
+    )[0];
     log(
       "the batch is recorded and waiting for a signature",
       written?.status === "planned" && written?.chain === "base",
@@ -204,7 +216,18 @@ async function main() {
       `to=${written?.toAddress ?? "none"}`,
     );
 
-    const claimed = await accruals.findOne({ creatorId, sourceId: `qa-run-${suffix}` });
+    const claimed = (
+      await db()
+        .select()
+        .from(payoutAccruals)
+        .where(
+          and(
+            eq(payoutAccruals.creatorId, creatorId),
+            eq(payoutAccruals.sourceId, `qa-run-${suffix}`),
+          ),
+        )
+        .limit(1)
+    )[0];
     log("the earnings are claimed by the batch", Boolean(claimed?.batchId));
 
     // 4. The same week again changes nothing.
@@ -220,13 +243,22 @@ async function main() {
       `batches=${againBody.batches}`,
     );
 
-    const total = await batches.countDocuments({ runId: runBody.runId });
+    const total = await countBatches(eq(payoutBatches.runId, runBody.runId ?? ""));
     log("there is exactly one batch for the week", total === 1, `batches=${total}`);
   } finally {
-    await batches.deleteMany({ creatorId }).catch(() => {});
-    await accruals.deleteMany({ creatorId }).catch(() => {});
-    await accounts.deleteMany({ creatorId }).catch(() => {});
-    await users.deleteMany({ email: { $in: [creatorEmail, adminEmail] } }).catch(() => {});
+    /**
+     * The week is unwritten.
+     *
+     * The batch, the accrual it claimed and the address it would have paid
+     * are all addressed by the creator they belong to, so the cleanup takes
+     * exactly this run's rows and leaves the ledger as it found it — a batch
+     * left behind would make the next run's "one batch for the week" a lie.
+     */
+    await db().delete(payoutBatches).where(eq(payoutBatches.creatorId, creatorId)).catch(() => {});
+    await db().delete(payoutAccruals).where(eq(payoutAccruals.creatorId, creatorId)).catch(() => {});
+    await db().delete(payoutAccounts).where(eq(payoutAccounts.creatorId, creatorId)).catch(() => {});
+    if (creator) await removeQaAccount(creator.email).catch(() => {});
+    if (admin) await removeQaAccount(admin.email).catch(() => {});
   }
 
   console.log(failures === 0 ? "\nALL PASSED" : `\n${failures} FAILED`);

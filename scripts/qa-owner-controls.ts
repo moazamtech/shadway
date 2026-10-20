@@ -13,8 +13,18 @@ import "dotenv/config";
  *   npx tsx scripts/qa-owner-controls.ts
  */
 
-import { connectToDatabase } from "../lib/mongodb";
+import { randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+
+import { db } from "../lib/db/postgres";
+import {
+  componentBookmarks,
+  componentVotes,
+  components,
+  users as usersTable,
+} from "../lib/db/schema";
+import { createAccount } from "../lib/db/users";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
 
@@ -122,38 +132,41 @@ async function login(email: string, password: string): Promise<CookieJar> {
 }
 
 async function main() {
-  const clientState = await connectToDatabase();
+  const client = db();
+  const suffix = randomSuffix();
+  const ownerEmail = `qa-owner-${suffix}@shadway.test`;
+  const otherEmail = `qa-other-${suffix}@shadway.test`;
+  const password = "qa-password-1234";
   let slug: string | null = null;
 
+  /**
+   * The fixtures live in the database the application reads.
+   *
+   * The accounts are written straight into the table to stay clear of the
+   * sign-in rate limiter during QA, and the component is written beside them
+   * so it has a real owner to be protected by. Both have to land where the
+   * application looks: an account the application cannot see signs nobody
+   * in, and a component it cannot find answers every ownership question with
+   * a 404 — which would make the checks below pass for the wrong reason.
+   */
   try {
-    const suffix = randomSuffix();
-    const ownerEmail = `qa-owner-${suffix}@shadway.test`;
-    const otherEmail = `qa-other-${suffix}@shadway.test`;
-    const password = "qa-password-1234";
-
-  // Seed users directly in Mongo to avoid the auth rate limiter during QA.
-  const { db } = clientState;
-  const usersCollection = db.collection("users");
-  const passwordHash = await bcrypt.hash(password, 12);
-  const now = new Date();
-  const ownerIns = await usersCollection.insertOne({
-    email: ownerEmail,
-    password: passwordHash,
-    name: "QA Owner",
-    role: "user",
-    createdAt: now,
-    updatedAt: now,
-  });
-  const otherIns = await usersCollection.insertOne({
-    email: otherEmail,
-    password: passwordHash,
-    name: "QA Other",
-    role: "user",
-    createdAt: now,
-    updatedAt: now,
-  });
-  const ownerId = ownerIns.insertedId.toString();
-  const otherId = otherIns.insertedId.toString();
+    // Seed the accounts directly, to avoid the auth rate limiter during QA.
+    const passwordHash = await bcrypt.hash(password, 12);
+    const now = new Date();
+    const owner = await createAccount({
+      email: ownerEmail,
+      password: passwordHash,
+      name: "QA Owner",
+      role: "user",
+    });
+    const other = await createAccount({
+      email: otherEmail,
+      password: passwordHash,
+      name: "QA Other",
+      role: "user",
+    });
+    const ownerId = owner._id ?? "";
+    const otherId = other._id ?? "";
 
     await login(ownerEmail, password);
 
@@ -165,15 +178,27 @@ async function main() {
       `id=${sessionJson?.user?.id}`
     );
 
-    // Insert a component doc owned by the test user.
+    // A component owned by the test user, written straight into the table.
     slug = `qa-owner-control-${suffix}`;
-    const collection = await clientState.db.collection("components");
-    await collection.insertOne({
+    /**
+     * The slug is unique, so a row left behind by an earlier run would make
+     * this insert fail on a constraint rather than on the thing being
+     * checked. Clearing the address first is what the old script did when it
+     * deleted the leftovers, and it keeps a broken run from poisoning every
+     * run after it.
+     */
+    await client
+      .delete(componentBookmarks)
+      .where(eq(componentBookmarks.slug, slug));
+    await client.delete(componentVotes).where(eq(componentVotes.slug, slug));
+    await client.delete(components).where(eq(components.slug, slug));
+    await client.insert(components).values({
+      id: randomBytes(12).toString("hex"),
       slug,
       title: "QA Owner Control",
       description: "temporary",
       code: "export default function X(){return <div/>}",
-      files: [],
+      files: {},
       category: "ui",
       tags: ["qa"],
       dependencies: [],
@@ -189,9 +214,9 @@ async function main() {
       featured: false,
       version: "1.0.0",
       license: "MIT",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      publishedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: now,
     });
 
     // ---------------------------------------------------------------- owner --
@@ -256,24 +281,36 @@ async function main() {
     console.error("FATAL:", String(error).slice(0, 400));
     failures += 1;
   } finally {
-    // Cleanup any leftover test documents.
+    /**
+     * The cleanup removes the rows this run created and nothing else.
+     *
+     * The old version swept every account on the test domain and every
+     * component whose slug matched the fixture's pattern, which took other
+     * runs' rows with it: a script that deletes what it did not create turns
+     * a concurrent run into a mystery. The two addresses and the one slug
+     * are known here, so the sweep was never necessary — and leaving a row
+     * behind is what makes the next run fail on a unique index instead of on
+     * the thing being checked.
+     */
     try {
-      const { db } = clientState;
-      const users = db.collection("users");
-      const comps = db.collection("components");
-      if (slug) await comps.deleteOne({ slug });
-      await users.deleteMany({ email: { $regex: /@shadway\.test$/ } });
-      await comps.deleteMany({ slug: /^qa-owner-control-/ });
+      if (slug) {
+        await client.delete(componentBookmarks).where(eq(componentBookmarks.slug, slug));
+        await client.delete(componentVotes).where(eq(componentVotes.slug, slug));
+        await client.delete(components).where(eq(components.slug, slug));
+      }
+      await client.delete(usersTable).where(eq(usersTable.email, ownerEmail));
+      await client.delete(usersTable).where(eq(usersTable.email, otherEmail));
     } catch {
       // best effort
     }
   }
 
-  try {
-    await clientState.client?.close?.();
-  } catch {
-    // ignore
-  }
+  /**
+   * There is nothing to close.
+   *
+   * The client talks to the database over HTTP, so it holds no socket and
+   * no pool: there is nothing to release when the run ends.
+   */
 
   console.log(failures === 0 ? "\nALL OWNER-CONTROL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
   if (failures > 0) process.exitCode = 1;

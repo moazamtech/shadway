@@ -13,7 +13,7 @@ import { Submission } from '@/lib/types';
  */
 function asDocument(row: Submission & { id?: string }): Submission {
   const { id, ...document } = row;
-  return { ...document, _id: id };
+  return { _id: id, ...document };
 }
 
 /**

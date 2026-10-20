@@ -14,11 +14,14 @@ import "dotenv/config";
  *   npx tsx scripts/qa-settings.ts
  */
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+
+import { db } from "../lib/db/postgres";
+import { users as usersTable } from "../lib/db/schema";
+import { createAccount, findAccountByEmail, planUsername } from "../lib/db/users";
 import { isCloudinaryConfigured } from "../lib/cloudinary";
 import { avatarPublicId } from "../lib/profile-avatar";
-import bcrypt from "bcryptjs";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
 
@@ -92,15 +95,21 @@ function log(label: string, ok: boolean, extra = "") {
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
+  const client = db();
   const suffix = Math.random().toString(36).slice(2, 8);
   const email = `qa-settings-${suffix}@shadway.test`;
   const password = "qa-password-1234";
   const changedPassword = "changed-password-9876";
   const name = `QA Settings ${suffix}`;
 
-  const users = db.collection("users");
-
+  /**
+   * The account is read back out of the database the application writes to.
+   *
+   * The profile route stores what it accepts and refuses the rest, and the
+   * only way to see that is to look at the row it wrote. Reading it from a
+   * store the application has left behind would report a column that never
+   * moved as one that was correctly refused.
+   */
   try {
     // --- an account, the way a visitor makes one -------------------------
     let handle: string | null = null;
@@ -114,14 +123,12 @@ async function main() {
       handle = (await regRes.json()).username ?? null;
     } else if (regRes.status === 429) {
       handle = await planUsername(email, name);
-      await users.insertOne({
+      await createAccount({
         email,
         password: await bcrypt.hash(password, 12),
         name,
         username: handle,
         role: "user",
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
     } else {
       throw new Error(`register: ${regRes.status} ${await regRes.text()}`);
@@ -254,7 +261,7 @@ async function main() {
     log("the profile shows the bio", profileAfter.includes("Building things."));
 
     // --- a `javascript:` link is refused and changes nothing -------------
-    const storedBefore = await users.findOne({ email });
+    const storedBefore = await findAccountByEmail(email);
     const evil = await patch({ website: "javascript:alert(document.cookie)" });
     const evilBody = await evil.json().catch(() => ({}));
     log("a javascript: link is refused", evil.status === 400, `status=${evil.status}`);
@@ -263,7 +270,7 @@ async function main() {
       typeof evilBody.error === "string" && evilBody.error.length > 0,
       `error=${evilBody.error}`
     );
-    const storedAfter = await users.findOne({ email });
+    const storedAfter = await findAccountByEmail(email);
     log(
       "a refused link does not overwrite the stored one",
       storedAfter?.website === storedBefore?.website,
@@ -279,7 +286,7 @@ async function main() {
       __proto__: { role: "admin" },
     });
     log("an unknown field is not an error", escalate.status === 200, `status=${escalate.status}`);
-    const afterEscalate = await users.findOne({ email });
+    const afterEscalate = await findAccountByEmail(email);
     log(
       "role cannot be written through the profile route",
       afterEscalate?.role === "user",
@@ -293,7 +300,7 @@ async function main() {
     // --- clearing removes it from the page -------------------------------
     const clearRes = await patch({ website: "", github: "" });
     log("fields can be cleared", clearRes.status === 200, `status=${clearRes.status}`);
-    const afterClear = await users.findOne({ email });
+    const afterClear = await findAccountByEmail(email);
     log(
       "cleared means absent, not an empty string",
       afterClear?.website === undefined && afterClear?.github === undefined,
@@ -382,7 +389,7 @@ async function main() {
         `status=${uploadRes.status}`
       );
 
-      const withAvatar = await users.findOne({ email });
+      const withAvatar = await findAccountByEmail(email);
       log(
         "the account stores a Cloudinary URL",
         typeof withAvatar?.avatar === "string" &&
@@ -414,7 +421,7 @@ async function main() {
       // A typed URL must not be able to become an avatar.
       const typed = await patch({ avatar: "https://evil.example/x.png" });
       log("an avatar URL cannot be written by hand", typed.status === 400, `status=${typed.status}`);
-      const afterTyped = await users.findOne({ email });
+      const afterTyped = await findAccountByEmail(email);
       log(
         "the hand-written value did not land",
         afterTyped?.avatar === withAvatar?.avatar
@@ -423,11 +430,19 @@ async function main() {
       // Clearing is allowed, and is the one write this route owns.
       const cleared = await patch({ avatar: "" });
       log("the picture can be cleared", cleared.status === 200, `status=${cleared.status}`);
-      const afterPictureClear = await users.findOne({ email });
+      const afterPictureClear = await findAccountByEmail(email);
       log("clearing removes the stored picture", afterPictureClear?.avatar === undefined);
     }
   } finally {
-    await users.deleteMany({ email });
+    /**
+     * The account is removed and nothing else is touched.
+     *
+     * The handle it owned is unique, so an account that outlives its run
+     * keeps that handle away from the next run — and the next run would then
+     * mint a different one, and the assertions about the profile's own
+     * address would be about an address nobody visited.
+     */
+    await client.delete(usersTable).where(eq(usersTable.email, email));
   }
 
   console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");

@@ -68,7 +68,6 @@ function generateUniqueContent(website: Website) {
  */
 async function getWebsiteBySlug(slug: string): Promise<Website | null> {
   try {
-    // Find website by matching the slug generated from name
     const website = (await listWebsites()).find(w => generateWebsiteSlug(w.name) === slug)
 
     if (!website) return null

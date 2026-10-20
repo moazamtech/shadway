@@ -16,9 +16,17 @@ import "dotenv/config";
  *   npx tsx scripts/qa-profile.ts
  */
 
-import { connectToDatabase } from "../lib/mongodb";
-import { planUsername } from "../lib/db/users";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+
+import { db } from "../lib/db/postgres";
+import {
+  componentBookmarks,
+  componentVotes,
+  components,
+  users as usersTable,
+} from "../lib/db/schema";
+import { createAccount, planUsername } from "../lib/db/users";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
 
@@ -115,13 +123,22 @@ function log(label: string, ok: boolean, extra = "") {
 }
 
 async function main() {
-  const { db } = await connectToDatabase();
+  const client = db();
   const suffix = Math.random().toString(36).slice(2, 8);
   const email = `qa-profile-${suffix}@shadway.test`;
   const password = "qa-password-1234";
   const title = `QA Profile Card ${suffix}`;
   let slug: string | null = null;
 
+  /**
+   * The fixtures live in the database the application reads.
+   *
+   * They used to be written into Mongo, which was the store of the day, and
+   * the application has since moved to Postgres. A fixture written into a
+   * store nobody reads is not a fixture: every assertion below would fail
+   * because the thing under test was never there, and the check would be
+   * reporting on the database rather than on the profile.
+   */
   try {
     // --- register the way a real visitor would ---------------------------
     let handle: string | null = null;
@@ -139,14 +156,12 @@ async function main() {
       // The auth rate limiter already saw a run — seed instead, using the
       // same allocator the register route uses.
       handle = await planUsername(email, "QA Profile");
-      await db.collection("users").insertOne({
+      await createAccount({
         email,
         password: await bcrypt.hash(password, 12),
         name: "QA Profile",
         username: handle,
         role: "user",
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       log("register rate-limited; seeded with the same allocator", true, `username=${handle}`);
     } else {
@@ -250,12 +265,11 @@ async function main() {
     // Through the database rather than the admin API because this script signs in
     // as an ordinary account: it is asserting what approval *enables*, and the
     // approval route itself is `scripts/qa-admin.ts`'s subject.
-    await db
-      .collection("components")
-      .updateOne(
-        { slug },
-        { $set: { status: "published", publishedAt: new Date() } }
-      );
+    if (!slug) throw new Error("the publish did not answer with a slug");
+    await client
+      .update(components)
+      .set({ status: "published", publishedAt: new Date() })
+      .where(eq(components.slug, slug));
     // --- and now it is on both profiles ----------------------------------
     const mine = await follow("/profile?tab=components");
     log(
@@ -306,12 +320,22 @@ async function main() {
     const missing = await fetch(`${BASE}/u/qa-missing-${suffix}`);
     log("unknown handle 404s", missing.status === 404, `status=${missing.status}`);
   } finally {
+    /**
+     * The cleanup removes the rows this run created and nothing else.
+     *
+     * A row left behind is not cosmetic. The slug is unique, so a component
+     * that survived its run makes the next run's publish collide with it, and
+     * the check that fails then is a check about the slug rather than about
+     * the profile. The account goes the same way: an account that outlives
+     * its run keeps its handle, and the handle is what the profile is
+     * addressed by.
+     */
     if (slug) {
-      await db.collection("components").deleteMany({ slug });
-      await db.collection("component_bookmarks").deleteMany({ slug });
-      await db.collection("component_votes").deleteMany({ slug });
+      await client.delete(componentBookmarks).where(eq(componentBookmarks.slug, slug));
+      await client.delete(componentVotes).where(eq(componentVotes.slug, slug));
+      await client.delete(components).where(eq(components.slug, slug));
     }
-    await db.collection("users").deleteMany({ email });
+    await client.delete(usersTable).where(eq(usersTable.email, email));
   }
 
   console.log(failures ? `\n${failures} FAILED` : "\nALL PASSED");
