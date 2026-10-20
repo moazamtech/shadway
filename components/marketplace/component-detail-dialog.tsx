@@ -247,7 +247,7 @@ export function ComponentDetailDialog({
               onOpenChange(false);
               router.push(`/c/${current.slug}`);
             }}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+            className="rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white/80 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
           >
             Open
           </button>
@@ -256,7 +256,7 @@ export function ComponentDetailDialog({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-500 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+                className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-sm transition-colors hover:bg-blue-500 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
               >
                 {copied === "code" || copied === "code+demo" ? (
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
