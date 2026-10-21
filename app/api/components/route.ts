@@ -12,6 +12,7 @@ import { collectNpmDependencies } from "@/lib/studio/deps";
 import { componentPreviewFiles } from "@/lib/preview/server-files";
 import { serializeCard } from "@/lib/serialize";
 import { DEFAULT_DEMO_PATH } from "@/lib/studio/starter";
+import { forgetCatalogue } from "@/lib/catalogue-cache";
 import {
   findGroup,
   findTag,
@@ -328,6 +329,27 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    /**
+     * The catalogue is different now.
+     *
+     * The pages that show what has been published keep their answer for a few
+     * seconds so that moving about the site does not mean waiting for the
+     * database every time. Publishing says the answer is out of date, and
+     * the pages are told so — so what was just published is on the page
+     * before anyone goes looking for it.
+     */
+
+    /**
+     * The catalogue is different now.
+     *
+     * The pages that show what has been published keep their answer for a
+     * moment so that moving about the site does not mean waiting for the
+     * database every time. Publishing says the answer is out of date, and the
+     * memory is emptied — so what was just published is on the page before
+     * anyone goes looking for it.
+     */
+    forgetCatalogue();
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {

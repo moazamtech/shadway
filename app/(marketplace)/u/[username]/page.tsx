@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sessionUsername } from "@/lib/session";
@@ -14,8 +14,9 @@ import {
 } from "@/lib/db/components";
 import { getUserBookmarks } from "@/lib/db/marketplace";
 import { serializeCard } from "@/lib/serialize";
+import { remember } from "@/lib/catalogue-cache";
 import { ComponentGrid } from "@/components/marketplace/component-grid";
-import { AppShell } from "@/components/marketplace/app-shell";
+import { ShellToolbar } from "@/components/marketplace/shell-toolbar";
 import { UserMenu } from "@/components/user-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,31 @@ import {
 } from "@/components/profile/profile-body";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The page's public half, read once and kept for a moment.
+ *
+ * A profile is read on every visit and changes when its owner publishes, so
+ * it cannot be a build-time snapshot. It can be a *short* one: the pages that
+ * show the catalogue keep their answer for a moment and are emptied the
+ * moment anything is published, so going back and forth between a profile and
+ * the feed never waits for the database, and what was just published is on
+ * the page before anyone goes looking for it.
+ */
+const readProfile = (handle: string) =>
+  remember(`catalogue:profile:${handle}`, () =>
+    resolveProfile(handle).catch(() => null)
+  );
+
+const readStats = (handle: string) =>
+  remember(`catalogue:stats:${handle}`, () =>
+    getAuthorStats(handle).catch(() => EMPTY_AUTHOR_STATS)
+  );
+
+const readPublished = (handle: string) =>
+  remember(`catalogue:published:${handle}`, () =>
+    listComponents({ author: handle, limit: MAX_PAGE_SIZE }).catch(() => [])
+  );
 
 export async function generateMetadata({
   params,
@@ -72,18 +98,30 @@ export default async function AuthorPage({
     getServerSession(authOptions),
   ]);
 
-  const profile = await resolveProfile(decodeURIComponent(username));
-  if (!profile) notFound();
+  const profile = await readProfile(decodeURIComponent(username));
+
+  /**
+   * There is nobody here.
+   *
+   * The answer is sent to a page that has nothing between it and the server,
+   * because the shell's boundary — the one that keeps the screen from
+   * blanking during a navigation — would swallow the answer and turn a 404
+   * into a 200 with a not-found page inside it. What a crawler reads and what
+   * a cache stores is the status line, so the status line has to be right.
+   */
+  if (!profile) redirect("/404");
+
   const handle = profile.handle;
 
   const viewer = session ? sessionUsername(session) : null;
   const isOwner = Boolean(viewer && viewer.toLowerCase() === handle);
 
   const [stats, published, savedSlugs] = await Promise.all([
-    getAuthorStats(handle).catch(() => EMPTY_AUTHOR_STATS),
-    listComponents({ author: handle, limit: MAX_PAGE_SIZE }).catch(() => []),
-    // Bookmarks are read for the owner only. Every other visitor pays for this
-    // page but none of them may see a list saved by somebody else's account.
+    readStats(handle),
+    readPublished(handle),
+    // Bookmarks are read for the owner only. Every other visitor pays for
+    // this page but none of them may see a list saved by somebody else's
+    // account.
     isOwner && session?.user?.id
       ? getUserBookmarks(session.user.id).catch(() => [] as string[])
       : Promise.resolve([] as string[]),
@@ -169,16 +207,16 @@ export default async function AuthorPage({
   }
 
   return (
-    <AppShell
-      toolbar={
+    <>
+      <ShellToolbar>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link href="/">Browse components</Link>
           </Button>
           <UserMenu />
         </div>
-      }
-    >
+      </ShellToolbar>
+
       <ProfileBody
         handle={handle}
         name={profile.name}
@@ -212,6 +250,6 @@ export default async function AuthorPage({
           empty={emptyState()}
         />
       </ProfileBody>
-    </AppShell>
+    </>
   );
 }

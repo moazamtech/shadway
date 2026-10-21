@@ -10,7 +10,7 @@ import {
   type ComponentGridItem,
 } from "@/components/marketplace/component-grid";
 import { usePalette } from "@/components/marketplace/palette-context";
-import { AppShell } from "@/components/marketplace/app-shell";
+import { ShellToolbar } from "@/components/marketplace/shell-toolbar";
 import { HomeSections } from "@/components/marketplace/home-sections";
 import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
 import { FEED_LIMIT } from "@/lib/feed";
@@ -218,53 +218,48 @@ export function ComponentExchangeHome({
         onNext={() => step(1)}
       />
 
-      {/* The shell: a rail on the tinted canvas, and the feed living in a
-          raised surface panel beside it. The toolbar rides the panel's first
-          row; the shell owns the scroll container. */}
-      <AppShell
-        activeCategory={filters.category}
-        activeTag={filters.tag}
-        toolbar={
-          <>
-            <Button
-              variant="outline"
-              className="relative h-8 w-full max-w-[320px] justify-start bg-muted/50 pr-12 text-sm font-normal text-muted-foreground shadow-none"
-              onClick={openPalette}
-              aria-label="Open search"
-            >
-              <Search className="h-4 w-4" />
-              <span className="hidden truncate sm:inline-flex">
-                Search components...
-              </span>
-              <span className="inline-flex truncate sm:hidden">Search...</span>
-              <kbd className="pointer-events-none absolute top-1/2 right-[0.3rem] hidden h-5 -translate-y-1/2 items-center gap-1 rounded border bg-muted px-1.5 font-sans text-[11px] select-none sm:flex">
-                <span className="text-[11px] font-sans">⌘</span>K
-              </kbd>
-            </Button>
+      {/* The shell's header: the search and the count. The shell itself is in
+          the layout, so it is still there when the reader goes somewhere
+          else; the header it draws is this page's. */}
+      <ShellToolbar>
+        <Button
+          variant="outline"
+          className="relative h-8 w-full max-w-[320px] justify-start bg-muted/50 pr-12 text-sm font-normal text-muted-foreground shadow-none"
+          onClick={openPalette}
+          aria-label="Open search"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden truncate sm:inline-flex">
+            Search components...
+          </span>
+          <span className="inline-flex truncate sm:hidden">Search...</span>
+          <kbd className="pointer-events-none absolute top-1/2 right-[0.3rem] hidden h-5 -translate-y-1/2 items-center gap-1 rounded border bg-muted px-1.5 font-sans text-[11px] select-none sm:flex">
+            <span className="text-[11px] font-sans">⌘</span>K
+          </kbd>
+        </Button>
 
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openPalette}
-                className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                {loading ? "—" : count}
-                <span className="hidden sm:inline">
-                  {count === 1 ? "component" : "components"}
-                </span>
-              </Button>
-            </div>
-          </>
-        }
-      >
-        {/*
-          The content's own gutter is the page's gutter: twelve pixels on
-          every side, so the grid's outer rule lands exactly on the rail and
-          the rows of cards hang off it rather than floating beside it.
-        */}
-        <div className="px-3 py-4">
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openPalette}
+            className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+            {loading ? "—" : count}
+            <span className="hidden sm:inline">
+              {count === 1 ? "component" : "components"}
+            </span>
+          </Button>
+        </div>
+      </ShellToolbar>
+
+      {/*
+        The content's own gutter is the page's gutter: twelve pixels on
+        every side, so the grid's outer rule lands exactly on the rail and
+        the rows of cards hang off it rather than floating beside it.
+      */}
+      <div className="px-3 py-4">
           {/*
             The page, in sections, until something narrows it down.
 
@@ -298,7 +293,6 @@ export function ComponentExchangeHome({
             />
           )}
         </div>
-      </AppShell>
     </>
   );
 }

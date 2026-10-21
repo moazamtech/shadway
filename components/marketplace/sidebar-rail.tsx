@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ChevronRight,
   Home,
@@ -342,6 +342,7 @@ export function SidebarRail({
   className?: string;
 }) {
   const pathname = usePathname();
+  const params = useSearchParams();
   const catalog = useRailCatalog();
   const {
     collapsed,
@@ -353,6 +354,16 @@ export function SidebarRail({
   } = useSidebar();
 
   const navItems = nav ?? NAV;
+
+  /**
+   * Where the feed is.
+   *
+   * The rail reads it from the address rather than being told: the shell is
+   * in the layout now, so it outlives the page that asked for it, and a page
+   * that is no longer there cannot say which shelf is lit.
+   */
+  const shelf = activeCategory ?? params.get("category") ?? "";
+  const kind = activeTag ?? params.get("tag") ?? "";
 
   /**
    * Which shelves are open.
@@ -369,7 +380,7 @@ export function SidebarRail({
   const [openShelves, setOpenShelves] = React.useState<Record<string, boolean>>({});
 
   const isShelfOpen = (slug: string) =>
-    openShelves[slug] ?? (activeCategory === slug || activeTag !== "");
+    openShelves[slug] ?? (shelf === slug || kind !== "");
 
   const isActive = (item: RailNavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -489,7 +500,7 @@ export function SidebarRail({
                         icon={CATEGORY_ICONS[group.slug] ?? Layers}
                         label={group.label}
                         href={`/?category=${encodeURIComponent(group.slug)}`}
-                        active={activeCategory === group.slug && !activeTag}
+                        active={shelf === group.slug && !kind}
                         className="w-auto min-w-0 flex-1"
                         trailing={
                           <span className="text-xs tabular-nums text-muted-foreground/80">
@@ -538,7 +549,7 @@ export function SidebarRail({
                           key={tag.slug}
                           label={tag.label}
                           href={`/?category=${encodeURIComponent(group.slug)}&tag=${encodeURIComponent(tag.slug)}`}
-                          active={activeTag === tag.slug}
+                          active={kind === tag.slug}
                           variant="sub"
                           trailing={
                             tag.count > 0 ? (

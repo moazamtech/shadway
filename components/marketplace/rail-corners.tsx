@@ -16,10 +16,16 @@ import { cn } from "@/lib/utils";
 export function RailCorners({ className }: { className?: string }) {
   return (
     <div aria-hidden className={cn("pointer-events-none absolute inset-0 z-20", className)}>
-      <span className="absolute top-0 left-0 size-2 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-border bg-surface" />
-      <span className="absolute top-0 right-0 size-2 translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-border bg-surface" />
-      <span className="absolute bottom-0 left-0 size-2 -translate-x-1/2 translate-y-1/2 rounded-[2px] border border-border bg-surface" />
-      <span className="absolute bottom-0 right-0 size-2 translate-x-1/2 translate-y-1/2 rounded-[2px] border border-border bg-surface" />
+      {/*
+        The marks sit inside the corners rather than on them. A mark centred on
+        a corner is half outside the thing it marks, and the panel clips what
+        is outside — so what the reader sees is half a square, which reads as
+        a smudge rather than as a mark.
+      */}
+      <span className="absolute top-0 left-0 size-2 rounded-[2px] border border-border bg-surface" />
+      <span className="absolute top-0 right-0 size-2 rounded-[2px] border border-border bg-surface" />
+      <span className="absolute bottom-0 left-0 size-2 rounded-[2px] border border-border bg-surface" />
+      <span className="absolute bottom-0 right-0 size-2 rounded-[2px] border border-border bg-surface" />
     </div>
   );
 }

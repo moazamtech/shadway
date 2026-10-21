@@ -40,12 +40,18 @@ export function PageRails({
       <span className="absolute inset-y-0 right-3 w-px bg-border/70" />
       {markAt > 0 ? (
         <>
+          {/*
+            The marks sit beside the line rather than on it. A square centred
+            on the rail is half outside the panel, and the panel clips what is
+            outside — so what the reader sees is half a square, which reads as
+            a smudge rather than as a mark.
+          */}
           <span
-            className="absolute left-3 top-[var(--rail-mark)] size-2 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-border bg-surface"
+            className="absolute left-3 size-2 -translate-y-1/2 rounded-[2px] border border-border bg-surface"
             style={{ top: markAt }}
           />
           <span
-            className="absolute right-3 size-2 translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-border bg-surface"
+            className="absolute right-3 size-2 -translate-y-1/2 rounded-[2px] border border-border bg-surface"
             style={{ top: markAt }}
           />
         </>
