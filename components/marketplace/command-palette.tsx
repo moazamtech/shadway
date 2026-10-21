@@ -177,7 +177,7 @@ export function CommandPalette({
     >
       <DialogContent
         showCloseButton={false}
-        className="gap-0 overflow-hidden p-0 sm:max-w-xl"
+        className="gap-0 overflow-hidden border-border/70 p-0 sm:max-w-xl"
       >
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <DialogDescription className="sr-only">
@@ -190,7 +190,7 @@ export function CommandPalette({
           vimBindings={false}
           value={activeSlug}
           onValueChange={handleActiveChange}
-          className="h-auto rounded-none [&_[cmdk-input]]:h-12 [&_[data-slot=command-input-wrapper]]:h-12"
+          className="h-auto rounded-none [&_[cmdk-input]]:h-11 [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:border-0 [&_[cmdk-input]]:bg-transparent [&_[cmdk-input]]:px-4 [&_[cmdk-input]]:text-sm [&_[cmdk-input]]:shadow-none [&_[cmdk-input]]:ring-0 [&_[data-slot=command-input-wrapper]]:h-11 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:border-border/60"
         >
           {/* The query. */}
           <div className="relative">
@@ -200,15 +200,15 @@ export function CommandPalette({
               onValueChange={handleQueryChange}
               placeholder="Search components, tags, authors..."
               aria-label="Search components"
-              className="pr-14"
+              className="pr-16"
             />
-            <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md border border-border/70 bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
               ESC
             </kbd>
           </div>
 
-          {/* The sort: three pills that reorder what the query found. */}
-          <div className="flex items-center gap-1.5 border-b px-4 py-2">
+          {/* The sort: three quiet marks that reorder what the query found. */}
+          <div className="flex items-center gap-1 border-b border-border/60 px-3 py-2">
             {SORTS.map((option) => (
               <button
                 key={option.id}
@@ -226,10 +226,10 @@ export function CommandPalette({
                 onClick={() => handleSortChange(option.id)}
                 aria-pressed={sort === option.id}
                 className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
                   sort === option.id
-                    ? "border-foreground/20 bg-foreground/10 text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                 )}
               >
                 {option.label}
@@ -268,7 +268,7 @@ export function CommandPalette({
                     key={item.slug}
                     value={item.slug}
                     onSelect={() => onSelect(item.slug)}
-                    className="group gap-3 rounded-md px-3 py-2.5 text-[13.5px]"
+                    className="group gap-3 rounded-lg px-3 py-2.5 text-[13.5px] data-[selected=true]:bg-accent"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function CommandPalette({
                           {item.title}
                         </span>
                         {item.category ? (
-                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] tracking-wider text-muted-foreground uppercase">
+                          <span className="shrink-0 rounded-md border border-border/60 px-1.5 py-0.5 text-[10px] tracking-wider text-muted-foreground uppercase">
                             {item.category}
                           </span>
                         ) : null}
@@ -298,7 +298,7 @@ export function CommandPalette({
           </CommandList>
 
           {/* The keyboard, written down. */}
-          <div className="flex items-center gap-4 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-4 border-t border-border/60 bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <kbd className="rounded border bg-popover px-1 py-0.5 text-[10px]">
                 ↑↓

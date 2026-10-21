@@ -836,7 +836,7 @@ export function ComponentStudio({
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <span className="ml-1 hidden text-[11px] font-medium tracking-[0.16em] text-muted-foreground/70 uppercase sm:inline">
+          <span className="ml-1 hidden text-xs font-medium text-muted-foreground sm:inline">
             Studio
           </span>
           <ChevronRight className="hidden h-3 w-3 shrink-0 text-muted-foreground/40 sm:inline" />
@@ -912,12 +912,12 @@ export function ComponentStudio({
         {/* File explorer — the project plus the shadcn/ui sources it can
             reach, marked until they are copied into the project. */}
         {showExplorer && (
-          <aside className="relative flex w-60 shrink-0 flex-col border-r border-border/60 bg-muted/20">
-            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-2.5">
-              <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+          <aside className="relative flex w-60 shrink-0 flex-col border-r border-border/60">
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-3">
+              <span className="text-xs font-medium text-muted-foreground">
                 Files
               </span>
-              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">
+              <span className="text-[11px] tabular-nums text-muted-foreground/70">
                 {Object.keys(files).length}
               </span>
               <div className="ml-auto flex items-center gap-0.5">
@@ -1125,7 +1125,7 @@ export function ComponentStudio({
                   Code
                 </button>
               )}
-              <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              <span className="text-xs font-medium text-muted-foreground">
                 Preview
               </span>
               <span
@@ -1221,8 +1221,8 @@ export function ComponentStudio({
             <div
               className={`overflow-hidden transition-[width,max-height,border-radius,box-shadow] duration-200 ease-out ${
                 viewport === "mobile"
-                  ? "h-full max-h-[844px] w-[390px] rounded-2xl border border-border/60 bg-background shadow-xl"
-                  : "h-full w-full"
+                  ? "h-full max-h-[844px] w-[390px] rounded-2xl border border-border/70 bg-background shadow-2xl/20"
+                  : "h-full w-full rounded-xl border border-border/70 bg-background"
               }`}
             >
               <SandpackPreviewPane
