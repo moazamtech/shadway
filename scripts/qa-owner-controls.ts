@@ -200,7 +200,7 @@ async function main() {
       code: "export default function X(){return <div/>}",
       files: {},
       category: "ui",
-      tags: ["qa"],
+      tags: ["button", "qa"],
       dependencies: [],
       devDependencies: [],
       registryDependencies: [],

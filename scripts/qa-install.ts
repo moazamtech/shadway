@@ -495,7 +495,18 @@ async function main() {
           code: fixture.code,
           componentPath: "/components/component.tsx",
           files: fixture.files,
-          tags: ["button", "qa", "install"],
+          /**
+           * The kind of thing it is.
+           *
+           * A component is filed under a kind as well as a shelf, and the
+           * kind has to belong to the shelf — a block filed under a button is
+           * refused, which is what the route does with this.
+           */
+          tags: [
+            fixture.category === "marketing" ? "hero" : "button",
+            "qa",
+            "install",
+          ],
           thumbnailUrl: buildBody.thumbnailUrl,
         }),
       });
