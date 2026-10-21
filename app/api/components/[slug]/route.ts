@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/components";
 import { requireSession } from "@/lib/auth/require-session";
 import { isDatabaseConfigured } from "@/lib/db/postgres";
+import { forgetCatalogue } from "@/lib/catalogue-cache";
 
 export const runtime = "nodejs";
 
@@ -231,6 +232,9 @@ export async function DELETE(
     }
 
     await collection.deleteOne({ slug: decoded });
+
+    // The catalogue is different now: what was published is not published.
+    forgetCatalogue();
 
     return NextResponse.json({ deleted: true, slug: decoded });
   } catch (error) {

@@ -9,7 +9,6 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrandLoader } from "@/components/brand-loader";
-import { RailCorners } from "@/components/marketplace/rail-corners";
 import {
   ComponentCard,
   type MarketplaceCardItem,
@@ -414,7 +413,6 @@ export function ComponentGrid({
            * the drawing is one piece and the lines meet where they meet.
            */
         <div className={cn(GRID_CLASSES, "relative")}>
-          <RailCorners />
           {state.visible.map((item) => (
             <div
               key={item.slug}

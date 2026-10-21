@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { ComponentCard, type MarketplaceCardItem } from "@/components/marketplace/component-card";
 import { RailDivider } from "@/components/marketplace/page-rails";
-import { RailCorners } from "@/components/marketplace/rail-corners";
 import { findGroup, normalizeGroup } from "@/lib/categories";
 
 /**
@@ -190,7 +189,6 @@ function Section({
         onScroll={measure}
         className="relative flex snap-x snap-mandatory gap-0 overflow-x-auto border-t border-l border-border/60 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <RailCorners />
         {items.map((item) => (
           <div
             key={item.slug}

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { isCloudinaryConfigured, uploadBufferToCloudinary } from "@/lib/cloudinary";
 import { findAccountBySession } from "@/lib/db/users";
 import { syncAuthorAvatar } from "@/lib/db/components";
+import { forgetCatalogue } from "@/lib/catalogue-cache";
 import {
   AVATAR_FOLDER,
   avatarProblem,
@@ -103,6 +104,16 @@ export async function POST(request: Request) {
      * nowhere else, which is the same bug as not having a picture at all.
      */
     await syncAuthorAvatar(account._id!.toString(), url);
+
+    /**
+     * The picture on the profile is different now.
+     *
+     * The pages that show a creator keep their answer for a moment, so moving
+     * about the site does not mean waiting for the database every time. A new
+     * picture says the answer is out of date, and the memory is emptied — so
+     * the picture is on the page before anyone goes looking for it.
+     */
+    forgetCatalogue();
 
     return NextResponse.json({ url });
   } catch (error) {

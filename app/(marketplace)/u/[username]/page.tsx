@@ -48,9 +48,16 @@ const readStats = (handle: string) =>
   );
 
 const readPublished = (handle: string) =>
-  remember(`catalogue:published:${handle}`, () =>
-    listComponents({ author: handle, limit: MAX_PAGE_SIZE }).catch(() => [])
-  );
+  /**
+   * Not kept.
+   *
+   * This is the list of what the creator has published, and it is the one
+   * answer in the page that changes the moment somebody publishes — so it is
+   * read every time, and the page is a moment slower for it. The rest of the
+   * page is kept, and the whole point of the memory is that the reader does
+   * not wait.
+   */
+  listComponents({ author: handle, limit: MAX_PAGE_SIZE }).catch(() => []);
 
 export async function generateMetadata({
   params,

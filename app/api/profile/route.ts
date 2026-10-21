@@ -4,6 +4,7 @@ import type { Document } from "mongodb";
 import { authOptions } from "@/lib/auth";
 import { findAccountBySession, type UserDocument } from "@/lib/db/users";
 import { syncAuthorAvatar } from "@/lib/db/components";
+import { forgetCatalogue } from "@/lib/catalogue-cache";
 import {
   PROFILE_TEXT_FIELDS,
   normalizeProfileField,
@@ -119,6 +120,16 @@ export async function PATCH(request: Request) {
       console.error("Failed to clear the author picture:", error);
     });
   }
+
+  /**
+   * The profile is different now.
+   *
+   * The pages that show a creator keep their answer for a moment, so moving
+   * about the site does not mean waiting for the database every time. A
+   * profile that has just been edited says so, and the memory is emptied —
+   * so what was changed is on the page before anyone goes looking for it.
+   */
+  forgetCatalogue();
 
   return NextResponse.json({
     ok: true,
