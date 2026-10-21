@@ -41,12 +41,20 @@ function isPackageManager(value: string): value is PackageManager {
 export function InstallCommand({
   registryUrl,
   className,
+  manager: chosen,
+  onManagerChange,
 }: {
   registryUrl: string;
   className?: string;
+  /** The manager to show, when the caller is holding the choice. */
+  manager?: PackageManager;
+  /** Told when the reader picks a different one. */
+  onManagerChange?: (next: PackageManager) => void;
 }) {
-  const [manager, setManager] = useState<PackageManager>("npm");
+  const [remembered, setRemembered] = useState<PackageManager>("npm");
   const [copied, setCopied] = useState(false);
+
+  const manager = chosen ?? remembered;
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +68,7 @@ export function InstallCommand({
       if (cancelled) return;
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY);
-        if (stored && isPackageManager(stored)) setManager(stored);
+        if (stored && isPackageManager(stored)) setRemembered(stored);
       } catch {
         // Storage can be blocked; the default is a fine answer.
       }
@@ -84,7 +92,8 @@ export function InstallCommand({
   }
 
   function choose(next: PackageManager) {
-    setManager(next);
+    setRemembered(next);
+    onManagerChange?.(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {

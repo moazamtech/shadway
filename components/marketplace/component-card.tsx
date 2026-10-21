@@ -20,6 +20,8 @@ export type MarketplaceCardItem = {
   likes: number;
   category?: string;
   createdAt?: string;
+  /** Whether the author asked for it to be put in front. */
+  featured?: boolean;
   /**
    * The name of the built preview.
    *
@@ -160,10 +162,16 @@ export function ComponentCard({
       data-component-card={item.slug}
       className="group relative flex flex-col"
     >
-      {/* Cover — the video only mounts while the pointer is over the card,
-          exactly like a card catalogue that never streams off-screen. */}
+      {/*
+        The picture, and nothing else.
+
+        The card used to sit in a frame of its own — a muted slab with a
+        panel inside it — which is a box inside the cell the grid draws
+        around it, and two boxes on top of each other is one box too many.
+        The rules the grid draws are the box; the picture is the thing in it.
+      */}
       <div
-        className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/50 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/25 group-hover:shadow-[0_6px_18px_-14px_rgba(0,0,0,0.45)]"
+        className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/60 bg-background transition-[border-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:border-foreground/20 group-hover:shadow-[0_6px_18px_-14px_rgba(0,0,0,0.45)]"
         onMouseEnter={() => item.videoUrl && setVideoLoaded(true)}
         onMouseLeave={() => setVideoLoaded(false)}
         onTouchStart={() => item.videoUrl && setVideoLoaded(true)}
@@ -195,7 +203,6 @@ export function ComponentCard({
             {item.category}
           </span>
         ) : null}
-
         {/* Video indicator */}
         {item.videoUrl ? (
           <span className="absolute top-2 right-2 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-background/70 text-foreground/70 backdrop-blur-sm">
@@ -240,13 +247,7 @@ export function ComponentCard({
           ) : null}
         </div>
       </div>
-
-      {/* Meta — deliberately nothing.
-          A card is a picture of the work, and the two lines of text under it
-          were the same name and the same age repeated down a column of thirty
-          covers. The title is still on the cover's own link (`aria-label`), on
-          the detail page, on the profile and in the rail; what the grid needed
-          was the image alone, aligned edge to edge. */}    </article>
+    </article>
   );
 }
 

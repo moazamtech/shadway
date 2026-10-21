@@ -11,6 +11,7 @@ import {
 } from "@/components/marketplace/component-grid";
 import { usePalette } from "@/components/marketplace/palette-context";
 import { AppShell } from "@/components/marketplace/app-shell";
+import { HomeSections } from "@/components/marketplace/home-sections";
 import { ComponentDetailDialog } from "@/components/marketplace/component-detail-dialog";
 import { FEED_LIMIT } from "@/lib/feed";
 
@@ -258,19 +259,44 @@ export function ComponentExchangeHome({
           </>
         }
       >
-        <div className="px-3 py-4 lg:px-4 lg:py-5">
-          <ComponentGrid
-            items={items}
-            filters={filters}
-            loading={loading}
-            failed={failed}
-            chips="rail"
-            onSave={toggleSave}
-            onLike={toggleLike}
-            savedSlugs={savedSlugs}
-            likedSlugs={likedSlugs}
-            onOpen={setOpenSlug}
-          />
+        {/*
+          The content's own gutter is the page's gutter: twelve pixels on
+          every side, so the grid's outer rule lands exactly on the rail and
+          the rows of cards hang off it rather than floating beside it.
+        */}
+        <div className="px-3 py-4">
+          {/*
+            The page, in sections, until something narrows it down.
+
+            A shelf is not one undifferentiated row of things: the newest are
+            at the top, the ones worth showing off are next, and then the
+            shelves themselves, each with a way in. Once the reader picks a
+            shelf or a kind, they want the list — so the single grid takes
+            over the moment a filter is on.
+          */}
+          {filters.isFiltering ? (
+            <ComponentGrid
+              items={items}
+              filters={filters}
+              loading={loading}
+              failed={failed}
+              chips="rail"
+              onSave={toggleSave}
+              onLike={toggleLike}
+              savedSlugs={savedSlugs}
+              likedSlugs={likedSlugs}
+              onOpen={setOpenSlug}
+            />
+          ) : (
+            <HomeSections
+              items={items}
+              onOpen={setOpenSlug}
+              onSave={toggleSave}
+              onLike={toggleLike}
+              savedSlugs={savedSlugs}
+              likedSlugs={likedSlugs}
+            />
+          )}
         </div>
       </AppShell>
     </>

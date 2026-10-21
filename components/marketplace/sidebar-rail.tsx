@@ -28,30 +28,25 @@ import {
 
 /* ------------------------------------------------------------------- css -- */
 
-/* The shared hover treatment for rail rows: an absolute pill layer that
-   fills with the app's one hover tone (--accent), so a lit row on the rail
-   matches a lit row in a menu; pressing releases it back toward the rail.
-   The interactive parent carries `group/row` and `relative`, and its visible
-   children `relative` so they paint above the pill.
-
-   The pill is also where "you are here" lives. Fill is the one part of a row
-   that survives the collapsed rail — the label is gone by then, the icon
-   alone cannot carry the difference — so the selected tone has to be a
-   stronger surface than the hover tone rather than a heavier label. The rail
-   runs a four-step ladder, each rung one little closer to the ink:
-   rest (the canvas) → hover (--accent) → selected → selected under the
-   pointer. Selected therefore rides --foreground at 10% and 15% instead of
-   another grey — the same two tints the rail's own resize handle lifts
-   through, and the only ones that step further in the same direction in both
-   themes: the theme has nothing between --accent and the canvas (--muted and
-   --input land on the hover tone's own step, --well IS the canvas), and dark
-   climbs where light descends. */
+/* The rail's rows.
+ *
+ * A row is a line of text with an icon on it, and it is 32 pixels tall
+ * because that is the height a list of links is legible at: eight pixels
+ * above the text, eight below, and nothing else. The label sits 14 pixels
+ * from the left of the row's own box, which is where a link's text sits in
+ * every other list on the screen.
+ *
+ * The fill under a row is the app's one hover tone, and it is what says
+ * "you are here" as well: the selected row is lit with the same tone a
+ * pointer puts under a row, held down while the pointer is elsewhere. The
+ * interactive parent carries `group/row` and `relative`, and its visible
+ * children `relative` so they paint above the fill. */
 function RowPill({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "absolute inset-0 rounded-lg transition-[background-color] duration-150 ease-out group-hover/row:bg-accent group-active/row:bg-accent-pressed",
+        "absolute inset-0 rounded-lg transition-[background-color] duration-150 ease-out group-hover/row:bg-accent group-active/row:bg-accent",
         className
       )}
     />
@@ -85,7 +80,7 @@ const TYPE = "text-[13.5px]/4 font-medium";
    click in the dead space between two rows still lands on one of them. That
    is why the padding and the hit area are two different numbers. */
 const ROW =
-  `group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 ${TYPE} text-foreground-soft transition-[padding,color] duration-150 ease-out group-hover/row:text-foreground before:absolute before:-inset-x-3 before:top-0 before:bottom-0 sidebar-collapsed:pl-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
+  `group/row sidebar-glide relative flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg ps-3.5 pe-2 ${TYPE} text-foreground-soft transition-[padding,color] duration-150 ease-out group-hover/row:text-foreground before:absolute before:-inset-x-3 before:top-0 before:bottom-0 sidebar-collapsed:ps-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring`;
 
 /* Width rides `--sidebar-width` (painted pre-hydration by the layout script,
    driven live by useSidebar), so drags track 1:1 and the collapse toggle
@@ -257,28 +252,18 @@ function RailRow({
       <RowPill
         className={cn(
           active &&
-            "bg-foreground/10 group-hover/row:bg-foreground/15 group-active/row:bg-foreground/15"
+            "bg-accent group-hover/row:bg-accent group-active/row:bg-accent"
         )}
       />
       {/*
-        The place you are, marked at the edge of the column.
+        The place you are, marked by the fill under the row.
 
         A filled pill is the chat app's way of saying "this one", and it is
         the right way for a list of conversations. A catalogue is a different
-        thing: the reader is looking for a place, and a place is marked by a
-        line in the margin of the map beside it. The line sits on the rail's
-        own edge, so it reads as the column's margin rather than as another
-        part of the button.
+        thing: the reader is looking for a place, and a place is marked by
+        the row itself being the one that is lit — the same tint the pointer
+        puts under a row, held down while the pointer is elsewhere.
       */}
-      {active ? (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary",
-            sub ? "-left-3" : "-left-3"
-          )}
-        />
-      ) : null}
       {RowIcon ? (
         <span className="relative shrink-0">
           <RowIcon className="h-4 w-4" />
@@ -294,8 +279,7 @@ function RailRow({
         >
           {trailing}
         </span>
-      ) : null}
-    </>
+      ) : null}    </>
   );
 
   const row = cn(
@@ -303,7 +287,7 @@ function RailRow({
     active && "text-foreground",
     // A sub-row is indented to the shelf's content edge, so the eye reads
     // the nesting without a line or a box to draw it.
-    sub && "h-7 pl-7 text-[13px] text-muted-foreground sidebar-collapsed:hidden",
+    sub && "h-7 ps-3.5 text-[13px] text-muted-foreground sidebar-collapsed:hidden",
     className,
   );
 
@@ -376,8 +360,16 @@ export function SidebarRail({
    * A shelf is a thing you open, so the rail remembers which ones you left
    * folded: a reader who only ever works in the components does not want the
    * marketing blocks to take half the column every time they come back.
+   *
+   * They start folded. A shelf holds forty kinds, and a rail that opened
+   * both of them was a wall of words with the catalogue at the bottom of it —
+   * the reader had to scroll past everything to reach the thing they came
+   * for. The shelf you are in is the one that opens.
    */
   const [openShelves, setOpenShelves] = React.useState<Record<string, boolean>>({});
+
+  const isShelfOpen = (slug: string) =>
+    openShelves[slug] ?? (activeCategory === slug || activeTag !== "");
 
   const isActive = (item: RailNavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -388,9 +380,9 @@ export function SidebarRail({
       className={cn(
         /* The rail wears the tinted canvas itself (no panel of its own) —
            the tint washes --background, and the surface panel floats on top.
-           While a drag is live the width must track the pointer 1:1, so the
-           glide comes off for the duration. */
-        "group/sidebar relative shrink-0 flex-col gap-2 pt-3 pb-2",
+           The divider between the two is the panel's own edge, so there is
+           nothing to draw here. */
+        "group/sidebar relative shrink-0 flex-col gap-1 pt-3 pb-2",
         "w-[var(--sidebar-width,14rem)] px-3",
         resizing ? "" : GLIDE,
         className
@@ -432,7 +424,7 @@ export function SidebarRail({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-1">
         {/* The nav sits on the same two-pixel pitch as the rows inside it, so
             the column reads as one stack rather than as a list with a heading
             above it. The negative margin pulls it up onto the brand row's
@@ -477,20 +469,19 @@ export function SidebarRail({
             </div>
           ) : (
             <>
-              {/* The shelf, drawn as a shelf: the label, then a hairline that
-                  runs to the edge of the column. A heading that is a word
-                  floating in space is a caption; a heading with a rule
-                  attached to it is a shelf, and the rail below it is what is
-                  on it. */}
-              <div className="flex items-center gap-2.5 pt-1 pl-3 sidebar-collapsed:hidden">
-                <span className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/70 uppercase">
-                  The catalogue
-                </span>
-                <span aria-hidden className="h-px flex-1 bg-border/70" />
-              </div>
+              {/* The shelf, drawn as a shelf: a heading and the things on it.
+
+                  The heading is a small, quiet line of type — a label for
+                  what follows, the way a table's caption is a label for the
+                  table. A rule running to the edge of the column made it
+                  look like a section of a document, and this column is a
+                  list of places, not a document. */}
+              <p className="px-3.5 pt-1 pb-0.5 text-xs font-medium text-muted-foreground sidebar-collapsed:hidden">
+                Catalogue
+              </p>
               <div className="flex flex-col gap-0.5">
                 {catalog.map((group) => {
-                  const open = openShelves[group.slug] ?? true;
+                  const open = isShelfOpen(group.slug);
                   return (
                   <div key={group.slug} className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-0.5">
@@ -501,7 +492,7 @@ export function SidebarRail({
                         active={activeCategory === group.slug && !activeTag}
                         className="w-auto min-w-0 flex-1"
                         trailing={
-                          <span className="rounded-full bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                          <span className="text-xs tabular-nums text-muted-foreground/80">
                             {group.count}
                           </span>
                         }
@@ -523,7 +514,7 @@ export function SidebarRail({
                         }
                         aria-expanded={open}
                         aria-label={`${open ? "Collapse" : "Expand"} ${group.label}`}
-                        className="flex h-7 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        className="flex h-7 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sidebar-collapsed:hidden"
                       >
                         <ChevronRight
                           className={cn(
@@ -534,13 +525,14 @@ export function SidebarRail({
                         />
                       </button>
                     </div>
-                    {/* The kinds of thing on the shelf, hung off it by a
-                        hairline. A shelf of forty buttons is not browsable; a
-                        shelf of "buttons" and "inputs" is, and the line says
+                    {/* The kinds of thing on the shelf, indented under it.
+
+                        A shelf of forty buttons is not browsable; a shelf of
+                        "buttons" and "inputs" is, and the indentation says
                         they belong to the shelf above them rather than being
                         a list of their own. */}
                     {open ? (
-                    <div className="relative ml-9 flex flex-col gap-px before:absolute before:top-0 before:bottom-3 before:left-0 before:w-px before:bg-border/60">
+                    <div className="flex flex-col gap-0.5 pl-3.5">
                       {group.tags.map((tag) => (
                         <RailRow
                           key={tag.slug}

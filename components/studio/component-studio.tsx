@@ -33,6 +33,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageRails } from "@/components/marketplace/page-rails";
 import { StudioEditor, languageFor } from "@/components/studio/studio-editor";
 import { PublishPanel } from "@/components/studio/publish-panel";
 import { ImportGithubDialog } from "@/components/studio/import-github-dialog";
@@ -816,7 +817,11 @@ export function ComponentStudio({
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-background">
+      {/* The page's edges — the same two hairlines the rest of the site is
+          drawn on. The studio is a page like any other, and a page with a
+          margin reads as a sheet rather than as a canvas. */}
+      <PageRails markAt={48} />
       {/* Header — breadcrumb on the left, project actions on the right. */}
       <header className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-3 backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-1">

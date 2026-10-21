@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Download, Heart, Sparkles, Terminal, Zap } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InstallCommand } from "@/components/marketplace/install-command";
+import {
+  BoltMark,
+  BunMark,
+  LovableMark,
+  NpmMark,
+  PnpmMark,
+  V0Mark,
+} from "@/components/marketplace/brand-marks";
 import { useOrigin } from "@/hooks/use-origin";
 import { cn } from "@/lib/utils";
 
@@ -13,17 +21,22 @@ type Props = {
   registryDependencies: string[];
 };
 
-type Tab = "cli" | "v0" | "lovable" | "bolt";
+type Tab = "npm" | "pnpm" | "bun" | "v0" | "lovable" | "bolt";
 
-const TABS: { id: Tab; label: string; icon: typeof Terminal }[] = [
-  { id: "cli", label: "CLI", icon: Terminal },
-  { id: "v0", label: "v0", icon: Sparkles },
-  { id: "lovable", label: "Lovable", icon: Heart },
-  { id: "bolt", label: "Bolt", icon: Zap },
+const TABS: { id: Tab; label: string; mark: React.ComponentType<{ className?: string }> }[] = [
+  { id: "npm", label: "npm", mark: NpmMark },
+  { id: "pnpm", label: "pnpm", mark: PnpmMark },
+  { id: "bun", label: "bun", mark: BunMark },
+  { id: "v0", label: "v0", mark: V0Mark },
+  { id: "lovable", label: "Lovable", mark: LovableMark },
+  { id: "bolt", label: "Bolt", mark: BoltMark },
 ];
 
+/** The tabs that install the component themselves, rather than prompting for it. */
+const CLI_TABS = new Set<Tab>(["npm", "pnpm", "bun"]);
+
 /** The prompt each AI tool needs to pull the component in by itself. */
-const PROMPTS: Record<Exclude<Tab, "cli">, { title: string; description: string; body: (url: string) => string }> = {
+const PROMPTS: Record<"v0" | "lovable" | "bolt", { title: string; description: string; body: (url: string) => string }> = {
   v0: {
     title: "Open in v0",
     description: "Paste this into v0 and it drops the component straight into your project.",
@@ -52,7 +65,8 @@ const PROMPTS: Record<Exclude<Tab, "cli">, { title: string; description: string;
  * people who need them.
  */
 export function InstallTabs({ slug, dependencies, registryDependencies }: Props) {
-  const [tab, setTab] = useState<Tab>("cli");
+  const [tab, setTab] = useState<Tab>("npm");
+  const [manager, setManager] = useState<"npm" | "pnpm" | "bun">("npm");
   const [copied, setCopied] = useState<string | null>(null);
 
   const siteOrigin = useOrigin();
@@ -66,19 +80,23 @@ export function InstallTabs({ slug, dependencies, registryDependencies }: Props)
     } catch {}
   }
 
-  const prompt = tab === "cli" ? null : PROMPTS[tab];
+  const prompt =
+    tab === "v0" || tab === "lovable" || tab === "bolt" ? PROMPTS[tab] : null;
 
   return (
     <div className="space-y-5">
       <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
         {TABS.map((item) => {
-          const Icon = item.icon;
+          const Mark = item.mark;
           return (
             <button
               key={item.id}
               type="button"
               aria-pressed={tab === item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => {
+                setTab(item.id);
+                if (CLI_TABS.has(item.id)) setManager(item.id as "npm" | "pnpm" | "bun");
+              }}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color] duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                 tab === item.id
@@ -86,16 +104,20 @@ export function InstallTabs({ slug, dependencies, registryDependencies }: Props)
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+              <Mark className="h-3.5 w-3.5" />
               {item.label}
             </button>
           );
         })}
       </div>
 
-      {tab === "cli" ? (
+      {CLI_TABS.has(tab) ? (
         <div className="space-y-4">
-          <InstallCommand registryUrl={registryUrl} />
+          <InstallCommand
+            registryUrl={registryUrl}
+            manager={manager}
+            onManagerChange={(next) => setManager(next as "npm" | "pnpm" | "bun")}
+          />
 
           <CopyRow
             label="Registry URL"

@@ -9,6 +9,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrandLoader } from "@/components/brand-loader";
+import { RailCorners } from "@/components/marketplace/rail-corners";
 import {
   ComponentCard,
   type MarketplaceCardItem,
@@ -220,16 +221,20 @@ export function useGridFilters({
  * in the narrow column beside the author's bio, and a grid that counted the
  * window gave the same component a different size on each surface.
  *
- * The track is capped at `22.5rem`. A `1fr` track is always exactly as wide as
+ * The track is capped at `15.5rem`. A `1fr` track is always exactly as wide as
  * the space it is given, so with two containers of different widths the same
  * card came out two sizes — 1fr cannot be equal in two boxes that are not
  * equal, and the two boxes here are 1134px and 814px wide. Capping the track
  * makes the card one size in both, and leaves the container to decide how many
  * of them fit. `minmax(0, …)` keeps a narrow container from overflowing: below
  * the width a card needs, it shrinks rather than spilling out of its column.
+ *
+ * The card is small on purpose. A component catalogue is browsed by comparing
+ * twenty of them at once, and a card that needs a scroll to see its
+ * neighbours is a card that can only be compared two at a time.
  */
 const GRID_CLASSES =
-  "grid grid-cols-1 gap-5 @[520px]:grid-cols-[repeat(2,minmax(0,22.5rem))] @[900px]:grid-cols-[repeat(3,minmax(0,22.5rem))] @[1200px]:grid-cols-[repeat(4,minmax(0,22.5rem))]";
+  "grid grid-cols-1 @[420px]:grid-cols-[repeat(2,minmax(0,1fr))] @[680px]:grid-cols-[repeat(3,minmax(0,1fr))] @[940px]:grid-cols-[repeat(4,minmax(0,1fr))] @[1180px]:grid-cols-[repeat(5,minmax(0,1fr))] border-t border-l border-border/60";
 
 /**
  * The searchable, sortable, category-filtered card grid.
@@ -281,7 +286,7 @@ export function ComponentGrid({
    * the rail is behind a drawer and the chips are the only filter on screen;
    * "always" is for a page with no rail catalog of its own.
    */
-  chips?: "rail" | "always";
+  chips?: "rail" | "always" | "never";
   /** Replaces the built-in empty state — a profile has its own copy. */
   empty?: ReactNode;
   onSave?: (slug: string) => void;
@@ -399,17 +404,31 @@ export function ComponentGrid({
           <BrandLoader className="min-h-[320px] rounded-xl" />
         )
       ) : state.visible.length ? (
-        <div className={GRID_CLASSES}>
+        /* The grid is a table.
+           *
+           * The hairlines between the cells are what make twenty components
+           * comparable at a glance: a row of pictures with a rule between each
+           * one is a shelf, and a row of pictures floating in space is a
+           * gallery. The rules are drawn by the cells themselves — the grid
+           * owns the top and left edges, every cell owns the other two — so
+           * the drawing is one piece and the lines meet where they meet.
+           */
+        <div className={cn(GRID_CLASSES, "relative")}>
+          <RailCorners />
           {state.visible.map((item) => (
-            <ComponentCard
+            <div
               key={item.slug}
-              item={item}
-              onOpen={onOpen}
-              onSave={onSave}
-              onLike={onLike}
-              savedSlugs={savedSlugs}
-              likedSlugs={likedSlugs}
-            />
+              className="min-w-0 border-r border-b border-border/60 p-1.5"
+            >
+              <ComponentCard
+                item={item}
+                onOpen={onOpen}
+                onSave={onSave}
+                onLike={onLike}
+                savedSlugs={savedSlugs}
+                likedSlugs={likedSlugs}
+              />
+            </div>
           ))}
         </div>
       ) : failed || state.isFiltering ? (

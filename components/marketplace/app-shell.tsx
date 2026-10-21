@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { SidebarRail } from "@/components/marketplace/sidebar-rail";
 import { CommandPalette } from "@/components/marketplace/command-palette";
+import { PageRails } from "@/components/marketplace/page-rails";
 import { PaletteProvider } from "@/components/marketplace/palette-context";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +141,21 @@ export function AppShell({
           panelClassName,
         )}
       >
+        {/*
+          The page's edges.
+
+          Two hairlines down the sides of the content, with a small square
+          where the header's bottom edge crosses them. A page with a margin
+          reads as a sheet; a page that simply ends reads as a canvas — and
+          the squares are what say the lines were drawn on purpose rather
+          than left over.
+
+          They are drawn on the panel rather than on the scrolling content,
+          so they run the whole height of the page while the content moves
+          under them: one drawing, the length of the page.
+        */}
+        <PageRails markAt={toolbar !== undefined ? 48 : 0} />
+
         {toolbar !== undefined ? (
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3 lg:px-4">
             <Button
